@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows:
@@ -28,7 +28,7 @@ jobs:
         run: npm install
 
       - name: Build Windows EXE
-        run: npm run desktop:dist
+        run: npm run build && npx electron-builder --win nsis --x64 --publish never
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
@@ -83,4 +83,3 @@ jobs:
           name: EstateFlow-Android
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
