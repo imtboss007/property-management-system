@@ -1,40 +1,66 @@
-# EstateFlow — Property Management System
+# EstateFlow — Windows + Android property workspace
 
-A mobile-first React + TypeScript + Vite starter for a property management workspace.
+A shared React application with a premium, calm dashboard UI, packaged for Windows desktop and Android mobile. GitHub Actions builds a Windows `.exe` installer and Android `.apk`; successful builds are published in GitHub Releases.
 
-## Included in this starter
+## Included in this build
 
-- Premium responsive dashboard UI
-- Six property module entry points:
-  - Property Sale
-  - Property Loans
-  - JV / JDA / JD
-  - SR Rate Settlement
-  - Agricultural Land
-  - Commercial Land
-- Navigation placeholders for contacts, documents, schedules and WhatsApp automation
-- Search field and mobile navigation
+- Six property workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, and Commercial Land.
+- Property records with module, location, value, status, contact, and notes.
+- Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
+- One-time task records with date, time, type, linked property, notes, completion, and delete.
+- WhatsApp click-to-chat helper that opens a prefilled message.
+- Local data persistence in the app's browser/device storage and JSON backup/restore.
+- Responsive layouts for desktop and mobile.
 
-## Run locally
+## Important scope notes
 
-Install Node.js 20 or newer, then run:
+This is the cross-platform installable MVP. Data is stored locally on each device and does not yet synchronize between PC and Android. Saved tasks are records; reliable background notifications require a hosted scheduler and notification channel. The WhatsApp screen opens a prefilled chat but does not auto-send, repeat messages, or detect inbound replies. These production automation features require a deployed backend, WhatsApp Business Platform credentials, webhook configuration, message-template compliance where applicable, consent/opt-out handling, and server-side job tracking. Secure cloud login, roles, and cloud document storage are not yet connected.
+
+## Download Windows + Android from this repository
+
+1. Upload this repository's files to your GitHub repository and push them to `main` (or `master`).
+2. Open the repository's **Actions** tab. Allow the workflow to finish successfully.
+3. The workflow publishes an `EstateFlow Build N` entry in **Releases** with both the Windows `.exe` installer and Android `.apk`.
+4. On Windows, download and run the `.exe`. On Android, download the `.apk`, open it, and approve installation from that source if Android asks.
+
+The first successful Android build runs `npx cap add android` in the GitHub runner, so the generated native Android project is a build output and isn't required to be committed into this source archive.
+
+## Run in a browser for development
+
+Requires Node.js 22 and npm.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-To create a production build:
+## Packaging locally
+
+Windows (run on Windows):
 
 ```bash
-npm run build
-npm run preview
+npm ci
+npm run desktop:dist
 ```
 
-## Important implementation status
+Android (requires Java 17 and Android SDK):
 
-This ZIP is the **starter UI**, not yet a complete deployed property management system. The dashboard currently uses placeholder navigation and does not yet persist property records, authenticate users, execute background schedules, or send/detect WhatsApp messages.
+```bash
+npm ci
+npm run build
+npx cap add android
+npx cap sync android
+cd android
+./gradlew assembleDebug
+```
 
-Those require subsequent implementation of a backend/database, authentication, durable scheduler/worker, and an authorized WhatsApp integration. Never put API secrets in frontend code.
+## Repository files
 
-Default time zone for the intended scheduler: `Asia/Kolkata`.
+- `src/` — app interface and features
+- `electron/` — secure Electron desktop entry point
+- `capacitor.config.ts` — shared Android wrapper config
+- `.github/workflows/build-release.yml` — automatic Windows/APK build and release workflow
+
+## Security
+
+Do not place API tokens or signing keys in source files. Use GitHub Actions secrets for future production backend and signing configuration.

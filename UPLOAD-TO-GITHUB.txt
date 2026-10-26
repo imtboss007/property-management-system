@@ -1,0 +1,30 @@
+ESTATEFLOW — READY-TO-UPLOAD REPOSITORY PACKAGE
+
+The requested repository URL currently returns 404 through the connected GitHub account, so these files have NOT been pushed to GitHub.
+
+To put them into the intended repository without using a terminal:
+1. Open https://github.com/imtboss007/property-management-system
+2. If GitHub opens the repository, choose Add file > Upload files.
+3. Extract this ZIP on your computer first, then upload the contents of the EstateFlow-Repository folder (including the hidden .github folder). Commit the upload to main.
+4. Open the Actions tab. Enable GitHub Actions if prompted.
+5. Wait for “EstateFlow PC and Android builds” to finish successfully.
+6. Open Releases. Download the .exe installer for Windows or the .apk for Android.
+
+If step 1 displays 404, the repository does not exist at that address or is not available to the current account. Create it under the imtboss007 account with the exact name property-management-system, then upload these files.
+
+WHAT THE INCLUDED WORKFLOW BUILDS
+- Windows x64 installer (.exe)
+- Android debug APK (.apk)
+
+APP CURRENTLY INCLUDED
+- Polished responsive EstateFlow UI for desktop and mobile
+- Six property categories, local property records, contacts, one-time task records, JSON backup/restore
+- WhatsApp click-to-chat helper
+
+NOT YET IMPLEMENTED
+- Shared cloud database/sync, multi-user login and role permissions
+- Reliable server-side notifications after the app is closed
+- Automated WhatsApp sending/retry and inbound reply detection
+- Secure cloud document vault
+
+Those features require a hosted backend and credentials; this ZIP does not claim they are already active.
