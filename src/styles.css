@@ -459,3 +459,48 @@ h1{font-family:"Manrope",sans-serif;color:#102b42;letter-spacing:-1.25px}
   .control-metrics{grid-template-columns:1fr}
   .institutional-stats{grid-template-columns:1fr 1fr}
 }
+
+
+/* WhatsApp scheduling centre */
+.whatsapp-workspace{overflow:hidden}
+.wa-connection-card{display:flex;align-items:center;gap:14px;padding:16px;border:1px solid #dfe7ed;border-radius:12px;background:#fff;margin:16px 0 8px}
+.wa-connection-card.wa-connected{background:#f1faf7;border-color:#cce8da}
+.wa-connection-card.wa-disconnected{background:#f8fafc}
+.wa-connection-icon{display:grid;place-items:center;width:43px;height:43px;flex-shrink:0;background:#e5f4f2;color:#177b77;border-radius:12px}
+.wa-connection-copy{min-width:0;flex:1}
+.wa-connection-copy strong{display:block;font:750 13px "Manrope",sans-serif;color:#17354b;margin-bottom:5px}
+.wa-connection-copy p{font-size:10.5px;color:#657d8e;line-height:1.65;margin:0 0 5px}
+.wa-connection-copy small{display:block;font-size:9.5px;color:#718696;line-height:1.6;overflow-wrap:anywhere}
+.wa-connection-error{color:#a2443e!important;overflow-wrap:anywhere}
+.wa-account-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:12px 0 17px}
+.wa-mode-switch{display:flex;gap:5px;flex-wrap:wrap;padding:5px;border:1px solid #dfe8ef;background:#f5f8fb;border-radius:10px;margin:20px 0 14px}
+.wa-mode-switch button{border:0;background:transparent;color:#647b8c;border-radius:7px;padding:10px 13px;font-size:10.5px;font-weight:700}
+.wa-mode-switch button.wa-mode-active{background:#12364f;color:#fff;box-shadow:0 2px 6px #0d2e430b}
+.wa-form{max-width:none;width:100%;display:flex;flex-direction:column;gap:14px}
+.wa-form .form-two{margin:0}
+.wa-form label>span{display:block;font-size:9.5px;color:#75889a;font-weight:400;line-height:1.6;margin-top:3px;margin-bottom:5px}
+.wa-bulk-form{gap:15px}
+.bulk-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.bulk-header h3{font:750 15px "Manrope",sans-serif;color:#17374d;margin:0 0 5px}
+.bulk-header p{font-size:10.5px;color:#718395;line-height:1.6;max-width:580px;margin:0}
+.bulk-rules{display:flex;flex-direction:column;gap:7px;padding:13px 14px;border:1px solid #eadfbd;background:#fffbef;border-radius:9px}
+.bulk-rules strong{font-size:10.5px;color:#7c5b20}
+.bulk-rules span{font-size:10px;color:#806f50;line-height:1.65}
+.wa-queue-heading{align-items:center;gap:14px;flex-wrap:wrap}
+.wa-empty{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:25px;border:1px dashed #d5e0e8;background:#f8fafc;border-radius:12px;color:#637b8c}
+.wa-empty strong{font:750 13px "Manrope",sans-serif;color:#17374d}
+.wa-empty p{max-width:680px;font-size:10.5px;line-height:1.7;color:#75889a;margin:0}
+.status-pill.status-processing{background:#e6effb;color:#3c6496}
+.status-pill.status-scheduled{background:#e7f2fb;color:#3f719c}
+.status-pill.status-sent{background:#e6f4e9;color:#26734d}
+.status-pill.status-failed{background:#fae7e7;color:#a44040}
+.status-pill.status-replied{background:#edf0f2;color:#566977}
+.status-pill.status-cancelled{background:#f1eeee;color:#746d6d}
+@media(max-width:700px){
+  .wa-connection-card{align-items:flex-start;flex-wrap:wrap;padding:12px}
+  .wa-connection-copy{width:calc(100% - 60px);flex:1 1 calc(100% - 60px)}
+  .wa-connection-card>.secondary-button{margin-left:56px}
+  .wa-account-actions{align-items:flex-start;flex-direction:column;gap:10px}
+  .bulk-header{flex-direction:column}
+  .wa-mode-switch button{flex:1}
+}
