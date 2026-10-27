@@ -7,7 +7,7 @@ import {
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X,
   Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download,
-  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -658,6 +658,56 @@ export default function App() {
     setFinancials(prev => prev.filter(item => item.id !== id));
     remoteDelete("financial_transactions", id);
   };
+
+  const saveRisk = (data: Omit<RiskRecord, "id" | "createdAt">) => {
+    const record: RiskRecord = { ...data, id: uid(), createdAt: new Date().toISOString() };
+    setRiskRecords(prev => [record, ...prev]);
+    remoteUpsert("risk_register", {
+      id: record.id, title: record.title, category: record.category, severity: record.severity,
+      status: record.status, owner: record.owner, due_date: record.dueDate || null,
+      entity_label: record.entity, mitigation: record.mitigation, created_at: record.createdAt
+    });
+    setShowRiskForm(false);
+    setNotice(backendConfigured && session ? "Risk added to the shared register." : "Risk saved on this device.");
+  };
+  const closeRisk = (record: RiskRecord) => {
+    const updated = { ...record, status: record.status === "Closed" ? "Open" : "Closed" };
+    setRiskRecords(prev => prev.map(item => item.id === record.id ? updated : item));
+    remoteUpsert("risk_register", {
+      id: updated.id, title: updated.title, category: updated.category, severity: updated.severity,
+      status: updated.status, owner: updated.owner, due_date: updated.dueDate || null,
+      entity_label: updated.entity, mitigation: updated.mitigation, created_at: updated.createdAt
+    });
+  };
+  const deleteRisk = (id: string) => {
+    setRiskRecords(prev => prev.filter(item => item.id !== id));
+    remoteDelete("risk_register", id);
+  };
+  const saveApproval = (data: Omit<ApprovalRequest, "id" | "requestedAt" | "decidedAt" | "decisionNotes" | "status">) => {
+    const record: ApprovalRequest = { ...data, id: uid(), requestedAt: new Date().toISOString(), decidedAt: "", decisionNotes: "", status: "pending" };
+    setApprovalRequests(prev => [record, ...prev]);
+    remoteUpsert("approval_requests", {
+      id: record.id, title: record.title, approval_type: record.area, entity_label: record.entity,
+      requested_by: record.requestedBy, approver: record.approver, priority: record.priority,
+      status: record.status, rationale: record.rationale, decision_notes: "", requested_at: record.requestedAt, decided_at: null
+    });
+    setShowApprovalForm(false);
+    setNotice(backendConfigured && session ? "Approval request submitted to the shared queue." : "Approval request saved on this device.");
+  };
+  const decideApproval = (record: ApprovalRequest, status: "approved" | "rejected") => {
+    const updated: ApprovalRequest = { ...record, status, decisionNotes: status === "approved" ? "Approved in EstateFlow." : "Rejected in EstateFlow.", decidedAt: new Date().toISOString() };
+    setApprovalRequests(prev => prev.map(item => item.id === record.id ? updated : item));
+    remoteUpsert("approval_requests", {
+      id: updated.id, title: updated.title, approval_type: updated.area, entity_label: updated.entity,
+      requested_by: updated.requestedBy, approver: updated.approver, priority: updated.priority,
+      status: updated.status, rationale: updated.rationale, decision_notes: updated.decisionNotes,
+      requested_at: updated.requestedAt, decided_at: updated.decidedAt
+    });
+  };
+  const deleteApproval = (id: string) => {
+    setApprovalRequests(prev => prev.filter(item => item.id !== id));
+    remoteDelete("approval_requests", id);
+  };
   const toggleTask = (id: string) => {
     const task = tasks.find(item => item.id === id);
     if (!task) return;
@@ -722,7 +772,7 @@ export default function App() {
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> YOUR PROPERTY COMMAND CENTRE</div><h1>{active === "Overview" ? "Good things are in motion." : active}</h1><p className="subtitle">{active === "Overview" ? "Your properties, deals and follow-ups — thoughtfully organised." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Overview" && <>
             <section className="institutional-banner">
@@ -817,7 +867,26 @@ export default function App() {
             <div className="section-heading"><div><h2>Follow-up queue</h2><p>{whatsappFollowups.length} scheduled or historical messages</p></div></div>
             {whatsappFollowups.length ? <div className="record-list">{whatsappFollowups.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><MessageCircle size={20}/></div><div className="record-main"><h3>{record.phone}</h3><p>{record.templateName || "Manual message"} <span>•</span> {record.scheduledAt ? new Date(record.scheduledAt).toLocaleString() : "No send time"}</p><small>Status: {record.status}{record.stopOnReply ? " · Stop on reply enabled" : ""}</small>{record.lastError&&<small>{record.lastError}</small>}</div><div className="record-side"><span className={`status-pill status-${record.status}`}>{record.status}</span>{record.status === "scheduled" && <button className="delete-button" onClick={()=>void cancelWhatsAppFollowup(record)} aria-label="Cancel follow-up"><X size={15}/></button>}</div></article>)}</div> : <Empty icon={<MessageCircle size={22}/>} title="No follow-ups queued" text="Schedule an approved template above. Automatic delivery begins only after your backend worker and webhook are deployed." action="Back to overview" onClick={()=>go("Overview")}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Records are currently stored in this browser's local storage. They are not synced across devices and may be lost if browser data is cleared.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,tasks,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid EstateFlow backup.");}};input.click();}}>Import backup JSON</button>{backendConfigured && session && <button className="secondary-button" onClick={async () => { await supabase?.auth.signOut(); }}>Sign out of shared workspace</button>}</div></section>}
+          {active === "Risk & Compliance" && <section className="data-panel">
+            <div className="section-heading"><div><span className="section-kicker">CONTROL FRAMEWORK</span><h2>Risk & compliance register</h2><p>Track risks, owners, mitigation and time-bound actions.</p></div><button className="primary-button" onClick={()=>setShowRiskForm(true)}><Plus size={16}/> Log risk</button></div>
+            <div className="risk-overview-grid"><div className="risk-overview-card"><span>High / critical open risks</span><strong>{highRiskCount}</strong></div><div className="risk-overview-card"><span>Open litigation matters</span><strong>{openLitigationCount}</strong></div><div className="risk-overview-card"><span>Overdue tasks</span><strong>{overdueTaskCount}</strong></div><div className="risk-overview-card"><span>Documents expiring in 30 days</span><strong>{expiringDocumentCount}</strong></div></div>
+            <div className="governance-callout"><ShieldCheck size={19}/><div><strong>Evidence-first governance</strong><p>Capture risk, owner, mitigation and due date against a source record. This working register is not a substitute for legal, credit, compliance or regulated-investment review.</p></div></div>
+            {riskRecords.length ? <div className="record-list">{riskRecords.map(record=><article className="record-card" key={record.id}><div className={`risk-severity-mark severity-${record.severity.toLowerCase()}`}/><div className="record-main"><h3>{record.title}</h3><p>{record.category} <span>•</span> {record.entity || "No linked entity"}</p><small>Owner: {record.owner || "Unassigned"}{record.dueDate ? ` · Due ${record.dueDate}` : ""}</small>{record.mitigation&&<small>Mitigation: {record.mitigation}</small>}</div><div className="record-side"><span className={`status-pill risk-${record.severity.toLowerCase()}`}>{record.severity}</span><span className="status-pill">{record.status}</span><button className="edit-button" onClick={()=>closeRisk(record)} aria-label={record.status==="Closed"?"Reopen risk":"Close risk"}>{record.status==="Closed" ? <ArrowUpRight size={15}/> : <CheckCircle2 size={15}/>}</button><button className="delete-button" onClick={()=>deleteRisk(record.id)} aria-label="Delete risk"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ShieldCheck size={22}/>} title="No manual risks recorded" text="Register credit, legal, operational, market or compliance risks with an owner and mitigation plan." action="Log first risk" onClick={()=>setShowRiskForm(true)}/>}
+            <div className="section-heading"><div><h2>Automated attention signals</h2><p>Calculated from your current EstateFlow records.</p></div></div>
+            <div className="signal-list">
+              {openLitigationCount>0&&<div className="signal-row signal-high"><Scale size={18}/><div><strong>{openLitigationCount} open litigation matter{openLitigationCount===1?"":"s"}</strong><small>Review next hearing, limitation and exposure fields.</small></div><button className="text-button" onClick={()=>go("Litigation")}>Review</button></div>}
+              {overdueTaskCount>0&&<div className="signal-row signal-medium"><CalendarClock size={18}/><div><strong>{overdueTaskCount} overdue task{overdueTaskCount===1?"":"s"}</strong><small>Past-due actions remain incomplete.</small></div><button className="text-button" onClick={()=>go("Schedule & Tasks")}>Review</button></div>}
+              {expiringDocumentCount>0&&<div className="signal-row signal-medium"><FileText size={18}/><div><strong>{expiringDocumentCount} document expiry date{expiringDocumentCount===1?"":"s"} within 30 days</strong><small>Review renewal and action owners.</small></div><button className="text-button" onClick={()=>go("Documents")}>Review</button></div>}
+              {highRiskCount===0&&openLitigationCount===0&&overdueTaskCount===0&&expiringDocumentCount===0&&<div className="signal-row signal-clear"><CheckCircle2 size={18}/><div><strong>No current automated attention signals</strong><small>This means none of the tracked conditions was detected; it is not a certification that the portfolio is risk-free.</small></div></div>}
+            </div>
+          </section>}
+          {active === "Approvals" && <section className="data-panel">
+            <div className="section-heading"><div><span className="section-kicker">FOUR-EYES CONTROL</span><h2>Approvals & decision log</h2><p>Record requests and decisions before executing material actions.</p></div><button className="primary-button" onClick={()=>setShowApprovalForm(true)}><Plus size={16}/> Request approval</button></div>
+            <div className="approval-summary-grid"><div><span>Pending</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong></div><div><span>Approved</span><strong>{approvalRequests.filter(item=>item.status==="approved").length}</strong></div><div><span>Rejected</span><strong>{approvalRequests.filter(item=>item.status==="rejected").length}</strong></div></div>
+            <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
+            {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
+          </section>}
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Records are currently stored in this browser's local storage. They are not synced across devices and may be lost if browser data is cleared.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,tasks,financials,riskRecords,approvalRequests,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid EstateFlow backup.");}};input.click();}}>Import backup JSON</button>{backendConfigured && session && <button className="secondary-button" onClick={async () => { await supabase?.auth.signOut(); }}>Sign out of shared workspace</button>}</div></section>}
           <footer className="footer"><span>EstateFlow © 2026</span><span>{backendConfigured && session ? "Shared database connected" : "Local-only mode · Device data is not synced"}</span></footer>
         </div>
       </section>
@@ -825,6 +894,8 @@ export default function App() {
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} initial={editingTask} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
+      {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
+      {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>
     </main>
   );
 }
@@ -903,6 +974,31 @@ function FinancialForm({properties,initial,onSave,onCancel}:{properties:Property
     <div className="form-two"><label>Party / counterparty<input value={form.party} onChange={event=>update("party",event.target.value)} placeholder="Buyer, seller, bank, broker"/></label><label>Reference number<input value={form.reference} onChange={event=>update("reference",event.target.value)} placeholder="Receipt / bank reference"/></label></div>
     <label>Notes<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Payment method, interest period, settlement details"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save transaction"}</button></div>
+  </form>;
+}
+
+function RiskForm({properties,onSave,onCancel}:{properties:PropertyRecord[];onSave:(value:Omit<RiskRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState({title:"",category:"Legal",severity:"High",status:"Open",owner:"",dueDate:"",entity:"",mitigation:""});
+  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
+    <label>Risk title *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="Describe the risk or control gap"/></label>
+    <div className="form-two"><label>Risk category<select value={form.category} onChange={event=>update("category",event.target.value)}>{["Credit","Financial","Legal","Operational","Market","Compliance","Fraud","Cybersecurity","Data","Reputational","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Severity<select value={form.severity} onChange={event=>update("severity",event.target.value)}>{["Low","Medium","High","Critical"].map(value=><option key={value}>{value}</option>)}</select></label></div>
+    <div className="form-two"><label>Status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Open","Mitigating","Monitoring","Closed"].map(value=><option key={value}>{value}</option>)}</select></label><label>Owner<input value={form.owner} onChange={event=>update("owner",event.target.value)} placeholder="Responsible person / team"/></label></div>
+    <div className="form-two"><label>Linked deal / matter<select value={form.entity} onChange={event=>update("entity",event.target.value)}><option value="">Not linked</option>{properties.map(property=><option key={property.id}>{property.title}</option>)}</select></label><label>Action due date<input type="date" value={form.dueDate} onChange={event=>update("dueDate",event.target.value)}/></label></div>
+    <label>Mitigation / next control action<textarea rows={3} value={form.mitigation} onChange={event=>update("mitigation",event.target.value)} placeholder="Control owner, evidence, action and target"/></label>
+    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">Save risk</button></div>
+  </form>;
+}
+function ApprovalForm({properties,onSave,onCancel}:{properties:PropertyRecord[];onSave:(value:Omit<ApprovalRequest,"id"|"requestedAt"|"decidedAt"|"decisionNotes"|"status">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState({title:"",area:"Investment",entity:"",requestedBy:"",approver:"",priority:"Normal",rationale:""});
+  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
+    <label>Decision / approval requested *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Approve loan disbursal / settlement"/></label>
+    <div className="form-two"><label>Approval area<select value={form.area} onChange={event=>update("area",event.target.value)}>{["Investment","Equity","Credit","Property purchase","Property sale","Payment","Settlement","Legal filing","Expense","Document release","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Priority<select value={form.priority} onChange={event=>update("priority",event.target.value)}>{["Low","Normal","High","Urgent"].map(value=><option key={value}>{value}</option>)}</select></label></div>
+    <label>Linked record<select value={form.entity} onChange={event=>update("entity",event.target.value)}><option value="">Not linked</option>{properties.map(property=><option key={property.id}>{property.title}</option>)}</select></label>
+    <div className="form-two"><label>Requested by<input value={form.requestedBy} onChange={event=>update("requestedBy",event.target.value)} placeholder="Requestor name"/></label><label>Approver / reviewer<input value={form.approver} onChange={event=>update("approver",event.target.value)} placeholder="Reviewer name"/></label></div>
+    <label>Rationale and supporting evidence<textarea rows={3} value={form.rationale} onChange={event=>update("rationale",event.target.value)} placeholder="Why approval is required; evidence to review"/></label>
+    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">Submit request</button></div>
   </form>;
 }
 
