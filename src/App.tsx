@@ -38,7 +38,10 @@ const modules = [
   { name: "Personal Loan", icon: UserRound, color: "mint", group: "Credit & Lending", description: "Borrower terms, EMI, guarantors and repayment milestones." },
   { name: "Housing Loan", icon: House, color: "green", group: "Credit & Lending", description: "Mortgage terms, LTV, interest type, EMI and balance." },
   { name: "House Purchase", icon: House, color: "rose", group: "Acquisitions", description: "Offer, advance, due diligence, registration and possession." },
-  { name: "Litigation", icon: Scale, color: "amber", group: "Legal & Risk", description: "Case chronology, exposure, counsel and hearing deadlines." }
+  { name: "Litigation", icon: Scale, color: "amber", group: "Legal & Risk", description: "Case chronology, exposure, counsel and hearing deadlines." },
+  { name: "Fund & Portfolio Management", icon: PieChart, color: "blue", group: "Portfolio & Funds", description: "Commitments, deployed capital, NAV, fees, hurdle rates and benchmarks." },
+  { name: "Investor Relations", icon: Users, color: "mint", group: "Investor Services", description: "LPs, investors, commitments, paid-in capital, KYC status and reporting." },
+  { name: "Compliance & KYC", icon: ShieldCheck, color: "violet", group: "Governance", description: "Counterparty onboarding, beneficial ownership, screening and review dates." }
 ];
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
@@ -122,6 +125,45 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "claimExposure", label: "Claim / exposure (₹)", placeholder: "Amount in dispute", type: "number" },
     { key: "nextHearingDate", label: "Next hearing date", placeholder: "Date", type: "date" },
     { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" }
+  ],
+  "Fund & Portfolio Management": [
+    { key: "fundName", label: "Fund / portfolio name", placeholder: "Legal fund or portfolio name" },
+    { key: "legalStructure", label: "Legal structure", placeholder: "Trust, LLP, company, AIF, SPV…" },
+    { key: "strategy", label: "Investment strategy", placeholder: "Private equity, real assets, credit…" },
+    { key: "vintageYear", label: "Vintage year", placeholder: "YYYY", type: "number" },
+    { key: "committedCapital", label: "Committed capital (₹)", placeholder: "Total investor commitments", type: "number" },
+    { key: "deployedCapital", label: "Deployed capital (₹)", placeholder: "Invested / drawn capital", type: "number" },
+    { key: "nav", label: "Net asset value (₹)", placeholder: "Reviewed NAV", type: "number" },
+    { key: "managementFee", label: "Management fee (%)", placeholder: "Fee rate", type: "number" },
+    { key: "performanceFee", label: "Performance / carry (%)", placeholder: "Carried interest", type: "number" },
+    { key: "hurdleRate", label: "Hurdle rate (%)", placeholder: "Preferred return", type: "number" },
+    { key: "benchmark", label: "Benchmark", placeholder: "Reference index or hurdle" },
+    { key: "administrator", label: "Fund administrator / custodian", placeholder: "Service provider" },
+    { key: "reportingPeriod", label: "Reporting period", placeholder: "Quarter / fiscal year" }
+  ],
+  "Investor Relations": [
+    { key: "investorType", label: "Investor type", placeholder: "LP, family office, VC, institution…" },
+    { key: "investorEntity", label: "Investor legal entity", placeholder: "Registered legal name" },
+    { key: "commitmentAmount", label: "Commitment (₹)", placeholder: "Committed amount", type: "number" },
+    { key: "paidInCapital", label: "Paid-in capital (₹)", placeholder: "Capital called and received", type: "number" },
+    { key: "investorClass", label: "Investor / share class", placeholder: "Class, series or terms" },
+    { key: "jurisdiction", label: "Jurisdiction", placeholder: "Country / state" },
+    { key: "kycStatus", label: "KYC status", placeholder: "Pending / in review / cleared / expired" },
+    { key: "sourceOfFunds", label: "Source of funds", placeholder: "Documented source-of-funds summary" },
+    { key: "riskRating", label: "Investor risk rating", placeholder: "Low / medium / high" },
+    { key: "lastReportDate", label: "Last investor report date", placeholder: "Date", type: "date" }
+  ],
+  "Compliance & KYC": [
+    { key: "counterpartyLegalName", label: "Counterparty legal name", placeholder: "Name matching official records" },
+    { key: "entityType", label: "Entity / customer type", placeholder: "Individual, company, trust, fund…" },
+    { key: "jurisdiction", label: "Jurisdiction", placeholder: "Country / state of registration" },
+    { key: "kycStatus", label: "KYC status", placeholder: "Not started / pending / cleared / expired" },
+    { key: "beneficialOwner", label: "Beneficial owner(s)", placeholder: "Names and ownership / control" },
+    { key: "sanctionsScreening", label: "Sanctions screening", placeholder: "Not run / clear / escalation required" },
+    { key: "pepStatus", label: "PEP screening", placeholder: "Not run / negative / potential match" },
+    { key: "riskRating", label: "Counterparty risk rating", placeholder: "Low / medium / high / critical" },
+    { key: "reviewDueDate", label: "Next KYC review date", placeholder: "Date", type: "date" },
+    { key: "evidenceStatus", label: "Evidence checklist", placeholder: "ID, registration, BO, source of funds…" }
   ]
 };
 const localDate = () => {
@@ -806,7 +848,7 @@ export default function App() {
                 <button className="control-metric" onClick={()=>go("Documents")}><span className="control-metric-icon violet"><FileText size={17}/></span><span><strong>{expiringDocumentCount}</strong><small>Documents expiring in 30 days</small></span><ArrowUpRight size={15}/></button>
               </div>
             </div>
-            <div className="section-heading module-section-heading"><div><span className="section-kicker">WORKSPACES</span><h2>Business modules</h2><p>Thirteen connected modules across assets, capital, lending, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">WORKSPACES</span><h2>Business modules</h2><p>Sixteen connected modules across assets, capital, lending, funds, investor services, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
@@ -938,7 +980,7 @@ function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSa
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
   return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.name.trim())onSave(form);}}>
     <label>Full name *<input required value={form.name} onChange={e=>update("name",e.target.value)} placeholder="Contact name"/></label>
-    <div className="form-two"><label>Phone<input value={form.phone} onChange={e=>update("phone",e.target.value)} placeholder="+91..."/></label><label>Role<select value={form.role} onChange={e=>update("role",e.target.value)}>{["Buyer","Seller","Broker","Lawyer","Lender","Tenant","Developer","Government office","Other"].map(s=><option key={s}>{s}</option>)}</select></label></div>
+    <div className="form-two"><label>Phone<input value={form.phone} onChange={e=>update("phone",e.target.value)} placeholder="+91..."/></label><label>Role<select value={form.role} onChange={e=>update("role",e.target.value)}>{["Buyer","Seller","Broker","Lawyer","Lender","Tenant","Developer","Investor / LP","Venture capital / fund","Family office","Asset manager","Fund administrator","Auditor","KYC / compliance provider","Regulator / government office","Portfolio company","Other"].map(s=><option key={s}>{s}</option>)}</select></label></div>
     <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)}/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save contact"}</button></div>
   </form>;

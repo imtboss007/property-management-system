@@ -287,7 +287,8 @@ alter table public.property_records add constraint property_records_module_check
   'Property Sale', 'Property Loans', 'JV / JDA / JD',
   'SR Rate Settlement', 'Agricultural Land', 'Commercial Land',
   'Startup', 'Equity', 'Unsecured Company Loan', 'Personal Loan',
-  'Housing Loan', 'House Purchase', 'Litigation'
+  'Housing Loan', 'House Purchase', 'Litigation',
+  'Fund & Portfolio Management', 'Investor Relations', 'Compliance & KYC'
 ));
 alter table public.property_records add column if not exists module_data jsonb not null default '{}'::jsonb;
 do $$

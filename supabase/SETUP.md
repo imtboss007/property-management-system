@@ -87,3 +87,10 @@ The Risk & Compliance workspace supports a register with category, severity, sta
 ### Important governance boundary
 
 The current model is user-scoped for private records. The approval queue records decisions but does **not** enforce multi-user separation of duties, independent approver identity, maker-checker restrictions, legal sign-off, delegated limits, or workflow blocks at the database layer. Before use at an institutional scale, add organization/workspace membership, role-based policies, independent approver authorization, immutable decision identity, retention controls, test coverage and an operational security review. The styling is enterprise-oriented; this does not make the current build certified or production-approved for BlackRock or any regulated institution.
+
+
+## Fund, investor and compliance workflows
+
+Three additional institutional modules are included: **Fund & Portfolio Management**, **Investor Relations**, and **Compliance & KYC**. Fund records capture commitments, deployed capital, NAV and fund terms; investor records capture commitment/paid-in capital and reporting details; compliance records capture beneficial ownership, screening status, risk rating and KYC review date.
+
+The screening and KYC fields are recordkeeping only. They do not run live sanctions/PEP checks, decide whether a match is genuine, or certify regulatory compliance. Before institutional deployment, add verified screening providers, independently authorized reviewers, organization-specific roles, strong authentication, data retention controls and a reviewed approval policy.
