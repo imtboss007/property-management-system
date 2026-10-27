@@ -1,5 +1,6 @@
 
 name: EstateFlow PC and Android builds
+# Supabase public client configuration is injected at build time from Actions repository variables.
 
 concurrency:
   group: estateflow-builds-${{ github.ref }}
