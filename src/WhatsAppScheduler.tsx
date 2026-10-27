@@ -1,310 +1,346 @@
-import { useEffect, useState } from "react";
-import type { ChangeEvent } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase, backendConfigured } from "./lib/supabase";
-import { MessageCircle, CalendarClock, CheckCircle2, ExternalLink, Download, ArrowUpRight, X, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
+  Clock3, Ban, RotateCcw, Send, Unplug, ShieldCheck, Info
+} from "lucide-react";
 
-type Props = { session: Session | null; onNotice: (message: string) => void };
-type QueueRow = {
-  id: string; contactName: string; phone: string; message: string; templateName: string;
-  templateLanguage: string; templateParameters: string[]; scheduledAt: string; consentConfirmed: boolean;
-  stopOnReply: boolean; status: string; attemptCount: number; lastError: string;
-  recipientType: "individual" | "group"; batchId: string; audienceLabel: string; targetLabel: string;
+type ContactOption = { id: string; name: string; phone: string; role?: string };
+type ScheduleRow = {
+  id: string; seriesId?: string; sequence?: number; repeatCount?: number;
+  phone: string; contactName: string; message: string; scheduledAt: string;
+  status: "scheduled" | "sending" | "sent" | "failed" | "cancelled" | string;
+  consentConfirmed: boolean; stopOnReply: boolean; createdAt: string;
+  sentAt?: string; lastError?: string;
 };
-type Connection = {
-  configured: boolean; connected: boolean; senderNumber: string; verifiedName: string;
-  qualityRating: string; groupsEnabled: boolean; error?: string;
+type DirectStatus = {
+  supported: boolean; platform: string; connected: boolean; connecting: boolean;
+  senderNumber: string; displayName: string; qrDataUrl: string; pairingCode: string;
+  error: string; lastConnectedAt: string;
 };
-const columns = "id,contact_name,phone,message,template_name,template_language,template_parameters,scheduled_at,consent_confirmed,stop_on_reply,status,attempt_count,last_error,recipient_type,batch_id,audience_label,target_label";
-const localDate = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
-const newId = () => typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
-function normalizePhone(raw: string, countryCode = "91"): string {
-  let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
-  if (digits.length === 10) digits = countryCode.replace(/\D/g, "") + digits;
-  return digits;
-}
-function parseCsv(input: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [], field = "", quoted = false;
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (input[i + 1] === '"') { field += '"'; i++; } else quoted = false;
-      } else field += ch;
-      continue;
-    }
-    if (ch === '"' && field.length === 0) { quoted = true; continue; }
-    if (ch === ",") { row.push(field); field = ""; continue; }
-    if (ch.charCodeAt(0) === 10) { row.push(field); if (row.some(v => v.trim())) rows.push(row); row = []; field = ""; continue; }
-    if (ch.charCodeAt(0) !== 13) field += ch;
-  }
-  row.push(field); if (row.some(v => v.trim())) rows.push(row);
-  if (quoted) throw new Error("CSV has an unclosed quoted field.");
-  return rows;
-}
-function fromDb(row: any): QueueRow {
-  return {
-    id: String(row.id), contactName: String(row.contact_name ?? ""), phone: String(row.phone ?? ""),
-    message: String(row.message ?? ""), templateName: String(row.template_name ?? ""),
-    templateLanguage: String(row.template_language ?? "en_US"),
-    templateParameters: Array.isArray(row.template_parameters) ? row.template_parameters.map(String) : [],
-    scheduledAt: String(row.scheduled_at ?? ""), consentConfirmed: Boolean(row.consent_confirmed),
-    stopOnReply: Boolean(row.stop_on_reply), status: String(row.status ?? "scheduled"),
-    attemptCount: Number(row.attempt_count ?? 0), lastError: String(row.last_error ?? ""),
-    recipientType: row.recipient_type === "group" ? "group" : "individual",
-    batchId: String(row.batch_id ?? ""), audienceLabel: String(row.audience_label ?? ""),
-    targetLabel: String(row.target_label ?? "")
-  };
+type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
+type WhatsAppApi = {
+  getStatus: () => Promise<DirectStatus>;
+  getQueue: () => Promise<ScheduleRow[]>;
+  connect: () => Promise<{ ok: boolean }>;
+  requestPairingCode: (phone: string) => Promise<{ ok: boolean; code: string }>;
+  disconnect: () => Promise<{ ok: boolean }>;
+  schedule: (payload: Record<string, unknown>) => Promise<{ ok: boolean; rows: ScheduleRow[] }>;
+  sendNow: (payload: Record<string, unknown>) => Promise<{ ok: boolean; rows: ScheduleRow[] }>;
+  cancel: (id: string) => Promise<{ ok: boolean; message?: string }>;
+  retry: (id: string) => Promise<{ ok: boolean; message?: string }>;
+  onUpdate: (callback: (payload: BridgeUpdate) => void) => () => void;
+};
+declare global {
+  interface Window { estateflowWhatsApp?: WhatsAppApi }
 }
 
-export default function WhatsAppScheduler({ session, onNotice }: Props) {
-  const [mode, setMode] = useState<"single" | "bulk">("single");
-  const [recipientType, setRecipientType] = useState<"individual" | "group">("individual");
+type Props = { contacts?: ContactOption[]; onNotice: (message: string) => void };
+const localDate = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
+};
+const localTime = () => {
+  const date = new Date(Date.now() + 5 * 60000);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(11, 16);
+};
+const prettyDate = (value: string) => {
+  const time = new Date(value);
+  return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
+};
+
+export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
+  const api = window.estateflowWhatsApp;
+  const supported = Boolean(api);
+  const [status, setStatus] = useState<DirectStatus>({
+    supported, platform: supported ? "windows-desktop" : "android-or-browser",
+    connected: false, connecting: false, senderNumber: "", displayName: "",
+    qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
+  });
+  const [queue, setQueue] = useState<ScheduleRow[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
   const [target, setTarget] = useState("");
   const [contactName, setContactName] = useState("");
-  const [countryCode, setCountryCode] = useState("91");
-  const [campaign, setCampaign] = useState("");
-  const [notes, setNotes] = useState("Hello, following up on our property discussion. Please let me know when you are available.");
-  const [templateName, setTemplateName] = useState("");
-  const [language, setLanguage] = useState("en_US");
-  const [parameters, setParameters] = useState("");
+  const [message, setMessage] = useState("Hello, I am following up on our property discussion. Please let me know a convenient time to talk.");
   const [date, setDate] = useState(localDate());
-  const [time, setTime] = useState("10:00");
-  const [consent, setConsent] = useState(false);
-  const [csv, setCsv] = useState("");
-  const [queue, setQueue] = useState<QueueRow[]>([]);
+  const [time, setTime] = useState(localTime());
+  const [sendMode, setSendMode] = useState<"once" | "repeat">("once");
+  const [repeatCount, setRepeatCount] = useState("3");
+  const [intervalDays, setIntervalDays] = useState("3");
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [stopOnReply, setStopOnReply] = useState(true);
+  const [pairPhone, setPairPhone] = useState("");
   const [busy, setBusy] = useState(false);
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [connection, setConnection] = useState<Connection | null>(null);
+  const [localNotice, setLocalNotice] = useState("");
 
-  const refreshQueue = async () => {
-    if (!supabase || !session) { onNotice("Sign in to refresh the server-side queue."); return; }
-    setBusy(true);
-    try {
-      const all: QueueRow[] = [];
-      for (let offset = 0; offset < 20000; offset += 1000) {
-        const result = await supabase.from("whatsapp_followups").select(columns)
-          .order("scheduled_at", { ascending: false }).range(offset, offset + 999);
-        if (result.error) throw result.error;
-        const page = (result.data ?? []).map(fromDb);
-        all.push(...page);
-        if (page.length < 1000) break;
-      }
-      setQueue(all);
-      onNotice("WhatsApp queue refreshed: " + all.length + " records loaded.");
-    } catch (e) {
-      onNotice("Could not refresh queue: " + (e instanceof Error ? e.message : String(e)) + ". Apply the bulk-scheduling migration if new columns are missing.");
-    } finally { setBusy(false); }
-  };
-
-  const checkConnection = async () => {
-    if (!backendConfigured || !supabase) {
-      const message = "Supabase is missing from this build. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY under GitHub Settings → Secrets and variables → Actions → Variables, then rebuild and reinstall EstateFlow.";
-      setConnection({ configured: false, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: message });
-      onNotice(message);
-      return;
-    }
-    if (!session) {
-      const message = "Supabase is configured, but no EstateFlow session is active. Sign in or create an EstateFlow account first.";
-      setConnection({ configured: true, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: message });
-      onNotice(message);
-      return;
-    }
-    setChecking(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("whatsapp-status", { method: "POST" });
-      if (error) throw error;
-      const status: Connection = {
-        configured: Boolean(data?.configured), connected: Boolean(data?.connected),
-        senderNumber: String(data?.senderNumber ?? ""), verifiedName: String(data?.verifiedName ?? ""),
-        qualityRating: String(data?.qualityRating ?? ""), groupsEnabled: Boolean(data?.groupsEnabled),
-        error: data?.error ? String(data.error) : undefined
-      };
-      setConnection(status);
-      onNotice(status.connected ? "WhatsApp sender verified: " + (status.senderNumber || status.verifiedName || "Meta account") + "." : String(data?.message || data?.error || "Sender is not connected yet."));
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setConnection({ configured: false, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: msg });
-      onNotice("Connection check failed: " + msg + ". Deploy whatsapp-status and configure server secrets.");
-    } finally { setChecking(false); }
-  };
+  const selectedContact = useMemo(
+    () => contacts.find(contact => contact.id === selectedContactId),
+    [contacts, selectedContactId]
+  );
 
   useEffect(() => {
-    if (session && backendConfigured) {
-      void refreshQueue();
-      void checkConnection();
-    } else {
-      setQueue([]);
-      setConnection(null);
-    }
-  }, [session?.user.id]);
+    if (!api) return;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const [nextStatus, nextQueue] = await Promise.all([api.getStatus(), api.getQueue()]);
+        if (!active) return;
+        setStatus(nextStatus);
+        setQueue(nextQueue);
+      } catch (error) {
+        if (active) setLocalNotice(error instanceof Error ? error.message : String(error));
+      }
+    };
+    void refresh();
+    const unsubscribe = api.onUpdate(payload => {
+      if (!active) return;
+      if (payload.status) setStatus(payload.status);
+      if (payload.queue) setQueue(payload.queue);
+      if (payload.reason === "sent") setLocalNotice("WhatsApp message sent.");
+      if (payload.reason === "reply-detected") setLocalNotice("A reply was detected. Pending follow-ups to that contact were cancelled.");
+      if (payload.reason === "connection-lost") setLocalNotice("WhatsApp disconnected. Pending messages remain saved; reconnect before they are due.");
+    });
+    return () => { active = false; unsubscribe(); };
+  }, [api]);
 
-  const scheduleOne = async () => {
-    if (!backendConfigured || !supabase || !session) { onNotice("Scheduling requires configured Supabase and a signed-in user."); return; }
-    const destination = recipientType === "group" ? target.trim() : normalizePhone(target, countryCode);
-    const name = templateName.trim().toLowerCase();
-    const scheduledAt = new Date(date + "T" + time + ":00");
-    if (recipientType === "individual" && (destination.length < 8 || destination.length > 15)) {
-      onNotice("Enter a valid recipient number. Ten-digit Indian numbers are prefixed with 91."); return;
-    }
-    if (recipientType === "group" && !connection?.groupsEnabled) { onNotice("Official group sends require eligible Meta Groups API access and an official group ID."); return; }
-    if (!destination || !/^[a-z0-9_]{1,512}$/.test(name) || !consent || !Number.isFinite(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
-      onNotice("Check recipient, approved template, opt-in confirmation and future date/time."); return;
-    }
+  useEffect(() => {
+    if (!selectedContact) return;
+    setContactName(selectedContact.name);
+    setTarget(selectedContact.phone);
+  }, [selectedContact]);
+
+  const inform = (text: string) => {
+    setLocalNotice(text);
+    onNotice(text);
+  };
+
+  const connectQr = async () => {
+    if (!api) return;
     setBusy(true);
     try {
-      const batchId = newId();
-      const { data, error } = await supabase.from("whatsapp_followups").insert({
-        user_id: session.user.id, phone: destination, contact_name: contactName.trim(), message: notes.trim(),
-        template_name: name, template_language: language.trim() || "en_US",
-        template_parameters: parameters.trim() ? parameters.split("|").map(v => v.trim()) : [],
-        consent_confirmed: true, scheduled_at: scheduledAt.toISOString(), stop_on_reply: true, status: "scheduled",
-        recipient_type: recipientType, batch_id: batchId, audience_label: campaign.trim(),
-        target_label: contactName.trim() || (recipientType === "group" ? "WhatsApp group" : "")
-      }).select(columns).single();
-      if (error) throw error;
-      setQueue(prev => [fromDb(data), ...prev]);
-      onNotice("Follow-up queued. The deployed worker and scheduled trigger must be running for automatic delivery.");
-    } catch (e) {
-      onNotice("Could not schedule follow-up: " + (e instanceof Error ? e.message : String(e)));
+      await api.connect();
+      inform("WhatsApp is starting. Scan the QR code below using WhatsApp → Linked devices → Link a device.");
+      const latest = await api.getStatus();
+      setStatus(latest);
+    } catch (error) {
+      inform("Could not start WhatsApp linking: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
   };
 
-  const scheduleBulk = async () => {
-    if (!backendConfigured || !supabase || !session) { onNotice("Bulk scheduling requires configured Supabase and a signed-in user."); return; }
-    let rows: string[][];
-    try { rows = parseCsv(csv.trim()); } catch (e) { onNotice(e instanceof Error ? e.message : "Could not parse CSV."); return; }
-    if (rows.length < 2) { onNotice("Paste or upload a CSV with headers and at least one recipient."); return; }
-    if (rows.length - 1 > 5000) { onNotice("Import limit is 5,000 rows per batch. Split larger files."); return; }
-    const headers = rows[0].map(v => v.trim().replace(/^\uFEFF/, "").toLowerCase());
-    const col = (name: string) => headers.indexOf(name);
-    const missing = ["recipient_type", "target", "template_name", "template_language", "opt_in_confirmed"].filter(h => col(h) < 0);
-    if (missing.length) { onNotice("CSV missing required columns: " + missing.join(", ") + ". Download the sample."); return; }
-    const defaultDue = new Date(date + "T" + time + ":00");
-    if (!Number.isFinite(defaultDue.getTime())) { onNotice("Choose valid default date and time."); return; }
-
-    const batchId = newId();
-    const payload: Record<string, unknown>[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const values = rows[i];
-      const read = (name: string) => col(name) < 0 ? "" : String(values[col(name)] ?? "").trim();
-      const kind = read("recipient_type").toLowerCase();
-      const raw = read("target");
-      const destination = kind === "group" ? raw : normalizePhone(raw, countryCode);
-      const optedIn = ["true", "yes", "1", "confirmed"].includes(read("opt_in_confirmed").toLowerCase());
-      const template = read("template_name").toLowerCase();
-      const due = read("scheduled_at") ? new Date(read("scheduled_at")) : defaultDue;
-      const rowNo = i + 1;
-      if (!["individual", "group"].includes(kind)) { onNotice("CSV row " + rowNo + ": recipient_type must be individual or group."); return; }
-      if (!destination || (kind === "individual" && (destination.length < 8 || destination.length > 15))) { onNotice("CSV row " + rowNo + ": invalid phone number or group ID."); return; }
-      if (kind === "group" && !connection?.groupsEnabled) { onNotice("CSV row " + rowNo + ": Groups API is not enabled for this sender account."); return; }
-      if (!/^[a-z0-9_]{1,512}$/.test(template)) { onNotice("CSV row " + rowNo + ": invalid approved template name."); return; }
-      if (!optedIn) { onNotice("CSV row " + rowNo + ": opt_in_confirmed must be true, yes or 1."); return; }
-      if (!Number.isFinite(due.getTime()) || due.getTime() <= Date.now()) { onNotice("CSV row " + rowNo + ": scheduled_at must be in the future, or blank to use the default schedule."); return; }
-      const name = read("contact_name");
-      payload.push({
-        user_id: session.user.id, phone: destination, contact_name: name,
-        message: read("message_notes") || "Scheduled via EstateFlow bulk queue",
-        template_name: template, template_language: read("template_language") || "en_US",
-        template_parameters: read("template_parameters") ? read("template_parameters").split("|").map(v => v.trim()) : [],
-        consent_confirmed: true, scheduled_at: due.toISOString(), stop_on_reply: true, status: "scheduled",
-        recipient_type: kind, batch_id: batchId,
-        audience_label: read("audience_label") || campaign.trim(),
-        target_label: read("target_label") || name || (kind === "group" ? "WhatsApp group" : "")
-      });
-    }
-    if (!payload.length) { onNotice("No valid rows to import."); return; }
-    setBulkBusy(true);
-    let inserted = 0;
+  const pairWithCode = async () => {
+    if (!api) return;
+    if (!pairPhone.trim()) { inform("Enter your WhatsApp phone number with country code, for example +91 9876543210."); return; }
+    setBusy(true);
     try {
-      for (let offset = 0; offset < payload.length; offset += 100) {
-        const { data, error } = await supabase.from("whatsapp_followups").insert(payload.slice(offset, offset + 100)).select(columns);
-        if (error) throw error;
-        const mapped = (data ?? []).map(fromDb);
-        setQueue(prev => [...mapped, ...prev]);
-        inserted += mapped.length;
+      const result = await api.requestPairingCode(pairPhone);
+      const latest = await api.getStatus();
+      setStatus(latest);
+      inform("Pairing code generated. On your phone, open WhatsApp → Linked devices → Link a device → Link with phone number, then enter the code.");
+      if (result.code) setStatus(previous => ({ ...previous, pairingCode: result.code, qrDataUrl: "" }));
+    } catch (error) {
+      inform("Could not generate a pairing code: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setBusy(false); }
+  };
+
+  const disconnect = async () => {
+    if (!api) return;
+    if (!window.confirm("Disconnect this WhatsApp linked device from EstateFlow? Saved scheduled messages will remain in the queue.")) return;
+    setBusy(true);
+    try {
+      await api.disconnect();
+      setStatus(await api.getStatus());
+      inform("WhatsApp device disconnected. Your saved schedule remains on this PC.");
+    } catch (error) {
+      inform("Could not disconnect WhatsApp: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setBusy(false); }
+  };
+
+  const makePayload = () => {
+    const due = new Date(date + "T" + time + ":00");
+    if (!target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
+    if (!message.trim()) throw new Error("Write the message to send.");
+    if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
+    if (!consentConfirmed) throw new Error("Confirm that the client expects and has agreed to receive these messages.");
+    return {
+      phone: target, contactName: contactName.trim(), message: message.trim(),
+      scheduledAt: due.toISOString(),
+      repeatCount: sendMode === "repeat" ? Number(repeatCount) : 1,
+      intervalDays: Number(intervalDays),
+      consentConfirmed, stopOnReply
+    };
+  };
+
+  const scheduleMessage = async (immediate: boolean) => {
+    if (!api) {
+      inform("Direct WhatsApp scheduling runs in the Windows desktop app. The Android APK cannot host the linked-device socket by itself; connect through the Windows host to send scheduled messages.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload = makePayload();
+      if (!immediate && new Date(String(payload.scheduledAt)).getTime() <= Date.now()) {
+        throw new Error("Choose a future send time.");
       }
-      setCsv("");
-      onNotice("Queued " + inserted + " messages in batch " + batchId.slice(0, 8) + ". Delivery needs the worker and scheduled trigger.");
-    } catch (e) {
-      onNotice("Bulk import stopped after " + inserted + " of " + payload.length + " rows: " + (e instanceof Error ? e.message : String(e)) + ". Refresh queue before retrying.");
-    } finally { setBulkBusy(false); }
+      const result = immediate ? await api.sendNow(payload) : await api.schedule(payload);
+      setQueue(await api.getQueue());
+      setConsentConfirmed(false);
+      inform(immediate
+        ? "Message added to the send queue and will be sent shortly if WhatsApp is connected."
+        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. Keep EstateFlow running in the Windows system tray.");
+    } catch (error) {
+      inform("Could not schedule message: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setBusy(false); }
   };
 
-  const downloadTemplate = () => {
-    const sample = [
-      "recipient_type,target,target_label,contact_name,template_name,template_language,template_parameters,scheduled_at,opt_in_confirmed,audience_label,message_notes",
-      'individual,919876543210,Example contact,Example contact,estateflow_follow_up,en_US,"Name|Property reference|Next step",,true,Property follow-ups,Internal notes',
-      'group,OFFICIAL_GROUP_ID,Project partners,Project partners,estateflow_group_update,en_US,"Project|Next action",,true,Project partners,Approved Groups API template required'
-    ].join("\n");
-    const url = URL.createObjectURL(new Blob([sample], { type: "text/csv;charset=utf-8" }));
-    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "estateflow-whatsapp-bulk-template.csv"; anchor.click();
-    URL.revokeObjectURL(url);
+  const cancelRow = async (row: ScheduleRow) => {
+    if (!api) return;
+    try {
+      const result = await api.cancel(row.id);
+      if (!result.ok) throw new Error(result.message || "This message can no longer be cancelled.");
+      setQueue(await api.getQueue());
+      inform("Scheduled message cancelled.");
+    } catch (error) {
+      inform("Could not cancel message: " + (error instanceof Error ? error.message : String(error)));
+    }
   };
 
-  const cancel = async (record: QueueRow) => {
-    if (!supabase || !session) return;
-    const { error } = await supabase.from("whatsapp_followups").update({ status: "cancelled" })
-      .eq("id", record.id).eq("user_id", session.user.id).eq("status", "scheduled");
-    if (error) { onNotice("Could not cancel follow-up: " + error.message); return; }
-    setQueue(prev => prev.map(row => row.id === record.id ? { ...row, status: "cancelled" } : row));
-    onNotice("Scheduled follow-up cancelled.");
+  const retryRow = async (row: ScheduleRow) => {
+    if (!api) return;
+    try {
+      const result = await api.retry(row.id);
+      if (!result.ok) throw new Error(result.message || "This message cannot be retried.");
+      setQueue(await api.getQueue());
+      inform("Failed message requeued for delivery in one minute.");
+    } catch (error) {
+      inform("Could not requeue message: " + (error instanceof Error ? error.message : String(error)));
+    }
   };
 
-  const scheduled = queue.filter(row => row.status === "scheduled").length;
-  const sent = queue.filter(row => row.status === "sent").length;
-  const failed = queue.filter(row => row.status === "failed").length;
-  const replied = queue.filter(row => row.status === "replied").length;
+  const counts = useMemo(() => ({
+    scheduled: queue.filter(row => row.status === "scheduled" || row.status === "sending").length,
+    sent: queue.filter(row => row.status === "sent").length,
+    failed: queue.filter(row => row.status === "failed").length,
+    cancelled: queue.filter(row => row.status === "cancelled").length
+  }), [queue]);
 
   return <section className="data-panel whatsapp-workspace">
-    <div className="section-heading"><div><span className="section-kicker">MESSAGE OPERATIONS</span><h2>WhatsApp scheduling centre</h2><p>Schedule individual messages, import 700+ recipients and track outcomes.</p></div><MessageCircle size={22}/></div>
-    <section className={"wa-connection-card " + (connection?.connected ? "wa-connected" : "wa-disconnected")}>
+    <div className="section-heading">
+      <div><span className="section-kicker">DIRECT LINKED DEVICE</span><h2>WhatsApp automation</h2>
+        <p>Link your own WhatsApp account, select a contact, and schedule one message or a follow-up sequence.</p>
+      </div>
+      <MessageCircle size={22}/>
+    </div>
+
+    <section className={"wa-connection-card " + (status.connected ? "wa-connected" : "wa-disconnected")}>
       <div className="wa-connection-icon"><MessageCircle size={23}/></div>
-      <div className="wa-connection-copy"><strong>{connection?.connected ? (connection.verifiedName || "WhatsApp Business connected") : !backendConfigured ? "Supabase backend not configured in this build" : !session ? "Sign in to EstateFlow first" : "WhatsApp sender not verified"}</strong>
-        <p>{connection?.connected ? "Sender number: " + (connection.senderNumber || "Verified with Meta") + (connection.qualityRating ? " · Quality: " + connection.qualityRating : "") : !backendConfigured ? "The app is running in local-only mode because the Supabase URL and public key were not embedded in this installer." : !session ? "The shared database is configured, but you are not signed in." : "Supabase is available. Configure Meta WhatsApp Business credentials in Supabase Edge Function secrets."}</p>
-        <small>{connection?.groupsEnabled ? "Official Groups API enabled." : "Individual Cloud API messaging is supported. Group delivery requires eligible Groups API access."}</small>
-        {!backendConfigured && <a className="text-button" href="https://github.com/imtboss007/property-management-system/settings/variables/actions" target="_blank" rel="noreferrer">Open GitHub Actions variables <ArrowUpRight size={14}/></a>}
-        {connection?.error && <small className="wa-connection-error">{connection.error}</small>}
+      <div className="wa-connection-copy">
+        <strong>{status.connected ? "WhatsApp linked and connected" : status.connecting ? "Connecting to WhatsApp…" : supported ? "WhatsApp device not connected" : "Windows linked-device service required"}</strong>
+        <p>{status.connected
+          ? "Connected account: " + (status.senderNumber ? "+" + status.senderNumber : status.displayName || "Linked WhatsApp account")
+          : supported ? "Choose QR scan or phone-number pairing code to link your WhatsApp account."
+          : "This Android/browser build is a companion interface. The Windows EstateFlow app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
+        <small>{status.connected ? "Session saved locally on this Windows user profile." : "WhatsApp linking does not use Supabase. The linked session stays on the Windows PC."}</small>
+        {status.error && <small className="wa-connection-error">{status.error}</small>}
       </div>
-      <button className="secondary-button" disabled={checking} onClick={() => void checkConnection()}><CheckCircle2 size={15}/>{checking ? "Checking…" : "Check connection"}</button>
+      {supported && (status.connected
+        ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
+        : <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>)}
     </section>
-    <div className="wa-account-actions">
-      <button className="secondary-button" onClick={() => window.open("https://developers.facebook.com/apps/", "_blank", "noopener,noreferrer")}><ExternalLink size={15}/> Open Meta Dashboard</button>
-      <a className="text-button" href="https://github.com/imtboss007/property-management-system/blob/main/supabase/SETUP.md" target="_blank" rel="noreferrer">Connection setup guide <ArrowUpRight size={14}/></a>
-    </div>
-    <div className="notice notice-warn"><strong>Important:</strong> This uses Meta’s official Business API, not a personal WhatsApp Web QR session. Keep access tokens in Supabase secrets. Proactive sends need a template approved by Meta and recipient opt-in. Message notes are internal; only template parameters are sent.</div>
-    <div className="wa-mode-switch" role="tablist" aria-label="Schedule mode">
-      <button className={mode === "single" ? "wa-mode-active" : ""} onClick={() => setMode("single")} role="tab" aria-selected={mode === "single"}>One scheduled message</button>
-      <button className={mode === "bulk" ? "wa-mode-active" : ""} onClick={() => setMode("bulk")} role="tab" aria-selected={mode === "bulk"}>Bulk schedule · CSV</button>
-    </div>
-    {mode === "single" && <div className="form-card wa-form">
-      <div className="form-two"><label>Destination type<select value={recipientType} onChange={event => { setRecipientType(event.target.value as "individual" | "group"); setTarget(""); }}><option value="individual">Individual WhatsApp number</option><option value="group" disabled={!connection?.groupsEnabled}>Official Groups API group</option></select></label>
-        {recipientType === "individual" ? <label>Default country code<input inputMode="numeric" value={countryCode} onChange={event => setCountryCode(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="91"/></label> : <label>Group API readiness<input value={connection?.groupsEnabled ? "Enabled" : "Not enabled"} readOnly/></label>}
+
+    {supported && !status.connected && <div className="wa-link-options">
+      <div className="wa-qr-panel">
+        <div className="wa-qr-heading"><QrCode size={17}/><strong>Option 1 · Scan QR code</strong></div>
+        {status.qrDataUrl
+          ? <img className="wa-qr-image" src={status.qrDataUrl} alt="WhatsApp linked-device QR code"/>
+          : <div className="wa-qr-placeholder"><Smartphone size={26}/><span>Tap “Connect with QR”, then scan this code from WhatsApp on your phone.</span></div>}
+        <p>WhatsApp on your phone → <strong>Linked devices</strong> → <strong>Link a device</strong>.</p>
       </div>
-      <label>{recipientType === "group" ? "Official WhatsApp group ID" : "Recipient phone number"}<span>{recipientType === "group" ? "Only official Meta Groups API group IDs work here; regular personal-app groups cannot be targeted." : "Ten-digit Indian numbers are prefixed with your country code; full international numbers also work."}</span><input value={target} onChange={event => setTarget(recipientType === "individual" ? event.target.value.replace(/[^\d+]/g, "") : event.target.value)} placeholder={recipientType === "group" ? "Official Groups API group ID" : "9876543210 or 919876543210"}/></label>
-      <div className="form-two"><label>{recipientType === "group" ? "Group label" : "Contact name"}<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Optional queue label"/></label><label>Batch / campaign label<input value={campaign} onChange={event => setCampaign(event.target.value)} placeholder="e.g. Property follow-up Oct"/></label></div>
-      <label>Message notes (not sent as template body)<textarea rows={3} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Internal context for this reminder"/></label>
-      <div className="form-two"><label>Approved template name<input value={templateName} onChange={event => setTemplateName(event.target.value)} placeholder="estateflow_follow_up"/></label><label>Template language code<input value={language} onChange={event => setLanguage(event.target.value)} placeholder="en_US"/></label></div>
-      <label>Template body parameters<span>Pipe-separated values in the template order, for example: Name|Property reference|Next step.</span><input value={parameters} onChange={event => setParameters(event.target.value)} placeholder="Name|Property reference|Next step"/></label>
-      <div className="form-two"><label>Send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label><label>Send time<input type="time" value={time} onChange={event => setTime(event.target.value)}/></label></div>
-      <label className="consent-check"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)}/> I confirm the recipient opted in, or all group participants joined through the approved invite flow.</label>
-      <button className="primary-button" disabled={busy || !target.trim() || !templateName.trim() || !consent || (recipientType === "group" && !connection?.groupsEnabled)} onClick={() => void scheduleOne()}><CalendarClock size={16}/>{busy ? "Scheduling…" : "Schedule one-time follow-up"}</button>
-      {recipientType === "individual" && <div className="form-actions"><button className="secondary-button" disabled={!target || !notes.trim()} onClick={() => window.open("https://wa.me/" + normalizePhone(target, countryCode) + "?text=" + encodeURIComponent(notes), "_blank", "noopener,noreferrer")}><ExternalLink size={16}/> Open WhatsApp manually</button></div>}
+      <div className="wa-pair-panel">
+        <div className="wa-qr-heading"><Smartphone size={17}/><strong>Option 2 · Pairing code</strong></div>
+        <label>WhatsApp phone number with country code<input value={pairPhone} onChange={event => setPairPhone(event.target.value)} placeholder="+91 9876543210" inputMode="tel"/></label>
+        <button className="secondary-button" disabled={busy || status.connected} onClick={() => void pairWithCode()}><RefreshCw size={15}/>{busy ? "Generating…" : "Generate pairing code"}</button>
+        {status.pairingCode && <div className="wa-pair-code">{status.pairingCode}</div>}
+        <p>On WhatsApp, choose <strong>Linked devices → Link a device → Link with phone number</strong> and enter the code. This is a WhatsApp pairing code, not your WhatsApp PIN or password.</p>
+      </div>
     </div>}
-    {mode === "bulk" && <div className="form-card wa-form wa-bulk-form">
-      <div className="bulk-header"><div><h3>Bulk schedule 700+ recipients</h3><p>One CSV row creates one independently scheduled send. Up to 5,000 rows per import.</p></div><button className="secondary-button" onClick={downloadTemplate}><Download size={15}/> Download sample CSV</button></div>
-      <label>Default batch / campaign label<input value={campaign} onChange={event => setCampaign(event.target.value)} placeholder="e.g. October follow-ups"/></label>
-      <label>Import CSV file<input type="file" accept=".csv,text/csv" onChange={async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (file) { try { setCsv(await file.text()); onNotice("Loaded " + file.name + "; review the rows and opt-in confirmation before importing."); } catch (e) { onNotice(e instanceof Error ? e.message : "Could not read CSV."); } } event.target.value = ""; }}/><span>Required: recipient_type, target, template_name, template_language, opt_in_confirmed. Template parameters use |. Blank scheduled_at uses the default date/time.</span></label>
-      <label>Paste or review CSV<textarea rows={10} value={csv} onChange={event => setCsv(event.target.value)} placeholder={"recipient_type,target,target_label,contact_name,template_name,template_language,template_parameters,scheduled_at,opt_in_confirmed,audience_label,message_notes\nindividual,919876543210,Buyer,Buyer,estateflow_follow_up,en_US,Name|Property,2026-10-28T10:30:00+05:30,true,Property follow-ups,Internal note"}/></label>
-      <div className="form-two"><label>Default send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label><label>Default send time<input type="time" value={time} onChange={event => setTime(event.target.value)}/></label></div>
-      <div className="bulk-rules"><strong>Before import</strong><span>Every row must explicitly set opt_in_confirmed to true, yes or 1. Ten-digit Indian numbers are prefixed with 91. Group rows require an official Groups API ID and enabled access.</span><span>Due rows are processed in batches of up to 100 per worker run. A 700-message backlog may require multiple runs, so delivery at the same second is not guaranteed.</span></div>
-      <button className="primary-button" disabled={bulkBusy || !csv.trim()} onClick={() => void scheduleBulk()}><CalendarClock size={16}/>{bulkBusy ? "Importing scheduled messages…" : "Validate and queue CSV"}</button>
+
+    {!supported && <div className="notice notice-warn wa-platform-note">
+      <Info size={18}/><div><strong>Android delivery note</strong><p>The APK currently cannot run Baileys' Node.js linked-device engine by itself. Link the WhatsApp number in the Windows desktop app, which keeps the scheduled queue running in the tray. Standalone Android sending would require a native engine or a separately hosted service.</p></div>
     </div>}
-    <div className="section-heading wa-queue-heading"><div><h2>Queue & delivery history</h2><p>{queue.length} rows · {scheduled} scheduled · {sent} accepted by Meta · {failed} failed · {replied} stopped on reply</p></div><button className="secondary-button" disabled={busy} onClick={() => void refreshQueue()}><RefreshCw size={15}/>{busy ? "Refreshing…" : "Refresh queue"}</button></div>
-    {queue.length ? <div className="record-list">{queue.map(record => <article className="record-card" key={record.id}><div className="record-symbol"><MessageCircle size={20}/></div><div className="record-main"><h3>{record.targetLabel || record.contactName || record.phone}</h3><p>{record.recipientType === "group" ? "Official group" : "Individual"} <span>•</span> {record.templateName || "No template"} <span>•</span> {record.scheduledAt ? new Date(record.scheduledAt).toLocaleString() : "No send time"}</p>{record.audienceLabel && <small>Batch: {record.audienceLabel}</small>}<small>Destination: {record.phone}</small><small>Status: {record.status}{record.stopOnReply ? " · Stop on reply enabled" : ""}{record.attemptCount ? " · Attempts: " + record.attemptCount : ""}</small>{record.lastError && <small className="wa-connection-error">{record.lastError}</small>}</div><div className="record-side"><span className={"status-pill status-" + record.status}>{record.status}</span>{record.status === "scheduled" && <button className="delete-button" onClick={() => void cancel(record)} aria-label="Cancel follow-up"><X size={15}/></button>}</div></article>)}</div> : <div className="wa-empty"><MessageCircle size={23}/><strong>No follow-ups queued</strong><p>Schedule one message or import CSV. Automatic sends require Meta connection, deployed Edge Functions and a scheduled worker.</p></div>}
+
+    <div className="notice notice-warn">
+      <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
+        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based client follow-ups; do not send unsolicited bulk messages. Session data is stored locally on this PC, not in Supabase.</p>
+      </div>
+    </div>
+
+    <div className="wa-mode-switch" role="tablist" aria-label="Schedule mode">
+      <button className={sendMode === "once" ? "wa-mode-active" : ""} onClick={() => setSendMode("once")} role="tab" aria-selected={sendMode === "once"}>Send once</button>
+      <button className={sendMode === "repeat" ? "wa-mode-active" : ""} onClick={() => setSendMode("repeat")} role="tab" aria-selected={sendMode === "repeat"}>Repeat follow-up</button>
+    </div>
+
+    <div className="form-card wa-form">
+      <label>Select saved contact
+        <span>Contacts come from your EstateFlow Contacts section. You can also type a number below.</span>
+        <select value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
+          <option value="">Choose a contact (optional)</option>
+          {contacts.filter(contact => contact.phone.trim()).map(contact =>
+            <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
+          )}
+        </select>
+      </label>
+      <div className="form-two">
+        <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
+        <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
+      </div>
+      <label>Message to send<textarea rows={4} maxLength={4000} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write a client follow-up message…"/></label>
+      <div className="form-two">
+        <label>First send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label>
+        <label>First send time<input type="time" value={time} onChange={event => setTime(event.target.value)}/></label>
+      </div>
+      {sendMode === "repeat" && <div className="form-two wa-repeat-fields">
+        <label>Total sends, including first<input type="number" min="2" max="20" value={repeatCount} onChange={event => setRepeatCount(event.target.value)}/><span>Maximum 20 scheduled sends in one sequence.</span></label>
+        <label>Repeat every (days)<input type="number" min="1" max="365" value={intervalDays} onChange={event => setIntervalDays(event.target.value)}/><span>For example, 3 sends every 3 days.</span></label>
+      </div>}
+      <label className="consent-check"><input type="checkbox" checked={consentConfirmed} onChange={event => setConsentConfirmed(event.target.checked)}/> I confirm this recipient expects and has agreed to receive these follow-up messages.</label>
+      <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop all pending follow-ups automatically when this contact replies.</label>
+      <div className="form-actions wa-schedule-actions">
+        <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
+        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || !target.trim() || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
+      </div>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Messages are saved to local storage on this Windows PC. Keep EstateFlow running in the tray, and leave the PC connected to the internet, for delivery at the scheduled time.</p>
+    </div>
+
+    {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
+
+    <div className="wa-stats-grid">
+      <div><span>Pending</span><strong>{counts.scheduled}</strong></div>
+      <div><span>Sent</span><strong>{counts.sent}</strong></div>
+      <div><span>Failed</span><strong>{counts.failed}</strong></div>
+      <div><span>Cancelled</span><strong>{counts.cancelled}</strong></div>
+    </div>
+
+    <div className="section-heading wa-queue-heading">
+      <div><span className="section-kicker">LOCAL SCHEDULE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
+      {supported && <button className="secondary-button" onClick={() => void api.getQueue().then(setQueue)}><RefreshCw size={15}/>Refresh</button>}
+    </div>
+    {queue.length === 0 ? <div className="empty-state"><CalendarClock size={24}/><strong>No scheduled messages yet</strong><p>Choose a contact and schedule your first follow-up above.</p></div> :
+      <div className="record-list wa-queue-list">
+        {queue.map(row => <article className="record-card wa-queue-row" key={row.id}>
+          <div className="record-symbol"><MessageCircle size={19}/></div>
+          <div className="record-main">
+            <h3>{row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
+            <p>{row.phone} · {prettyDate(row.scheduledAt)}</p>
+            <small>{row.message}</small>
+            <span className={"wa-status wa-status-" + row.status}>{row.status}</span>
+            {row.lastError && <small className="wa-queue-error">{row.lastError}</small>}
+          </div>
+          <div className="record-side">
+            {row.status === "scheduled" && supported && <button className="delete-button" onClick={() => void cancelRow(row)} aria-label="Cancel scheduled message"><Ban size={15}/></button>}
+            {row.status === "failed" && supported && <button className="edit-button" onClick={() => void retryRow(row)} aria-label="Retry failed message"><RotateCcw size={15}/></button>}
+          </div>
+        </article>)}
+      </div>}
   </section>;
 }
