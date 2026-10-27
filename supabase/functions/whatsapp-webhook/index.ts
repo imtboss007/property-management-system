@@ -52,15 +52,19 @@ Deno.serve(async (request: Request) => {
   let stopped = 0;
   for (const message of messages) {
     const from = normalizePhone(message?.from);
-    if (!from) continue;
+    const groupId = String(message?.group_id ?? "").trim();
+    if (!from && !groupId) continue;
     const { data: candidates, error } = await admin.from("whatsapp_followups")
-      .select("id,phone,status")
+      .select("id,phone,status,recipient_type")
       .eq("stop_on_reply", true)
       .in("status", ["scheduled", "processing", "sent"]);
     if (error) return jsonResponse({ error: "Could not load follow-up queue", detail: error.message }, 500);
 
     const matchingIds = (candidates ?? [])
-      .filter((row: { phone: string }) => normalizePhone(row.phone) === from)
+      .filter((row: { phone: string; recipient_type?: string }) => {
+        if (groupId) return row.recipient_type === "group" && String(row.phone).trim() === groupId;
+        return row.recipient_type !== "group" && normalizePhone(row.phone) === from;
+      })
       .map((row: { id: string }) => row.id);
 
     if (matchingIds.length) {
