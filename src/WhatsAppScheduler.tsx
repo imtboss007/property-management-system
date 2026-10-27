@@ -412,7 +412,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
 
     <div className="section-heading wa-queue-heading">
       <div><span className="section-kicker">LOCAL SCHEDULE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
-      {supported && <button className="secondary-button" onClick={() => void api.getQueue().then(setQueue)}><RefreshCw size={15}/>Refresh</button>}
+      {supported && <button className="secondary-button" onClick={() => { if (api) void api.getQueue().then(setQueue); }}><RefreshCw size={15}/>Refresh</button>}
     </div>
     {queue.length === 0 ? <div className="empty-state"><CalendarClock size={24}/><strong>No scheduled messages yet</strong><p>Choose a contact and schedule your first follow-up above.</p></div> :
       <div className="record-list wa-queue-list">
