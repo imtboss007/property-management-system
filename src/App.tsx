@@ -12,6 +12,7 @@ import {
 type PropertyRecord = {
   id: string; title: string; module: string; location: string; value: string;
   status: string; contact: string; notes: string; createdAt: string;
+  surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
@@ -151,7 +152,7 @@ export default function App() {
     setTasks(load(`estateflow.${scope}.tasks`, []));
     (async () => {
       const [propertyResult, contactResult, taskResult] = await Promise.all([
-        supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,created_at").order("created_at", { ascending: false }),
+        supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true })
       ]);
@@ -167,6 +168,12 @@ export default function App() {
         status: row.status ?? "Active",
         contact: row.contact ?? "",
         notes: row.notes ?? "",
+        surveyNumber: row.survey_number ?? "",
+        ownershipDetails: row.ownership_details ?? "",
+        areaValue: row.area_value === null || row.area_value === undefined ? "" : String(row.area_value),
+        areaUnit: row.area_unit ?? "sq ft",
+        dimensions: row.dimensions ?? "",
+        ratePerUnit: row.rate_per_unit === null || row.rate_per_unit === undefined ? "" : String(row.rate_per_unit),
         createdAt: row.created_at ?? new Date().toISOString()
       })));
       setContacts((contactResult.data ?? []).map(row => ({
@@ -214,7 +221,11 @@ export default function App() {
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
       value: record.value.trim() ? Number(record.value) : null, status: record.status,
-      contact: record.contact, notes: record.notes, created_at: record.createdAt
+      contact: record.contact, notes: record.notes, created_at: record.createdAt,
+      survey_number: record.surveyNumber, ownership_details: record.ownershipDetails,
+      area_value: record.areaValue.trim() ? Number(record.areaValue) : null,
+      area_unit: record.areaUnit, dimensions: record.dimensions,
+      rate_per_unit: record.ratePerUnit.trim() ? Number(record.ratePerUnit) : null
     });
     closePropertyForm();
     setNotice(backendConfigured && session
@@ -327,7 +338,7 @@ export default function App() {
               <section className="panel-card"><div className="panel-heading"><div><h2>WhatsApp follow-ups</h2><p>Conversations that need attention.</p></div><MessageCircle size={20}/></div><Empty icon={<MessageCircle size={22}/>} title="Keep every conversation moving" text="Create a WhatsApp message link or prepare a reminder. Automatic delivery and reply detection require a connected WhatsApp Business API." action="Open automation" onClick={()=>go("WhatsApp Automation")}/></section></div>
           </>}
           {active === "All Properties" || modules.some(m=>m.name===active) ? <section className="data-panel"><div className="section-heading"><div><h2>{active === "All Properties" ? "All property records" : active}</h2><p>{filteredProperties.filter(p=>active==="All Properties"||p.module===active).length} saved records</p></div><button className="primary-button" onClick={()=>openPropertyForm()}><Plus size={16}/> Add property</button></div>
-            {filteredProperties.filter(p=>active==="All Properties"||p.module===active).length ? <div className="record-list">{filteredProperties.filter(p=>active==="All Properties"||p.module===active).map(p=><article className="record-card" key={p.id}><div className="record-symbol"><Building2 size={20}/></div><div className="record-main"><h3>{p.title}</h3><p><MapPin size={14}/>{p.location || "Location not entered"} <span>•</span> {p.module}</p>{p.contact&&<small>Contact: {p.contact}</small>}{p.notes&&<small>{p.notes}</small>}</div><div className="record-side"><strong>{p.value ? `₹ ${p.value}` : "Value not set"}</strong><span className="status-pill">{p.status}</span><button className="edit-button" onClick={()=>openPropertyForm(p)} aria-label={`Edit ${p.title}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteProperty(p.id)} aria-label={`Delete ${p.title}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<LandPlot size={22}/>} title="No property records yet" text="Add your first record. It will be stored in this browser on this device." action="Add property" onClick={()=>openPropertyForm()}/>}</section> : null}
+            {filteredProperties.filter(p=>active==="All Properties"||p.module===active).length ? <div className="record-list">{filteredProperties.filter(p=>active==="All Properties"||p.module===active).map(p=><article className="record-card" key={p.id}><div className="record-symbol"><Building2 size={20}/></div><div className="record-main"><h3>{p.title}</h3><p><MapPin size={14}/>{p.location || "Location not entered"} <span>•</span> {p.module}</p>{p.contact&&<small>Contact: {p.contact}</small>}{(p.surveyNumber || p.areaValue) && <small>{p.surveyNumber ? `Survey no. ${p.surveyNumber}` : ""}{p.surveyNumber && p.areaValue ? " · " : ""}{p.areaValue ? `Area: ${p.areaValue} ${p.areaUnit || "sq ft"}` : ""}</small>}{p.ownershipDetails&&<small>Ownership: {p.ownershipDetails}</small>}{p.dimensions&&<small>Dimensions: {p.dimensions}</small>}{p.notes&&<small>{p.notes}</small>}</div><div className="record-side"><strong>{p.value ? `₹ ${p.value}` : "Value not set"}</strong><span className="status-pill">{p.status}</span><button className="edit-button" onClick={()=>openPropertyForm(p)} aria-label={`Edit ${p.title}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteProperty(p.id)} aria-label={`Delete ${p.title}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<LandPlot size={22}/>} title="No property records yet" text="Add your first record. It will be stored in this browser on this device." action="Add property" onClick={()=>openPropertyForm()}/>}</section> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             {contacts.length ? <div className="record-list">{contacts.filter(c=>`${c.name} ${c.phone} ${c.role}`.toLowerCase().includes(search.toLowerCase())).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {c.role || "Contact"}</p>{c.notes&&<small>{c.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
@@ -356,7 +367,9 @@ function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose
 function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:string;initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
-    value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",notes:initial?.notes ?? ""
+    value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",notes:initial?.notes ?? "",
+    surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? ""
   });
   const update=(key:string,value:string)=>setForm(p=>({...p,[key]:value}));
   return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.title.trim())onSave(form);}}>
@@ -364,6 +377,9 @@ function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:str
     <label>Module<select value={form.module} onChange={e=>update("module",e.target.value)}>{modules.map(m=><option key={m.name}>{m.name}</option>)}</select></label>
     <div className="form-two"><label>Location<input value={form.location} onChange={e=>update("location",e.target.value)} placeholder="Area / village / city"/></label><label>Value (₹)<input inputMode="decimal" value={form.value} onChange={e=>update("value",e.target.value)} placeholder="e.g. 25000000"/></label></div>
     <div className="form-two"><label>Status<select value={form.status} onChange={e=>update("status",e.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed"].map(s=><option key={s}>{s}</option>)}</select></label><label>Primary contact<input value={form.contact} onChange={e=>update("contact",e.target.value)} placeholder="Contact name"/></label></div>
+    <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={e=>update("surveyNumber",e.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership details<input value={form.ownershipDetails} onChange={e=>update("ownershipDetails",e.target.value)} placeholder="Owner / co-owners"/></label></div>
+    <div className="form-two"><label>Land / built-up area<input inputMode="decimal" value={form.areaValue} onChange={e=>update("areaValue",e.target.value)} placeholder="e.g. 1200"/></label><label>Area unit<select value={form.areaUnit} onChange={e=>update("areaUnit",e.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
+    <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={e=>update("dimensions",e.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<input inputMode="decimal" value={form.ratePerUnit} onChange={e=>update("ratePerUnit",e.target.value)} placeholder="Optional"/></label></div>
     <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Important details, next steps..."/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
   </form>;
