@@ -1,6 +1,10 @@
 
 name: EstateFlow PC and Android builds
 
+concurrency:
+  group: estateflow-builds-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
