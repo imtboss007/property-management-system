@@ -1,0 +1,6 @@
+# These functions verify their own header/signature because cron and Meta call them directly.
+[functions.whatsapp-worker]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false

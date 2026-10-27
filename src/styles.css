@@ -259,3 +259,13 @@ h1 { font: 800 clamp(25px, 3vw, 34px)/1.2 "Manrope", sans-serif; letter-spacing:
 .finance-summary strong{font-size:clamp(15px,1.5vw,22px);color:#254532;overflow-wrap:anywhere}
 .finance-footnote{margin:9px 0 20px;font-size:11px;line-height:1.7;color:#899189}
 @media(max-width:720px){.finance-summary{grid-template-columns:1fr}.finance-summary>div{padding:13px;gap:5px}.finance-actions{align-items:stretch}.finance-actions .primary-button,.finance-actions .secondary-button{flex:1}}
+
+.whatsapp-queue{margin-top:18px}
+.consent-check{display:flex;flex-direction:row!important;align-items:flex-start;gap:10px!important;padding:12px;border-radius:10px;background:#f4f7f1;font-weight:500!important;line-height:1.6}
+.consent-check input{width:16px;min-width:16px;margin:2px 0 0;accent-color:#245a3e}
+.status-scheduled{background:#fff1d6;color:#76581c}
+.status-processing{background:#e8eefb;color:#395a9a}
+.status-sent{background:#e7f5ed;color:#245b44}
+.status-replied{background:#e4f3f0;color:#276a59}
+.status-cancelled{background:#f0f1ef;color:#69746a}
+.status-failed{background:#fae8e7;color:#9a3d38}

@@ -98,11 +98,16 @@ create table if not exists public.whatsapp_followups (
   contact_name text not null default '',
   phone text not null,
   message text not null,
+  template_name text not null default '',
+  template_language text not null default 'en_US',
+  template_parameters jsonb not null default '[]'::jsonb check (jsonb_typeof(template_parameters) = 'array'),
+  consent_confirmed boolean not null default false,
   scheduled_at timestamptz,
   stop_on_reply boolean not null default true,
   status text not null default 'draft' check (status in (
-    'draft', 'scheduled', 'sent', 'replied', 'cancelled', 'failed'
+    'draft', 'scheduled', 'processing', 'sent', 'replied', 'cancelled', 'failed'
   )),
+  constraint estateflow_scheduled_followup_requires_consent check (status <> 'scheduled' or consent_confirmed = true),
   attempt_count integer not null default 0 check (attempt_count >= 0),
   provider_message_id text,
   sent_at timestamptz,
@@ -239,3 +244,38 @@ using (bucket_id = 'property-documents' and (storage.foldername(name))[1] = (sel
 revoke update, delete on table public.audit_events from authenticated;
 drop policy if exists estateflow_owner_update on public.audit_events;
 drop policy if exists estateflow_owner_delete on public.audit_events;
+
+
+-- Atomically claim due WhatsApp follow-ups for a trusted server-side worker.
+-- This function is never executable by regular application users.
+create or replace function public.estateflow_claim_due_whatsapp_followups(batch_size integer default 20)
+returns setof public.whatsapp_followups
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  return query
+  with due as (
+    select id
+    from public.whatsapp_followups
+    where status = 'scheduled'
+      and scheduled_at is not null
+      and scheduled_at <= now()
+      and consent_confirmed = true
+    order by scheduled_at asc
+    for update skip locked
+    limit greatest(1, least(coalesce(batch_size, 20), 100))
+  )
+  update public.whatsapp_followups as followup
+  set status = 'processing',
+      attempt_count = followup.attempt_count + 1,
+      updated_at = now()
+  from due
+  where followup.id = due.id
+  returning followup.*;
+end;
+$$;
+
+revoke all on function public.estateflow_claim_due_whatsapp_followups(integer) from public, anon, authenticated;
+grant execute on function public.estateflow_claim_due_whatsapp_followups(integer) to service_role;

@@ -35,3 +35,42 @@ A commit to `main` triggers a new Windows installer and Android APK build with t
 The current frontend has authentication and remote load/save/delete sync wired for property records, contacts, and tasks. The local cache is separated by signed-in user. The schema includes document, financial and WhatsApp queue tables, but their full upload/transaction/automated-send workflows still need front-end and server-side integration.
 
 A date/time stored by the app is not a reliable background reminder by itself. Server scheduling and WhatsApp sending/reply webhooks require a deployed trusted server-side worker and authorized WhatsApp Business Platform credentials. Keep those secrets server-side.
+
+
+## WhatsApp queue, automatic delivery and stop-on-reply
+
+The front end can queue a single scheduled follow-up only after the recipient opt-in checkbox is confirmed. The server worker sends an **approved WhatsApp template**; the free-form notes in EstateFlow are not sent as the actual template body. Template parameter values must match the order and count configured in the approved Meta template.
+
+### Deploy Edge Functions
+Install the Supabase CLI, link this repository to your Supabase project, then deploy both functions:
+
+```bash
+supabase functions deploy whatsapp-worker
+supabase functions deploy whatsapp-webhook
+```
+
+Set these Edge Function secrets in the Supabase dashboard or with `supabase secrets set`:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side only; never put this in the app or GitHub Actions variables)
+- `ESTATEFLOW_WORKER_SECRET` (a long random secret used only by the scheduled worker trigger)
+- `WHATSAPP_ACCESS_TOKEN`
+- `WHATSAPP_PHONE_NUMBER_ID`
+- `WHATSAPP_GRAPH_API_VERSION` (a supported Meta Graph API version, e.g. the currently supported version from Meta's developer docs)
+- `WHATSAPP_APP_SECRET`
+- `WHATSAPP_VERIFY_TOKEN`
+
+### Schedule the worker once per minute
+Enable `pg_cron`, `pg_net`, and Supabase Vault in the Supabase dashboard. Store the project URL and the same worker secret in Vault (never put these values in this repository). Then configure a cron job to POST to:
+
+`https://YOUR_PROJECT_REF.supabase.co/functions/v1/whatsapp-worker`
+
+The request must include `x-estateflow-worker-secret` with the Vault-held secret. The worker atomically claims only due rows with confirmed opt-in and sends the saved approved template. In the current UI, a row is scheduled once. It is not automatically retried after a provider failure.
+
+### Configure Meta reply webhooks
+In Meta's WhatsApp app configuration, use the callback URL:
+
+`https://YOUR_PROJECT_REF.supabase.co/functions/v1/whatsapp-webhook`
+
+Enter the same value as `WHATSAPP_VERIFY_TOKEN` for webhook verification, configure the Meta App Secret as `WHATSAPP_APP_SECRET`, and subscribe the WhatsApp messages webhook field. The function validates `X-Hub-Signature-256`. Incoming replies update matching queued/sent records to `replied`, preventing any later scheduled sends for that number.
+
+Do not schedule messages to recipients without their opt-in. Use approved templates in line with Meta's business messaging rules. The worker and webhook code are committed, but neither is live until deployed and configured in your Supabase/Meta projects.
