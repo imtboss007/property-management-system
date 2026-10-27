@@ -18,8 +18,11 @@ type DirectStatus = {
   error: string; lastConnectedAt: string;
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
+type BridgeInfo = { port: number; urls: string[]; token: string };
+type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
+  getBridgeInfo?: () => Promise<BridgeInfo>;
   getQueue: () => Promise<ScheduleRow[]>;
   connect: () => Promise<{ ok: boolean }>;
   requestPairingCode: (phone: string) => Promise<{ ok: boolean; code: string }>;
@@ -32,6 +35,10 @@ type WhatsAppApi = {
 };
 declare global {
   interface Window { estateflowWhatsApp?: WhatsAppApi }
+}
+
+function readSaved(key: string) {
+  try { return localStorage.getItem(key) || ""; } catch { return ""; }
 }
 
 type Props = { contacts?: ContactOption[]; onNotice: (message: string) => void };
