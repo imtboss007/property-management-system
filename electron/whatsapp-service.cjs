@@ -1,6 +1,8 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const http = require("node:http");
+const os = require("node:os");
 const QRCode = require("qrcode");
 
 const MAX_MESSAGE_LENGTH = 4000;
@@ -22,6 +24,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const userData = app.getPath("userData");
   const authDir = path.join(userData, "whatsapp-linked-device");
   const queuePath = path.join(userData, "whatsapp-scheduled-messages.json");
+  const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
+  let bridgeToken = "";
+  let bridgeServer = null;
+  let bridgePort = 47821;
   let socket = null;
   let socketInit = null;
   let authState = null;
@@ -404,8 +410,146 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     return snapshotStatus();
   }
 
+
+  async function ensureBridgeToken() {
+    if (bridgeToken) return bridgeToken;
+    try {
+      bridgeToken = (await fs.readFile(bridgeTokenPath, "utf8")).trim();
+    } catch (_) {}
+    if (!bridgeToken) {
+      bridgeToken = crypto.randomBytes(32).toString("hex");
+      await fs.writeFile(bridgeTokenPath, bridgeToken, { encoding: "utf8", mode: 0o600 });
+    }
+    return bridgeToken;
+  }
+
+  function bridgeInfo() {
+    const interfaces = os.networkInterfaces();
+    const addresses = [];
+    for (const entries of Object.values(interfaces)) {
+      for (const item of entries || []) {
+        if (item && !item.internal && (item.family === "IPv4" || item.family === 4)) {
+          addresses.push("http://" + item.address + ":" + bridgePort);
+        }
+      }
+    }
+    return { port: bridgePort, urls: Array.from(new Set(addresses)), token: bridgeToken };
+  }
+
+  function bridgeReply(response, code, value) {
+    response.writeHead(code, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-EstateFlow-Token",
+      "Access-Control-Allow-Private-Network": "true",
+      "Cache-Control": "no-store"
+    });
+    response.end(JSON.stringify(value));
+  }
+
+  async function readBridgeBody(request) {
+    let raw = "";
+    for await (const chunk of request) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 1024 * 1024) throw new Error("Request body is too large.");
+    }
+    return raw.trim() ? JSON.parse(raw) : {};
+  }
+
+  function bridgeTokenValid(request, url) {
+    const value = String(request.headers["x-estateflow-token"] || url.searchParams.get("token") || "");
+    const a = Buffer.from(value);
+    const b = Buffer.from(bridgeToken);
+    return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+  }
+
+  async function handleBridgeRequest(request, response) {
+    if (request.method === "OPTIONS") {
+      bridgeReply(response, 204, {});
+      return;
+    }
+    const url = new URL(request.url || "/", "http://localhost");
+    if (!url.pathname.startsWith("/api/")) {
+      bridgeReply(response, 404, { ok: false, error: "Not found." });
+      return;
+    }
+    if (!bridgeTokenValid(request, url)) {
+      bridgeReply(response, 401, { ok: false, error: "Invalid EstateFlow desktop companion code." });
+      return;
+    }
+    try {
+      const route = url.pathname;
+      if (request.method === "GET" && route === "/api/status") {
+        bridgeReply(response, 200, { ok: true, status: await getStatus() });
+        return;
+      }
+      if (request.method === "GET" && route === "/api/queue") {
+        bridgeReply(response, 200, { ok: true, queue: await getQueue() });
+        return;
+      }
+      if (request.method !== "POST") {
+        bridgeReply(response, 405, { ok: false, error: "Method not allowed." });
+        return;
+      }
+      const body = await readBridgeBody(request);
+      let result;
+      if (route === "/api/connect") {
+        pairingRequested = false;
+        status.pairingCode = "";
+        result = await startSocket();
+      } else if (route === "/api/pairing-code") {
+        result = await requestPairingCode(body.phone);
+      } else if (route === "/api/disconnect") {
+        result = await disconnect();
+      } else if (route === "/api/schedule") {
+        result = await schedule(body, false);
+      } else if (route === "/api/send-now") {
+        result = await sendNow(body);
+      } else if (route === "/api/cancel") {
+        result = await cancelMessage(String(body.id || ""));
+      } else if (route === "/api/retry") {
+        result = await retryMessage(String(body.id || ""));
+      } else {
+        bridgeReply(response, 404, { ok: false, error: "Unknown endpoint." });
+        return;
+      }
+      bridgeReply(response, 200, { ...result, status: snapshotStatus(), queue: queue.slice(0, 200) });
+    } catch (error) {
+      bridgeReply(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  async function startBridge() {
+    await ensureBridgeToken();
+    if (bridgeServer) return;
+    const server = http.createServer((request, response) => {
+      void handleBridgeRequest(request, response).catch(error => {
+        try { bridgeReply(response, 500, { ok: false, error: error instanceof Error ? error.message : String(error) }); } catch (_) {}
+      });
+    });
+    let started = false;
+    for (let port = 47821; port <= 47840; port++) {
+      try {
+        await new Promise((resolve, reject) => {
+          const onError = error => { server.removeListener("listening", onListening); reject(error); };
+          const onListening = () => { server.removeListener("error", onError); resolve(); };
+          server.once("error", onError);
+          server.once("listening", onListening);
+          server.listen(port, "0.0.0.0");
+        });
+        bridgePort = port;
+        started = true;
+        break;
+      } catch (_) {}
+    }
+    if (!started) throw new Error("Could not start the local companion server. Ports 47821–47840 may already be in use.");
+    bridgeServer = server;
+  }
+
   ipcMain.handle("estateflow:wa:get-status", getStatus);
   ipcMain.handle("estateflow:wa:get-queue", getQueue);
+  ipcMain.handle("estateflow:wa:get-bridge-info", async () => { await startBridge(); return bridgeInfo(); });
   ipcMain.handle("estateflow:wa:connect", async () => {
     pairingRequested = false;
     status.pairingCode = "";
@@ -419,6 +563,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   ipcMain.handle("estateflow:wa:retry", async (_event, id) => retryMessage(String(id || "")));
 
   tick = setInterval(() => { void schedulerTick().catch(error => { status.error = error instanceof Error ? error.message : String(error); publish("scheduler-error"); }); }, 4000);
+  void startBridge().catch(error => { status.error = "Local phone companion is unavailable: " + (error instanceof Error ? error.message : String(error)); publish("bridge-error"); });
   void ensureQueueLoaded().then(async () => {
     try {
       await fs.access(path.join(authDir, "creds.json"));
@@ -436,6 +581,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         try { socket.end(undefined); } catch (_) {}
         socket = null;
       }
+      if (bridgeServer) { try { bridgeServer.close(); } catch (_) {} bridgeServer = null; }
     }
   };
 }
