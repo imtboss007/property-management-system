@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { backendConfigured, supabase } from "./lib/supabase";
+import WhatsAppScheduler from "./WhatsAppScheduler";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -19,7 +20,7 @@ type PropertyRecord = {
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
 type DocumentRecord = { id: string; propertyId: string; property: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
-type WhatsAppFollowup = { id: string; contactName: string; phone: string; message: string; templateName: string; templateLanguage: string; templateParameters: string[]; scheduledAt: string; consentConfirmed: boolean; stopOnReply: boolean; status: string; attemptCount: number; lastError: string };
+
 type FinancialRecord = { id: string; propertyId: string; property: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
 type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; mitigation: string; createdAt: string };
 type ApprovalRequest = { id: string; title: string; area: string; entity: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
@@ -218,17 +219,6 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
-  const [waPhone, setWaPhone] = useState("");
-  const [waMessage, setWaMessage] = useState("Hello, following up on our property discussion. Please let me know when you are available.");
-  const [waTemplateName, setWaTemplateName] = useState("");
-  const [waTemplateLanguage, setWaTemplateLanguage] = useState("en_US");
-  const [waTemplateParameters, setWaTemplateParameters] = useState("");
-  const [waScheduleDate, setWaScheduleDate] = useState(localDate());
-  const [waScheduleTime, setWaScheduleTime] = useState("10:00");
-  const [waConsentConfirmed, setWaConsentConfirmed] = useState(false);
-  const [whatsappFollowups, setWhatsappFollowups] = useState<WhatsAppFollowup[]>([]);
-  const [waQueueBusy, setWaQueueBusy] = useState(false);
-
   const storageKey = (name: string) =>
     backendConfigured && session ? `estateflow.${session.user.id}.${name}` : `estateflow.${name}`;
 
@@ -341,17 +331,16 @@ export default function App() {
     setRiskRecords(load(`estateflow.${scope}.risks`, []));
     setApprovalRequests(load(`estateflow.${scope}.approvals`, []));
     (async () => {
-      const [propertyResult, contactResult, taskResult, documentResult, financialResult, whatsappResult, riskResult, approvalResult] = await Promise.all([
+      const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
         supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
         supabase.from("financial_transactions").select("id,property_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
-        supabase.from("whatsapp_followups").select("id,contact_name,phone,message,template_name,template_language,template_parameters,scheduled_at,consent_confirmed,stop_on_reply,status,attempt_count,last_error").order("scheduled_at", { ascending: false }),
         supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,mitigation,created_at").order("created_at", { ascending: false }),
         supabase.from("approval_requests").select("id,title,approval_type,entity_label,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false })
       ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? whatsappResult.error ?? riskResult.error ?? approvalResult.error;
+      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? riskResult.error ?? approvalResult.error;
       if (queryError) throw queryError;
       if (cancelled) return;
       setProperties((propertyResult.data ?? []).map(row => ({
@@ -412,21 +401,6 @@ export default function App() {
         party: row.party ?? "",
         reference: row.reference_number ?? "",
         notes: row.notes ?? ""
-      })));
-      setWhatsappFollowups((whatsappResult.data ?? []).map(row => ({
-        id: row.id,
-        contactName: row.contact_name ?? "",
-        phone: row.phone,
-        message: row.message,
-        templateName: row.template_name ?? "",
-        templateLanguage: row.template_language ?? "en_US",
-        templateParameters: Array.isArray(row.template_parameters) ? row.template_parameters.map(String) : [],
-        scheduledAt: row.scheduled_at ?? "",
-        consentConfirmed: Boolean(row.consent_confirmed),
-        stopOnReply: Boolean(row.stop_on_reply),
-        status: row.status,
-        attemptCount: Number(row.attempt_count ?? 0),
-        lastError: row.last_error ?? ""
       })));
       setRiskRecords((riskResult.data ?? []).map(row => ({
         id: row.id, title: row.title, category: row.category ?? "Operational",
@@ -622,81 +596,7 @@ export default function App() {
       ? "Financial transaction saved and synced with your shared workspace."
       : "Financial transaction saved on this device.");
   };
-  const scheduleWhatsAppFollowup = async () => {
-    if (!backendConfigured || !supabase || !session) {
-      setNotice("Scheduled WhatsApp sending requires a configured and signed-in backend.");
-      return;
-    }
-    const phone = waPhone.replace(/\D/g, "");
-    const templateName = waTemplateName.trim().toLowerCase();
-    if (phone.length < 10 || phone.length > 15) {
-      setNotice("Enter a valid recipient number with country code, using 10–15 digits.");
-      return;
-    }
-    if (!/^[a-z0-9_]{1,512}$/.test(templateName)) {
-      setNotice("Enter the exact name of an approved WhatsApp template, for example estateflow_follow_up.");
-      return;
-    }
-    if (!waConsentConfirmed) {
-      setNotice("Confirm that this recipient has opted in to receive WhatsApp messages before scheduling.");
-      return;
-    }
-    const scheduledAt = new Date(`${waScheduleDate}T${waScheduleTime}:00`);
-    if (!Number.isFinite(scheduledAt.getTime()) || scheduledAt.getTime() <= Date.now()) {
-      setNotice("Choose a future date and time for this one-time follow-up.");
-      return;
-    }
-    const templateParameters = waTemplateParameters.trim()
-      ? waTemplateParameters.split(",").map(value => value.trim())
-      : [];
-    setWaQueueBusy(true);
-    try {
-      const { data, error } = await supabase.from("whatsapp_followups").insert({
-        user_id: session.user.id,
-        phone,
-        message: waMessage.trim(),
-        template_name: templateName,
-        template_language: waTemplateLanguage.trim() || "en_US",
-        template_parameters: templateParameters,
-        consent_confirmed: true,
-        scheduled_at: scheduledAt.toISOString(),
-        stop_on_reply: true,
-        status: "scheduled"
-      }).select("id,contact_name,phone,message,template_name,template_language,template_parameters,scheduled_at,consent_confirmed,stop_on_reply,status,attempt_count,last_error").single();
-      if (error) throw error;
-      const queued: WhatsAppFollowup = {
-        id: data.id, contactName: data.contact_name ?? "", phone: data.phone,
-        message: data.message, templateName: data.template_name,
-        templateLanguage: data.template_language,
-        templateParameters: Array.isArray(data.template_parameters) ? data.template_parameters.map(String) : [],
-        scheduledAt: data.scheduled_at, consentConfirmed: Boolean(data.consent_confirmed),
-        stopOnReply: Boolean(data.stop_on_reply), status: data.status,
-        attemptCount: Number(data.attempt_count ?? 0), lastError: data.last_error ?? ""
-      };
-      setWhatsappFollowups(prev => [queued, ...prev]);
-      setNotice("Follow-up queued. Deploy the WhatsApp functions and scheduled worker before expecting automatic delivery.");
-    } catch (error) {
-      setNotice(`Could not schedule the WhatsApp follow-up: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setWaQueueBusy(false);
-    }
-  };
-  const cancelWhatsAppFollowup = async (record: WhatsAppFollowup) => {
-    if (!supabase || !session) return;
-    const { error } = await supabase.from("whatsapp_followups")
-      .update({ status: "cancelled" })
-      .eq("id", record.id)
-      .eq("user_id", session.user.id)
-      .eq("status", "scheduled");
-    if (error) {
-      setNotice(`Could not cancel follow-up: ${error.message}`);
-      return;
-    }
-    setWhatsappFollowups(prev => prev.map(item => item.id === record.id ? { ...item, status: "cancelled" } : item));
-    setNotice("Scheduled follow-up cancelled.");
-  };
-
-  const deleteFinancial = (id: string) => {
+remove old WhatsApp handlers  const deleteFinancial = (id: string) => {
     setFinancials(prev => prev.filter(item => item.id !== id));
     remoteDelete("financial_transactions", id);
   };
@@ -893,22 +793,7 @@ export default function App() {
             </div>}
             {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={`Download ${record.name}`}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={`Delete ${record.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text={backendConfigured && session ? "Upload a property document above. Files are private and download links expire after 60 seconds." : "Configure the backend to upload and protect documents across devices."} action="Back to overview" onClick={()=>go("Overview")}/>}
           </section>}
-          {active === "WhatsApp Automation" && <section className="data-panel">
-            <div className="section-heading"><div><h2>WhatsApp follow-ups</h2><p>Schedule one approved-template message and stop future sends when the recipient replies.</p></div><MessageCircle size={21}/></div>
-            <div className="notice notice-warn">Automatic sending requires a deployed WhatsApp worker, Meta credentials, an approved template, a scheduled worker trigger, and the reply webhook. Queueing here does not itself send the message. Only message people who have opted in.</div>
-            <div className="form-card wa-form">
-              <label>Recipient phone number <span>Country code included, digits only (e.g. 919876543210)</span><input value={waPhone} onChange={event=>setWaPhone(event.target.value.replace(/[^\d]/g,""))} placeholder="91XXXXXXXXXX"/></label>
-              <label>Message notes (for your records)<textarea rows={3} value={waMessage} onChange={event=>setWaMessage(event.target.value)} placeholder="Context for this follow-up"/></label>
-              <div className="form-two"><label>Approved WhatsApp template name<input value={waTemplateName} onChange={event=>setWaTemplateName(event.target.value)} placeholder="estateflow_follow_up"/></label><label>Template language code<input value={waTemplateLanguage} onChange={event=>setWaTemplateLanguage(event.target.value)} placeholder="en_US"/></label></div>
-              <label>Template body parameters <span>Optional; comma-separated values in the order required by your approved template</span><input value={waTemplateParameters} onChange={event=>setWaTemplateParameters(event.target.value)} placeholder="Name, property reference, next step"/></label>
-              <div className="form-two"><label>Send date<input type="date" min={localDate()} value={waScheduleDate} onChange={event=>setWaScheduleDate(event.target.value)}/></label><label>Send time<input type="time" value={waScheduleTime} onChange={event=>setWaScheduleTime(event.target.value)}/></label></div>
-              <label className="consent-check"><input type="checkbox" checked={waConsentConfirmed} onChange={event=>setWaConsentConfirmed(event.target.checked)}/> I confirm the recipient has opted in to receive WhatsApp messages.</label>
-              <button className="primary-button" disabled={waQueueBusy || !waPhone || !waTemplateName.trim() || !waConsentConfirmed} onClick={()=>void scheduleWhatsAppFollowup()}><CalendarClock size={16}/>{waQueueBusy ? "Scheduling…" : "Schedule one-time follow-up"}</button>
-              <div className="form-actions"><button className="secondary-button" disabled={!waPhone || !waMessage.trim()} onClick={()=>window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`,"_blank","noopener,noreferrer")}><ExternalLink size={16}/> Open WhatsApp manually</button></div>
-            </div>
-            <div className="section-heading"><div><h2>Follow-up queue</h2><p>{whatsappFollowups.length} scheduled or historical messages</p></div></div>
-            {whatsappFollowups.length ? <div className="record-list">{whatsappFollowups.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><MessageCircle size={20}/></div><div className="record-main"><h3>{record.phone}</h3><p>{record.templateName || "Manual message"} <span>•</span> {record.scheduledAt ? new Date(record.scheduledAt).toLocaleString() : "No send time"}</p><small>Status: {record.status}{record.stopOnReply ? " · Stop on reply enabled" : ""}</small>{record.lastError&&<small>{record.lastError}</small>}</div><div className="record-side"><span className={`status-pill status-${record.status}`}>{record.status}</span>{record.status === "scheduled" && <button className="delete-button" onClick={()=>void cancelWhatsAppFollowup(record)} aria-label="Cancel follow-up"><X size={15}/></button>}</div></article>)}</div> : <Empty icon={<MessageCircle size={22}/>} title="No follow-ups queued" text="Schedule an approved template above. Automatic delivery begins only after your backend worker and webhook are deployed." action="Back to overview" onClick={()=>go("Overview")}/>}
-          </section>}
+          {active === "WhatsApp Automation" && <WhatsAppScheduler session={session} onNotice={setNotice} />}
           {active === "Risk & Compliance" && <section className="data-panel">
             <div className="section-heading"><div><span className="section-kicker">CONTROL FRAMEWORK</span><h2>Risk & compliance register</h2><p>Track risks, owners, mitigation and time-bound actions.</p></div><button className="primary-button" onClick={()=>setShowRiskForm(true)}><Plus size={16}/> Log risk</button></div>
             <div className="risk-overview-grid"><div className="risk-overview-card"><span>High / critical open risks</span><strong>{highRiskCount}</strong></div><div className="risk-overview-card"><span>Open litigation matters</span><strong>{openLitigationCount}</strong></div><div className="risk-overview-card"><span>Overdue tasks</span><strong>{overdueTaskCount}</strong></div><div className="risk-overview-card"><span>Documents expiring in 30 days</span><strong>{expiringDocumentCount}</strong></div></div>
