@@ -102,9 +102,16 @@ export default function WhatsAppScheduler({ session, onNotice }: Props) {
   };
 
   const checkConnection = async () => {
-    if (!backendConfigured || !supabase || !session) {
-      setConnection({ configured: false, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: "Configure Supabase and sign in first." });
-      onNotice("Connect the shared EstateFlow backend and sign in first.");
+    if (!backendConfigured || !supabase) {
+      const message = "Supabase is missing from this build. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY under GitHub Settings → Secrets and variables → Actions → Variables, then rebuild and reinstall EstateFlow.";
+      setConnection({ configured: false, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: message });
+      onNotice(message);
+      return;
+    }
+    if (!session) {
+      const message = "Supabase is configured, but no EstateFlow session is active. Sign in or create an EstateFlow account first.";
+      setConnection({ configured: true, connected: false, senderNumber: "", verifiedName: "", qualityRating: "", groupsEnabled: false, error: message });
+      onNotice(message);
       return;
     }
     setChecking(true);
@@ -257,9 +264,10 @@ export default function WhatsAppScheduler({ session, onNotice }: Props) {
     <div className="section-heading"><div><span className="section-kicker">MESSAGE OPERATIONS</span><h2>WhatsApp scheduling centre</h2><p>Schedule individual messages, import 700+ recipients and track outcomes.</p></div><MessageCircle size={22}/></div>
     <section className={"wa-connection-card " + (connection?.connected ? "wa-connected" : "wa-disconnected")}>
       <div className="wa-connection-icon"><MessageCircle size={23}/></div>
-      <div className="wa-connection-copy"><strong>{connection?.connected ? (connection.verifiedName || "WhatsApp Business connected") : "Sender account not verified"}</strong>
-        <p>{connection?.connected ? "Sender number: " + (connection.senderNumber || "Verified with Meta") + (connection.qualityRating ? " · Quality: " + connection.qualityRating : "") : "Connect a Meta WhatsApp Business Platform number in the backend. The recipient field below is not your sender number."}</p>
+      <div className="wa-connection-copy"><strong>{connection?.connected ? (connection.verifiedName || "WhatsApp Business connected") : !backendConfigured ? "Supabase backend not configured in this build" : !session ? "Sign in to EstateFlow first" : "WhatsApp sender not verified"}</strong>
+        <p>{connection?.connected ? "Sender number: " + (connection.senderNumber || "Verified with Meta") + (connection.qualityRating ? " · Quality: " + connection.qualityRating : "") : !backendConfigured ? "The app is running in local-only mode because the Supabase URL and public key were not embedded in this installer." : !session ? "The shared database is configured, but you are not signed in." : "Supabase is available. Configure Meta WhatsApp Business credentials in Supabase Edge Function secrets."}</p>
         <small>{connection?.groupsEnabled ? "Official Groups API enabled." : "Individual Cloud API messaging is supported. Group delivery requires eligible Groups API access."}</small>
+        {!backendConfigured && <a className="text-button" href="https://github.com/imtboss007/property-management-system/settings/variables/actions" target="_blank" rel="noreferrer">Open GitHub Actions variables <ArrowUpRight size={14}/></a>}
         {connection?.error && <small className="wa-connection-error">{connection.error}</small>}
       </div>
       <button className="secondary-button" disabled={checking} onClick={() => void checkConnection()}><CheckCircle2 size={15}/>{checking ? "Checking…" : "Check connection"}</button>
