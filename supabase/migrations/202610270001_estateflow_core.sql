@@ -279,3 +279,141 @@ $$;
 
 revoke all on function public.estateflow_claim_due_whatsapp_followups(integer) from public, anon, authenticated;
 grant execute on function public.estateflow_claim_due_whatsapp_followups(integer) to service_role;
+
+
+-- Enterprise workflows: preserve older records and enable the seven requested modules.
+alter table public.property_records drop constraint if exists property_records_module_check;
+alter table public.property_records add constraint property_records_module_check check (module in (
+  'Property Sale', 'Property Loans', 'JV / JDA / JD',
+  'SR Rate Settlement', 'Agricultural Land', 'Commercial Land',
+  'Startup', 'Equity', 'Unsecured Company Loan', 'Personal Loan',
+  'Housing Loan', 'House Purchase', 'Litigation'
+));
+alter table public.property_records add column if not exists module_data jsonb not null default '{}'::jsonb;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'property_records_module_data_object_check'
+      and conrelid = 'public.property_records'::regclass
+  ) then
+    alter table public.property_records
+      add constraint property_records_module_data_object_check check (jsonb_typeof(module_data) = 'object');
+  end if;
+end;
+$$;
+
+create table if not exists public.risk_register (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null,
+  category text not null default 'Operational',
+  severity text not null default 'Medium' check (severity in ('Low','Medium','High','Critical')),
+  status text not null default 'Open' check (status in ('Open','Mitigating','Monitoring','Closed')),
+  owner text not null default '',
+  due_date date,
+  entity_label text not null default '',
+  mitigation text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.approval_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null,
+  approval_type text not null default 'General',
+  entity_label text not null default '',
+  requested_by text not null default '',
+  approver text not null default '',
+  priority text not null default 'Normal' check (priority in ('Low','Normal','High','Urgent')),
+  status text not null default 'pending' check (status in ('pending','approved','rejected','cancelled')),
+  rationale text not null default '',
+  decision_notes text not null default '',
+  requested_at timestamptz not null default now(),
+  decided_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists risk_register_user_severity_idx on public.risk_register(user_id, severity, status);
+create index if not exists risk_register_user_due_idx on public.risk_register(user_id, due_date);
+create index if not exists approval_requests_user_status_idx on public.approval_requests(user_id, status, requested_at desc);
+
+alter table public.risk_register enable row level security;
+alter table public.approval_requests enable row level security;
+revoke all on table public.risk_register, public.approval_requests from anon, authenticated;
+grant select, insert, update, delete on table public.risk_register, public.approval_requests to authenticated;
+
+drop policy if exists estateflow_owner_select on public.risk_register;
+drop policy if exists estateflow_owner_insert on public.risk_register;
+drop policy if exists estateflow_owner_update on public.risk_register;
+drop policy if exists estateflow_owner_delete on public.risk_register;
+create policy estateflow_owner_select on public.risk_register for select to authenticated using ((select auth.uid()) = user_id);
+create policy estateflow_owner_insert on public.risk_register for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy estateflow_owner_update on public.risk_register for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy estateflow_owner_delete on public.risk_register for delete to authenticated using ((select auth.uid()) = user_id);
+
+drop policy if exists estateflow_owner_select on public.approval_requests;
+drop policy if exists estateflow_owner_insert on public.approval_requests;
+drop policy if exists estateflow_owner_update on public.approval_requests;
+drop policy if exists estateflow_owner_delete on public.approval_requests;
+create policy estateflow_owner_select on public.approval_requests for select to authenticated using ((select auth.uid()) = user_id);
+create policy estateflow_owner_insert on public.approval_requests for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy estateflow_owner_update on public.approval_requests for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy estateflow_owner_delete on public.approval_requests for delete to authenticated using ((select auth.uid()) = user_id);
+
+drop trigger if exists estateflow_updated_at on public.risk_register;
+create trigger estateflow_updated_at before update on public.risk_register for each row execute function public.estateflow_set_updated_at();
+drop trigger if exists estateflow_updated_at on public.approval_requests;
+create trigger estateflow_updated_at before update on public.approval_requests for each row execute function public.estateflow_set_updated_at();
+
+-- Append-only audit records for business and governance changes.
+create or replace function public.estateflow_audit_record_change()
+returns trigger
+language plpgsql
+set search_path = public, pg_temp
+as $$
+declare
+  v_user_id uuid;
+  v_entity_id text;
+  v_payload jsonb;
+begin
+  if TG_OP = 'DELETE' then
+    v_user_id := OLD.user_id;
+    v_entity_id := OLD.id::text;
+    v_payload := jsonb_build_object('operation', 'DELETE', 'previous', to_jsonb(OLD));
+  else
+    v_user_id := NEW.user_id;
+    v_entity_id := NEW.id::text;
+    if TG_OP = 'INSERT' then
+      v_payload := jsonb_build_object('operation', 'INSERT', 'current', to_jsonb(NEW));
+    else
+      v_payload := jsonb_build_object('operation', 'UPDATE', 'previous', to_jsonb(OLD), 'current', to_jsonb(NEW));
+    end if;
+  end if;
+
+  insert into public.audit_events(user_id, entity_type, entity_id, action, details)
+  values (v_user_id, TG_TABLE_NAME, v_entity_id, lower(TG_OP), v_payload);
+
+  if TG_OP = 'DELETE' then return OLD; end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists estateflow_audit_changes on public.property_records;
+create trigger estateflow_audit_changes after insert or update or delete on public.property_records for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.contacts;
+create trigger estateflow_audit_changes after insert or update or delete on public.contacts for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.tasks;
+create trigger estateflow_audit_changes after insert or update or delete on public.tasks for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.documents;
+create trigger estateflow_audit_changes after insert or update or delete on public.documents for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.financial_transactions;
+create trigger estateflow_audit_changes after insert or update or delete on public.financial_transactions for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.whatsapp_followups;
+create trigger estateflow_audit_changes after insert or update or delete on public.whatsapp_followups for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.risk_register;
+create trigger estateflow_audit_changes after insert or update or delete on public.risk_register for each row execute function public.estateflow_audit_record_change();
+drop trigger if exists estateflow_audit_changes on public.approval_requests;
+create trigger estateflow_audit_changes after insert or update or delete on public.approval_requests for each row execute function public.estateflow_audit_record_change();
