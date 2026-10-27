@@ -895,7 +895,7 @@ export default function App() {
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} initial={editingTask} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
       {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
-      {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>
+      {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
     </main>
   );
 }
