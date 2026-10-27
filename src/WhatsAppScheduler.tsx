@@ -88,7 +88,17 @@ const prettyDate = (value: string) => {
 };
 
 export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
-  const api = window.estateflowWhatsApp;
+  const localApi = window.estateflowWhatsApp;
+  const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
+  const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
+  const [hostInput, setHostInput] = useState(() => readSaved("estateflow.whatsapp.host"));
+  const [tokenInput, setTokenInput] = useState(() => readSaved("estateflow.whatsapp.token"));
+  const [bridgeInfo, setBridgeInfo] = useState<BridgeInfo | null>(null);
+  const api = useMemo<WhatsAppApi | undefined>(() => {
+    if (localApi) return localApi;
+    if (!companionHost.trim() || !companionToken.trim()) return undefined;
+    return createRemoteApi(companionHost, companionToken);
+  }, [localApi, companionHost, companionToken]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
     supported, platform: supported ? "windows-desktop" : "android-or-browser",
@@ -126,7 +136,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
         setStatus(nextStatus);
         setQueue(nextQueue);
       } catch (error) {
-        if (active) setLocalNotice(error instanceof Error ? error.message : String(error));
+        if (active) setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) }));
       }
     };
     void refresh();
@@ -138,8 +148,16 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       if (payload.reason === "reply-detected") setLocalNotice("A reply was detected. Pending follow-ups to that contact were cancelled.");
       if (payload.reason === "connection-lost") setLocalNotice("WhatsApp disconnected. Pending messages remain saved; reconnect before they are due.");
     });
-    return () => { active = false; unsubscribe(); };
-  }, [api]);
+    const poll = localApi ? undefined : window.setInterval(() => { void refresh(); }, 4000);
+    return () => { active = false; unsubscribe(); if (poll !== undefined) window.clearInterval(poll); };
+  }, [api, localApi]);
+
+  useEffect(() => {
+    if (!localApi?.getBridgeInfo) return;
+    void localApi.getBridgeInfo().then(setBridgeInfo).catch(error => {
+      setLocalNotice("Could not load phone companion details: " + (error instanceof Error ? error.message : String(error)));
+    });
+  }, [localApi]);
 
   useEffect(() => {
     if (!selectedContact) return;
@@ -150,6 +168,27 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
   const inform = (text: string) => {
     setLocalNotice(text);
     onNotice(text);
+  };
+
+  const saveCompanionSettings = () => {
+    const host = hostInput.trim().replace(/\/+$/, "");
+    if (!/^http:\/\/[^/]+(?::\d+)?$/i.test(host)) {
+      inform("Enter the Windows PC address including its port, for example http://192.168.1.10:47821.");
+      return;
+    }
+    if (!tokenInput.trim()) { inform("Enter the EstateFlow companion code shown in the Windows app."); return; }
+    try {
+      localStorage.setItem("estateflow.whatsapp.host", host);
+      localStorage.setItem("estateflow.whatsapp.token", tokenInput.trim());
+    } catch {}
+    setCompanionHost(host);
+    setCompanionToken(tokenInput.trim());
+    inform("Windows PC connection saved. EstateFlow is checking the companion now.");
+  };
+
+  const copyValue = async (value: string, label: string) => {
+    try { await navigator.clipboard.writeText(value); inform(label + " copied."); }
+    catch { inform("Select the " + label.toLowerCase() + " field and copy it manually."); }
   };
 
   const connectQr = async () => {
