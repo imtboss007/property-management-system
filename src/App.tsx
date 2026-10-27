@@ -596,7 +596,7 @@ export default function App() {
       ? "Financial transaction saved and synced with your shared workspace."
       : "Financial transaction saved on this device.");
   };
-remove old WhatsApp handlers  const deleteFinancial = (id: string) => {
+  const deleteFinancial = (id: string) => {
     setFinancials(prev => prev.filter(item => item.id !== id));
     remoteDelete("financial_transactions", id);
   };
