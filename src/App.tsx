@@ -6,28 +6,39 @@ import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X,
-  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download
+  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download,
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale
 } from "lucide-react";
 
 type PropertyRecord = {
   id: string; title: string; module: string; location: string; value: string;
   status: string; contact: string; notes: string; createdAt: string;
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
+  moduleData: Record<string, string>;
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
 type DocumentRecord = { id: string; propertyId: string; property: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 type WhatsAppFollowup = { id: string; contactName: string; phone: string; message: string; templateName: string; templateLanguage: string; templateParameters: string[]; scheduledAt: string; consentConfirmed: boolean; stopOnReply: boolean; status: string; attemptCount: number; lastError: string };
 type FinancialRecord = { id: string; propertyId: string; property: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
-type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Settings" | string;
+type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; mitigation: string; createdAt: string };
+type ApprovalRequest = { id: string; title: string; area: string; entity: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
+type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
 
 const modules = [
-  { name: "Property Sale", icon: Building2, color: "mint" },
-  { name: "Property Loans", icon: HandCoins, color: "blue" },
-  { name: "JV / JDA / JD", icon: Handshake, color: "violet" },
-  { name: "SR Rate Settlement", icon: Calculator, color: "amber" },
-  { name: "Agricultural Land", icon: Wheat, color: "green" },
-  { name: "Commercial Land", icon: Store, color: "rose" }
+  { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
+  { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
+  { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
+  { name: "SR Rate Settlement", icon: Calculator, color: "amber", group: "Settlement", description: "Rate-based settlements, supporting records and approvals." },
+  { name: "Agricultural Land", icon: Wheat, color: "green", group: "Real Assets", description: "Survey details, extent, ownership and due diligence." },
+  { name: "Commercial Land", icon: Store, color: "rose", group: "Real Assets", description: "Commercial assets, counterparties and transaction stages." },
+  { name: "Startup", icon: Rocket, color: "violet", group: "Capital & Ventures", description: "Founders, funding rounds, valuation and capital requirements." },
+  { name: "Equity", icon: PieChart, color: "blue", group: "Capital & Ventures", description: "Shares, instruments, ownership, entry cost and valuation." },
+  { name: "Unsecured Company Loan", icon: BriefcaseBusiness, color: "amber", group: "Credit & Lending", description: "Company borrowing, lender terms, guarantees and covenants." },
+  { name: "Personal Loan", icon: UserRound, color: "mint", group: "Credit & Lending", description: "Borrower terms, EMI, guarantors and repayment milestones." },
+  { name: "Housing Loan", icon: House, color: "green", group: "Credit & Lending", description: "Mortgage terms, LTV, interest type, EMI and balance." },
+  { name: "House Purchase", icon: House, color: "rose", group: "Acquisitions", description: "Offer, advance, due diligence, registration and possession." },
+  { name: "Litigation", icon: Scale, color: "amber", group: "Legal & Risk", description: "Case chronology, exposure, counsel and hearing deadlines." }
 ];
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
@@ -36,8 +47,83 @@ const navigation = [
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
   { name: "Schedule & Tasks", icon: CalendarClock },
+  { name: "Risk & Compliance", icon: ShieldCheck },
+  { name: "Approvals", icon: ClipboardCheck },
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
+
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+const moduleFields: Record<string, ModuleField[]> = {
+  "Startup": [
+    { key: "stage", label: "Startup stage", placeholder: "Pre-seed, seed, Series A…" },
+    { key: "sector", label: "Sector", placeholder: "Fintech, healthtech, climate…" },
+    { key: "founders", label: "Founders / promoters", placeholder: "Names and roles" },
+    { key: "round", label: "Funding round", placeholder: "Seed / Series A / bridge" },
+    { key: "capitalSought", label: "Capital sought (₹)", placeholder: "Amount", type: "number" },
+    { key: "preMoneyValuation", label: "Pre-money valuation (₹)", placeholder: "Amount", type: "number" },
+    { key: "equityOffered", label: "Equity offered (%)", placeholder: "Percentage", type: "number" },
+    { key: "targetCloseDate", label: "Target close date", placeholder: "Date", type: "date" }
+  ],
+  "Equity": [
+    { key: "instrument", label: "Instrument / asset class", placeholder: "Listed equity, private shares, SAFE…" },
+    { key: "tickerOrSecurityId", label: "Ticker / security ID", placeholder: "Ticker, ISIN or internal code" },
+    { key: "sharesOrUnits", label: "Shares / units", placeholder: "Quantity", type: "number" },
+    { key: "ownershipPercent", label: "Ownership (%)", placeholder: "Percentage", type: "number" },
+    { key: "entryPrice", label: "Entry price per share (₹)", placeholder: "Price", type: "number" },
+    { key: "currentValuation", label: "Current valuation (₹)", placeholder: "Amount", type: "number" },
+    { key: "custodian", label: "Custodian / broker", placeholder: "Institution or account reference" }
+  ],
+  "Unsecured Company Loan": [
+    { key: "borrowerCompany", label: "Borrowing company", placeholder: "Legal company name" },
+    { key: "lender", label: "Lender", placeholder: "Bank, NBFC or private lender" },
+    { key: "facilityAmount", label: "Facility amount (₹)", placeholder: "Principal", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "APR", type: "number" },
+    { key: "tenureMonths", label: "Tenure (months)", placeholder: "Months", type: "number" },
+    { key: "repaymentFrequency", label: "Repayment frequency", placeholder: "Monthly / quarterly / bullet" },
+    { key: "guarantees", label: "Guarantees / covenants", placeholder: "Guarantees, DSCR, covenants…" },
+    { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
+  ],
+  "Personal Loan": [
+    { key: "borrower", label: "Borrower", placeholder: "Full legal name" },
+    { key: "lender", label: "Lender", placeholder: "Bank / NBFC / lender" },
+    { key: "principal", label: "Principal (₹)", placeholder: "Amount", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "APR", type: "number" },
+    { key: "tenureMonths", label: "Tenure (months)", placeholder: "Months", type: "number" },
+    { key: "emi", label: "EMI (₹)", placeholder: "Monthly instalment", type: "number" },
+    { key: "purpose", label: "Loan purpose", placeholder: "Purpose" },
+    { key: "guarantor", label: "Guarantor / co-obligant", placeholder: "Optional" }
+  ],
+  "Housing Loan": [
+    { key: "lender", label: "Lender", placeholder: "Bank / housing finance company" },
+    { key: "originalPrincipal", label: "Original principal (₹)", placeholder: "Amount", type: "number" },
+    { key: "outstandingPrincipal", label: "Outstanding principal (₹)", placeholder: "Amount", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "APR", type: "number" },
+    { key: "tenureMonths", label: "Original tenure (months)", placeholder: "Months", type: "number" },
+    { key: "emi", label: "EMI (₹)", placeholder: "Monthly instalment", type: "number" },
+    { key: "ltv", label: "Loan-to-value (%)", placeholder: "LTV ratio", type: "number" },
+    { key: "rateType", label: "Interest rate type", placeholder: "Fixed / floating / hybrid" }
+  ],
+  "House Purchase": [
+    { key: "buyer", label: "Buyer / purchaser", placeholder: "Buyer name" },
+    { key: "seller", label: "Seller", placeholder: "Seller name" },
+    { key: "agreedPrice", label: "Agreed purchase price (₹)", placeholder: "Amount", type: "number" },
+    { key: "advancePaid", label: "Advance / deposit paid (₹)", placeholder: "Amount", type: "number" },
+    { key: "stampDutyAndFees", label: "Stamp duty / registration estimate (₹)", placeholder: "Amount", type: "number" },
+    { key: "dueDiligenceStage", label: "Due-diligence stage", placeholder: "Title, EC, tax, khata, approvals…" },
+    { key: "targetRegistrationDate", label: "Target registration date", placeholder: "Date", type: "date" },
+    { key: "possessionDate", label: "Possession date", placeholder: "Date", type: "date" }
+  ],
+  "Litigation": [
+    { key: "caseNumber", label: "Case number / CNR", placeholder: "Court case reference" },
+    { key: "court", label: "Court / tribunal", placeholder: "Court, bench or tribunal" },
+    { key: "parties", label: "Parties and case title", placeholder: "Petitioner / respondent / claimant" },
+    { key: "counsel", label: "Advocate / counsel", placeholder: "Counsel and contact" },
+    { key: "caseType", label: "Case type / current stage", placeholder: "Civil, criminal, appeal, interim…" },
+    { key: "claimExposure", label: "Claim / exposure (₹)", placeholder: "Amount in dispute", type: "number" },
+    { key: "nextHearingDate", label: "Next hearing date", placeholder: "Date", type: "date" },
+    { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" }
+  ]
+};
 const localDate = () => {
   const value = new Date();
   value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
@@ -63,6 +149,10 @@ export default function App() {
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
   const [financials, setFinancials] = useState<FinancialRecord[]>(() => load("estateflow.financials", []));
+  const [riskRecords, setRiskRecords] = useState<RiskRecord[]>(() => load("estateflow.risks", []));
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>(() => load("estateflow.approvals", []));
+  const [showRiskForm, setShowRiskForm] = useState(false);
+  const [showApprovalForm, setShowApprovalForm] = useState(false);
   const [showFinancialForm, setShowFinancialForm] = useState(false);
   const [editingFinancial, setEditingFinancial] = useState<FinancialRecord | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -143,10 +233,18 @@ export default function App() {
     if (backendConfigured && (!session || !remoteReady)) return;
     localStorage.setItem(storageKey("financials"), JSON.stringify(financials));
   }, [financials, session?.user.id, remoteReady]);
+  useEffect(() => {
+    if (backendConfigured && (!session || !remoteReady)) return;
+    localStorage.setItem(storageKey("risks"), JSON.stringify(riskRecords));
+  }, [riskRecords, session?.user.id, remoteReady]);
+  useEffect(() => {
+    if (backendConfigured && (!session || !remoteReady)) return;
+    localStorage.setItem(storageKey("approvals"), JSON.stringify(approvalRequests));
+  }, [approvalRequests, session?.user.id, remoteReady]);
 
   const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(p =>
-    `${p.title} ${p.module} ${p.location} ${p.contact} ${p.status}`.toLowerCase().includes(search.toLowerCase())
+    `${p.title} ${p.module} ${p.location} ${p.contact} ${p.status} ${p.surveyNumber} ${Object.values(p.moduleData ?? {}).join(" ")}`.toLowerCase().includes(search.toLowerCase())
   ), [properties, search]);
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const today = new Date().toISOString().slice(0,10);
@@ -154,8 +252,20 @@ export default function App() {
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
   const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
+  const openLitigationCount = properties.filter(item => item.module === "Litigation" && !["Completed", "Closed"].includes(item.status)).length;
+  const startupCount = properties.filter(item => item.module === "Startup" && !["Completed", "Closed"].includes(item.status)).length;
+  const equityCount = properties.filter(item => item.module === "Equity").length;
+  const pendingApprovalCount = approvalRequests.filter(item => item.status === "pending").length;
+  const highRiskCount = riskRecords.filter(item => ["High", "Critical"].includes(item.severity) && item.status !== "Closed").length;
+  const overdueTaskCount = upcomingTasks.filter(item => item.date < today).length;
+  const inThirtyDays = new Date();
+  inThirtyDays.setDate(inThirtyDays.getDate() + 30);
+  const expiryWindowDate = inThirtyDays.toISOString().slice(0, 10);
+  const expiringDocumentCount = documents.filter(item => item.expiresOn && item.expiresOn >= today && item.expiresOn <= expiryWindowDate).length;
 
-  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions", payload: Record<string, unknown>) => {
+  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests", payload: Record<string, unknown>) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).upsert({ ...payload, user_id: session.user.id }).then(({ error }) => {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
@@ -167,7 +277,7 @@ export default function App() {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
     });
   };
-  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions", id: string) => {
+  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests", id: string) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).delete().eq("id", id).eq("user_id", session.user.id).then(({ error }) => {
       if (error) setNotice(`Cloud deletion failed. ${error.message}`);
@@ -186,16 +296,20 @@ export default function App() {
     setContacts(load(`estateflow.${scope}.contacts`, []));
     setTasks(load(`estateflow.${scope}.tasks`, []));
     setFinancials(load(`estateflow.${scope}.financials`, []));
+    setRiskRecords(load(`estateflow.${scope}.risks`, []));
+    setApprovalRequests(load(`estateflow.${scope}.approvals`, []));
     (async () => {
-      const [propertyResult, contactResult, taskResult, documentResult, financialResult, whatsappResult] = await Promise.all([
-        supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,created_at").order("created_at", { ascending: false }),
+      const [propertyResult, contactResult, taskResult, documentResult, financialResult, whatsappResult, riskResult, approvalResult] = await Promise.all([
+        supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
         supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
         supabase.from("financial_transactions").select("id,property_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
-        supabase.from("whatsapp_followups").select("id,contact_name,phone,message,template_name,template_language,template_parameters,scheduled_at,consent_confirmed,stop_on_reply,status,attempt_count,last_error").order("scheduled_at", { ascending: false })
+        supabase.from("whatsapp_followups").select("id,contact_name,phone,message,template_name,template_language,template_parameters,scheduled_at,consent_confirmed,stop_on_reply,status,attempt_count,last_error").order("scheduled_at", { ascending: false }),
+        supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,mitigation,created_at").order("created_at", { ascending: false }),
+        supabase.from("approval_requests").select("id,title,approval_type,entity_label,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false })
       ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? whatsappResult.error;
+      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? whatsappResult.error ?? riskResult.error ?? approvalResult.error;
       if (queryError) throw queryError;
       if (cancelled) return;
       setProperties((propertyResult.data ?? []).map(row => ({
@@ -213,6 +327,7 @@ export default function App() {
         areaUnit: row.area_unit ?? "sq ft",
         dimensions: row.dimensions ?? "",
         ratePerUnit: row.rate_per_unit === null || row.rate_per_unit === undefined ? "" : String(row.rate_per_unit),
+        moduleData: row.module_data && typeof row.module_data === "object" ? Object.fromEntries(Object.entries(row.module_data).map(([key, value]) => [key, String(value ?? "")])) : {},
         createdAt: row.created_at ?? new Date().toISOString()
       })));
       setContacts((contactResult.data ?? []).map(row => ({
@@ -270,6 +385,20 @@ export default function App() {
         status: row.status,
         attemptCount: Number(row.attempt_count ?? 0),
         lastError: row.last_error ?? ""
+      })));
+      setRiskRecords((riskResult.data ?? []).map(row => ({
+        id: row.id, title: row.title, category: row.category ?? "Operational",
+        severity: row.severity ?? "Medium", status: row.status ?? "Open",
+        owner: row.owner ?? "", dueDate: row.due_date ?? "", entity: row.entity_label ?? "",
+        mitigation: row.mitigation ?? "", createdAt: row.created_at ?? new Date().toISOString()
+      })));
+      setApprovalRequests((approvalResult.data ?? []).map(row => ({
+        id: row.id, title: row.title, area: row.approval_type ?? "General",
+        entity: row.entity_label ?? "", requestedBy: row.requested_by ?? "",
+        approver: row.approver ?? "", priority: row.priority ?? "Normal",
+        status: row.status ?? "pending", rationale: row.rationale ?? "",
+        decisionNotes: row.decision_notes ?? "", requestedAt: row.requested_at ?? new Date().toISOString(),
+        decidedAt: row.decided_at ?? ""
       })));
       setNotice("Connected to the shared EstateFlow database.");
       setRemoteReady(true);
@@ -392,7 +521,8 @@ export default function App() {
       survey_number: record.surveyNumber, ownership_details: record.ownershipDetails,
       area_value: record.areaValue.trim() ? Number(record.areaValue) : null,
       area_unit: record.areaUnit, dimensions: record.dimensions,
-      rate_per_unit: record.ratePerUnit.trim() ? Number(record.ratePerUnit) : null
+      rate_per_unit: record.ratePerUnit.trim() ? Number(record.ratePerUnit) : null,
+      module_data: record.moduleData ?? {}
     });
     closePropertyForm();
     setNotice(backendConfigured && session
@@ -595,16 +725,56 @@ export default function App() {
             <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Overview" && <>
-            <section className="hero-card"><div className="hero-copy"><span className="hero-label">A CLEARER WAY FORWARD</span><h2>Every deal has a next step.<br/>Never miss yours.</h2><p>Bring property records, important dates and conversations together in one calm, organised space.</p><button className="hero-button" onClick={() => go("Schedule & Tasks")}>View your schedule <ArrowUpRight size={16}/></button></div>
-              <div className="hero-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="building-shape"><div className="building-roof"/><div className="building-body"><i/><i/><i/><i/><i/><i/></div></div><div className="floating-note"><CheckCircle2 size={16}/><span>One step at a time</span></div></div></section>
-            <div className="stats-grid"><Stat label="Property records" value={properties.length} icon={<LandPlot size={18}/>} /><Stat label="Contacts" value={contacts.length} icon={<Users size={18}/>} /><Stat label="Open tasks" value={upcomingTasks.length} icon={<CalendarClock size={18}/>} /><Stat label="Due today" value={upcomingTasks.filter(t=>t.date===today).length} icon={<Clock3 size={18}/>} /></div>
-            <div className="section-heading"><div><h2>Property modules</h2><p>Six dedicated workspaces, one connected system.</p></div><button className="text-button" onClick={() => go("All Properties")}>View all <ArrowUpRight size={15}/></button></div>
-            <div className="module-grid">{filteredModules.map(({name,icon:Icon,color},index)=><button className="module-card" key={name} onClick={()=>go(name)}><div className={`module-icon ${color}`}><Icon size={21} strokeWidth={1.8}/></div><div className="module-number">0{index+1}</div><h3>{name}</h3><p>Manage records, contacts and next steps.</p><span className="module-link">Open workspace <ArrowUpRight size={15}/></span></button>)}</div>
-            <div className="bottom-grid"><section className="panel-card"><div className="panel-heading"><div><h2>Upcoming schedule</h2><p>Your next important dates.</p></div><CalendarClock size={20}/></div>{upcomingTasks.length ? <TaskList tasks={upcomingTasks.slice(0,3)} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Your timeline starts here" text="Schedule a one-time reminder for a meeting, payment, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>
-              <section className="panel-card"><div className="panel-heading"><div><h2>WhatsApp follow-ups</h2><p>Conversations that need attention.</p></div><MessageCircle size={20}/></div><Empty icon={<MessageCircle size={22}/>} title="Keep every conversation moving" text="Create a WhatsApp message link or prepare a reminder. Automatic delivery and reply detection require a connected WhatsApp Business API." action="Open automation" onClick={()=>go("WhatsApp Automation")}/></section></div>
+            <section className="institutional-banner">
+              <div className="institutional-copy">
+                <span className="institutional-label"><span className="live-dot"/> PORTFOLIO CONTROL CENTRE</span>
+                <h2>Property. Capital. Credit. Legal.</h2>
+                <p>One governed workspace for transactions, investment opportunities, lending exposure and litigation deadlines.</p>
+                <div className="banner-actions"><button className="hero-button" onClick={()=>go("All Properties")}>Open deal pipeline <ArrowUpRight size={16}/></button><button className="banner-ghost" onClick={()=>go("Risk & Compliance")}>Review risk signals <ShieldCheck size={15}/></button></div>
+              </div>
+              <div className="banner-aside">
+                <span>TRACKED PORTFOLIO VALUE</span>
+                <strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong>
+                <small>Based on values entered in EstateFlow</small>
+                <div className="banner-divider"/>
+                <div className="banner-aside-row"><span>Last refreshed</span><strong>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
+                <div className="banner-aside-row"><span>Data mode</span><strong>{backendConfigured && session ? "Shared workspace" : "Local device"}</strong></div>
+              </div>
+            </section>
+            <div className="stats-grid institutional-stats">
+              <Stat label="Active records" value={activeRecordCount} icon={<LandPlot size={18}/>} />
+              <Stat label="Startup pipeline" value={startupCount} icon={<Rocket size={18}/>} />
+              <Stat label="Equity positions" value={equityCount} icon={<PieChart size={18}/>} />
+              <Stat label="Open litigation" value={openLitigationCount} icon={<Scale size={18}/>} />
+            </div>
+            <div className="control-strip">
+              <div className="control-strip-heading"><div><span className="section-kicker">CONTROL & OVERSIGHT</span><h2>Items requiring attention</h2></div><button className="text-button" onClick={()=>go("Risk & Compliance")}>Open risk console <ArrowUpRight size={15}/></button></div>
+              <div className="control-metrics">
+                <button className="control-metric" onClick={()=>go("Risk & Compliance")}><span className="control-metric-icon warning"><ShieldCheck size={17}/></span><span><strong>{highRiskCount}</strong><small>High / critical risks</small></span><ArrowUpRight size={15}/></button>
+                <button className="control-metric" onClick={()=>go("Approvals")}><span className="control-metric-icon blue"><ClipboardCheck size={17}/></span><span><strong>{pendingApprovalCount}</strong><small>Pending approvals</small></span><ArrowUpRight size={15}/></button>
+                <button className="control-metric" onClick={()=>go("Schedule & Tasks")}><span className="control-metric-icon amber"><CalendarClock size={17}/></span><span><strong>{overdueTaskCount}</strong><small>Overdue tasks</small></span><ArrowUpRight size={15}/></button>
+                <button className="control-metric" onClick={()=>go("Documents")}><span className="control-metric-icon violet"><FileText size={17}/></span><span><strong>{expiringDocumentCount}</strong><small>Documents expiring in 30 days</small></span><ArrowUpRight size={15}/></button>
+              </div>
+            </div>
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">WORKSPACES</span><h2>Business modules</h2><p>Thirteen connected modules across assets, capital, lending, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
+              const count=properties.filter(item=>item.module===name).length;
+              return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
+                <div className={`module-icon ${color}`}><Icon size={20} strokeWidth={1.8}/></div>
+                <div className="module-number">{String(index+1).padStart(2,"0")}</div>
+                <span className="module-group">{group}</span>
+                <h3>{name}</h3><p>{description}</p>
+                <span className="module-footer"><span>{count} record{count===1?"":"s"}</span><span className="module-link">Open <ArrowUpRight size={14}/></span></span>
+              </button>;
+            })}</div>
+            <div className="bottom-grid enterprise-bottom-grid">
+              <section className="panel-card"><div className="panel-heading"><div><span className="section-kicker">NEXT ACTIONS</span><h2>Upcoming schedule</h2><p>Deadlines and follow-ups requiring attention.</p></div><CalendarClock size={20}/></div>{upcomingTasks.length ? <TaskList tasks={upcomingTasks.slice(0,4)} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="No upcoming actions" text="Create a dated task for a payment, meeting, registration or follow-up." action="Create task" onClick={()=>openTaskForm()}/>}</section>
+              <section className="panel-card"><div className="panel-heading"><div><span className="section-kicker">GOVERNANCE</span><h2>Approval queue</h2><p>Track requests requiring a documented decision.</p></div><ClipboardCheck size={20}/></div>{approvalRequests.filter(item=>item.status==="pending").length ? <div className="governance-list">{approvalRequests.filter(item=>item.status==="pending").slice(0,4).map(item=><div className="governance-row" key={item.id}><span className={`priority-dot priority-${item.priority.toLowerCase()}`}/><div><strong>{item.title}</strong><small>{item.area}{item.entity ? ` · ${item.entity}` : ""}</small></div><button className="text-button" onClick={()=>go("Approvals")}>Review</button></div>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No pending approvals" text="Create a review request when a deal, loan, expense or legal action needs a second set of eyes." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}</section>
+            </div>
           </>}
+          
           {active === "All Properties" || modules.some(m=>m.name===active) ? <section className="data-panel"><div className="section-heading"><div><h2>{active === "All Properties" ? "All property records" : active}</h2><p>{filteredProperties.filter(p=>active==="All Properties"||p.module===active).length} saved records</p></div><button className="primary-button" onClick={()=>openPropertyForm()}><Plus size={16}/> Add property</button></div>
-            {filteredProperties.filter(p=>active==="All Properties"||p.module===active).length ? <div className="record-list">{filteredProperties.filter(p=>active==="All Properties"||p.module===active).map(p=><article className="record-card" key={p.id}><div className="record-symbol"><Building2 size={20}/></div><div className="record-main"><h3>{p.title}</h3><p><MapPin size={14}/>{p.location || "Location not entered"} <span>•</span> {p.module}</p>{p.contact&&<small>Contact: {p.contact}</small>}{(p.surveyNumber || p.areaValue) && <small>{p.surveyNumber ? `Survey no. ${p.surveyNumber}` : ""}{p.surveyNumber && p.areaValue ? " · " : ""}{p.areaValue ? `Area: ${p.areaValue} ${p.areaUnit || "sq ft"}` : ""}</small>}{p.ownershipDetails&&<small>Ownership: {p.ownershipDetails}</small>}{p.dimensions&&<small>Dimensions: {p.dimensions}</small>}{p.notes&&<small>{p.notes}</small>}</div><div className="record-side"><strong>{p.value ? `₹ ${p.value}` : "Value not set"}</strong><span className="status-pill">{p.status}</span><button className="edit-button" onClick={()=>openPropertyForm(p)} aria-label={`Edit ${p.title}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteProperty(p.id)} aria-label={`Delete ${p.title}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<LandPlot size={22}/>} title="No property records yet" text="Add your first record. It will be stored in this browser on this device." action="Add property" onClick={()=>openPropertyForm()}/>}</section> : null}
+            {filteredProperties.filter(p=>active==="All Properties"||p.module===active).length ? <div className="record-list">{filteredProperties.filter(p=>active==="All Properties"||p.module===active).map(p=><article className="record-card" key={p.id}><div className="record-symbol"><Building2 size={20}/></div><div className="record-main"><h3>{p.title}</h3><p><MapPin size={14}/>{p.location || "Location not entered"} <span>•</span> {p.module}</p>{p.contact&&<small>Contact: {p.contact}</small>}{(p.surveyNumber || p.areaValue) && <small>{p.surveyNumber ? `Survey no. ${p.surveyNumber}` : ""}{p.surveyNumber && p.areaValue ? " · " : ""}{p.areaValue ? `Area: ${p.areaValue} ${p.areaUnit || "sq ft"}` : ""}</small>}{p.ownershipDetails&&<small>Ownership: {p.ownershipDetails}</small>}{p.dimensions&&<small>Dimensions: {p.dimensions}</small>}{Object.entries(p.moduleData ?? {}).filter(([,value])=>String(value).trim()).slice(0,4).map(([key,value])=><small key={key}><strong>{moduleFields[p.module]?.find(field=>field.key===key)?.label ?? key}:</strong> {value}</small>)}{p.notes&&<small>{p.notes}</small>}</div><div className="record-side"><strong>{p.value ? `₹ ${p.value}` : "Value not set"}</strong><span className="status-pill">{p.status}</span><button className="edit-button" onClick={()=>openPropertyForm(p)} aria-label={`Edit ${p.title}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteProperty(p.id)} aria-label={`Delete ${p.title}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<LandPlot size={22}/>} title="No property records yet" text="Add your first record. It will be stored in this browser on this device." action="Add property" onClick={()=>openPropertyForm()}/>}</section> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             {contacts.length ? <div className="record-list">{contacts.filter(c=>`${c.name} ${c.phone} ${c.role}`.toLowerCase().includes(search.toLowerCase())).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {c.role || "Contact"}</p>{c.notes&&<small>{c.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
@@ -659,7 +829,7 @@ export default function App() {
   );
 }
 
-function Stat({label,value,icon}:{label:string;value:number;icon:ReactNode}) { return <div className="stat-card"><span>{icon}</span><div><strong>{value}</strong><small>{label}</small></div></div>; }
+function Stat({label,value,icon}:{label:string;value:number|string;icon:ReactNode}) { return <div className="stat-card"><span>{icon}</span><div><strong>{value}</strong><small>{label}</small></div></div>; }
 function Empty({icon,title,text,action,onClick}:{icon:ReactNode;title:string;text:string;action:string;onClick:()=>void}) { return <div className="empty-state"><div className="empty-icon">{icon}</div><strong>{title}</strong><p>{text}</p><button className="secondary-button" onClick={onClick}><Plus size={15}/>{action}</button></div>; }
 function TaskList({tasks,toggle,remove,edit}:{tasks:TaskRecord[];toggle:(id:string)=>void;remove:(id:string)=>void;edit?:(task:TaskRecord)=>void}) {
   return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>{t.property}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
@@ -670,21 +840,28 @@ function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:str
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? ""
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
+    moduleData:initial?.moduleData ?? {}
   });
-  const update=(key:string,value:string)=>setForm(p=>({...p,[key]:value}));
-  return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.title.trim())onSave(form);}}>
-    <label>Property / deal name *<input required value={form.title} onChange={e=>update("title",e.target.value)} placeholder="e.g. Site on Main Road"/></label>
-    <label>Module<select value={form.module} onChange={e=>update("module",e.target.value)}>{modules.map(m=><option key={m.name}>{m.name}</option>)}</select></label>
-    <div className="form-two"><label>Location<input value={form.location} onChange={e=>update("location",e.target.value)} placeholder="Area / village / city"/></label><label>Value (₹)<input inputMode="decimal" value={form.value} onChange={e=>update("value",e.target.value)} placeholder="e.g. 25000000"/></label></div>
-    <div className="form-two"><label>Status<select value={form.status} onChange={e=>update("status",e.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed"].map(s=><option key={s}>{s}</option>)}</select></label><label>Primary contact<input value={form.contact} onChange={e=>update("contact",e.target.value)} placeholder="Contact name"/></label></div>
-    <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={e=>update("surveyNumber",e.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership details<input value={form.ownershipDetails} onChange={e=>update("ownershipDetails",e.target.value)} placeholder="Owner / co-owners"/></label></div>
-    <div className="form-two"><label>Land / built-up area<input inputMode="decimal" value={form.areaValue} onChange={e=>update("areaValue",e.target.value)} placeholder="e.g. 1200"/></label><label>Area unit<select value={form.areaUnit} onChange={e=>update("areaUnit",e.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
-    <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={e=>update("dimensions",e.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<input inputMode="decimal" value={form.ratePerUnit} onChange={e=>update("ratePerUnit",e.target.value)} placeholder="Optional"/></label></div>
-    <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Important details, next steps..."/></label>
+  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  const selectedFields=moduleFields[form.module] ?? [];
+  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
+    <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use a clear title and status so the record can be found in reports and approvals.</p></div>
+    <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Series A investment / Apartment purchase"/></label>
+    <label>Business module<select value={form.module} onChange={event=>update("module",event.target.value)}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
+    <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<input type="number" min="0" step="0.01" value={form.value} onChange={event=>update("value",event.target.value)} placeholder="Enter amount"/></label></div>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><label>Primary contact<input value={form.contact} onChange={event=>update("contact",event.target.value)} placeholder="Counterparty / founder / borrower / counsel"/></label></div>
+    {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
+      <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
+      <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
+      <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<input type="number" min="0" step="0.01" value={form.ratePerUnit} onChange={event=>update("ratePerUnit",event.target.value)} placeholder="Optional"/></label></div>
+    </div>}
+    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}<input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/></label>)}</div></div>}
+    <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
   </form>;
 }
+
 function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSave:(v:Omit<ContactRecord,"id">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({name:initial?.name ?? "",phone:initial?.phone ?? "",role:initial?.role ?? "Buyer",notes:initial?.notes ?? ""});
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
