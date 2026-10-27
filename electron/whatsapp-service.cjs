@@ -79,7 +79,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   }
 
   function saveQueue() {
-    queueWrite = queueWrite.then(async () => {
+    queueWrite = queueWrite.catch(() => {}).then(async () => {
       const tempPath = queuePath + ".tmp";
       await fs.writeFile(tempPath, JSON.stringify(queue, null, 2), { encoding: "utf8", mode: 0o600 });
       await fs.rename(tempPath, queuePath);
