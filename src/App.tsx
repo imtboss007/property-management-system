@@ -6,7 +6,7 @@ import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X,
-  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download, Upload
+  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download
 } from "lucide-react";
 
 type PropertyRecord = {
