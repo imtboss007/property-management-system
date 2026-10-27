@@ -7,7 +7,7 @@ import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X,
-  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download,
+  Trash2, Phone, MapPin, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck
 } from "lucide-react";
 
@@ -166,11 +166,6 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "reviewDueDate", label: "Next KYC review date", placeholder: "Date", type: "date" },
     { key: "evidenceStatus", label: "Evidence checklist", placeholder: "ID, registration, BO, source of funds…" }
   ]
-};
-const localDate = () => {
-  const value = new Date();
-  value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
-  return value.toISOString().slice(0, 10);
 };
 const uid = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
