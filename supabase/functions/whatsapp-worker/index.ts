@@ -21,6 +21,7 @@ Deno.serve(async (request: Request) => {
   const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? "";
   const phoneNumberId = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
   const graphVersion = Deno.env.get("WHATSAPP_GRAPH_API_VERSION") ?? "";
+  const groupsEnabled = (Deno.env.get("WHATSAPP_GROUPS_API_ENABLED") ?? "").toLowerCase() === "true";
   if (!supabaseUrl || !serviceRoleKey || !accessToken || !phoneNumberId || !/^v\d+\.\d+$/.test(graphVersion)) {
     return json({ error: "Missing Supabase or WhatsApp worker secrets" }, 500);
   }
@@ -30,7 +31,7 @@ Deno.serve(async (request: Request) => {
   });
   const { data: dueRows, error: claimError } = await admin.rpc(
     "estateflow_claim_due_whatsapp_followups",
-    { batch_size: 20 },
+    { batch_size: 100 },
   );
   if (claimError) return json({ error: "Could not claim due follow-ups", detail: claimError.message }, 500);
 
@@ -51,8 +52,11 @@ Deno.serve(async (request: Request) => {
       if (currentError) throw currentError;
       if (!current || current.status !== "processing" || !current.consent_confirmed) continue;
 
-      const phone = String(row.phone ?? "").replace(/\D/g, "");
-      if (phone.length < 10 || phone.length > 15) throw new Error("Recipient phone number is invalid");
+      const recipientType = row.recipient_type === "group" ? "group" : "individual";
+      if (recipientType === "group" && !groupsEnabled) throw new Error("Official Groups API sending is not enabled for this account.");
+      const target = recipientType === "group" ? String(row.phone ?? "").trim() : String(row.phone ?? "").replace(/\D/g, "");
+      if (recipientType === "individual" && (target.length < 8 || target.length > 15)) throw new Error("Recipient phone number is invalid");
+      if (recipientType === "group" && target.length < 8) throw new Error("Official WhatsApp Groups API group ID is missing or invalid");
       const params = Array.isArray(row.template_parameters) ? row.template_parameters : [];
       const components = params.length
         ? [{ type: "body", parameters: params.map((value: unknown) => ({ type: "text", text: String(value) })) }]
@@ -63,7 +67,8 @@ Deno.serve(async (request: Request) => {
         headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           messaging_product: "whatsapp",
-          to: phone,
+          recipient_type: recipientType,
+          to: target,
           type: "template",
           template: {
             name: row.template_name,
