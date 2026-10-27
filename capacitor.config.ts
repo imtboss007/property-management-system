@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'EstateFlow',
   webDir: 'dist',
   bundledWebRuntime: false,
+  plugins: { CapacitorHttp: { enabled: true } },
   server: { androidScheme: 'https' }
 };
 
