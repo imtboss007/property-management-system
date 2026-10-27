@@ -137,3 +137,16 @@ A 700-message list is queued as 700 separate one-to-one sends. The worker proces
 A “group” row only works for an eligible Meta account using the official WhatsApp Groups API, and requires a group ID created through that API. It does not target arbitrary existing personal WhatsApp/Business-app groups by group name or QR link. Meta's Groups API has account eligibility and participant limits; confirm current official terms and setup before use. Only after qualifying and configuring the Groups API should you set the server secret `WHATSAPP_GROUPS_API_ENABLED=true`.
 
 The check-connection control verifies the configured sender through Meta's API; it does not register the number or create credentials on your behalf. The migration, secrets, Edge Functions and scheduled worker must all be configured before automatic delivery is live.
+
+
+## Troubleshooting: “Configure Supabase and sign in first”
+
+If the app still opens its dashboard but the WhatsApp connection shows **Supabase backend not configured in this build**, that build was created without its two public Supabase client settings:
+
+1. Open https://github.com/imtboss007/property-management-system/settings/variables/actions.
+2. Add repository Actions variables named exactly `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Get both from your own Supabase project’s API settings; the second must be the public/publishable anon key, never a `service_role` key.
+3. Push a new commit or manually run GitHub Actions again so both the EXE and APK are rebuilt with those variables.
+4. Install the newly built app. It should now show the EstateFlow sign-in screen. Create an account or sign in.
+5. Apply the SQL migrations and deploy `whatsapp-status`, `whatsapp-worker` and `whatsapp-webhook`. Add Meta's sender credentials under Supabase Edge Function secrets, then use **Check connection** again.
+
+Do not paste either key into chat or commit a populated `.env.local` file. The public anon/publishable key will be included in the client build by design; protect user data with the database Row Level Security policies.
