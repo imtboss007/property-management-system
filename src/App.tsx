@@ -17,6 +17,7 @@ type PropertyRecord = {
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
 type DocumentRecord = { id: string; propertyId: string; property: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
+type FinancialRecord = { id: string; propertyId: string; property: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Settings" | string;
 
 const modules = [
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
+  { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
   { name: "Schedule & Tasks", icon: CalendarClock },
   { name: "WhatsApp Automation", icon: MessageCircle }
@@ -54,6 +56,9 @@ export default function App() {
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
+  const [financials, setFinancials] = useState<FinancialRecord[]>(() => load("estateflow.financials", []));
+  const [showFinancialForm, setShowFinancialForm] = useState(false);
+  const [editingFinancial, setEditingFinancial] = useState<FinancialRecord | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [documentCategory, setDocumentCategory] = useState("Sale deed");
   const [documentProperty, setDocumentProperty] = useState("");
@@ -120,14 +125,23 @@ export default function App() {
     localStorage.setItem(storageKey("tasks"), JSON.stringify(tasks));
   }, [tasks, session?.user.id, remoteReady]);
 
+  useEffect(() => {
+    if (backendConfigured && (!session || !remoteReady)) return;
+    localStorage.setItem(storageKey("financials"), JSON.stringify(financials));
+  }, [financials, session?.user.id, remoteReady]);
+
   const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(p =>
     `${p.title} ${p.module} ${p.location} ${p.contact} ${p.status}`.toLowerCase().includes(search.toLowerCase())
   ), [properties, search]);
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const today = new Date().toISOString().slice(0,10);
+  const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
+  const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
+  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-  const remoteUpsert = (table: "property_records" | "contacts" | "tasks", payload: Record<string, unknown>) => {
+  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions", payload: Record<string, unknown>) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).upsert({ ...payload, user_id: session.user.id }).then(({ error }) => {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
@@ -139,7 +153,7 @@ export default function App() {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
     });
   };
-  const remoteDelete = (table: "property_records" | "contacts" | "tasks", id: string) => {
+  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions", id: string) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).delete().eq("id", id).eq("user_id", session.user.id).then(({ error }) => {
       if (error) setNotice(`Cloud deletion failed. ${error.message}`);
@@ -157,14 +171,16 @@ export default function App() {
     setProperties(load(`estateflow.${scope}.properties`, []));
     setContacts(load(`estateflow.${scope}.contacts`, []));
     setTasks(load(`estateflow.${scope}.tasks`, []));
+    setFinancials(load(`estateflow.${scope}.financials`, []));
     (async () => {
-      const [propertyResult, contactResult, taskResult, documentResult] = await Promise.all([
+      const [propertyResult, contactResult, taskResult, documentResult, financialResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
-        supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false })
+        supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
+        supabase.from("financial_transactions").select("id,property_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false })
       ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error;
+      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error;
       if (queryError) throw queryError;
       if (cancelled) return;
       setProperties((propertyResult.data ?? []).map(row => ({
@@ -213,6 +229,17 @@ export default function App() {
         expiresOn: row.expires_on ?? "",
         notes: row.notes ?? "",
         createdAt: row.created_at ?? new Date().toISOString()
+      })));
+      setFinancials((financialResult.data ?? []).map(row => ({
+        id: row.id,
+        propertyId: row.property_id ?? "",
+        property: row.property_label ?? "",
+        type: row.transaction_type,
+        amount: String(row.amount ?? "0"),
+        date: row.transaction_date,
+        party: row.party ?? "",
+        reference: row.reference_number ?? "",
+        notes: row.notes ?? ""
       })));
       setNotice("Connected to the shared EstateFlow database.");
       setRemoteReady(true);
@@ -318,6 +345,8 @@ export default function App() {
   const closeContactForm = () => { setShowContactForm(false); setEditingContact(null); };
   const openTaskForm = (record: TaskRecord | null = null) => { setEditingTask(record); setShowTaskForm(true); };
   const closeTaskForm = () => { setShowTaskForm(false); setEditingTask(null); };
+  const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
+  const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
 
   const saveProperty = (data: Omit<PropertyRecord, "id" | "createdAt">) => {
     const record: PropertyRecord = editingProperty
@@ -370,6 +399,31 @@ export default function App() {
   const deleteProperty = (id: string) => { setProperties(prev => prev.filter(p => p.id !== id)); remoteDelete("property_records", id); };
   const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); remoteDelete("contacts", id); };
   const deleteTask = (id: string) => { setTasks(prev => prev.filter(t => t.id !== id)); remoteDelete("tasks", id); };
+  const saveFinancial = (data: Omit<FinancialRecord, "id">) => {
+    const record: FinancialRecord = editingFinancial ? { ...editingFinancial, ...data } : { ...data, id: uid() };
+    setFinancials(prev => editingFinancial
+      ? prev.map(item => item.id === record.id ? record : item)
+      : [record, ...prev]);
+    remoteUpsert("financial_transactions", {
+      id: record.id,
+      property_id: record.propertyId || null,
+      property_label: record.property,
+      transaction_type: record.type,
+      amount: Number(record.amount),
+      transaction_date: record.date,
+      party: record.party,
+      reference_number: record.reference,
+      notes: record.notes
+    });
+    closeFinancialForm();
+    setNotice(backendConfigured && session
+      ? "Financial transaction saved and synced with your shared workspace."
+      : "Financial transaction saved on this device.");
+  };
+  const deleteFinancial = (id: string) => {
+    setFinancials(prev => prev.filter(item => item.id !== id));
+    remoteDelete("financial_transactions", id);
+  };
   const toggleTask = (id: string) => {
     const task = tasks.find(item => item.id === id);
     if (!task) return;
@@ -434,7 +488,7 @@ export default function App() {
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> YOUR PROPERTY COMMAND CENTRE</div><h1>{active === "Overview" ? "Good things are in motion." : active}</h1><p className="subtitle">{active === "Overview" ? "Your properties, deals and follow-ups — thoughtfully organised." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Overview" && <>
             <section className="hero-card"><div className="hero-copy"><span className="hero-label">A CLEARER WAY FORWARD</span><h2>Every deal has a next step.<br/>Never miss yours.</h2><p>Bring property records, important dates and conversations together in one calm, organised space.</p><button className="hero-button" onClick={() => go("Schedule & Tasks")}>View your schedule <ArrowUpRight size={16}/></button></div>
@@ -452,6 +506,12 @@ export default function App() {
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
             {tasks.length ? <TaskList tasks={[...tasks].sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
+          {active === "Financials" && <section className="data-panel">
+            <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
+            <div className="finance-summary"><div><span>Tracked inflows</span><strong>₹{totalInflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Tracked outflows</span><strong>₹{totalOutflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Net recorded movement</span><strong>₹{(totalInflow-totalOutflow).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div></div>
+            <p className="finance-footnote">Totals are category-based summaries of records entered here, not verified bank balances or accounting advice. Review transaction types and source documents before relying on settlement figures.</p>
+            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · ₹{Number(item.amount||0).toLocaleString("en-IN",{maximumFractionDigits:2})}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
+          </section>}
           {active === "Documents" && <section className="data-panel">
             <div className="section-heading"><div><h2>Private document vault</h2><p>{documents.length} saved documents · private cloud storage when connected</p></div><FileText size={21}/></div>
             {!backendConfigured || !session ? <div className="notice notice-warn">Secure document upload is disabled in local-only mode. Configure the shared database and sign in to store deeds, ECs, khata, RTC/Pahani, tax receipts and agreements privately.</div> : <div className="document-upload-card">
@@ -476,6 +536,7 @@ export default function App() {
       {showPropertyForm && <Modal title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} initial={editingTask} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
+      {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
     </main>
   );
 }
@@ -525,6 +586,28 @@ function TaskForm({properties,initial,onSave,onCancel}:{properties:PropertyRecor
     <div className="form-two"><label>Task type<select value={form.type} onChange={e=>update("type",e.target.value)}>{["Follow-up","Meeting","Payment","Registration","Document deadline","Site visit","Other"].map(s=><option key={s}>{s}</option>)}</select></label><label>Related property<select value={form.property} onChange={e=>update("property",e.target.value)}><option value="">None selected</option>{properties.map(p=><option key={p.id} value={p.title}>{p.title}</option>)}</select></label></div>
     <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Details or preparation required"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save task"}</button></div>
+  </form>;
+}
+
+function FinancialForm({properties,initial,onSave,onCancel}:{properties:PropertyRecord[];initial?:FinancialRecord|null;onSave:(value:Omit<FinancialRecord,"id">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState({
+    propertyId:initial?.propertyId ?? "",
+    property:initial?.property ?? "",
+    type:initial?.type ?? "Receipt",
+    amount:initial?.amount ?? "",
+    date:initial?.date ?? new Date().toISOString().slice(0,10),
+    party:initial?.party ?? "",
+    reference:initial?.reference ?? "",
+    notes:initial?.notes ?? ""
+  });
+  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  const types=["Purchase","Sale","Advance","Loan Disbursal","Loan Repayment","Interest","Instalment","Brokerage","Expense","Receipt","Settlement","Other"];
+  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.amount.trim() && Number(form.amount)>=0){const property=properties.find(item=>item.id===form.propertyId);onSave({...form,property:property?.title ?? form.property});}}}>
+    <div className="form-two"><label>Transaction type<select value={form.type} onChange={event=>update("type",event.target.value)}>{types.map(type=><option key={type}>{type}</option>)}</select></label><label>Amount (₹) *<input required type="number" min="0" step="0.01" value={form.amount} onChange={event=>update("amount",event.target.value)} placeholder="0.00"/></label></div>
+    <div className="form-two"><label>Date *<input required type="date" value={form.date} onChange={event=>update("date",event.target.value)}/></label><label>Related property<select value={form.propertyId} onChange={event=>{const value=event.target.value;update("propertyId",value);update("property",properties.find(item=>item.id===value)?.title ?? "");}}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title}</option>)}</select></label></div>
+    <div className="form-two"><label>Party / counterparty<input value={form.party} onChange={event=>update("party",event.target.value)} placeholder="Buyer, seller, bank, broker"/></label><label>Reference number<input value={form.reference} onChange={event=>update("reference",event.target.value)} placeholder="Receipt / bank reference"/></label></div>
+    <label>Notes<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Payment method, interest period, settlement details"/></label>
+    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save transaction"}</button></div>
   </form>;
 }
 
