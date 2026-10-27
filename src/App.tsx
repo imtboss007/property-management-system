@@ -6,7 +6,7 @@ import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X,
-  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil
+  Trash2, Phone, MapPin, CalendarDays, CircleCheck, ExternalLink, Pencil, Download, Upload
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -16,6 +16,7 @@ type PropertyRecord = {
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
+type DocumentRecord = { id: string; propertyId: string; property: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Settings" | string;
 
 const modules = [
@@ -53,6 +54,12 @@ export default function App() {
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [documentCategory, setDocumentCategory] = useState("Sale deed");
+  const [documentProperty, setDocumentProperty] = useState("");
+  const [documentExpiry, setDocumentExpiry] = useState("");
+  const [documentNotes, setDocumentNotes] = useState("");
+  const [uploadingDocument, setUploadingDocument] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -151,12 +158,13 @@ export default function App() {
     setContacts(load(`estateflow.${scope}.contacts`, []));
     setTasks(load(`estateflow.${scope}.tasks`, []));
     (async () => {
-      const [propertyResult, contactResult, taskResult] = await Promise.all([
+      const [propertyResult, contactResult, taskResult, documentResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
-        supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true })
+        supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
+        supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false })
       ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error;
+      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error;
       if (queryError) throw queryError;
       if (cancelled) return;
       setProperties((propertyResult.data ?? []).map(row => ({
@@ -193,6 +201,19 @@ export default function App() {
         notes: row.notes ?? "",
         done: Boolean(row.is_done)
       })));
+      setDocuments((documentResult.data ?? []).map(row => ({
+        id: row.id,
+        propertyId: row.property_id ?? "",
+        property: row.property_label ?? "",
+        name: row.name,
+        category: row.category ?? "Other",
+        storagePath: row.storage_path,
+        mimeType: row.mime_type ?? "application/octet-stream",
+        sizeBytes: Number(row.size_bytes ?? 0),
+        expiresOn: row.expires_on ?? "",
+        notes: row.notes ?? "",
+        createdAt: row.created_at ?? new Date().toISOString()
+      })));
       setNotice("Connected to the shared EstateFlow database.");
       setRemoteReady(true);
     })().catch((error: unknown) => {
@@ -202,6 +223,93 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, [session?.user.id]);
+
+  const uploadDocument = async (file: File) => {
+    if (!supabase || !backendConfigured || !session) {
+      setNotice("Secure document upload requires a configured and signed-in shared database.");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setNotice("This file exceeds the 25 MB limit. Compress it or select a smaller file.");
+      return;
+    }
+    const allowedTypes = [
+      "application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      setNotice("Choose a PDF, JPEG, PNG, WebP, DOC or DOCX file.");
+      return;
+    }
+    setUploadingDocument(true);
+    const id = uid();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "document";
+    const storagePath = `${session.user.id}/${id}/${safeName}`;
+    try {
+      const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, file, {
+        contentType: file.type,
+        upsert: false
+      });
+      if (uploadError) throw uploadError;
+      const property = properties.find(item => item.id === documentProperty);
+      const { data, error: metadataError } = await supabase.from("documents").insert({
+        id,
+        user_id: session.user.id,
+        property_id: property?.id ?? null,
+        property_label: property?.title ?? "",
+        name: file.name,
+        category: documentCategory,
+        storage_path: storagePath,
+        mime_type: file.type,
+        size_bytes: file.size,
+        expires_on: documentExpiry || null,
+        notes: documentNotes
+      }).select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").single();
+      if (metadataError) {
+        await supabase.storage.from("property-documents").remove([storagePath]);
+        throw metadataError;
+      }
+      const record: DocumentRecord = {
+        id: data.id, propertyId: data.property_id ?? "", property: data.property_label ?? "",
+        name: data.name, category: data.category, storagePath: data.storage_path,
+        mimeType: data.mime_type, sizeBytes: Number(data.size_bytes ?? 0),
+        expiresOn: data.expires_on ?? "", notes: data.notes ?? "", createdAt: data.created_at
+      };
+      setDocuments(prev => [record, ...prev]);
+      setDocumentNotes("");
+      setDocumentExpiry("");
+      setNotice("Document uploaded to private cloud storage.");
+    } catch (error) {
+      setNotice(`Document upload failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+  const downloadDocument = async (record: DocumentRecord) => {
+    if (!supabase) return;
+    const { data, error } = await supabase.storage.from("property-documents").createSignedUrl(record.storagePath, 60);
+    if (error) {
+      setNotice(`Could not create a secure document link: ${error.message}`);
+      return;
+    }
+    const link = document.createElement("a");
+    link.href = data.signedUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.click();
+  };
+  const deleteDocument = async (record: DocumentRecord) => {
+    if (!supabase || !session) return;
+    const { error } = await supabase.from("documents").delete().eq("id", record.id).eq("user_id", session.user.id);
+    if (error) {
+      setNotice(`Document record could not be deleted: ${error.message}`);
+      return;
+    }
+    const { error: storageError } = await supabase.storage.from("property-documents").remove([record.storagePath]);
+    setDocuments(prev => prev.filter(item => item.id !== record.id));
+    if (storageError) setNotice(`Metadata deleted, but file cleanup failed: ${storageError.message}`);
+    else setNotice("Document and its private cloud file were deleted.");
+  };
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); };
   const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
@@ -344,7 +452,21 @@ export default function App() {
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
             {tasks.length ? <TaskList tasks={[...tasks].sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
-          {active === "Documents" && <section className="data-panel"><div className="section-heading"><div><h2>Documents</h2><p>Document management workspace</p></div></div><Empty icon={<FileText size={22}/>} title="Document vault is the next build stage" text="The starter currently has no secure cloud file storage. The next stage will connect private document uploads to a database/storage service." action="Back to overview" onClick={()=>go("Overview")}/></section>}
+          {active === "Documents" && <section className="data-panel">
+            <div className="section-heading"><div><h2>Private document vault</h2><p>{documents.length} saved documents · private cloud storage when connected</p></div><FileText size={21}/></div>
+            {!backendConfigured || !session ? <div className="notice notice-warn">Secure document upload is disabled in local-only mode. Configure the shared database and sign in to store deeds, ECs, khata, RTC/Pahani, tax receipts and agreements privately.</div> : <div className="document-upload-card">
+              <div className="form-two">
+                <label>Document category<select value={documentCategory} onChange={event=>setDocumentCategory(event.target.value)}>{["Sale deed","Encumbrance Certificate","RTC / Pahani","Khata","Tax receipt","Loan document","JV / JDA agreement","Legal opinion","Identity / KYC","Other"].map(value=><option key={value}>{value}</option>)}</select></label>
+                <label>Related property<select value={documentProperty} onChange={event=>setDocumentProperty(event.target.value)}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title}</option>)}</select></label>
+              </div>
+              <div className="form-two">
+                <label>Expiry / renewal date<input type="date" value={documentExpiry} onChange={event=>setDocumentExpiry(event.target.value)}/></label>
+                <label>Notes<input value={documentNotes} onChange={event=>setDocumentNotes(event.target.value)} placeholder="Document number, authority, comments"/></label>
+              </div>
+              <label className="upload-picker">Select a document (PDF, image, DOC/DOCX · max 25 MB)<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" disabled={uploadingDocument} onChange={event=>{const file=event.target.files?.[0];if(file)void uploadDocument(file);event.currentTarget.value="";}}/><span>{uploadingDocument ? "Uploading privately…" : "Choose file to upload"}</span></label>
+            </div>}
+            {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={`Download ${record.name}`}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={`Delete ${record.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text={backendConfigured && session ? "Upload a property document above. Files are private and download links expire after 60 seconds." : "Configure the backend to upload and protect documents across devices."} action="Back to overview" onClick={()=>go("Overview")}/>}
+          </section>}
           {active === "WhatsApp Automation" && <section className="data-panel"><div className="section-heading"><div><h2>WhatsApp follow-up helper</h2><p>Prepare a message and open WhatsApp manually.</p></div><MessageCircle size={21}/></div>
             <div className="form-card wa-form"><label>Recipient phone number <span>Include country code, e.g. 919876543210</span><input value={waPhone} onChange={e=>setWaPhone(e.target.value.replace(/[^\d]/g,""))} placeholder="91XXXXXXXXXX"/></label><label>Message<textarea rows={5} value={waMessage} onChange={e=>setWaMessage(e.target.value)}/></label><button className="primary-button" disabled={!waPhone || !waMessage.trim()} onClick={()=>window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(waMessage)}`,"_blank","noopener,noreferrer")}><ExternalLink size={16}/> Open WhatsApp chat</button><div className="notice notice-warn">This opens a prefilled chat; it does not auto-send messages, detect replies or keep repeating. Automated follow-up requires WhatsApp Business Platform credentials, approved templates where required, and a webhook.</div></div></section>}
           {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Records are currently stored in this browser's local storage. They are not synced across devices and may be lost if browser data is cleared.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,tasks,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid EstateFlow backup.");}};input.click();}}>Import backup JSON</button>{backendConfigured && session && <button className="secondary-button" onClick={async () => { await supabase?.auth.signOut(); }}>Sign out of shared workspace</button>}</div></section>}
