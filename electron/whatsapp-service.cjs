@@ -10,7 +10,7 @@ const SEND_COOLDOWN_MS = 12000;
 const MISSED_SCHEDULE_GRACE_MS = 30 * 60 * 1000;
 
 function normalizePhone(raw) {
-  let digits = String(raw || "").replace(/\\D/g, "");
+  let digits = String(raw || "").replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
   if (digits.length === 10) digits = "91" + digits;
@@ -139,7 +139,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
             status.lastConnectedAt = new Date().toISOString();
             const userId = String(nextSocket.user && nextSocket.user.id || "");
             const numberPart = userId.split("@")[0].split(":")[0];
-            status.senderNumber = numberPart.replace(/\\D/g, "") || status.senderNumber;
+            status.senderNumber = numberPart.replace(/\D/g, "") || status.senderNumber;
             status.displayName = String(nextSocket.user && nextSocket.user.name || "");
             pairingRequested = false;
             publish("connected");
