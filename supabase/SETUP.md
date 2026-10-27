@@ -94,3 +94,46 @@ The current model is user-scoped for private records. The approval queue records
 Three additional institutional modules are included: **Fund & Portfolio Management**, **Investor Relations**, and **Compliance & KYC**. Fund records capture commitments, deployed capital, NAV and fund terms; investor records capture commitment/paid-in capital and reporting details; compliance records capture beneficial ownership, screening status, risk rating and KYC review date.
 
 The screening and KYC fields are recordkeeping only. They do not run live sanctions/PEP checks, decide whether a match is genuine, or certify regulatory compliance. Before institutional deployment, add verified screening providers, independently authorized reviewers, organization-specific roles, strong authentication, data retention controls and a reviewed approval policy.
+
+
+## Sender connection and bulk WhatsApp scheduling
+
+The WhatsApp page now supports a server-side sender status check, single scheduled messages, CSV bulk scheduling for up to 5,000 rows per import, an auditable queue/history list, cancellation of queued rows, and routing metadata for eligible official WhatsApp Groups API destinations.
+
+**The sender number is different from a recipient number.** The sender must be a business phone registered with Meta WhatsApp Business Platform / Cloud API. EstateFlow cannot connect a normal personal WhatsApp app by entering a phone number or scanning a QR code.
+
+Configure these as Supabase Edge Function secrets (never store the service-role key or WhatsApp token in Vite/desktop/mobile settings):
+- SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- ESTATEFLOW_WORKER_SECRET
+- WHATSAPP_ACCESS_TOKEN
+- WHATSAPP_PHONE_NUMBER_ID
+- WHATSAPP_GRAPH_API_VERSION
+- WHATSAPP_APP_SECRET
+- WHATSAPP_VERIFY_TOKEN
+
+Deploy all three server functions:
+```bash
+supabase functions deploy whatsapp-worker
+supabase functions deploy whatsapp-webhook
+supabase functions deploy whatsapp-status
+```
+
+Apply `supabase/migrations/202610270002_whatsapp_bulk_scheduling.sql` after `202610270001_estateflow_core.sql`. The new migration adds destination/batch metadata and expands the due-work claim size to 100 rows per worker call. Keep the existing cron trigger running every minute.
+
+### Bulk scheduling
+Open WhatsApp Automation → Bulk schedule · CSV → Download sample CSV. Each CSV row becomes one independent scheduled message. Required columns are:
+- recipient_type
+- target
+- template_name
+- template_language
+- opt_in_confirmed
+
+Optional columns: target_label, contact_name, template_parameters, scheduled_at, audience_label, message_notes. Use pipe-separated template parameters, in the exact order the approved template expects. Set opt_in_confirmed to true/yes/1 for every row. Leave scheduled_at blank to use the default date and time selected in EstateFlow, or provide an ISO timestamp for each recipient. Ten-digit Indian numbers are automatically prefixed with 91 (editable default country code). The application validates the entire CSV before starting insert batches of 100. Imports are limited to 5,000 rows per file.
+
+A 700-message list is queued as 700 separate one-to-one sends. The worker processes up to 100 due rows per run, so messages can require multiple runs and are not guaranteed to land at the same second. Actual delivery requires successful Meta API submission; a “sent” status means the API accepted the request, not necessarily that the recipient read the message.
+
+### Group delivery boundary
+A “group” row only works for an eligible Meta account using the official WhatsApp Groups API, and requires a group ID created through that API. It does not target arbitrary existing personal WhatsApp/Business-app groups by group name or QR link. Meta's Groups API has account eligibility and participant limits; confirm current official terms and setup before use. Only after qualifying and configuring the Groups API should you set the server secret `WHATSAPP_GROUPS_API_ENABLED=true`.
+
+The check-connection control verifies the configured sender through Meta's API; it does not register the number or create credentials on your behalf. The migration, secrets, Edge Functions and scheduled worker must all be configured before automatic delivery is live.
