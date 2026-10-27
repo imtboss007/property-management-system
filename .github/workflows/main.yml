@@ -32,6 +32,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify Supabase client variables (Windows)
+        shell: pwsh
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_URL)) { throw "Missing GitHub Actions variable: VITE_SUPABASE_URL" }
+          if ([string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_ANON_KEY)) { throw "Missing GitHub Actions variable: VITE_SUPABASE_ANON_KEY" }
+          if (-not $env:VITE_SUPABASE_URL.StartsWith("https://")) { throw "VITE_SUPABASE_URL must be the HTTPS Project URL from Supabase." }
+          Write-Host "Both Supabase client variables are present. Values are not printed."
+      
       - name: Build Windows EXE
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
@@ -71,6 +82,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify Supabase client variables (Android)
+        shell: bash
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$VITE_SUPABASE_URL" || { echo "::error::Missing GitHub Actions variable: VITE_SUPABASE_URL"; exit 1; }
+          test -n "$VITE_SUPABASE_ANON_KEY" || { echo "::error::Missing GitHub Actions variable: VITE_SUPABASE_ANON_KEY"; exit 1; }
+          case "$VITE_SUPABASE_URL" in https://*) ;; *) echo "::error::VITE_SUPABASE_URL must be the HTTPS Project URL from Supabase."; exit 1 ;; esac
+          echo "Both Supabase client variables are present. Values are not printed."
+      
       - name: Build web app
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
