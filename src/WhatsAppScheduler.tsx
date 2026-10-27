@@ -341,9 +341,22 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       </div>
     </div>}
 
-    {!supported && <div className="notice notice-warn wa-platform-note">
-      <Info size={18}/><div><strong>Android delivery note</strong><p>The APK currently cannot run Baileys' Node.js linked-device engine by itself. Link the WhatsApp number in the Windows desktop app, which keeps the scheduled queue running in the tray. Standalone Android sending would require a native engine or a separately hosted service.</p></div>
-    </div>}
+    {!localApi && <section className="data-panel wa-companion-setup">
+      <div className="section-heading"><div><span className="section-kicker">WINDOWS PC COMPANION</span><h2>Connect to your Windows sender</h2><p>The Windows PC hosts the WhatsApp linked-device session and schedule. Your Android app controls it over the same Wi-Fi.</p></div><Smartphone size={22}/></div>
+      <label>Windows PC address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47821" autoCapitalize="none" autoCorrect="off"/></label>
+      <label>EstateFlow companion code<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Paste the code shown on Windows" autoCapitalize="none" autoCorrect="off"/></label>
+      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save and connect to Windows</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Windows PC connection removed from this phone."); }}><Unplug size={15}/>Forget PC</button>}</div>
+      <p className="wa-local-storage-note"><Info size={14}/>Both devices must be on the same trusted Wi-Fi. Keep the Windows PC on with EstateFlow in the tray. Do not expose this connection to the public internet or share the companion code.</p>
+    </section>}
+
+    {localApi && bridgeInfo && <section className="data-panel wa-companion-setup">
+      <div className="section-heading"><div><span className="section-kicker">CONNECT YOUR ANDROID APP</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in EstateFlow on your Android phone.</p></div><Smartphone size={22}/></div>
+      <label>Windows PC address<input readOnly value={bridgeInfo.urls[0] || ("http://your-pc-ip:" + bridgeInfo.port)} onFocus={event => event.currentTarget.select()}/></label>
+      {bridgeInfo.urls.length > 1 && <label>Other available PC addresses<input readOnly value={bridgeInfo.urls.join("    ")} onFocus={event => event.currentTarget.select()}/></label>}
+      <label>EstateFlow companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
+      <div className="form-actions"><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.urls[0] || "", "Windows PC address")}><CheckCircle2 size={15}/>Copy address</button><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.token, "Companion code")}><CheckCircle2 size={15}/>Copy code</button></div>
+      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own EstateFlow phone on a trusted network. Do not forward it or set up router port forwarding.</p>
+    </section>}
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
