@@ -42,7 +42,7 @@ function readSaved(key: string) {
 }
 
 function createRemoteApi(host: string, token: string): WhatsAppApi {
-  const base = host.trim().replace(/\\/+$/, "");
+  const base = host.trim().replace(/\/+$/, "");
   const request = async (path: string, method: "GET" | "POST" = "GET", body?: Record<string, unknown>): Promise<CompanionResponse> => {
     if (!/^http:\/\//i.test(base)) throw new Error("Windows PC address must start with http://");
     const response = await fetch(base + path, {
