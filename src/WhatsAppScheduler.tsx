@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
-  Clock3, Ban, RotateCcw, Send, Unplug, ShieldCheck, Info
+  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info
 } from "lucide-react";
 
 type ContactOption = { id: string; name: string; phone: string; role?: string };
