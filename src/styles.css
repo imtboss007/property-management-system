@@ -239,3 +239,9 @@ h1 { font: 800 clamp(25px, 3vw, 34px)/1.2 "Manrope", sans-serif; letter-spacing:
 .auth-card>small{display:block;margin-top:18px;color:#89938a;font-size:10px;line-height:1.7;text-align:center}
 .auth-notice{font-size:12px;line-height:1.5;margin-top:14px;overflow-wrap:anywhere}
 @media(max-width:520px){.auth-shell{padding:14px}.auth-card{padding:24px 19px;border-radius:17px}.auth-card h1{font-size:26px}}
+
+.edit-button{display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:9px;background:transparent;color:#607b65;cursor:pointer}
+.edit-button:hover{background:#eaf3e9;color:#2f6040}
+.record-side{flex-direction:row;align-items:center;flex-wrap:wrap}
+.record-side .status-pill{margin-right:auto}
+@media(max-width:520px){.record-side{max-width:none;flex-direction:row;align-items:center}.record-side .status-pill{margin-right:0}}
