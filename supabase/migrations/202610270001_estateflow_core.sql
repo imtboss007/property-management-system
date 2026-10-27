@@ -233,3 +233,9 @@ with check (bucket_id = 'property-documents' and (storage.foldername(name))[1] =
 create policy estateflow_docs_delete_own_folder on storage.objects
 for delete to authenticated
 using (bucket_id = 'property-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+
+-- Keep the audit trail append-only for application users.
+revoke update, delete on table public.audit_events from authenticated;
+drop policy if exists estateflow_owner_update on public.audit_events;
+drop policy if exists estateflow_owner_delete on public.audit_events;
