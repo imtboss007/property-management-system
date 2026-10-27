@@ -74,3 +74,16 @@ In Meta's WhatsApp app configuration, use the callback URL:
 Enter the same value as `WHATSAPP_VERIFY_TOKEN` for webhook verification, configure the Meta App Secret as `WHATSAPP_APP_SECRET`, and subscribe the WhatsApp messages webhook field. The function validates `X-Hub-Signature-256`. Incoming replies update matching queued/sent records to `replied`, preventing any later scheduled sends for that number.
 
 Do not schedule messages to recipients without their opt-in. Use approved templates in line with Meta's business messaging rules. The worker and webhook code are committed, but neither is live until deployed and configured in your Supabase/Meta projects.
+
+
+## Investment, credit, legal and governance modules
+
+The app includes thirteen connected workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase and Litigation. The new module worksheets write their additional fields to the JSONB `module_data` column on `property_records`.
+
+The overview now calculates a tracked-value total from the headline values entered by the user and shows attention signals for high/critical risks, pending approvals, overdue tasks and upcoming document expiries. These are operational indicators based on captured data, not valuation opinions or an assurance that no other risks exist.
+
+The Risk & Compliance workspace supports a register with category, severity, status, owner, due date, linked matter and mitigation. The Approvals workspace records requests, rationale, priority and approval/rejection outcomes. The migration enables row-level security on both tables and adds database audit events for business record changes.
+
+### Important governance boundary
+
+The current model is user-scoped for private records. The approval queue records decisions but does **not** enforce multi-user separation of duties, independent approver identity, maker-checker restrictions, legal sign-off, delegated limits, or workflow blocks at the database layer. Before use at an institutional scale, add organization/workspace membership, role-based policies, independent approver authorization, immutable decision identity, retention controls, test coverage and an operational security review. The styling is enterprise-oriented; this does not make the current build certified or production-approved for BlackRock or any regulated institution.
