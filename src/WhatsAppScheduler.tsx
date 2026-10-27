@@ -41,6 +41,36 @@ function readSaved(key: string) {
   try { return localStorage.getItem(key) || ""; } catch { return ""; }
 }
 
+function createRemoteApi(host: string, token: string): WhatsAppApi {
+  const base = host.trim().replace(/\\/+$/, "");
+  const request = async (path: string, method: "GET" | "POST" = "GET", body?: Record<string, unknown>): Promise<CompanionResponse> => {
+    if (!/^http:\/\//i.test(base)) throw new Error("Windows PC address must start with http://");
+    const response = await fetch(base + path, {
+      method,
+      headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token },
+      body: method === "POST" ? JSON.stringify(body || {}) : undefined
+    });
+    let data: CompanionResponse;
+    try { data = await response.json() as CompanionResponse; }
+    catch { throw new Error("The Windows PC returned an unreadable response."); }
+    if (!response.ok || data.ok === false) throw new Error(data.error || ("Windows PC request failed (" + response.status + ")."));
+    return data;
+  };
+  const fallbackStatus = (): DirectStatus => ({ supported: true, platform: "windows-desktop", connected: false, connecting: false, senderNumber: "", displayName: "", qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: "" });
+  return {
+    getStatus: async () => (await request("/api/status")).status || fallbackStatus(),
+    getQueue: async () => (await request("/api/queue")).queue || [],
+    connect: async () => { const data = await request("/api/connect", "POST"); return { ok: Boolean(data.ok) }; },
+    requestPairingCode: async phone => { const data = await request("/api/pairing-code", "POST", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
+    disconnect: async () => { const data = await request("/api/disconnect", "POST"); return { ok: Boolean(data.ok) }; },
+    schedule: async payload => { const data = await request("/api/schedule", "POST", payload); return { ok: Boolean(data.ok), rows: data.rows || [] }; },
+    sendNow: async payload => { const data = await request("/api/send-now", "POST", payload); return { ok: Boolean(data.ok), rows: data.rows || [] }; },
+    cancel: async id => { const data = await request("/api/cancel", "POST", { id }); return { ok: Boolean(data.ok), message: data.message }; },
+    retry: async id => { const data = await request("/api/retry", "POST", { id }); return { ok: Boolean(data.ok), message: data.message }; },
+    onUpdate: () => () => {}
+  };
+}
+
 type Props = { contacts?: ContactOption[]; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
