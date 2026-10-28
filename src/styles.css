@@ -922,3 +922,80 @@ h2,h3{color:#e5f2fc}
 @media(max-width:1100px){.ax-analytics-grid{grid-template-columns:minmax(0,1fr) 205px}.ax-chart-legend{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-module-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-module-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.ax-analytics-panel{padding:14px}.ax-analytics-grid{grid-template-columns:1fr}.ax-chart-inspector{min-height:0}.ax-inspector-divider{margin:8px 0}.ax-chart-stage{min-height:280px}.ax-module-hero{padding:19px;align-items:flex-start}.ax-module-hero-mark{display:none}.ax-module-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-module-record-grid{grid-template-columns:1fr}.ax-field-audit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-module-controlbar{align-items:stretch}.ax-module-search{flex-basis:100%}.ax-module-filter{justify-content:space-between}.ax-stage-strip button{padding:8px}.ax-record-quick-actions button{font-size:8px}}
 @media(max-width:520px){.ax-analytics-heading{align-items:flex-start}.ax-analytics-heading h2{font-size:17px}.ax-chart-type{align-self:flex-end}.ax-analytics-tabs{gap:4px}.ax-analytics-tabs>button{padding:7px 8px;font-size:9px}.ax-bar-row{grid-template-columns:minmax(80px,115px) minmax(35px,1fr) 35px;gap:7px}.ax-horizontal-bars{padding:14px 10px}.ax-chart-legend{grid-template-columns:1fr 1fr}.ax-chart-legend button{padding:8px}.ax-module-kpi{padding:12px}.ax-module-view-switch{width:100%}.ax-module-view-switch button{flex:1;padding:8px 7px;font-size:8px}.ax-module-filter{width:100%}.ax-module-filter select{max-width:none;flex:1}.ax-field-audit-grid{grid-template-columns:1fr 1fr}.ax-health-record-head{grid-template-columns:minmax(0,1fr) auto}.ax-health-progress{grid-column:1/-1;grid-row:2}.ax-row-action-text{grid-column:2;grid-row:1}.ax-module-footer{align-items:flex-start}}
+
+
+/* AXIVESTRA navigation and detail polish */
+.sidebar{position:sticky;top:0;height:100vh;min-height:100vh;overflow-y:auto;overflow-x:hidden;scrollbar-color:#244b65 #071726;scrollbar-width:thin}
+.ax-sidebar-modules{margin:20px 0 10px;padding:0 2px 10px;border-top:1px solid #1d3a50;border-bottom:1px solid #1d3a50}
+.ax-sidebar-modules>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 10px 10px;color:#7197b1;font-size:8px;font-weight:900;letter-spacing:1.5px;cursor:pointer;list-style:none;user-select:none}
+.ax-sidebar-modules>summary::-webkit-details-marker{display:none}
+.ax-sidebar-modules>summary svg{transition:transform .2s}
+.ax-sidebar-modules[open]>summary svg{transform:rotate(180deg);color:#26dbea}
+.ax-sidebar-module-list{display:grid;gap:3px;max-height:42vh;overflow:auto;padding-right:2px;scrollbar-color:#244b65 #071726;scrollbar-width:thin}
+.ax-sidebar-module{display:flex;align-items:center;gap:9px;min-width:0;width:100%;padding:8px 9px;border:1px solid transparent;border-radius:8px;background:transparent;color:#93afc4;text-align:left;font-size:10px;cursor:pointer;transition:all .18s}
+.ax-sidebar-module>svg{flex-shrink:0;color:#5e8da8}
+.ax-sidebar-module>span{min-width:0;flex:1;line-height:1.35}
+.ax-sidebar-module>small{color:#53758e;font-size:8px;font-variant-numeric:tabular-nums}
+.ax-sidebar-module:hover{background:#102b40;border-color:#1b4057;color:#e4f5ff}
+.ax-sidebar-module.active{background:linear-gradient(90deg,#0e4359,#103148);border-color:#1d5a71;color:#eafbff}
+.ax-sidebar-module.active svg{color:#24e0ef;filter:drop-shadow(0 0 5px #20d9ef55)}
+.ax-sidebar-module.active small{color:#47cce0}
+.ax-record-progress .ax-progress-track{display:block;flex:1;min-width:40px;height:4px;border-radius:9px;background:#173a50;overflow:hidden}
+.ax-record-progress .ax-progress-track i{display:block;height:100%;max-width:100%;border-radius:9px;background:linear-gradient(90deg,#20d9ef,#2877ff);box-shadow:0 0 10px #20d9ef33;transition:width .35s ease}
+.whatsapp-workspace{padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important;min-height:unset!important}
+.whatsapp-workspace>.section-heading{margin:0 0 16px;padding:22px 24px;border:1px solid #21435b;border-radius:16px;background:radial-gradient(ellipse at 90% 0%,#185d7c75,transparent 45%),linear-gradient(118deg,#0c2236,#0c2f49)}
+.whatsapp-workspace>.section-heading h2{margin-top:8px;font-size:23px;color:#f3fbff}
+.whatsapp-workspace>.section-heading p{max-width:760px;color:#9bbbd0;line-height:1.8}
+.whatsapp-workspace>.section-heading>svg{color:#42dff0;filter:drop-shadow(0 0 12px #1acde833)}
+.whatsapp-workspace .data-panel{background:linear-gradient(145deg,#0c2032,#091a2a);border-color:#203e55}
+.whatsapp-workspace .wa-connection-card{position:relative;overflow:hidden;border-radius:15px;background:linear-gradient(120deg,#102a3f,#0b2032);border-color:#24475e;color:#d7eaf6;box-shadow:inset 0 1px 0 #ffffff07}
+.whatsapp-workspace .wa-connection-card:after{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:linear-gradient(#20d9ef,#2877ff);opacity:.8}
+.whatsapp-workspace .wa-connection-icon{background:#103c51;color:#68e7f4;box-shadow:inset 0 1px 0 #ffffff0c}
+.whatsapp-workspace .wa-connection-copy strong{color:#eff9ff}
+.whatsapp-workspace .wa-connection-copy p{color:#8eafc5;line-height:1.75}
+.whatsapp-workspace .wa-connection-copy small{color:#688da7}
+.whatsapp-workspace .wa-connection-copy small.wa-connection-error{color:#f3c67c}
+.whatsapp-workspace .wa-qr-panel,.whatsapp-workspace .wa-pair-panel{background:linear-gradient(145deg,#0e2538,#0a1b2b);border-color:#24445c;border-radius:14px}
+.whatsapp-workspace .wa-qr-heading{color:#e3f6ff}
+.whatsapp-workspace .wa-qr-placeholder{background:#081b2b;border-color:#2a506b;color:#7ea8c2}
+.whatsapp-workspace .wa-pair-panel input{background:#071827;border-color:#2b4b63;color:#e4f6ff}
+.whatsapp-workspace .wa-pair-code{background:#092339;border-color:#2b798d;color:#83f2f6;text-shadow:0 0 12px #20d9ef33}
+.whatsapp-workspace .wa-companion-setup,.whatsapp-workspace .wa-address-book{background:linear-gradient(145deg,#0d2235,#091a2a);border-color:#223f56}
+.whatsapp-workspace .section-heading h2{color:#e8f6ff}
+.whatsapp-workspace .section-heading p{color:#819fb5}
+.whatsapp-workspace .wa-address-book-stats>div,.whatsapp-workspace .wa-stats-grid>div{background:linear-gradient(145deg,#10283c,#0b1e2e);border-color:#25445a}
+.whatsapp-workspace .wa-address-book-stats span,.whatsapp-workspace .wa-stats-grid span{color:#81a2b8}
+.whatsapp-workspace .wa-address-book-stats strong,.whatsapp-workspace .wa-stats-grid strong{color:#effaff}
+.whatsapp-workspace .wa-address-book-columns h3{color:#d9f2ff}
+.whatsapp-workspace .wa-scroll-list{background:#081a2a;border-color:#203f55}
+.whatsapp-workspace .wa-address-row{border-bottom-color:#18374c}
+.whatsapp-workspace .wa-address-row strong{color:#d8f0fd}
+.whatsapp-workspace .wa-address-row small{color:#799db5}
+.whatsapp-workspace .wa-muted{color:#7898af}
+.whatsapp-workspace .wa-mode-switch{border-color:#213f55;background:#081928;border-radius:11px}
+.whatsapp-workspace .wa-mode-switch button{color:#7fa0b8}
+.whatsapp-workspace .wa-mode-switch button.wa-mode-active{background:linear-gradient(110deg,#163f56,#104b60);color:#80edf5;box-shadow:inset 0 0 0 1px #236d81}
+.whatsapp-workspace .wa-form{max-width:none;padding:21px;background:linear-gradient(145deg,#10263a,#0a1b2b);border-color:#24435b;border-radius:15px}
+.whatsapp-workspace .wa-form label{color:#b3cfe2}
+.whatsapp-workspace .wa-form label span{color:#7a9ab1}
+.whatsapp-workspace .wa-form input,.whatsapp-workspace .wa-form select,.whatsapp-workspace .wa-form textarea{background:#071827;border-color:#2a4b63;color:#e5f5ff}
+.whatsapp-workspace .wa-form select option{background:#0b1e30;color:#e5f5ff}
+.whatsapp-workspace .wa-repeat-fields span{color:#7899b0}
+.whatsapp-workspace .wa-local-storage-note{color:#799ab0}
+.whatsapp-workspace .wa-queue-row{background:linear-gradient(145deg,#0f2639,#0a1c2c);border-color:#223f55}
+.whatsapp-workspace .wa-queue-row .record-main h3{color:#dff3ff}
+.whatsapp-workspace .wa-queue-row .record-main p,.whatsapp-workspace .wa-queue-row .record-main small{color:#84a4bb}
+.whatsapp-workspace .wa-queue-row .wa-status-scheduled{background:#103c53;color:#87ebf3}
+.whatsapp-workspace .wa-queue-row .wa-status-sent{background:#123c3d;color:#83f2c3}
+.whatsapp-workspace .wa-queue-row .wa-status-failed{background:#4a2834;color:#ff9fab}
+.whatsapp-workspace .wa-stats-grid{gap:10px}
+.whatsapp-workspace .wa-queue-heading{border-bottom:1px solid #203e54;padding-bottom:12px}
+.whatsapp-workspace .wa-queue-heading h2{color:#eaf7ff}
+.whatsapp-workspace .wa-address-book-columns .secondary-button{white-space:normal}
+@media(max-width:720px){
+  .sidebar{position:fixed;top:0;height:100dvh;min-height:100dvh;overflow-y:auto}
+  .ax-sidebar-module-list{max-height:none}
+  .whatsapp-workspace>.section-heading{padding:17px 15px}
+  .whatsapp-workspace>.section-heading h2{font-size:19px}
+  .whatsapp-workspace .wa-form{padding:14px}
+}
