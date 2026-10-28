@@ -761,6 +761,11 @@ export default function App() {
     if (digits.startsWith("00")) digits = digits.slice(2);
     return digits;
   };
+  const sameContactPhone = (left: string, right: string) => {
+    const a = normalizedContactPhone(left);
+    const b = normalizedContactPhone(right);
+    return a === b || (a.length === 10 && b.length === 12 && b.startsWith("91") && b.endsWith(a)) || (b.length === 10 && a.length === 12 && a.startsWith("91") && a.endsWith(b));
+  };
 
   const importWhatsAppContacts = (incoming: SyncedWhatsAppContact[]) => {
     const next = [...contacts];
@@ -773,7 +778,7 @@ export default function App() {
       if (digits.length < 8 || digits.length > 15) continue;
       const waName = String(item.whatsappName || item.name || item.notify || "").trim();
       if (!waName) continue;
-      const currentIndex = next.findIndex(contact => normalizedContactPhone(contact.phone) === digits);
+      const currentIndex = next.findIndex(contact => sameContactPhone(contact.phone, phone));
       if (currentIndex >= 0) {
         const previous = next[currentIndex];
         const isGenericName = !previous.name.trim() || normalizedContactPhone(previous.name) === digits;
