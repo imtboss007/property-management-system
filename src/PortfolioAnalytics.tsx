@@ -126,9 +126,10 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
         <label className="ax-toggle-row"><input type="checkbox" checked={showLabels} onChange={event => setShowLabels(event.target.checked)}/> Show chart labels</label>
         <button className="ax-inspector-action" onClick={() => {
           if (focus === "cashflow") return;
-          const name = selected || activeModuleName || (focus === "allocation" ? visibleItems[0]?.name : "");
+          if (focus === "pipeline") { onOpenModule("All Properties"); return; }
+          const name = selected || activeModuleName || visibleItems[0]?.name;
           if (name) onOpenModule(name);
-        }} disabled={focus === "cashflow" || (focus === "allocation" && !visibleItems.length) || (focus === "pipeline" && !selected)}>Explore selected data <ArrowUpRight size={15}/></button>
+        }} disabled={focus === "cashflow" || (focus === "allocation" && !visibleItems.length)}>Explore selected data <ArrowUpRight size={15}/></button>
       </aside>
     </div>
     {focus === "allocation" && <div className="ax-chart-legend">
