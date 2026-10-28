@@ -362,15 +362,15 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
       </div>
     </div>}
 
-    {!localApi && <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">WINDOWS PC COMPANION</span><h2>Connect to your Windows sender</h2><p>The Windows PC hosts the WhatsApp linked-device session and schedule. Your Android app controls it over the same Wi-Fi.</p></div><Smartphone size={22}/></div>
-      <label>Windows PC address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47821" autoCapitalize="none" autoCorrect="off"/></label>
-      <label>EstateFlow companion code<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Paste the code shown on Windows" autoCapitalize="none" autoCorrect="off"/></label>
-      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save and connect to Windows</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Windows PC connection removed from this phone."); }}><Unplug size={15}/>Forget PC</button>}</div>
-      <p className="wa-local-storage-note"><Info size={14}/>Both devices must be on the same trusted Wi-Fi. Keep the Windows PC on with EstateFlow in the tray. Do not expose this connection to the public internet or share the companion code.</p>
-    </section>}
+    <section className="data-panel wa-companion-setup">
+      <div className="section-heading"><div><span className="section-kicker">UNIFIED WHATSAPP HUB</span><h2>Connect EstateFlow to the hub</h2><p>Use one hub that connects EstateFlow to the configured WhatsApp gateway. Leave these fields empty on Windows to use the built-in sender.</p></div><Smartphone size={22}/></div>
+      <label>Hub address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47822 or https://your-domain" autoCapitalize="none" autoCorrect="off"/></label>
+      <label>EstateFlow hub token<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Private token from hub configuration" autoCapitalize="none" autoCorrect="off"/></label>
+      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save hub connection</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Saved hub connection removed. EstateFlow will use its built-in Windows sender when available."); }}><Unplug size={15}/>Forget hub</button>}</div>
+      <p className="wa-local-storage-note"><Info size={14}/>Use HTTP only on a trusted private LAN. For remote access use HTTPS. Keep the hub token private; the WhatsApp gateway API key stays on the hub server.</p>
+    </section>
 
-    {localApi && bridgeInfo && <section className="data-panel wa-companion-setup">
+        {localApi && bridgeInfo && !(companionHost.trim() && companionToken.trim()) && <section className="data-panel wa-companion-setup">
       <div className="section-heading"><div><span className="section-kicker">CONNECT YOUR ANDROID APP</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in EstateFlow on your Android phone.</p></div><Smartphone size={22}/></div>
       <label>Windows PC address<input readOnly value={bridgeInfo.urls[0] || ("http://your-pc-ip:" + bridgeInfo.port)} onFocus={event => event.currentTarget.select()}/></label>
       {bridgeInfo.urls.length > 1 && <label>Other available PC addresses<input readOnly value={bridgeInfo.urls.join("    ")} onFocus={event => event.currentTarget.select()}/></label>}
@@ -404,6 +404,12 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
         <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
         <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
       </div>
+      <label>Link to property (optional)
+        <select value={selectedPropertyId} onChange={event => setSelectedPropertyId(event.target.value)}>
+          <option value="">No property selected</option>
+          {properties.map(property => <option key={property.id} value={property.id}>{property.title}</option>)}
+        </select>
+      </label>
       <label>Message to send<textarea rows={4} maxLength={4000} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write a client follow-up message…"/></label>
       <div className="form-two">
         <label>First send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label>
@@ -419,7 +425,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
         <button className="primary-button" disabled={busy || !supported || !consentConfirmed || !target.trim() || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
-      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Messages are saved to local storage on this Windows PC. Keep EstateFlow running in the tray, and leave the PC connected to the internet, for delivery at the scheduled time.</p>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Delivery runs through the active sender: the built-in Windows sender or the configured EstateFlow hub. Keep that sender/server running, connected, and online at the scheduled time.</p>
     </div>
 
     {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
@@ -442,6 +448,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
           <div className="record-main">
             <h3>{row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
             <p>{row.phone} · {prettyDate(row.scheduledAt)}</p>
+            {row.propertyTitle && <small>Property: {row.propertyTitle}</small>}
             <small>{row.message}</small>
             <span className={"wa-status wa-status-" + row.status}>{row.status}</span>
             {row.lastError && <small className="wa-queue-error">{row.lastError}</small>}
