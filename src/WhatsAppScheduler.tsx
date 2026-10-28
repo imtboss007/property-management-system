@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
-  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info
+  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users
 } from "lucide-react";
 
-type ContactOption = { id: string; name: string; phone: string; role?: string };
+type ContactOption = { id: string; name: string; phone: string; role?: string; whatsappName?: string; whatsappJid?: string };
 type PropertyOption = { id: string; title: string };
+type WhatsAppGroupOption = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
+type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string; source?: string; lastSyncedAt?: string };
+type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
+  destinationType?: "contact" | "group"; groupJid?: string; groupName?: string;
   phone: string; contactId?: string; contactName: string; message: string; scheduledAt: string;
   propertyId?: string; propertyTitle?: string; taskId?: string; taskTitle?: string;
   status: "scheduled" | "sending" | "sent" | "failed" | "cancelled" | string;
@@ -22,11 +26,13 @@ type DirectStatus = {
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
 type BridgeInfo = { port: number; urls: string[]; token: string };
-type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string };
+type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
   getQueue: () => Promise<ScheduleRow[]>;
+  getAddressBook: () => Promise<WhatsAppAddressBook>;
+  syncAddressBook: () => Promise<WhatsAppAddressBook>;
   connect: () => Promise<{ ok: boolean }>;
   requestPairingCode: (phone: string) => Promise<{ ok: boolean; code: string }>;
   disconnect: () => Promise<{ ok: boolean }>;
@@ -63,6 +69,14 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   return {
     getStatus: async () => (await request("/api/status")).status || fallbackStatus(),
     getQueue: async () => (await request("/api/queue")).queue || [],
+    getAddressBook: async () => {
+      const data = await request("/api/address-book");
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), counts: data.counts };
+    },
+    syncAddressBook: async () => {
+      const data = await request("/api/sync-address-book", "POST");
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), counts: data.counts, warnings: data.warnings, note: data.note };
+    },
     connect: async () => { const data = await request("/api/connect", "POST"); return { ok: Boolean(data.ok) }; },
     requestPairingCode: async phone => { const data = await request("/api/pairing-code", "POST", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
     disconnect: async () => { const data = await request("/api/disconnect", "POST"); return { ok: Boolean(data.ok) }; },
@@ -74,7 +88,7 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
+type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -90,7 +104,7 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
-export default function WhatsAppScheduler({ contacts = [], properties = [], initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
+export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
