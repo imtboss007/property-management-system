@@ -1111,3 +1111,15 @@ h2,h3{color:#e5f2fc}
 .ax-empty-module-analytics strong{display:block;margin-bottom:7px;color:#d9f1fd;font:750 12px "Manrope",sans-serif}
 .ax-empty-module-analytics p{margin:0;color:#7f9eb5;font-size:9px;line-height:1.7}
 @media(max-width:520px){.ax-empty-module-analytics{gap:8px}.ax-empty-module-analytics>div:last-child{text-align:center}}
+
+/* AXIVESTRA master-contact intelligence */
+.ax-contact-intelligence-form { max-height: min(78vh, 900px); overflow-y: auto; }
+.ax-contact-intelligence-form h3 { margin: 18px 0 8px; color: #d8e9f5; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.ax-contact-intelligence-form h3 small { display: block; margin-top: 4px; color: #7f9cb0; font-size: 11px; letter-spacing: 0; text-transform: none; font-weight: 400; }
+.ax-role-picker { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin: 10px 0 14px; }
+.ax-role-picker label { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 10px; border: 1px solid rgba(119,159,188,.2); border-radius: 10px; background: rgba(10,29,46,.62); color: #a9c2d4; font-size: 12px; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.ax-role-picker label:hover { border-color: rgba(32,217,239,.55); transform: translateY(-1px); }
+.ax-role-picker label.selected { border-color: rgba(32,217,239,.7); background: rgba(32,217,239,.09); color: #e4f8ff; }
+.ax-role-picker input { accent-color: #20d9ef; flex: 0 0 auto; }
+.ax-form-note { padding: 10px 12px; border-left: 2px solid #20d9ef; background: rgba(32,217,239,.05); color: #8caabd; font-size: 11px; line-height: 1.55; }
+@media(max-width:540px){.ax-role-picker{grid-template-columns:1fr}.ax-contact-intelligence-form{max-height:76vh}}
