@@ -170,7 +170,11 @@ export function createProvider(config, sessionState) {
            sessionState.webhookRegistration?.sessionId === id &&
            sessionState.webhookRegistration?.configured === true
             ? { configured: true, provider: providerName }
-            : { configured: false, reason: "Stop-on-reply webhook has not been verified by registration yet." })
+            : {
+                configured: false,
+                reason: sessionState.webhookRegistration?.lastError ||
+                  "Stop-on-reply webhook has not been verified by registration yet."
+              })
         : { configured: false, reason: "Set ESTATEFLOW_PUBLIC_WEBHOOK_URL before relying on automatic stop-on-reply." },
       error: ""
     };
@@ -184,32 +188,46 @@ export function createProvider(config, sessionState) {
       };
     }
 
-    const id = await ensureSession();
-    const previous = sessionState.webhookRegistration;
-    if (previous?.provider === providerName && previous?.sessionId === id &&
-        previous?.url === config.publicWebhookUrl && previous?.configured === true) {
+    try {
+      const id = await ensureSession();
+      const previous = sessionState.webhookRegistration;
+      if (previous?.provider === providerName && previous?.sessionId === id &&
+          previous?.url === config.publicWebhookUrl && previous?.configured === true) {
+        return { configured: true, provider: providerName, url: config.publicWebhookUrl };
+      }
+
+      const route = providerName === "openwa"
+        ? "/sessions/" + encodeURIComponent(id) + "/webhooks"
+        : "/webhooks/" + encodeURIComponent(id);
+      await request(route, "POST", {
+        name: "EstateFlow stop-on-reply",
+        url: config.publicWebhookUrl,
+        secret: config.webhookToken,
+        events: ["message.received"]
+      });
+
+      sessionState.webhookRegistration = {
+        configured: true,
+        provider: providerName,
+        sessionId: id,
+        url: config.publicWebhookUrl,
+        registeredAt: new Date().toISOString()
+      };
+      await sessionState.save();
       return { configured: true, provider: providerName, url: config.publicWebhookUrl };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      sessionState.webhookRegistration = {
+        configured: false,
+        provider: providerName,
+        sessionId: sessionState.sessionId || options.sessionId || "",
+        url: config.publicWebhookUrl,
+        lastError: message,
+        failedAt: new Date().toISOString()
+      };
+      await sessionState.save();
+      return { configured: false, provider: providerName, error: message };
     }
-
-    const route = providerName === "openwa"
-      ? "/sessions/" + encodeURIComponent(id) + "/webhooks"
-      : "/webhooks/" + encodeURIComponent(id);
-    await request(route, "POST", {
-      name: "EstateFlow stop-on-reply",
-      url: config.publicWebhookUrl,
-      secret: config.webhookToken,
-      events: ["message.received"]
-    });
-
-    sessionState.webhookRegistration = {
-      configured: true,
-      provider: providerName,
-      sessionId: id,
-      url: config.publicWebhookUrl,
-      registeredAt: new Date().toISOString()
-    };
-    await sessionState.save();
-    return { configured: true, provider: providerName, url: config.publicWebhookUrl };
   }
 
   return {
