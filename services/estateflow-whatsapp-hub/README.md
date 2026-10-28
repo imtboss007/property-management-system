@@ -32,7 +32,7 @@ The service refuses to start if either secret is missing or too short. The runti
 
 ## Connect EstateFlow
 
-In the WhatsApp Automation screen, enter the hub's address and ESTATEFLOW_BRIDGE_TOKEN in the companion connection section. For a PC and phone on the same trusted LAN, use the PC's private LAN address. For remote access, use an HTTPS reverse proxy and its HTTPS address. The supplied Docker Compose file binds the hub to host loopback by default; keep that restriction unless you add suitable network controls.
+In the WhatsApp Automation screen, enter the hub's address and ESTATEFLOW_BRIDGE_TOKEN in the companion connection section. For a PC and phone on the same trusted LAN, use the PC's private LAN address. For remote access, use an HTTPS reverse proxy and its HTTPS address. The supplied Docker Compose file binds the hub to host loopback by default. For an Android phone on the same LAN, set HUB_BIND_IP in .env to the host's private LAN IP and restrict port 47822 with the host firewall to that LAN only; never expose raw HTTP on a public interface. For cloud access, keep the hub bound to loopback and use an HTTPS reverse proxy. ESTATEFLOW_PUBLIC_WEBHOOK_URL must be a public HTTPS URL ending in /api/webhook/incoming.
 
 The endpoints mirror EstateFlow's companion API:
 - GET /api/status
