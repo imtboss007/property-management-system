@@ -5,12 +5,14 @@ import {
 } from "lucide-react";
 
 type ContactOption = { id: string; name: string; phone: string; role?: string };
+type PropertyOption = { id: string; title: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
   phone: string; contactName: string; message: string; scheduledAt: string;
+  propertyId?: string; propertyTitle?: string; taskId?: string; taskTitle?: string;
   status: "scheduled" | "sending" | "sent" | "failed" | "cancelled" | string;
   consentConfirmed: boolean; stopOnReply: boolean; createdAt: string;
-  sentAt?: string; lastError?: string;
+  sentAt?: string; lastError?: string; deliveryStatus?: string;
 };
 type DirectStatus = {
   supported: boolean; platform: string; connected: boolean; connecting: boolean;
@@ -44,7 +46,7 @@ function readSaved(key: string) {
 function createRemoteApi(host: string, token: string): WhatsAppApi {
   const base = host.trim().replace(/\/+$/, "");
   const request = async (path: string, method: "GET" | "POST" = "GET", body?: Record<string, unknown>): Promise<CompanionResponse> => {
-    if (!/^http:\/\//i.test(base)) throw new Error("Windows PC address must start with http://");
+    if (!/^https?:\/\//i.test(base)) throw new Error("Enter an http:// local address or an https:// secured address.");
     const response = await fetch(base + path, {
       method,
       headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token },
@@ -71,7 +73,7 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; onNotice: (message: string) => void };
+type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -87,7 +89,7 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
-export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
+export default function WhatsAppScheduler({ contacts = [], properties = [], onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
@@ -95,9 +97,11 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
   const [tokenInput, setTokenInput] = useState(() => readSaved("estateflow.whatsapp.token"));
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfo | null>(null);
   const api = useMemo<WhatsAppApi | undefined>(() => {
+    // A saved hub is the selected transport; otherwise keep the built-in Windows fallback.
+    // A single queue row is never sent through both transports.
+    if (companionHost.trim() && companionToken.trim()) return createRemoteApi(companionHost, companionToken);
     if (localApi) return localApi;
-    if (!companionHost.trim() || !companionToken.trim()) return undefined;
-    return createRemoteApi(companionHost, companionToken);
+    return undefined;
   }, [localApi, companionHost, companionToken]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
@@ -107,6 +111,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
   });
   const [queue, setQueue] = useState<ScheduleRow[]>([]);
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [target, setTarget] = useState("");
   const [contactName, setContactName] = useState("");
   const [message, setMessage] = useState("Hello, I am following up on our property discussion. Please let me know a convenient time to talk.");
@@ -148,16 +153,17 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       if (payload.reason === "reply-detected") setLocalNotice("A reply was detected. Pending follow-ups to that contact were cancelled.");
       if (payload.reason === "connection-lost") setLocalNotice("WhatsApp disconnected. Pending messages remain saved; reconnect before they are due.");
     });
-    const poll = localApi ? undefined : window.setInterval(() => { void refresh(); }, 4000);
+    const remoteHubConfigured = Boolean(companionHost.trim() && companionToken.trim());
+    const poll = localApi && !remoteHubConfigured ? undefined : window.setInterval(() => { void refresh(); }, 4000);
     return () => { active = false; unsubscribe(); if (poll !== undefined) window.clearInterval(poll); };
   }, [api, localApi]);
 
   useEffect(() => {
-    if (!localApi?.getBridgeInfo) return;
+    if (!localApi?.getBridgeInfo || (companionHost.trim() && companionToken.trim())) return;
     void localApi.getBridgeInfo().then(setBridgeInfo).catch(error => {
       setLocalNotice("Could not load phone companion details: " + (error instanceof Error ? error.message : String(error)));
     });
-  }, [localApi]);
+  }, [localApi, companionHost, companionToken]);
 
   useEffect(() => {
     if (!selectedContact) return;
@@ -172,21 +178,34 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
 
   const saveCompanionSettings = () => {
     const host = hostInput.trim().replace(/\/+$/, "");
-    if (!/^http:\/\/[^/]+(?::\d+)?$/i.test(host)) {
-      inform("Enter the Windows PC address including its port, for example http://192.168.1.10:47821.");
+    let parsed: URL;
+    try { parsed = new URL(host); }
+    catch { inform("Enter a full hub address, such as http://192.168.1.10:47822 or an HTTPS address."); return; }
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
+      inform("Enter only the hub address and port. Use HTTPS for remote access; HTTP is for a trusted local network.");
       return;
     }
-    if (!tokenInput.trim()) { inform("Enter the EstateFlow companion code shown in the Windows app."); return; }
+    const hostname = parsed.hostname.toLowerCase();
+    const localHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)
+      || hostname.endsWith(".local")
+      || /^10\./.test(hostname)
+      || /^192\.168\./.test(hostname)
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    if (parsed.protocol === "http:" && !localHost) {
+      inform("Use HTTPS for a hub outside your trusted local network.");
+      return;
+    }
+    if (!tokenInput.trim()) { inform("Enter the EstateFlow hub token from the private hub configuration."); return; }
     try {
       localStorage.setItem("estateflow.whatsapp.host", host);
       localStorage.setItem("estateflow.whatsapp.token", tokenInput.trim());
     } catch {}
     setCompanionHost(host);
     setCompanionToken(tokenInput.trim());
-    inform("Windows PC connection saved. EstateFlow is checking the companion now.");
+    inform("EstateFlow hub connection saved. The connection status will show whether the gateway is reachable.");
   };
 
-  const copyValue = async (value: string, label: string) => {
+    const copyValue = async (value: string, label: string) => {
     try { await navigator.clipboard.writeText(value); inform(label + " copied."); }
     catch { inform("Select the " + label.toLowerCase() + " field and copy it manually."); }
   };
@@ -238,8 +257,10 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     if (!message.trim()) throw new Error("Write the message to send.");
     if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
     if (!consentConfirmed) throw new Error("Confirm that the client expects and has agreed to receive these messages.");
+    const linkedProperty = properties.find(property => property.id === selectedPropertyId);
     return {
       phone: target, contactName: contactName.trim(), message: message.trim(),
+      propertyId: linkedProperty?.id || "", propertyTitle: linkedProperty?.title || "",
       scheduledAt: due.toISOString(),
       repeatCount: sendMode === "repeat" ? Number(repeatCount) : 1,
       intervalDays: Number(intervalDays),
