@@ -232,13 +232,19 @@ async function schedulerTick() {
 
   const connection = await provider.status();
   if (!connection.connected) return;
+  if (row.destinationType === "group" && row.expectedSenderNumber && connection.senderNumber !== row.expectedSenderNumber) {
+    row.status = "failed";
+    row.lastError = "The linked WhatsApp account changed after this group was scheduled. Reconnect the original account, sync groups and schedule again.";
+    await queue.update(row, "group-account-mismatch");
+    return;
+  }
 
   sending = true;
   row.status = "sending";
   row.provider = provider.name;
   await queue.update(row, "sending");
   try {
-    const result = await provider.sendText(row.phone, row.message);
+    const result = await provider.sendText(row.destinationType === "group" ? row.groupJid : row.phone, row.message);
     row.status = "sent";
     row.sentAt = new Date().toISOString();
     row.messageId = result.messageId || "";
@@ -253,6 +259,22 @@ async function schedulerTick() {
   } finally {
     sending = false;
   }
+}
+
+function validateGroupSchedule(payload) {
+  const groupJid = String(payload?.groupJid || "").trim();
+  if (!groupJid) return payload;
+  if (!groupJid.endsWith("@g.us")) throw new Error("Choose a valid WhatsApp group from the synced group list.");
+  const group = addressBook.groups.find(item => item.jid === groupJid || item.id === groupJid);
+  if (!group || !addressBook.activeGroupJids.includes(groupJid) || !addressBook.accountNumber) {
+    throw new Error("This group is not verified for the last synced WhatsApp account. Connect that account and sync groups before scheduling.");
+  }
+  return {
+    ...payload,
+    groupJid,
+    groupName: String(payload.groupName || group.name || "WhatsApp group"),
+    expectedSenderNumber: addressBook.accountNumber
+  };
 }
 
 function isDeliveryEvent(body) {
@@ -306,7 +328,7 @@ const server = http.createServer(async (req, res) => {
         reply(res, 200, { ok: true, ignored: true, reason: incoming.reason });
         return;
       }
-      const cancelled = await queue.recordReply(incoming.phone);
+      const cancelled = await queue.recordReply(incoming.groupJid || incoming.phone);
       reply(res, 200, { ok: true, replyDetected: true, cancelledFollowUps: cancelled });
     } catch (error) {
       reply(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
@@ -332,6 +354,15 @@ const server = http.createServer(async (req, res) => {
       reply(res, 200, { ok: true, queue: await queue.list() });
       return;
     }
+    if (req.method === "GET" && url.pathname === "/api/address-book") {
+      reply(res, 200, { ok: true, addressBook: await getAddressBook() });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/sync-address-book") {
+      const addressBookResult = await syncAddressBook();
+      reply(res, 200, { ok: true, addressBook: addressBookResult });
+      return;
+    }
     if (req.method === "POST" && url.pathname === "/api/connect") {
       const status = await provider.connect();
       reply(res, 200, { ok: true, status });
@@ -350,14 +381,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/schedule") {
       const { value } = await readBody(req);
-      const result = await queue.schedule(value, false);
+      const checked = validateGroupSchedule(value);
+      const result = await queue.schedule(checked, false);
       reply(res, 200, result);
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/send-now") {
       const { value } = await readBody(req);
+      const checked = validateGroupSchedule(value);
       const result = await queue.schedule({
-        ...value, scheduledAt: new Date(Date.now() + 1000).toISOString(), repeatCount: 1
+        ...checked, scheduledAt: new Date(Date.now() + 1000).toISOString(), repeatCount: 1
       }, true);
       reply(res, 200, result);
       return;
