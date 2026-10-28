@@ -55,6 +55,7 @@ set search_path = public, pg_temp
 as $$
 declare
   linked_owner uuid;
+  linked_contact_id text;
 begin
   if TG_TABLE_NAME = 'property_records' then
     if new.primary_contact_id is not null then
@@ -63,6 +64,21 @@ begin
         raise exception 'A property/deal may only link to a contact in the same workspace';
       end if;
     end if;
+    -- Validate every role-specific and additional stakeholder ID stored on module_data.
+    for linked_contact_id in
+      select value
+      from jsonb_each_text(coalesce(new.module_data, '{}'::jsonb)) as module_fields(key, value)
+      where key like '__contact_%' and value <> ''
+      union all
+      select trim(value)
+      from unnest(string_to_array(coalesce(new.module_data->>'__linkedContactIds', ''), ',')) as linked_ids(value)
+      where trim(value) <> ''
+    loop
+      select user_id into linked_owner from public.contacts where id = linked_contact_id::uuid;
+      if linked_owner is distinct from new.user_id then
+        raise exception 'A property/deal stakeholder must belong to the same workspace';
+      end if;
+    end loop;
   elsif TG_TABLE_NAME = 'tasks' then
     if new.property_id is not null then
       select user_id into linked_owner from public.property_records where id = new.property_id;
