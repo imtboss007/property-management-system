@@ -40,7 +40,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   let addressBookWrite = Promise.resolve();
   let whatsappContacts = [];
   let whatsappGroups = [];
-  let addressBookMeta = { lastSyncedAt: "" };
+  let addressBookMeta = { lastSyncedAt: "", accountNumber: "", activeGroupJids: [] };
   let sending = false;
   let lastSendAt = 0;
   let tick = null;
@@ -100,14 +100,14 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       const saved = JSON.parse(await fs.readFile(addressBookPath, "utf8"));
       whatsappContacts = Array.isArray(saved.contacts) ? saved.contacts : [];
       whatsappGroups = Array.isArray(saved.groups) ? saved.groups : [];
-      addressBookMeta = { lastSyncedAt: String(saved.lastSyncedAt || "") };
+      addressBookMeta = { lastSyncedAt: String(saved.lastSyncedAt || ""), accountNumber: String(saved.accountNumber || ""), activeGroupJids: Array.isArray(saved.activeGroupJids) ? saved.activeGroupJids : [] };
     } catch (error) {
       if (error && error.code !== "ENOENT") {
         status.error = "Could not read the saved WhatsApp contacts/groups cache: " + error.message;
       }
       whatsappContacts = [];
       whatsappGroups = [];
-      addressBookMeta = { lastSyncedAt: "" };
+      addressBookMeta = { lastSyncedAt: "", accountNumber: "", activeGroupJids: [] };
     }
   }
 
@@ -118,7 +118,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       await fs.writeFile(tempPath, JSON.stringify({
         contacts: whatsappContacts,
         groups: whatsappGroups,
-        lastSyncedAt: addressBookMeta.lastSyncedAt
+        lastSyncedAt: addressBookMeta.lastSyncedAt,
+        accountNumber: addressBookMeta.accountNumber,
+        activeGroupJids: addressBookMeta.activeGroupJids
       }, null, 2), { encoding: "utf8", mode: 0o600 });
       await fs.rename(tempPath, addressBookPath);
     });
@@ -222,6 +224,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       contacts: whatsappContacts.slice(),
       groups: whatsappGroups.slice(),
       lastSyncedAt: addressBookMeta.lastSyncedAt,
+      accountNumber: addressBookMeta.accountNumber,
+      activeGroupJids: addressBookMeta.activeGroupJids || [],
       connected: Boolean(status.connected && socket),
       counts: { contacts: whatsappContacts.length, groups: whatsappGroups.length }
     };
@@ -233,10 +237,12 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       throw new Error("Connect WhatsApp first to sync current contacts and groups. Previously saved contacts and groups remain available while disconnected.");
     }
     const warnings = [];
+    let activeGroupJids = [];
     if (typeof socket.groupFetchAllParticipating === "function") {
       try {
         const found = await socket.groupFetchAllParticipating();
         const values = Object.entries(found || {}).map(([jid, group]) => ({ ...group, id: group?.id || jid }));
+        activeGroupJids = values.map(group => String(group.id || "")).filter(jid => jid.endsWith("@g.us"));
         await upsertWhatsAppGroups(values);
       } catch (error) {
         warnings.push("Could not refresh WhatsApp groups: " + (error instanceof Error ? error.message : String(error)));
@@ -244,6 +250,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     } else {
       warnings.push("This WhatsApp session does not expose group-list sync.");
     }
+    addressBookMeta.activeGroupJids = activeGroupJids;
+    addressBookMeta.accountNumber = String(status.senderNumber || "");
     addressBookMeta.lastSyncedAt = new Date().toISOString();
     await saveAddressBook();
     const result = await getAddressBook();
@@ -421,6 +429,14 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function sendDueMessage(row) {
     if (!socket || !status.connected) return;
+    if (row.destinationType === "group" && row.expectedSenderNumber && status.senderNumber !== row.expectedSenderNumber) {
+      row.status = "failed";
+      row.lastError = "The linked WhatsApp account changed after this group was scheduled. Reconnect the original account, verify the group, and schedule again.";
+      row.updatedAt = new Date().toISOString();
+      await saveQueue();
+      publish("group-account-mismatch");
+      return;
+    }
     const now = Date.now();
     const sentToday = queue.filter(item => item.status === "sent" && item.sentAt && new Date(item.sentAt).toDateString() === new Date().toDateString()).length;
     if (sentToday >= DAILY_SEND_LIMIT) {
@@ -497,6 +513,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       if (!groupJid.endsWith("@g.us") || !whatsappGroups.some(group => group.jid === groupJid)) {
         throw new Error("Choose a group saved from your synced WhatsApp group list. Re-sync if this group is missing.");
       }
+      if (!(addressBookMeta.activeGroupJids || []).includes(groupJid) || (status.senderNumber && addressBookMeta.accountNumber && status.senderNumber !== addressBookMeta.accountNumber)) {
+        throw new Error("This group was not verified with the currently linked WhatsApp account. Connect that account and sync groups before scheduling to it.");
+      }
       groupName = String(payload && payload.groupName || whatsappGroups.find(group => group.jid === groupJid)?.name || "WhatsApp group").trim();
     } else {
       phone = normalizePhone(payload && payload.phone);
@@ -529,6 +548,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         destinationType,
         groupJid,
         groupName,
+        expectedSenderNumber: destinationType === "group" ? addressBookMeta.accountNumber : "",
         phone,
         contactId,
         contactName,
