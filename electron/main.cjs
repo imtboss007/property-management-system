@@ -1,6 +1,13 @@
 const { app, BrowserWindow, shell, ipcMain, Tray, Menu } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const { createWhatsAppService } = require("./whatsapp-service.cjs");
+
+// Preserve the existing Windows browser profile, linked WhatsApp session, message queue and caches
+// after the visible product is renamed AXIVESTRA. productName otherwise changes Electron userData.
+const previousProductDataPath = path.join(app.getPath("appData"), "EstateFlow");
+fs.mkdirSync(previousProductDataPath, { recursive: true });
+app.setPath("userData", previousProductDataPath);
 
 let mainWindow = null;
 let tray = null;
