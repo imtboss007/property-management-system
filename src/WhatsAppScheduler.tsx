@@ -18,6 +18,7 @@ type DirectStatus = {
   supported: boolean; platform: string; connected: boolean; connecting: boolean;
   senderNumber: string; displayName: string; qrDataUrl: string; pairingCode: string;
   error: string; lastConnectedAt: string;
+  webhook?: { configured: boolean; reason?: string; error?: string; provider?: string };
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
 type BridgeInfo = { port: number; urls: string[]; token: string };
@@ -339,6 +340,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
           : "This Android/browser build is a companion interface. The Windows EstateFlow app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
         <small>{status.connected ? "Session saved locally on this Windows user profile." : "WhatsApp linking does not use Supabase. The linked session stays on the Windows PC."}</small>
         {status.error && <small className="wa-connection-error">{status.error}</small>}
+        {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
+        {status.webhook?.configured && <small>Automatic stop-on-reply webhook registered with {status.webhook.provider || "the WhatsApp gateway"}.</small>}
       </div>
       {supported && (status.connected
         ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
