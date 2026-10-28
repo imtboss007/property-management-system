@@ -319,6 +319,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         sequence: index + 1,
         repeatCount,
         phone,
+        contactId,
         contactName,
         propertyId,
         propertyTitle,
