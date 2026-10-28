@@ -556,7 +556,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         </label>
         {selectedGroup && <div className="notice"><Users size={16}/><div><strong>{selectedGroup.name}</strong><p>{selectedGroup.size ? selectedGroup.size + " members · " : ""}WhatsApp group will be used as the message destination.</p></div></div>}
         {groupOptions.length === 0 && <div className="notice notice-warn">No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above.</div>}
-      </div>
+      </div>}
       <label>Link to property (optional)
         <select value={selectedPropertyId} onChange={event => setSelectedPropertyId(event.target.value)}>
           <option value="">No property selected</option>
