@@ -55,11 +55,13 @@ Gateway versions may change their response format. Before linking a real number,
 
 ## Stop follow-ups after a reply
 
-Configure the upstream gateway's inbound-message webhook to call POST /api/webhook/incoming.
+Set ESTATEFLOW_PUBLIC_WEBHOOK_URL to the hub's public HTTPS URL ending in /api/webhook/incoming. After the WhatsApp session is started, the hub registers a message.received webhook with the selected provider:
+- OpenWA: POST /api/sessions/{sessionId}/webhooks and verifies the X-OpenWA-Signature HMAC header.
+- WA-AKG: POST /api/webhooks/{sessionId} and verifies the X-Webhook-Signature HMAC header.
 
-Authenticate that callback either with an X-EstateFlow-Webhook-Token header when the gateway supports custom headers, or an HMAC SHA-256 signature in X-Webhook-Signature using the separate webhook token. The HMAC must cover the exact raw request body. If the gateway cannot send either form, do not expose an unauthenticated webhook; use an authenticated reverse proxy or a verified relay. Confirm the actual webhook payload and signature behavior for the installed provider version before enabling the automation.
+Both signatures are checked against the exact raw request body with ESTATEFLOW_WEBHOOK_TOKEN. The app shows a warning when stop-on-reply is not configured. The hub does not treat a mere status response or an unsigned webhook as an authenticated reply.
 
-A verified private one-to-one inbound message cancels pending follow-ups for that number. Group messages and messages sent from your own account are ignored.
+A verified private one-to-one inbound message cancels pending follow-ups for that number. Group messages and messages sent from your own account are ignored. Test the signature and payload with a consenting test contact before using production contacts.
 
 ## Scope and deployment status
 
