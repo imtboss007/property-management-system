@@ -10,11 +10,14 @@ export function parseIncoming(body) {
   if (key.fromMe === true || data?.fromMe === true || data?.from_me === true) {
     return { ignore: true, reason: "outbound-message" };
   }
-  if (data?.isGroup === true || data?.is_group === true) return { ignore: true, reason: "group-message" };
   const remote = String(data?.from || data?.sender || data?.chatId || data?.remoteJidAlt || data?.remoteJid || key.remoteJid || "");
-  if (!remote || remote.includes("@g.us") || remote === "status@broadcast") {
-    return { ignore: true, reason: "not-one-to-one-contact" };
+  if (remote === "status@broadcast") return { ignore: true, reason: "status-broadcast" };
+  if (remote.endsWith("@g.us") || data?.isGroup === true || data?.is_group === true) {
+    const groupJid = remote.endsWith("@g.us") ? remote : String(data?.groupJid || data?.group_id || "");
+    if (!groupJid.endsWith("@g.us")) return { ignore: true, reason: "group-message-without-group-id" };
+    return { ignore: false, groupJid, isGroup: true, messageId: String(key.id || data?.id || data?.messageId || "") };
   }
+  if (!remote) return { ignore: true, reason: "not-one-to-one-contact" };
   const phone = remote.split("@")[0].split(":")[0].replace(/\D/g, "");
   if (phone.length < 8 || phone.length > 15) return { ignore: true, reason: "invalid-contact-number" };
   const messageId = String(key.id || data?.id || data?.messageId || "");
