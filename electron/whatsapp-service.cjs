@@ -24,6 +24,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const userData = app.getPath("userData");
   const authDir = path.join(userData, "whatsapp-linked-device");
   const queuePath = path.join(userData, "whatsapp-scheduled-messages.json");
+  const addressBookPath = path.join(userData, "whatsapp-address-book.json");
   const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
   let bridgeToken = "";
   let bridgeServer = null;
@@ -35,6 +36,11 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   let queue = [];
   let queueLoaded = false;
   let queueWrite = Promise.resolve();
+  let addressBookLoaded = false;
+  let addressBookWrite = Promise.resolve();
+  let whatsappContacts = [];
+  let whatsappGroups = [];
+  let addressBookMeta = { lastSyncedAt: "" };
   let sending = false;
   let lastSendAt = 0;
   let tick = null;
@@ -87,6 +93,168 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     return queueWrite;
   }
 
+  async function ensureAddressBookLoaded() {
+    if (addressBookLoaded) return;
+    addressBookLoaded = true;
+    try {
+      const saved = JSON.parse(await fs.readFile(addressBookPath, "utf8"));
+      whatsappContacts = Array.isArray(saved.contacts) ? saved.contacts : [];
+      whatsappGroups = Array.isArray(saved.groups) ? saved.groups : [];
+      addressBookMeta = { lastSyncedAt: String(saved.lastSyncedAt || "") };
+    } catch (error) {
+      if (error && error.code !== "ENOENT") {
+        status.error = "Could not read the saved WhatsApp contacts/groups cache: " + error.message;
+      }
+      whatsappContacts = [];
+      whatsappGroups = [];
+      addressBookMeta = { lastSyncedAt: "" };
+    }
+  }
+
+  function saveAddressBook() {
+    addressBookWrite = addressBookWrite.catch(() => {}).then(async () => {
+      await fs.mkdir(userData, { recursive: true });
+      const tempPath = addressBookPath + ".tmp";
+      await fs.writeFile(tempPath, JSON.stringify({
+        contacts: whatsappContacts,
+        groups: whatsappGroups,
+        lastSyncedAt: addressBookMeta.lastSyncedAt
+      }, null, 2), { encoding: "utf8", mode: 0o600 });
+      await fs.rename(tempPath, addressBookPath);
+    });
+    return addressBookWrite;
+  }
+
+  function normalizeWaContact(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const rawJid = String(raw.id || raw.jid || "");
+    let digits = String(raw.phoneNumber || raw.phone || "").replace(/\\D/g, "");
+    if (!digits && rawJid.endsWith("@s.whatsapp.net")) {
+      digits = rawJid.split("@")[0].split(":")[0].replace(/\\D/g, "");
+    }
+    if (digits.startsWith("00")) digits = digits.slice(2);
+    if (digits.length < 8 || digits.length > 15) return null;
+    const jid = rawJid.endsWith("@s.whatsapp.net") ? rawJid : digits + "@s.whatsapp.net";
+    const suppliedName = String(raw.name || raw.verifiedName || raw.notify || raw.pushName || "").trim();
+    const displayName = suppliedName || "+" + digits;
+    return {
+      id: jid,
+      jid,
+      phone: "+" + digits,
+      name: displayName,
+      whatsappName: suppliedName,
+      notify: String(raw.notify || ""),
+      verifiedName: String(raw.verifiedName || ""),
+      source: "whatsapp",
+      lastSyncedAt: new Date().toISOString()
+    };
+  }
+
+  async function upsertWhatsAppContacts(records) {
+    await ensureAddressBookLoaded();
+    let changed = false;
+    for (const raw of Array.isArray(records) ? records : []) {
+      const incoming = normalizeWaContact(raw);
+      if (!incoming) continue;
+      const existingIndex = whatsappContacts.findIndex(item => item.id === incoming.id ||
+        String(item.phone || "").replace(/\\D/g, "") === incoming.phone.replace(/\\D/g, ""));
+      if (existingIndex >= 0) {
+        const previous = whatsappContacts[existingIndex];
+        whatsappContacts[existingIndex] = {
+          ...previous,
+          ...incoming,
+          whatsappName: incoming.whatsappName || previous.whatsappName || "",
+          name: incoming.whatsappName || previous.whatsappName || previous.name || incoming.name,
+          notify: incoming.notify || previous.notify || "",
+          verifiedName: incoming.verifiedName || previous.verifiedName || ""
+        };
+      } else {
+        whatsappContacts.push(incoming);
+      }
+      changed = true;
+    }
+    if (changed) {
+      whatsappContacts.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      await saveAddressBook();
+      publish("address-book-updated");
+    }
+    return changed;
+  }
+
+  async function upsertWhatsAppGroups(records) {
+    await ensureAddressBookLoaded();
+    let changed = false;
+    const items = Array.isArray(records) ? records : [];
+    for (const raw of items) {
+      if (!raw || typeof raw !== "object") continue;
+      const jid = String(raw.id || raw.jid || "");
+      if (!jid.endsWith("@g.us")) continue;
+      const previous = whatsappGroups.find(item => item.jid === jid || item.id === jid);
+      const subject = String(raw.subject || raw.name || previous?.name || "WhatsApp group").trim();
+      const incoming = {
+        id: jid,
+        jid,
+        name: subject || "WhatsApp group",
+        subject: subject || "WhatsApp group",
+        description: String(raw.desc || raw.description || previous?.description || ""),
+        size: Number(raw.size || (Array.isArray(raw.participants) ? raw.participants.length : previous?.size || 0)),
+        source: "whatsapp",
+        lastSyncedAt: new Date().toISOString()
+      };
+      if (previous) {
+        Object.assign(previous, incoming);
+      } else {
+        whatsappGroups.push(incoming);
+      }
+      changed = true;
+    }
+    if (changed) {
+      whatsappGroups.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      await saveAddressBook();
+      publish("address-book-updated");
+    }
+    return changed;
+  }
+
+  async function getAddressBook() {
+    await ensureAddressBookLoaded();
+    return {
+      contacts: whatsappContacts.slice(),
+      groups: whatsappGroups.slice(),
+      lastSyncedAt: addressBookMeta.lastSyncedAt,
+      connected: Boolean(status.connected && socket),
+      counts: { contacts: whatsappContacts.length, groups: whatsappGroups.length }
+    };
+  }
+
+  async function syncAddressBook() {
+    await ensureAddressBookLoaded();
+    if (!socket || !status.connected) {
+      throw new Error("Connect WhatsApp first to sync current contacts and groups. Previously saved contacts and groups remain available while disconnected.");
+    }
+    const warnings = [];
+    if (typeof socket.groupFetchAllParticipating === "function") {
+      try {
+        const found = await socket.groupFetchAllParticipating();
+        const values = Object.entries(found || {}).map(([jid, group]) => ({ ...group, id: group?.id || jid }));
+        await upsertWhatsAppGroups(values);
+      } catch (error) {
+        warnings.push("Could not refresh WhatsApp groups: " + (error instanceof Error ? error.message : String(error)));
+      }
+    } else {
+      warnings.push("This WhatsApp session does not expose group-list sync.");
+    }
+    addressBookMeta.lastSyncedAt = new Date().toISOString();
+    await saveAddressBook();
+    const result = await getAddressBook();
+    result.warnings = warnings;
+    result.note = result.contacts.length
+      ? "Synced the contacts made available by the linked WhatsApp session and refreshed group membership."
+      : "WhatsApp did not provide contact entries to this linked session yet. Saved contacts remain available; keep WhatsApp linked and try again.";
+    publish("address-book-synced");
+    return result;
+  }
+
   async function loadBaileys() {
     if (baileys) return baileys;
     const module = await import("@whiskeysockets/baileys");
@@ -118,7 +286,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
           auth: auth.state,
           printQRInTerminal: false,
           markOnlineOnConnect: false,
-          syncFullHistory: false,
+          syncFullHistory: true,
           generateHighQualityLinkPreview: false
         });
         socket = nextSocket;
@@ -176,6 +344,20 @@ function createWhatsAppService({ app, ipcMain, notify }) {
             }, 5000);
           }
         });
+        nextSocket.ev.on("contacts.upsert", records => { void upsertWhatsAppContacts(records).catch(error => { status.error = "Contact sync failed: " + error.message; publish("address-book-error"); }); });
+        nextSocket.ev.on("contacts.update", records => { void upsertWhatsAppContacts(records).catch(error => { status.error = "Contact update failed: " + error.message; publish("address-book-error"); }); });
+        nextSocket.ev.on("messaging-history.set", batch => {
+          void (async () => {
+            if (Array.isArray(batch?.contacts)) await upsertWhatsAppContacts(batch.contacts);
+            if (Array.isArray(batch?.chats)) {
+              await upsertWhatsAppGroups(batch.chats.filter(chat => String(chat.id || "").endsWith("@g.us")).map(chat => ({
+                id: chat.id, subject: chat.name || chat.subject || "", size: chat.participantsCount || 0
+              })));
+            }
+          })().catch(error => { status.error = "WhatsApp history sync failed: " + error.message; publish("address-book-error"); });
+        });
+        nextSocket.ev.on("groups.upsert", records => { void upsertWhatsAppGroups(records).catch(error => { status.error = "Group sync failed: " + error.message; publish("address-book-error"); }); });
+        nextSocket.ev.on("groups.update", records => { void upsertWhatsAppGroups(records).catch(error => { status.error = "Group update failed: " + error.message; publish("address-book-error"); }); });
         nextSocket.ev.on("messages.upsert", event => {
           if (event.type !== "notify") return;
           void handleIncomingMessages(event.messages || []);
@@ -203,7 +385,17 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     for (const message of messages) {
       if (!message || !message.key || message.key.fromMe) continue;
       const jid = String(message.key.remoteJidAlt || message.key.remoteJid || "");
-      if (!jid || jid === "status@broadcast" || jid.endsWith("@g.us")) continue;
+      if (!jid || jid === "status@broadcast") continue;
+      if (jid.endsWith("@g.us")) {
+        for (const row of queue) {
+          if (row.status !== "scheduled" || !row.stopOnReply || row.groupJid !== jid) continue;
+          row.status = "cancelled";
+          row.lastError = "Pending group follow-ups stopped because a new message appeared in this WhatsApp group.";
+          row.updatedAt = new Date().toISOString();
+          changed = true;
+        }
+        continue;
+      }
       const rawNumber = jid.split("@")[0].split(":")[0];
       let phone = "";
       try { phone = normalizePhone(rawNumber); } catch (_) { continue; }
@@ -260,8 +452,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     await saveQueue();
     publish("sending");
     try {
-      const phone = normalizePhone(row.phone);
-      const result = await socket.sendMessage(phone + "@s.whatsapp.net", { text: row.message });
+      const destination = row.destinationType === "group" && String(row.groupJid || "").endsWith("@g.us")
+        ? row.groupJid
+        : normalizePhone(row.phone) + "@s.whatsapp.net";
+      const result = await socket.sendMessage(destination, { text: row.message });
       row.status = "sent";
       row.sentAt = new Date().toISOString();
       row.messageId = String(result && result.key && result.key.id || "");
@@ -292,7 +486,19 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function schedule(payload, immediate = false) {
     await ensureQueueLoaded();
-    const phone = normalizePhone(payload && payload.phone);
+    await ensureAddressBookLoaded();
+    const groupJid = String(payload && payload.groupJid || "").trim();
+    const destinationType = groupJid ? "group" : "contact";
+    let phone = "";
+    let groupName = "";
+    if (destinationType === "group") {
+      if (!groupJid.endsWith("@g.us") || !whatsappGroups.some(group => group.jid === groupJid)) {
+        throw new Error("Choose a group saved from your synced WhatsApp group list. Re-sync if this group is missing.");
+      }
+      groupName = String(payload && payload.groupName || whatsappGroups.find(group => group.jid === groupJid)?.name || "WhatsApp group").trim();
+    } else {
+      phone = normalizePhone(payload && payload.phone);
+    }
     const message = String(payload && payload.message || "").trim();
     if (!message) throw new Error("Write a message before scheduling.");
     if (message.length > MAX_MESSAGE_LENGTH) throw new Error("Messages must be " + MAX_MESSAGE_LENGTH + " characters or fewer.");
@@ -318,6 +524,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         seriesId,
         sequence: index + 1,
         repeatCount,
+        destinationType,
+        groupJid,
+        groupName,
         phone,
         contactId,
         contactName,
@@ -417,6 +626,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function getStatus() {
     await ensureQueueLoaded();
+    await ensureAddressBookLoaded();
     return snapshotStatus();
   }
 
@@ -498,13 +708,19 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         bridgeReply(response, 200, { ok: true, queue: await getQueue() });
         return;
       }
+      if (request.method === "GET" && route === "/api/address-book") {
+        bridgeReply(response, 200, { ok: true, addressBook: await getAddressBook() });
+        return;
+      }
       if (request.method !== "POST") {
         bridgeReply(response, 405, { ok: false, error: "Method not allowed." });
         return;
       }
       const body = await readBridgeBody(request);
       let result;
-      if (route === "/api/connect") {
+      if (route === "/api/sync-address-book") {
+        result = await syncAddressBook();
+      } else if (route === "/api/connect") {
         pairingRequested = false;
         status.pairingCode = "";
         result = await startSocket();
@@ -559,6 +775,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   ipcMain.handle("estateflow:wa:get-status", getStatus);
   ipcMain.handle("estateflow:wa:get-queue", getQueue);
+  ipcMain.handle("estateflow:wa:get-address-book", getAddressBook);
+  ipcMain.handle("estateflow:wa:sync-address-book", syncAddressBook);
   ipcMain.handle("estateflow:wa:get-bridge-info", async () => { await startBridge(); return bridgeInfo(); });
   ipcMain.handle("estateflow:wa:connect", async () => {
     pairingRequested = false;
@@ -574,7 +792,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   tick = setInterval(() => { void schedulerTick().catch(error => { status.error = error instanceof Error ? error.message : String(error); publish("scheduler-error"); }); }, 4000);
   void startBridge().catch(error => { status.error = "Local phone companion is unavailable: " + (error instanceof Error ? error.message : String(error)); publish("bridge-error"); });
-  void ensureQueueLoaded().then(async () => {
+  void Promise.all([ensureQueueLoaded(), ensureAddressBookLoaded()]).then(async () => {
     try {
       await fs.access(path.join(authDir, "creds.json"));
       await startSocket();
