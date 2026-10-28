@@ -74,7 +74,7 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; onNotice: (message: string) => void };
+type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; initialContactId?: string; initialPropertyId?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -90,7 +90,7 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
-export default function WhatsAppScheduler({ contacts = [], properties = [], onNotice }: Props) {
+export default function WhatsAppScheduler({ contacts = [], properties = [], initialContactId, initialPropertyId, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
@@ -165,6 +165,11 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], onNo
       setLocalNotice("Could not load phone companion details: " + (error instanceof Error ? error.message : String(error)));
     });
   }, [localApi, companionHost, companionToken]);
+
+  useEffect(() => {
+    if (initialContactId) setSelectedContactId(initialContactId);
+    if (initialPropertyId) setSelectedPropertyId(initialPropertyId);
+  }, [initialContactId, initialPropertyId]);
 
   useEffect(() => {
     if (!selectedContact) return;
