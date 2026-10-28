@@ -91,10 +91,9 @@ async function schedulerTick() {
     return;
   }
 
-  const sentToday = (await queue.list()).filter(item =>
-    item.status === "sent" && item.sentAt &&
-    new Date(item.sentAt).toDateString() === new Date().toDateString()
-  ).length;
+  const localMidnight = new Date();
+  localMidnight.setHours(0, 0, 0, 0);
+  const sentToday = await queue.countSentSince(localMidnight.getTime());
   if (sentToday >= config.maxDaily) {
     row.status = "failed";
     row.lastError = "Daily automated-send safety cap reached. Review and reschedule for another day.";
