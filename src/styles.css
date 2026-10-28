@@ -1040,3 +1040,12 @@ h2,h3{color:#e5f2fc}
 .ax-module-analytics-note svg{flex-shrink:0;color:#36daba}
 @media(max-width:740px){.ax-module-chart-focus{padding:12px 10px 15px}.ax-module-chart-legend{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 10px 12px}.ax-module-donut-chart{gap:8px}.ax-module-donut-chart svg{width:min(215px,75%)}}
 @media(max-width:520px){.ax-module-analytics-head{padding:14px}.ax-module-chart-types{margin-left:auto}.ax-module-chart-bar{grid-template-columns:minmax(82px,110px) minmax(35px,1fr) 52px;gap:7px}.ax-module-chart-bar>span,.ax-module-chart-bar>strong{font-size:9px}}
+
+
+.ax-chart-stage{flex-direction:column;align-items:stretch;justify-content:flex-start}
+.ax-chart-mode-title{align-self:stretch;padding:15px 18px 0}
+.ax-chart-mode-title strong{display:block;color:#e7f7ff;font:750 12px "Manrope",sans-serif}
+.ax-chart-mode-title p{margin:5px 0 0;color:#789ab1;font-size:9px;line-height:1.6}
+.ax-chart-stage>.ax-chart-empty{align-self:center}
+.ax-record-actions button.danger,.ax-row-actions button.danger{color:#f09ba5;border-color:#5b3340;background:#2a1d2b}
+.ax-record-actions button.danger:hover,.ax-row-actions button.danger:hover{color:#fff0f2;border-color:#a65065;background:#542b3b}
