@@ -77,7 +77,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
     if (next === "cashflow") setChartType("bar");
   };
 
-  const empty = focus === "allocation" ? properties.length === 0 : focus === "pipeline" ? properties.length === 0 : financials.length === 0;
+  const empty = focus === "allocation" ? properties.length === 0 || (metric === "value" && !moduleRows.some(row => row.value > 0)) : focus === "pipeline" ? properties.length === 0 : financials.length === 0;
 
   return <section className="ax-analytics-panel">
     <div className="ax-panel-topline"><span className="ax-kicker"><Sparkles size={13}/> AXIVESTRA INTELLIGENCE</span><span className="ax-live-status"><i/> LIVE FROM YOUR RECORDS</span></div>
@@ -99,7 +99,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
     <div className="ax-analytics-grid">
       <div className="ax-chart-stage">
         <div className="ax-chart-mode-title"><strong>{title}</strong><p>{subtitle}</p></div>
-        {empty ? <div className="ax-chart-empty"><div className="ax-empty-orbit"><PieChart size={28}/></div><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : "Add your first property/deal record to activate interactive charts."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
+        {empty ? <div className="ax-chart-empty"><div className="ax-empty-orbit"><PieChart size={28}/></div><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : focus === "pipeline" || properties.length === 0 ? "Add your first property/deal record to activate interactive charts." : "No asset values have been entered yet. Switch to Count to chart saved records, or enter value/exposure in the relevant module."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
         : focus === "cashflow" ? <CashflowChart rows={cashflowRows} type={chartType} showLabels={showLabels} onSelect={setSelected} selected={selected}/>
         : chartType === "donut" ? <DonutChart items={visibleItems} total={totalChart} selected={selected} onSelect={setSelected} centerLabel={focus === "allocation" ? "TRACKED VALUE" : "RECORDS"} centerValue={focus === "allocation" && metric === "value" ? compact(totalChart) : String(totalChart)} showLabels={showLabels}/>
         : chartType === "bar" ? <HorizontalBars items={visibleItems} selected={selected} onSelect={setSelected} showLabels={showLabels}/>
