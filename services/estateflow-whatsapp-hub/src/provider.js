@@ -199,12 +199,13 @@ export function createProvider(config, sessionState) {
       const route = providerName === "openwa"
         ? "/sessions/" + encodeURIComponent(id) + "/webhooks"
         : "/webhooks/" + encodeURIComponent(id);
-      await request(route, "POST", {
-        name: "EstateFlow stop-on-reply",
+      const webhookBody = {
         url: config.publicWebhookUrl,
         secret: config.webhookToken,
         events: ["message.received"]
-      });
+      };
+      if (providerName === "wa-akg") webhookBody.name = "EstateFlow stop-on-reply";
+      await request(route, "POST", webhookBody);
 
       sessionState.webhookRegistration = {
         configured: true,
@@ -273,6 +274,35 @@ export function createProvider(config, sessionState) {
     async requestPairingCode(rawPhone) {
       const id = await ensureSession();
       const phoneNumber = phoneDigits(rawPhone);
+      let current = await fetchSession();
+      if (current.connected) {
+        throw new Error("This WhatsApp session is already connected. Disconnect it first only if you intend to replace the linked account.");
+      }
+
+      // Pairing-code endpoints differ across gateway versions, but both require a live session.
+      if (!current.qrDataUrl && !["qr_ready", "scan_qr", "pairing_code"].includes(String(current.connectionState || "").toLowerCase())) {
+        try {
+          await request("/sessions/" + encodeURIComponent(id) + "/start", "POST");
+        } catch (error) {
+          if (!/already|started|connecting|running/i.test(error instanceof Error ? error.message : String(error))) throw error;
+        }
+        let ready = false;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          await sleep(750);
+          current = await fetchSession();
+          if (current.connected) {
+            throw new Error("WhatsApp connected while preparing a pairing code. Keep the connected session instead of replacing it.");
+          }
+          if (current.qrDataUrl || ["qr_ready", "scan_qr", "pairing_code"].includes(String(current.connectionState || "").toLowerCase())) {
+            ready = true;
+            break;
+          }
+        }
+        if (!ready) {
+          throw new Error("The gateway has not produced a pairing-ready session. Try Connect with QR first, then request a pairing code.");
+        }
+      }
+
       const route = providerName === "openwa"
         ? "/sessions/" + encodeURIComponent(id) + "/pairing-code"
         : "/sessions/" + encodeURIComponent(id) + "/pair";
