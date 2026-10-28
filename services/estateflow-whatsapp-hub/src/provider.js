@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { randomUUID } from "node:crypto";
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -44,7 +45,8 @@ function statusValue(data) {
 }
 
 function pickQr(data) {
-  return normalizeQr(data.qrDataUrl || data.qrCode || data.qr || data.qrImage || data.qrcode || "");
+  // WA-AKG's QR route returns a base64 image in `base64`; OpenWA typically returns qrCode.
+  return normalizeQr(data.qrDataUrl || data.base64 || data.qrCode || data.qr || data.qrImage || data.qrcode || "");
 }
 
 export function createProvider(config, sessionState) {
@@ -108,7 +110,7 @@ export function createProvider(config, sessionState) {
       await sessionState.save();
       return sessionState.sessionId;
     }
-    const created = await request("/sessions", "POST", { name: "estateflow" });
+    const created = await request("/sessions", "POST", { name: "estateflow-" + randomUUID().slice(0, 8) });
     const data = unwrap(created);
     const id = String(data.id || data.sessionId || data.session_id || "");
     if (!id) throw new Error("The gateway did not return a session ID after session creation.");
