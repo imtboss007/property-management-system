@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 export function parseIncoming(body) {
   const event = String(body?.event || body?.type || body?.name || "").toLowerCase();
   if (event && !["message.received", "message_received", "message.upsert", "messages.upsert", "message"].includes(event)) {
@@ -17,4 +19,13 @@ export function parseIncoming(body) {
   if (phone.length < 8 || phone.length > 15) return { ignore: true, reason: "invalid-contact-number" };
   const messageId = String(key.id || data?.id || data?.messageId || "");
   return { ignore: false, phone, messageId };
+}
+
+export function verifyWebhookSignature(rawBody, signature, secret) {
+  if (typeof signature !== "string" || !signature.startsWith("sha256=") || !secret) return false;
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const suppliedBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  return suppliedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(suppliedBuffer, expectedBuffer);
 }
