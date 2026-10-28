@@ -63,7 +63,7 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
     const contactId = String(payload?.contactId || "").slice(0, 120);
     const contactName = String(payload?.contactName || "").trim().slice(0, 160);
     const groupName = String(payload?.groupName || "").trim().slice(0, 240);
-    const expectedSenderNumber = String(payload?.expectedSenderNumber || "").replace(/\\D/g, "").slice(0, 20);
+    const expectedSenderNumber = String(payload?.expectedSenderNumber || "").replace(/\D/g, "").slice(0, 20);
     const propertyId = String(payload?.propertyId || "").slice(0, 120);
     const propertyTitle = String(payload?.propertyTitle || "").trim().slice(0, 240);
     const taskId = String(payload?.taskId || "").slice(0, 120);
