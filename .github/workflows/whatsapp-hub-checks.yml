@@ -44,7 +44,7 @@ jobs:
       - run: npm run check
       - name: Check Electron WhatsApp service syntax
         run: node --check electron/whatsapp-service.cjs && node --check electron/preload.cjs
-        working-directory: ../..
+        working-directory: .
   estateflow-app-build:
     runs-on: ubuntu-latest
     steps:
