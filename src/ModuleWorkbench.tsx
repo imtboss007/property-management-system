@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, Plus, Search, ShieldCheck, Sparkles, Table2, Users } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Users } from "lucide-react";
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
@@ -31,12 +31,37 @@ const contactIds = (record: ModuleRecord) => [
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
 ].filter(Boolean);
 
+function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
+  items: { name: string; value: number; color: string; records: number }[];
+  total: number;
+  type: "donut" | "bar" | "line";
+  metric: "status" | "value" | "followup";
+  onSelect: (name: string) => void;
+}) {
+  const max = Math.max(1,...items.map(item=>item.value));
+  if(type==="donut"){
+    const radius=70, circumference=2*Math.PI*radius;
+    let offset=0;
+    return <div className="ax-module-donut-chart"><svg viewBox="0 0 220 220" role="img" aria-label={metric==="value"?"Value allocation by status":"Record distribution by status"}>
+      <circle cx="110" cy="110" r={radius} fill="none" stroke="#142c41" strokeWidth="23"/>
+      {items.map(item=>{const length=total>0?circumference*item.value/total:0;const currentOffset=offset;offset+=length;return <circle key={item.name} cx="110" cy="110" r={radius} fill="none" stroke={item.color} strokeWidth="23" strokeDasharray={length+" "+Math.max(0,circumference-length)} strokeDashoffset={-currentOffset} transform="rotate(-90 110 110)" strokeLinecap="butt" onClick={()=>onSelect(item.name)} className="ax-donut-segment"><title>{item.name}: {metric==="value"?currency(item.value):item.value}</title></circle>})}
+      <circle cx="110" cy="110" r="51" fill="#0b1d2d"/><text x="110" y="103" textAnchor="middle" fill="#80a5bf" fontSize="9" letterSpacing="1">TOTAL</text><text x="110" y="125" textAnchor="middle" fill="#f0faff" fontSize={metric==="value"?"14":"19"} fontWeight="800">{metric==="value"?currency(total):total}</text>
+    </svg><div className="ax-module-chart-center-note"><strong>{items.length} data segments</strong><small>Tap any segment or legend to filter records.</small></div></div>;
+  }
+  if(type==="bar")return <div className="ax-module-chart-bars">{items.map(item=><button className="ax-module-chart-bar" key={item.name} onClick={()=>onSelect(item.name)}><span>{item.name}</span><i><b style={{width:(item.value/max*100)+"%",background:item.color}}/></i><strong>{metric==="value"?currency(item.value):item.value}</strong></button>)}</div>;
+  const width=600,height=260,left=40,right=20,top=26,bottom=42;
+  const points=items.map((item,index)=>({...item,x:left+(items.length<2?(width-left-right)/2:index*(width-left-right)/(items.length-1)),y:top+(1-item.value/max)*(height-top-bottom)}));
+  return <div className="ax-module-chart-line"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Module records trend"><defs><linearGradient id="axModuleLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#20d9ef" stopOpacity=".22"/><stop offset="100%" stopColor="#20d9ef" stopOpacity="0"/></linearGradient></defs>{[0,1,2,3,4].map(n=><line key={n} x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#203e55" strokeDasharray="4 6"/>)}{points.length>1&&<polygon points={points.map(point=>point.x+","+point.y).join(" ")+" "+points[points.length-1].x+","+(height-bottom)+" "+points[0].x+","+(height-bottom)} fill="url(#axModuleLineFill)"/>}<polyline points={points.map(point=>point.x+","+point.y).join(" ")} fill="none" stroke="#20d9ef" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>{points.map(point=><g key={point.name} tabIndex={0} role="button" onClick={()=>onSelect(point.name)} className="ax-chart-point"><circle cx={point.x} cy={point.y} r="5" fill={point.color} stroke="#071827" strokeWidth="2"/><text x={point.x} y={point.y-13} textAnchor="middle" fill="#e7f8ff" fontSize="10">{metric==="value"?currency(point.value):point.value}</text><text x={point.x} y={height-15} textAnchor="middle" fill="#8aa9bf" fontSize="10">{point.name.length>12?point.name.slice(0,11)+"…":point.name}</text></g>)}</svg></div>;
+}
+
 export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onSchedule, onWhatsApp }: Props) {
-  const [view, setView] = useState<"overview" | "table" | "pipeline" | "data">("overview");
+  const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const [showAllFields, setShowAllFields] = useState(false);
+  const [moduleChartType, setModuleChartType] = useState<"donut" | "bar" | "line">("donut");
+  const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
 
   const filtered = useMemo(() => records.filter(record => {
     const text = [record.title, record.location, record.status, record.contact, record.nextAction, record.notes, ...Object.values(record.moduleData || {})].join(" ").toLowerCase();
@@ -62,6 +87,18 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     : String(record.moduleData?.[key] || "");
   const labelOf = (key: string) => dataFields.find(field => field.key === key)?.label || key;
   const presentFields = (record: ModuleRecord) => dataFields.filter(field => getFieldValue(record, field.key).trim()).length;
+  const moduleChartData = (() => {
+    const groups = new Map<string, { name: string; value: number; color: string; records: number }>();
+    records.forEach(record => {
+      const name = moduleMetric === "followup" ? (record.nextFollowUpDate ? "Follow-up set" : "No follow-up") : (record.status || "Unspecified");
+      const existing = groups.get(name) || { name, value: 0, color: ["#20d9ef","#2877ff","#8171ff","#28c78a","#ffbf68","#fc7796"][groups.size%6], records: 0 };
+      existing.records += 1;
+      existing.value += moduleMetric === "value" ? (Number(record.value)||0) : 1;
+      groups.set(name,existing);
+    });
+    return Array.from(groups.values()).sort((a,b)=>b.value-a.value);
+  })();
+  const moduleChartTotal = moduleChartData.reduce((sum,item)=>sum+item.value,0);
   const expandedHas = (id: string) => expanded.includes(id);
   const toggleExpanded = (id: string) => setExpanded(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
   const linkedContacts = (record: ModuleRecord) => {
@@ -98,6 +135,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         <button className={view==="overview"?"active":""} onClick={()=>setView("overview")} role="tab" aria-selected={view==="overview"}><LayoutGrid size={15}/> Cards</button>
         <button className={view==="table"?"active":""} onClick={()=>setView("table")} role="tab" aria-selected={view==="table"}><Table2 size={15}/> Table</button>
         <button className={view==="pipeline"?"active":""} onClick={()=>setView("pipeline")} role="tab" aria-selected={view==="pipeline"}><Activity size={15}/> Pipeline</button>
+        <button className={view==="analytics"?"active":""} onClick={()=>setView("analytics")} role="tab" aria-selected={view==="analytics"}><TrendingUp size={15}/> Analytics</button>
         <button className={view==="data"?"active":""} onClick={()=>setView("data")} role="tab" aria-selected={view==="data"}><ShieldCheck size={15}/> Data health</button>
       </div>
       <label className="ax-module-search"><Search size={15}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder={"Search " + moduleName.toLowerCase() + " records"} /></label>
@@ -108,6 +146,21 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       {stageCounts.slice(0,6).map((item,index)=><button key={item.status} className={filter===item.status?"selected":""} onClick={()=>setFilter(filter===item.status?"All":item.status)}><i className={"ax-stage-dot ax-stage-"+(index+1)}/><span>{item.status}</span><strong>{item.count}</strong></button>)}
     </div>}
     {filtered.length===0 ? <div className="ax-module-empty"><div className="ax-empty-orbit"><ClipboardList size={26}/></div><h3>{records.length ? "No records match these filters" : "This workspace is ready for its first record"}</h3><p>{records.length ? "Clear the search or change the status filter to see other records." : "Start with one record. AXIVESTRA will surface the fields, stakeholders and follow-ups that need attention."}</p><div><button className="ax-action-primary" onClick={records.length ? ()=>{setFilter("All");setQuery("");} : onAdd}>{records.length ? "Clear filters" : "Create first record"}</button></div></div>
+    : view==="analytics" ? <div className="ax-module-analytics">
+      <div className="ax-module-analytics-head"><div><span className="ax-kicker"><TrendingUp size={13}/> MODULE ANALYTICS</span><h3>{moduleMetric==="status"?"Record distribution":moduleMetric==="value"?"Value / exposure by status":"Follow-up coverage"}</h3><p>Derived only from saved {moduleName.toLowerCase()} records. Select a status in the chart to filter the workbench.</p></div>
+        <div className="ax-module-chart-types" role="group" aria-label="Module chart type">
+          <button className={moduleChartType==="donut"?"active":""} onClick={()=>setModuleChartType("donut")} aria-label="Donut chart" title="Donut chart"><PieChart size={15}/></button>
+          <button className={moduleChartType==="bar"?"active":""} onClick={()=>setModuleChartType("bar")} aria-label="Bar chart" title="Bar chart"><BarChart3 size={15}/></button>
+          <button className={moduleChartType==="line"?"active":""} onClick={()=>setModuleChartType("line")} aria-label="Trend chart" title="Trend chart"><TrendingUp size={15}/></button>
+        </div>
+      </div>
+      <div className="ax-module-chart-focus">
+        <div className="ax-module-metric-tabs"><button className={moduleMetric==="status"?"active":""} onClick={()=>{setModuleMetric("status");setFilter("All")}}>Record status</button><button className={moduleMetric==="value"?"active":""} onClick={()=>{setModuleMetric("value");setFilter("All")}}>Value / exposure</button><button className={moduleMetric==="followup"?"active":""} onClick={()=>{setModuleMetric("followup");setFilter("All")}}>Follow-ups</button></div>
+        {records.length===0?<div className="ax-chart-empty"><div className="ax-empty-orbit"><PieChart size={26}/></div><strong>No records to chart yet</strong><p>Add the first {moduleName.toLowerCase()} record to activate this module’s chart.</p></div>:<ModuleAnalyticsChart items={moduleChartData} total={moduleChartTotal} type={moduleChartType} metric={moduleMetric} onSelect={name=>{setFilter(statuses.includes(name)?name:"All");setView("overview")}}/>}
+      </div>
+      <div className="ax-module-chart-legend">{moduleChartData.map(item=><button key={item.name} onClick={()=>{setFilter(statuses.includes(item.name)?item.name:"All");setView("overview")}}><i style={{background:item.color}}/><span>{item.name}</span><strong>{moduleMetric==="value"?currency(item.value):item.value}</strong><small>{item.records} record{item.records===1?"":"s"}</small></button>)}</div>
+      <div className="ax-module-analytics-note"><CheckCircle2 size={14}/> Chart is linked to this module’s saved records. Changes in records update these views automatically.</div>
+    </div>
     : view==="table" ? <div className="ax-record-table-wrap"><table className="ax-record-table"><thead><tr><th>Record / opportunity</th><th>Status</th><th>Location / collateral</th><th>Value / exposure</th><th>Next action</th><th>Completeness</th><th>Actions</th></tr></thead><tbody>{filtered.map(record=><tr key={record.id}><td><strong>{record.title}</strong><small>{record.module}</small></td><td><span className={"ax-status-chip " + (CLOSED.has(String(record.status).toLowerCase())?"closed":"open")}>{record.status}</span></td><td>{record.location || "Not entered"}</td><td>{currency(Number(record.value)||0)}</td><td>{record.nextAction || (record.nextFollowUpDate ? "Follow-up due " + dateLabel(record.nextFollowUpDate) : "Not scheduled")}</td><td><span className="ax-completeness">{presentFields(record)}/{dataFields.length}</span></td><td><div className="ax-row-actions"><button onClick={()=>toggleExpanded(record.id)} title="Inspect record" aria-label="Inspect record"><Eye size={14}/></button><button onClick={()=>onEdit(record)} title="Edit record" aria-label="Edit record"><Pencil size={14}/></button></div></td></tr>)}</tbody></table></div>
     : view==="pipeline" ? <div className="ax-kanban">
       {stageCounts.filter(stage=>filter==="All"||stage.status===filter).map(stage=><div className="ax-kanban-column" key={stage.status}><header><span>{stage.status}</span><strong>{filtered.filter(record=>record.status===stage.status).length}</strong></header>{filtered.filter(record=>record.status===stage.status).map(record=><article className="ax-kanban-card" key={record.id}><small>{record.location || "Location to be captured"}</small><h3>{record.title}</h3><strong>{currency(Number(record.value)||0)}</strong><p>{record.nextAction || "No next action recorded"}</p><div><button onClick={()=>onEdit(record)}><Pencil size={13}/> Edit</button><button onClick={()=>toggleExpanded(record.id)}><Eye size={13}/> Details</button></div>{expandedHas(record.id)&&<section className="ax-kanban-details">{dataFields.filter(field=>getFieldValue(record,field.key).trim()).map(field=><p key={field.key}><span>{field.label}</span><strong>{getFieldValue(record,field.key)}</strong></p>)}</section>}</article>)}</div>)}
