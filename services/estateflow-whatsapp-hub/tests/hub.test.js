@@ -92,9 +92,8 @@ test("maps gateway connection states conservatively", () => {
   assert.equal(isConnected("qr_ready"), false);
 });
 
-test("ignores outbound and group events, and normalizes private inbound replies", () => {
+test("ignores outbound events and normalizes private contact replies", () => {
   assert.equal(parseIncoming({ event: "message.received", data: { from: "919876543210@s.whatsapp.net", key: { fromMe: true } } }).ignore, true);
-  assert.equal(parseIncoming({ event: "message.received", data: { from: "123456789@g.us", isGroup: true } }).ignore, true);
   const result = parseIncoming({
     event: "message.received",
     data: { from: "919876543210@s.whatsapp.net", key: { fromMe: false, id: "message-1" } }
@@ -102,4 +101,15 @@ test("ignores outbound and group events, and normalizes private inbound replies"
   assert.equal(result.ignore, false);
   assert.equal(result.phone, "919876543210");
   assert.equal(result.messageId, "message-1");
+});
+
+test("recognizes an inbound WhatsApp group message for stopping group follow-ups", () => {
+  const result = parseIncoming({
+    event: "message.received",
+    data: { from: "120363000000000001@g.us", isGroup: true, key: { fromMe: false, id: "group-message-1" } }
+  });
+  assert.equal(result.ignore, false);
+  assert.equal(result.isGroup, true);
+  assert.equal(result.groupJid, "120363000000000001@g.us");
+  assert.equal(result.messageId, "group-message-1");
 });
