@@ -6,9 +6,11 @@ EstateFlow now has a single integration for useful pieces of WA-AKG and OpenWA. 
 
 - One interface for connecting a WhatsApp gateway.
 - QR / linked-device pairing flow through the selected gateway.
-- Contacts and property-linked follow-up schedules.
+- Sync of available WhatsApp contacts, WhatsApp display names/phone numbers, and groups into a saved EstateFlow directory.
+- Imported contacts are added to EstateFlow Contacts; synced group names are saved separately and remain visible after WhatsApp is disconnected or unlinked.
+- Individual or WhatsApp group messages, linked to a contact/property/task, with a scrollable contact/group selector.
 - One-time and recurring messages, with a maximum of 20 messages per sequence.
-- A saved queue, cancellation/retry, daily send limit and pause when the contact replies (after an authenticated inbound webhook is configured).
+- A saved queue, cancellation/retry, daily send limit, stop-on-contact-reply and stop-on-group-activity (after the matching reply/webhook path is configured).
 - One gateway sends each message. If both gateway APIs are configured in automatic mode, OpenWA is selected; WA-AKG is not used as a second sender. This prevents accidental duplicate sends.
 
 ## What still needs to be connected
@@ -40,9 +42,11 @@ Or configure .env and run:
 
 ## Connect the EstateFlow app
 
-Open WhatsApp Automation in EstateFlow. Enter the hub address and the same ESTATEFLOW_BRIDGE_TOKEN value saved privately in the hub's .env, then press Save hub connection. Use an HTTPS address for remote access. Use plain HTTP only on a trusted local network. Leave the hub fields empty on Windows if you intend to use the existing built-in desktop sender instead.
+Open WhatsApp Automation in EstateFlow. Enter the hub address and the same ESTATEFLOW_BRIDGE_TOKEN value saved privately in the hub's .env, then press Save hub connection. Use an HTTPS address for remote access. Use plain HTTP only on a trusted local network. Leave the hub fields empty on Windows if you intend to use the built-in Windows sender instead.
 
-Then connect through QR first. Scan only with the WhatsApp account you intend to link. Use a dedicated test account while verifying the setup; unofficial WhatsApp Web gateways can be restricted by WhatsApp.
+Connect WhatsApp through QR, then press **Sync WhatsApp now** in the saved directory panel. The first contact/history sync can take time. Imported contacts are saved in EstateFlow Contacts; synced group names and identifiers are saved to the EstateFlow cache/database. Disconnecting WhatsApp does not erase this saved directory. When WhatsApp is connected to a different number, sync that account before sending to its groups; EstateFlow blocks a group send if the saved group was not verified for the active number.
+
+Use a dedicated test account while verifying the setup; unofficial WhatsApp Web gateways can be restricted by WhatsApp.
 
 ## Important boundaries
 
