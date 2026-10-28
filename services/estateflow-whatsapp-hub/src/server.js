@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 import { loadConfig, safeConfigSummary } from "./config.js";
 import { createProvider } from "./provider.js";
 import { createQueueStore } from "./queue.js";
-import { parseIncoming } from "./webhook.js";
+import { parseIncoming, verifyWebhookSignature } from "./webhook.js";
 
 const config = loadConfig();
 const sessionStatePath = path.join(config.dataDir, "session.json");
@@ -73,9 +73,7 @@ function verifyWebhook(req, raw) {
     req.headers["x-openwa-signature"] ||
     req.headers["x-hub-signature-256"] || ""
   );
-  if (!signature.startsWith("sha256=")) return false;
-  const expected = "sha256=" + crypto.createHmac("sha256", config.webhookToken).update(raw).digest("hex");
-  return timingSafeMatch(signature, expected);
+  return verifyWebhookSignature(raw, signature, config.webhookToken);
 }
 
 async function statusResponse() {
