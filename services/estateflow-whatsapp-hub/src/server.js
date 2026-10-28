@@ -142,7 +142,7 @@ async function syncAddressBook() {
   const result = await getAddressBook();
   result.warnings = warnings;
   result.note = "WhatsApp contact names and phone numbers and group names are saved in the hub cache. Previous entries are retained when a later sync does not return them.";
-  reply;
+  return result;
 }
 
 sessionState.save = async () => {
