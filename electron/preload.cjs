@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("estateflowWhatsApp", {
   getStatus: () => ipcRenderer.invoke("estateflow:wa:get-status"),
   getQueue: () => ipcRenderer.invoke("estateflow:wa:get-queue"),
+  getAddressBook: () => ipcRenderer.invoke("estateflow:wa:get-address-book"),
+  syncAddressBook: () => ipcRenderer.invoke("estateflow:wa:sync-address-book"),
   getBridgeInfo: () => ipcRenderer.invoke("estateflow:wa:get-bridge-info"),
   connect: () => ipcRenderer.invoke("estateflow:wa:connect"),
   requestPairingCode: phone => ipcRenderer.invoke("estateflow:wa:pairing-code", phone),
