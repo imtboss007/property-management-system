@@ -8,7 +8,7 @@ type ContactOption = { id: string; name: string; phone: string; role?: string };
 type PropertyOption = { id: string; title: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
-  phone: string; contactName: string; message: string; scheduledAt: string;
+  phone: string; contactId?: string; contactName: string; message: string; scheduledAt: string;
   propertyId?: string; propertyTitle?: string; taskId?: string; taskTitle?: string;
   status: "scheduled" | "sending" | "sent" | "failed" | "cancelled" | string;
   consentConfirmed: boolean; stopOnReply: boolean; createdAt: string;
@@ -74,7 +74,7 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; initialContactId?: string; initialPropertyId?: string; onNotice: (message: string) => void };
+type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -90,7 +90,7 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
-export default function WhatsAppScheduler({ contacts = [], properties = [], initialContactId, initialPropertyId, onNotice }: Props) {
+export default function WhatsAppScheduler({ contacts = [], properties = [], initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
@@ -113,6 +113,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], init
   const [queue, setQueue] = useState<ScheduleRow[]>([]);
   const [selectedContactId, setSelectedContactId] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [selectedTaskTitle, setSelectedTaskTitle] = useState("");
   const [target, setTarget] = useState("");
   const [contactName, setContactName] = useState("");
   const [message, setMessage] = useState("Hello, I am following up on our property discussion. Please let me know a convenient time to talk.");
@@ -169,7 +171,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], init
   useEffect(() => {
     if (initialContactId) setSelectedContactId(initialContactId);
     if (initialPropertyId) setSelectedPropertyId(initialPropertyId);
-  }, [initialContactId, initialPropertyId]);
+    if (initialTaskId) setSelectedTaskId(initialTaskId);
+    if (initialTaskTitle) setSelectedTaskTitle(initialTaskTitle);
+  }, [initialContactId, initialPropertyId, initialTaskId, initialTaskTitle]);
 
   useEffect(() => {
     if (!selectedContact) return;
@@ -265,8 +269,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], init
     if (!consentConfirmed) throw new Error("Confirm that the client expects and has agreed to receive these messages.");
     const linkedProperty = properties.find(property => property.id === selectedPropertyId);
     return {
-      phone: target, contactName: contactName.trim(), message: message.trim(),
+      phone: target, contactId: selectedContactId || "", contactName: contactName.trim(), message: message.trim(),
       propertyId: linkedProperty?.id || "", propertyTitle: linkedProperty?.title || "",
+      taskId: selectedTaskId, taskTitle: selectedTaskTitle,
       scheduledAt: due.toISOString(),
       repeatCount: sendMode === "repeat" ? Number(repeatCount) : 1,
       intervalDays: Number(intervalDays),
@@ -418,6 +423,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], init
           {properties.map(property => <option key={property.id} value={property.id}>{property.title}</option>)}
         </select>
       </label>
+      {selectedTaskId && <div className="notice"><CalendarClock size={16}/> Linked to task: {selectedTaskTitle || selectedTaskId}</div>}
       <label>Message to send<textarea rows={4} maxLength={4000} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write a client follow-up message…"/></label>
       <div className="form-two">
         <label>First send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label>
