@@ -7,6 +7,11 @@ on:
       - "feature/estateflow-unified-whatsapp-automation"
     paths:
       - "services/estateflow-whatsapp-hub/**"
+      - "src/**"
+      - "electron/whatsapp-service.cjs"
+      - "package.json"
+      - "vite.config.ts"
+      - "tsconfig*.json"
       - ".github/workflows/whatsapp-hub-checks.yml"
   pull_request:
     paths:
