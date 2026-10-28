@@ -9,6 +9,8 @@ import { parseIncoming, verifyWebhookSignature } from "./webhook.js";
 
 const config = loadConfig();
 const sessionStatePath = path.join(config.dataDir, "session.json");
+const addressBookPath = path.join(config.dataDir, "address-book.json");
+let addressBook = { contacts: [], groups: [], lastSyncedAt: "", accountNumber: "", activeGroupJids: [] };
 let sessionState = { sessionId: "" };
 
 await fs.mkdir(config.dataDir, { recursive: true });
@@ -18,6 +20,129 @@ try {
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
   sessionState = { sessionId: config.openwa.sessionId || config.waAkg.sessionId || "" };
+}
+
+try {
+  const savedBook = JSON.parse(await fs.readFile(addressBookPath, "utf8"));
+  addressBook = {
+    contacts: Array.isArray(savedBook.contacts) ? savedBook.contacts : [],
+    groups: Array.isArray(savedBook.groups) ? savedBook.groups : [],
+    lastSyncedAt: String(savedBook.lastSyncedAt || ""),
+    accountNumber: String(savedBook.accountNumber || ""),
+    activeGroupJids: Array.isArray(savedBook.activeGroupJids) ? savedBook.activeGroupJids : []
+  };
+} catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
+
+async function saveAddressBook() {
+  const tmp = addressBookPath + ".tmp";
+  await fs.writeFile(tmp, JSON.stringify(addressBook, null, 2), { encoding: "utf8", mode: 0o600 });
+  await fs.rename(tmp, addressBookPath);
+}
+
+function normalizeAddressBookContact(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const jid = String(raw.id || raw.jid || "");
+  const rawDigits = String(raw.phoneNumber || raw.phone || (jid.includes("@") ? jid.split("@")[0] : jid)).replace(/\\D/g, "");
+  const phone = rawDigits.length >= 8 && rawDigits.length <= 15 ? "+" + rawDigits : "";
+  const whatsappName = String(raw.name || raw.verifiedName || raw.notify || raw.pushName || "").trim();
+  if (!jid && !phone) return null;
+  return {
+    id: jid || rawDigits,
+    jid,
+    phone,
+    name: whatsappName || phone || jid,
+    whatsappName,
+    notify: String(raw.notify || ""),
+    verifiedName: String(raw.verifiedName || ""),
+    lastSyncedAt: new Date().toISOString()
+  };
+}
+
+function mergeAddressBookContacts(rawContacts) {
+  let changed = false;
+  for (const raw of Array.isArray(rawContacts) ? rawContacts : []) {
+    const contact = normalizeAddressBookContact(raw);
+    if (!contact) continue;
+    const digits = String(contact.phone || "").replace(/\\D/g, "");
+    const index = addressBook.contacts.findIndex(item =>
+      (contact.jid && (item.jid === contact.jid || item.id === contact.jid)) ||
+      (digits && String(item.phone || "").replace(/\\D/g, "") === digits)
+    );
+    if (index < 0) addressBook.contacts.push(contact);
+    else addressBook.contacts[index] = {
+      ...addressBook.contacts[index],
+      ...contact,
+      name: contact.whatsappName || addressBook.contacts[index].whatsappName || addressBook.contacts[index].name,
+      whatsappName: contact.whatsappName || addressBook.contacts[index].whatsappName || "",
+      notify: contact.notify || addressBook.contacts[index].notify || "",
+      verifiedName: contact.verifiedName || addressBook.contacts[index].verifiedName || ""
+    };
+    changed = true;
+  }
+  addressBook.contacts.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  return changed;
+}
+
+function mergeAddressBookGroups(rawGroups) {
+  const activeGroupJids = [];
+  let changed = false;
+  for (const raw of Array.isArray(rawGroups) ? rawGroups : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const jid = String(raw.id || raw.jid || "");
+    if (!jid.endsWith("@g.us")) continue;
+    activeGroupJids.push(jid);
+    const name = String(raw.subject || raw.name || raw.groupName || "WhatsApp group").trim() || "WhatsApp group";
+    const group = {
+      id: jid, jid, name, subject: name,
+      description: String(raw.desc || raw.description || ""),
+      size: Number(raw.size || raw.memberCount || (Array.isArray(raw.participants) ? raw.participants.length : 0)),
+      lastSyncedAt: new Date().toISOString()
+    };
+    const index = addressBook.groups.findIndex(item => item.jid === jid || item.id === jid);
+    if (index < 0) addressBook.groups.push(group);
+    else addressBook.groups[index] = { ...addressBook.groups[index], ...group };
+    changed = true;
+  }
+  addressBook.activeGroupJids = [...new Set(activeGroupJids)];
+  addressBook.groups.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  return changed;
+}
+
+async function getAddressBook() {
+  return {
+    contacts: addressBook.contacts.slice(),
+    groups: addressBook.groups.slice(),
+    lastSyncedAt: addressBook.lastSyncedAt,
+    accountNumber: addressBook.accountNumber,
+    activeGroupJids: addressBook.activeGroupJids.slice(),
+    connected: Boolean((await provider.status()).connected),
+    counts: { contacts: addressBook.contacts.length, groups: addressBook.groups.length }
+  };
+}
+
+async function syncAddressBook() {
+  if (!config.provider) throw new Error("Configure a WhatsApp gateway before syncing its contacts or groups.");
+  const connection = await provider.status();
+  if (!connection.connected) throw new Error("Connect WhatsApp first to sync current contacts and groups. Saved contacts and groups remain available while disconnected.");
+  const warnings = [];
+  const contacts = await provider.listContacts();
+  mergeAddressBookContacts(contacts);
+  try {
+    const groups = await provider.listGroups();
+    mergeAddressBookGroups(groups);
+  } catch (error) {
+    addressBook.activeGroupJids = [];
+    warnings.push("Could not refresh group list: " + (error instanceof Error ? error.message : String(error)));
+  }
+  addressBook.lastSyncedAt = new Date().toISOString();
+  addressBook.accountNumber = String(connection.senderNumber || "");
+  await saveAddressBook();
+  const result = await getAddressBook();
+  result.warnings = warnings;
+  result.note = "WhatsApp contact names and phone numbers and group names are saved in the hub cache. Previous entries are retained when a later sync does not return them.";
+  reply;
 }
 
 sessionState.save = async () => {
