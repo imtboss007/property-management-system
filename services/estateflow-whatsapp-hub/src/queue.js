@@ -121,7 +121,14 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
 
   async function list() {
     await ensureLoaded();
-    return rows.slice().sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt)).slice(0, 500);
+    // Include all active/recent queue records needed by EstateFlow; deployments should archive
+    // old terminal rows periodically rather than silently hiding bulk schedules after row 500.
+    return rows.slice().sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt)).slice(0, 10000);
+  }
+
+  async function countSentSince(startTimeMs) {
+    await ensureLoaded();
+    return rows.filter(row => row.status === "sent" && row.sentAt && Date.parse(row.sentAt) >= startTimeMs).length;
   }
 
   async function nextDue() {
@@ -174,5 +181,5 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
     return true;
   }
 
-  return { ensureLoaded, schedule, cancel, retry, list, nextDue, update, recordReply, recordDeliveryStatus };
+  return { ensureLoaded, schedule, cancel, retry, list, countSentSince, nextDue, update, recordReply, recordDeliveryStatus };
 }
