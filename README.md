@@ -10,7 +10,7 @@ A connected asset intelligence platform for property, finance, investments, lega
 
 ## Included in this build
 
-- Six property workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, and Commercial Land.
+- Sixteen connected workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC.
 - Property records with module, location, value, status, contact, and notes.
 - Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
 - One-time task records with date, time, type, linked property, notes, completion, and delete.
