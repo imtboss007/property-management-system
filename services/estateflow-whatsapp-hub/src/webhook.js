@@ -10,10 +10,17 @@ export function parseIncoming(body) {
   if (key.fromMe === true || data?.fromMe === true || data?.from_me === true) {
     return { ignore: true, reason: "outbound-message" };
   }
+  const remoteCandidates = [
+    data?.chatId, data?.remoteJid, key.remoteJid, data?.remoteJidAlt,
+    data?.groupJid, data?.group_id, data?.from, data?.sender
+  ].map(value => String(value || "")).filter(Boolean);
+  const groupRemote = remoteCandidates.find(value => value.endsWith("@g.us")) || "";
   const remote = String(data?.from || data?.sender || data?.chatId || data?.remoteJidAlt || data?.remoteJid || key.remoteJid || "");
-  if (remote === "status@broadcast") return { ignore: true, reason: "status-broadcast" };
-  if (remote.endsWith("@g.us") || data?.isGroup === true || data?.is_group === true) {
-    const groupJid = remote.endsWith("@g.us") ? remote : String(data?.groupJid || data?.group_id || "");
+  if (remote === "status@broadcast" || remoteCandidates.includes("status@broadcast")) {
+    return { ignore: true, reason: "status-broadcast" };
+  }
+  if (groupRemote || data?.isGroup === true || data?.is_group === true) {
+    const groupJid = groupRemote || String(data?.groupJid || data?.group_id || "");
     if (!groupJid.endsWith("@g.us")) return { ignore: true, reason: "group-message-without-group-id" };
     return { ignore: false, groupJid, isGroup: true, messageId: String(key.id || data?.id || data?.messageId || "") };
   }
