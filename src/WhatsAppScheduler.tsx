@@ -8,7 +8,7 @@ type ContactOption = { id: string; name: string; phone: string; role?: string; w
 type PropertyOption = { id: string; title: string };
 type WhatsAppGroupOption = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string; source?: string; lastSyncedAt?: string };
-type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
+type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
   destinationType?: "contact" | "group"; groupJid?: string; groupName?: string;
@@ -71,11 +71,11 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
     getQueue: async () => (await request("/api/queue")).queue || [],
     getAddressBook: async () => {
       const data = await request("/api/address-book");
-      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), counts: data.counts };
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts };
     },
     syncAddressBook: async () => {
       const data = await request("/api/sync-address-book", "POST");
-      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), counts: data.counts, warnings: data.warnings, note: data.note };
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts, warnings: data.warnings, note: data.note };
     },
     connect: async () => { const data = await request("/api/connect", "POST"); return { ok: Boolean(data.ok) }; },
     requestPairingCode: async phone => { const data = await request("/api/pairing-code", "POST", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
@@ -161,6 +161,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     }
     return Array.from(byJid.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [savedGroups, addressBook.groups]);
+  const sendableGroupOptions = useMemo(() => status.connected
+    ? groupOptions.filter(group => (addressBook.activeGroupJids || []).includes(group.jid) && (!addressBook.accountNumber || addressBook.accountNumber === status.senderNumber))
+    : groupOptions, [groupOptions, status.connected, status.senderNumber, addressBook.activeGroupJids, addressBook.accountNumber]);
   const selectedGroup = useMemo(() => groupOptions.find(group => group.jid === selectedGroupJid), [groupOptions, selectedGroupJid]);
 
   useEffect(() => {
@@ -549,13 +552,13 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       </> : <div className="wa-group-target">
         <label>Select saved WhatsApp group
           <span>Groups are cached in EstateFlow and remain visible when WhatsApp is disconnected. Sending requires the linked account to be connected.</span>
-          <select size={Math.min(Math.max(groupOptions.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
+          <select size={Math.min(Math.max(sendableGroupOptions.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
             <option value="">Choose a WhatsApp group</option>
-            {groupOptions.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
+            {sendableGroupOptions.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
           </select>
         </label>
         {selectedGroup && <div className="notice"><Users size={16}/><div><strong>{selectedGroup.name}</strong><p>{selectedGroup.size ? selectedGroup.size + " members · " : ""}WhatsApp group will be used as the message destination.</p></div></div>}
-        {groupOptions.length === 0 && <div className="notice notice-warn">No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above.</div>}
+        {(status.connected ? sendableGroupOptions.length === 0 : groupOptions.length === 0) && <div className="notice notice-warn">{status.connected ? "No groups are verified for this currently linked WhatsApp account. Sync contacts & groups above." : "No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above."}</div>}
       </div>}
       <label>Link to property (optional)
         <select value={selectedPropertyId} onChange={event => setSelectedPropertyId(event.target.value)}>
