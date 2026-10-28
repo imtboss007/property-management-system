@@ -60,7 +60,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   function publish(reason = "update") {
     if (typeof notify === "function") {
       try {
-        notify({ reason, status: snapshotStatus(), queue: queue.slice(0, 200) });
+        notify({ reason, status: snapshotStatus(), queue: queue.slice(0, 10000) });
       } catch (_) {}
     }
   }
@@ -304,6 +304,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     const intervalDays = Math.max(1, Math.min(365, Number.parseInt(payload.intervalDays, 10) || 1));
     const seriesId = crypto.randomUUID();
     const contactName = String(payload.contactName || "").trim().slice(0, 160);
+    const propertyId = String(payload.propertyId || "").slice(0, 120);
+    const propertyTitle = String(payload.propertyTitle || "").trim().slice(0, 240);
+    const taskId = String(payload.taskId || "").slice(0, 120);
+    const taskTitle = String(payload.taskTitle || "").trim().slice(0, 240);
     const stopOnReply = payload.stopOnReply !== false;
     const rows = [];
     for (let index = 0; index < repeatCount; index++) {
@@ -315,6 +319,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         repeatCount,
         phone,
         contactName,
+        propertyId,
+        propertyTitle,
+        taskId,
+        taskTitle,
         message,
         scheduledAt: dueAt.toISOString(),
         status: "scheduled",
@@ -402,7 +410,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function getQueue() {
     await ensureQueueLoaded();
-    return queue.slice().sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt)).slice(0, 500);
+    return queue.slice().sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt)).slice(0, 10000);
   }
 
   async function getStatus() {
