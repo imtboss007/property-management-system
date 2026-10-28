@@ -239,6 +239,109 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "evidenceStatus", label: "Evidence checklist", placeholder: "ID, registration, BO, source of funds…" }
   ]
 };
+type ModuleContactField = { key: string; label: string };
+const moduleContactFields: Record<string, ModuleContactField[]> = {
+  "Property Sale": [
+    { key: "__contact_seller", label: "Seller / property owner" },
+    { key: "__contact_buyer", label: "Buyer" },
+    { key: "__contact_broker", label: "Broker / agent" },
+    { key: "__contact_legalCounsel", label: "Lawyer / conveyance" }
+  ],
+  "Property Loans": [
+    { key: "__contact_borrower", label: "Borrower / applicant" },
+    { key: "__contact_lender", label: "Lender / person providing loan" },
+    { key: "__contact_loanOfficer", label: "Bank / loan officer to call" },
+    { key: "__contact_guarantor", label: "Guarantor / co-borrower" },
+    { key: "__contact_collateralOwner", label: "Collateral property owner" },
+    { key: "__contact_valuator", label: "Valuer / technical agent" }
+  ],
+  "JV / JDA / JD": [
+    { key: "__contact_landowner", label: "Landowner / owner representative" },
+    { key: "__contact_developer", label: "Developer / JV partner" },
+    { key: "__contact_broker", label: "Broker / facilitator" },
+    { key: "__contact_legalCounsel", label: "Lawyer / drafting counsel" }
+  ],
+  "SR Rate Settlement": [
+    { key: "__contact_client", label: "Client / instructing party" },
+    { key: "__contact_counterparty", label: "Settlement counterparty" },
+    { key: "__contact_mediator", label: "Mediator / facilitator" },
+    { key: "__contact_settlementOfficer", label: "Settlement / accounts officer" }
+  ],
+  "Agricultural Land": [
+    { key: "__contact_owner", label: "Landowner" },
+    { key: "__contact_buyer", label: "Buyer / investor" },
+    { key: "__contact_broker", label: "Broker / local representative" },
+    { key: "__contact_legalCounsel", label: "Lawyer / title diligence" }
+  ],
+  "Commercial Land": [
+    { key: "__contact_owner", label: "Property owner" },
+    { key: "__contact_buyerTenant", label: "Buyer / tenant / occupier" },
+    { key: "__contact_broker", label: "Broker / leasing agent" },
+    { key: "__contact_legalCounsel", label: "Lawyer / title diligence" }
+  ],
+  "Startup": [
+    { key: "__contact_founder", label: "Founder / promoter" },
+    { key: "__contact_investor", label: "Investor" },
+    { key: "__contact_leadInvestor", label: "Lead investor / fund" },
+    { key: "__contact_advisor", label: "Advisor / mentor" }
+  ],
+  "Equity": [
+    { key: "__contact_issuer", label: "Issuer / company representative" },
+    { key: "__contact_investor", label: "Investor / shareholder" },
+    { key: "__contact_brokerCustodian", label: "Broker / custodian" },
+    { key: "__contact_advisor", label: "Advisor" }
+  ],
+  "Unsecured Company Loan": [
+    { key: "__contact_borrower", label: "Borrowing company representative" },
+    { key: "__contact_lender", label: "Lender / loan provider" },
+    { key: "__contact_loanOfficer", label: "Loan officer to call" },
+    { key: "__contact_guarantor", label: "Guarantor / security provider" }
+  ],
+  "Personal Loan": [
+    { key: "__contact_borrower", label: "Borrower" },
+    { key: "__contact_lender", label: "Lender / loan provider" },
+    { key: "__contact_loanOfficer", label: "Loan officer to call" },
+    { key: "__contact_guarantor", label: "Guarantor / co-borrower" }
+  ],
+  "Housing Loan": [
+    { key: "__contact_borrower", label: "Borrower / applicant" },
+    { key: "__contact_lender", label: "Bank / housing lender contact" },
+    { key: "__contact_loanOfficer", label: "Loan officer to call" },
+    { key: "__contact_guarantor", label: "Co-borrower / guarantor" },
+    { key: "__contact_collateralOwner", label: "Collateral property owner" }
+  ],
+  "House Purchase": [
+    { key: "__contact_buyer", label: "Buyer / purchaser" },
+    { key: "__contact_seller", label: "Seller" },
+    { key: "__contact_broker", label: "Broker / agent" },
+    { key: "__contact_legalCounsel", label: "Lawyer / conveyance" }
+  ],
+  "Litigation": [
+    { key: "__contact_client", label: "Client / party represented" },
+    { key: "__contact_advocate", label: "Advocate / counsel" },
+    { key: "__contact_opposingParty", label: "Opposing party / counsel" },
+    { key: "__contact_mediator", label: "Mediator / court-appointed contact" }
+  ],
+  "Fund & Portfolio Management": [
+    { key: "__contact_fundManager", label: "Fund / portfolio manager" },
+    { key: "__contact_administrator", label: "Fund administrator" },
+    { key: "__contact_custodian", label: "Custodian / bank" },
+    { key: "__contact_auditor", label: "Auditor / accountant" },
+    { key: "__contact_investor", label: "Investor / LP contact" }
+  ],
+  "Investor Relations": [
+    { key: "__contact_investor", label: "Investor / LP" },
+    { key: "__contact_relationshipManager", label: "Relationship manager" },
+    { key: "__contact_advisor", label: "Investor advisor" },
+    { key: "__contact_compliance", label: "KYC / compliance contact" }
+  ],
+  "Compliance & KYC": [
+    { key: "__contact_counterparty", label: "Customer / counterparty" },
+    { key: "__contact_beneficialOwner", label: "Beneficial owner contact" },
+    { key: "__contact_reviewer", label: "Compliance reviewer" },
+    { key: "__contact_provider", label: "KYC / due-diligence provider" }
+  ]
+};
 const uid = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
@@ -946,12 +1049,21 @@ export default function App() {
 }
 
 function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactRecord[]): ContactRecord[] {
-  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(",")].filter(Boolean);
+  const roleIds = Object.entries(property.moduleData ?? {})
+    .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
+    .map(([,value]) => String(value));
+  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
   if (unique.length) return unique;
   const legacy = contacts.find(contact => contact.name.trim().toLowerCase() === (property.contact || "").trim().toLowerCase());
   return legacy ? [legacy] : [];
+}
+function getLinkedContactRoleLabels(property: PropertyRecord, contacts: ContactRecord[]): string[] {
+  return (moduleContactFields[property.module] ?? [])
+    .map(field => ({ label: field.label, contact: contacts.find(contact => contact.id === property.moduleData?.[field.key]) }))
+    .filter((item): item is { label: string; contact: ContactRecord } => Boolean(item.contact))
+    .map(item => `${item.label}: ${item.contact.name}`);
 }
 
 function getPropertyDeadline(property: PropertyRecord): { date: string; label: string } | null {
@@ -1026,7 +1138,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
           <h3>{property.title}</h3>
           <p>{property.module} <span>•</span> {property.location || "Location not entered"}</p>
           <small>Contact: {contact ? <button className="inline-link" onClick={onOpenContacts}>{contact.name} · {contact.role}</button> : <button className="inline-link" onClick={onEditProperty.bind(null,property)}>Link a contact</button>}</small>
-          {contact?.phone && <small>Phone: {contact.phone}</small>}{stakeholders.length>1 && <small>Linked stakeholders: {stakeholders.map(item=>`${item.name} (${item.role})`).join(" · ")}</small>}
+          {contact?.phone && <small>Phone: {contact.phone}</small>}{getLinkedContactRoleLabels(property,contacts).length>0 && <small><strong>Linked roles:</strong> {getLinkedContactRoleLabels(property,contacts).join(" · ")}</small>}{stakeholders.length>1 && <small>Linked stakeholders: {stakeholders.map(item=>`${item.name} (${item.role})`).join(" · ")}</small>}
           {deadline && <small><strong>{deadline.label}:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{deadline.date}{deadlineOverdue?" · OVERDUE":""}</span></small>}
           {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
           {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
@@ -1075,6 +1187,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><label>Primary contact<select value={form.primaryContactId} onChange={event=>{const id=event.target.value;setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}><option value="">No contact linked</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select></label></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <label>Other linked stakeholders (select multiple)<select multiple size={Math.min(Math.max(contacts.length,3),6)} value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} onChange={event=>{const ids=Array.from(event.target.selectedOptions,option=>option.value);setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:ids.join(",")}}));}}><option value="" disabled>Select stakeholders below</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select><small>Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal.</small></label>
+    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><label key={field.key}>{field.label}<select value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))}><option value="">Not linked</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select></label>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
       <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
