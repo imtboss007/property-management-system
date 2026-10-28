@@ -1,0 +1,32 @@
+name: EstateFlow WhatsApp Hub Checks
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/estateflow-unified-whatsapp-automation"
+    paths:
+      - "services/estateflow-whatsapp-hub/**"
+      - ".github/workflows/whatsapp-hub-checks.yml"
+  pull_request:
+    paths:
+      - "services/estateflow-whatsapp-hub/**"
+      - ".github/workflows/whatsapp-hub-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/estateflow-whatsapp-hub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm run check
