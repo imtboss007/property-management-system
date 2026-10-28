@@ -397,6 +397,21 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        document.querySelector<HTMLInputElement>(".topbar .search-box input")?.focus();
+      }
+      if (event.key === "Escape") {
+        setMobileMenu(false);
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const storageKey = (name: string) =>
     backendConfigured && session ? `estateflow.${session.user.id}.${name}` : `estateflow.${name}`;
 
@@ -1019,7 +1034,7 @@ export default function App() {
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
-          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>⌘ K</kbd></label><button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
+          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label><button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
@@ -1421,7 +1436,7 @@ function AuthScreen({
 }) {
   return <main className="auth-shell">
     <section className="auth-card">
-      <div className="brand-mark auth-brand"><Building2 size={24}/></div>
+      <div className="brand-mark auth-brand"><img src="./axivestra-mark.svg" alt="AXIVESTRA architectural logo"/></div>
       <div className="auth-eyebrow">AXIVESTRA · SECURE WORKSPACE</div>
       <h1>{loading ? "Connecting your workspace" : mode === "signIn" ? "Welcome back." : "Create your workspace."}</h1>
       <p>{loading ? "Loading your private records from the shared database." : "Sign in to keep your property deals, contacts and tasks synced across devices."}</p>
