@@ -22,8 +22,10 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Build installer
-        run: npm run desktop:dist
+      - name: Build app
+        run: npm run build
+      - name: Package installer without publishing
+        run: npx electron-builder --win nsis --x64 --publish never
       - name: Save installer for download
         uses: actions/upload-artifact@v4
         with:
