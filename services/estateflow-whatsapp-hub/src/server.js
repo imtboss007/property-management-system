@@ -44,7 +44,9 @@ async function saveAddressBook() {
 function normalizeAddressBookContact(raw) {
   if (!raw || typeof raw !== "object") return null;
   const jid = String(raw.id || raw.jid || "");
-  const rawDigits = String(raw.phoneNumber || raw.phone || (jid.includes("@") ? jid.split("@")[0] : jid)).replace(/\D/g, "");
+  const suppliedDigits = String(raw.phoneNumber || raw.phone || "").replace(/\D/g, "");
+  const jidDigits = (jid.endsWith("@c.us") || jid.endsWith("@s.whatsapp.net")) ? jid.split("@")[0].split(":")[0].replace(/\D/g, "") : "";
+  const rawDigits = suppliedDigits || jidDigits;
   const phone = rawDigits.length >= 8 && rawDigits.length <= 15 ? "+" + rawDigits : "";
   const whatsappName = String(raw.name || raw.verifiedName || raw.notify || raw.pushName || "").trim();
   if (!jid && !phone) return null;
