@@ -340,13 +340,20 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   const makePayload = () => {
     const due = new Date(date + "T" + time + ":00");
-    if (!target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
+    if (recipientMode === "group" && !selectedGroup) throw new Error("Select a WhatsApp group from your saved group list.");
+    if (recipientMode === "contact" && !target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
     if (!message.trim()) throw new Error("Write the message to send.");
     if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
-    if (!consentConfirmed) throw new Error("Confirm that the client expects and has agreed to receive these messages.");
+    if (!consentConfirmed) throw new Error("Confirm that this recipient or group expects and has agreed to receive these messages.");
     const linkedProperty = properties.find(property => property.id === selectedPropertyId);
     return {
-      phone: target, contactId: selectedContactId || "", contactName: contactName.trim(), message: message.trim(),
+      destinationType: recipientMode,
+      groupJid: recipientMode === "group" ? selectedGroup?.jid || "" : "",
+      groupName: recipientMode === "group" ? selectedGroup?.name || "WhatsApp group" : "",
+      phone: recipientMode === "contact" ? target : "",
+      contactId: recipientMode === "contact" ? selectedContactId || "" : "",
+      contactName: recipientMode === "contact" ? contactName.trim() : "",
+      message: message.trim(),
       propertyId: linkedProperty?.id || "", propertyTitle: linkedProperty?.title || "",
       taskId: selectedTaskId, taskTitle: selectedTaskTitle,
       scheduledAt: due.toISOString(),
@@ -481,18 +488,34 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     </div>
 
     <div className="form-card wa-form">
-      <label>Select saved contact
-        <span>Contacts come from your EstateFlow Contacts section. You can also type a number below.</span>
-        <select value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
-          <option value="">Choose a contact (optional)</option>
-          {contacts.filter(contact => contact.phone.trim()).map(contact =>
-            <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
-          )}
-        </select>
-      </label>
-      <div className="form-two">
-        <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
-        <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
+      <div className="wa-mode-switch" role="tablist" aria-label="Message destination">
+        <button className={recipientMode === "contact" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("contact"); setSelectedGroupJid(""); }} role="tab" aria-selected={recipientMode === "contact"}>Individual contact</button>
+        <button className={recipientMode === "group" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("group"); setSelectedContactId(""); setTarget(""); }} role="tab" aria-selected={recipientMode === "group"}>WhatsApp group</button>
+      </div>
+      {recipientMode === "contact" ? <>
+        <label>Select saved contact
+          <span>Imported WhatsApp names and numbers are now available in EstateFlow Contacts.</span>
+          <select size={Math.min(Math.max(contacts.filter(contact => contact.phone.trim()).length, 4), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
+            <option value="">Choose a contact</option>
+            {contacts.filter(contact => contact.phone.trim()).map(contact =>
+              <option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
+            )}
+          </select>
+        </label>
+        <div className="form-two">
+          <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
+          <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
+        </div>
+      </> : <div className="wa-group-target">
+        <label>Select saved WhatsApp group
+          <span>Groups are cached in EstateFlow and remain visible when WhatsApp is disconnected. Sending requires the linked account to be connected.</span>
+          <select size={Math.min(Math.max(groupOptions.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
+            <option value="">Choose a WhatsApp group</option>
+            {groupOptions.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
+          </select>
+        </label>
+        {selectedGroup && <div className="notice"><Users size={16}/><div><strong>{selectedGroup.name}</strong><p>{selectedGroup.size ? selectedGroup.size + " members · " : ""}WhatsApp group will be used as the message destination.</p></div></div>}
+        {groupOptions.length === 0 && <div className="notice notice-warn">No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above.</div>}
       </div>
       <label>Link to property (optional)
         <select value={selectedPropertyId} onChange={event => setSelectedPropertyId(event.target.value)}>
@@ -510,11 +533,11 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <label>Total sends, including first<input type="number" min="2" max="20" value={repeatCount} onChange={event => setRepeatCount(event.target.value)}/><span>Maximum 20 scheduled sends in one sequence.</span></label>
         <label>Repeat every (days)<input type="number" min="1" max="365" value={intervalDays} onChange={event => setIntervalDays(event.target.value)}/><span>For example, 3 sends every 3 days.</span></label>
       </div>}
-      <label className="consent-check"><input type="checkbox" checked={consentConfirmed} onChange={event => setConsentConfirmed(event.target.checked)}/> I confirm this recipient expects and has agreed to receive these follow-up messages.</label>
-      <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop all pending follow-ups automatically when this contact replies.</label>
+      <label className="consent-check"><input type="checkbox" checked={consentConfirmed} onChange={event => setConsentConfirmed(event.target.checked)}/> I confirm this {recipientMode === "group" ? "WhatsApp group" : "recipient"} expects and has agreed to receive these follow-up messages.</label>
+      <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop pending follow-ups when {recipientMode === "group" ? "a new message appears in this WhatsApp group" : "this contact replies"}.</label>
       <div className="form-actions wa-schedule-actions">
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
-        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || !target.trim() || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
+        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
       <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Delivery runs through the active sender: the built-in Windows sender or the configured EstateFlow hub. Keep that sender/server running, connected, and online at the scheduled time.</p>
     </div>
@@ -537,8 +560,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         {queue.map(row => <article className="record-card wa-queue-row" key={row.id}>
           <div className="record-symbol"><MessageCircle size={19}/></div>
           <div className="record-main">
-            <h3>{row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
-            <p>{row.phone} · {prettyDate(row.scheduledAt)}</p>
+            <h3>{row.destinationType === "group" ? row.groupName || "WhatsApp group" : row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
+            <p>{row.destinationType === "group" ? row.groupJid : row.phone} · {prettyDate(row.scheduledAt)}</p>
             {row.propertyTitle && <small>Property: {row.propertyTitle}</small>}
             <small>{row.message}</small>
             <span className={"wa-status wa-status-" + row.status}>{row.status}</span>
