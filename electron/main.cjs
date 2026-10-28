@@ -16,7 +16,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 940, minWidth: 980, minHeight: 700,
     show: false, autoHideMenuBar: true, title: "AXIVESTRA — Asset Intelligence",
-    backgroundColor: "#f6f7f3",
+    backgroundColor: "#071525",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true, nodeIntegration: false, sandbox: true
@@ -42,11 +42,11 @@ async function createTray() {
   try {
     const icon = await app.getFileIcon(process.execPath, { size: "small" });
     tray = new Tray(icon);
-    tray.setToolTip("EstateFlow — WhatsApp scheduler running");
+    tray.setToolTip("AXIVESTRA — Asset Intelligence running");
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: "Open EstateFlow", click: () => createWindow() },
+      { label: "Open AXIVESTRA", click: () => createWindow() },
       { type: "separator" },
-      { label: "Exit EstateFlow", click: () => { isQuitting = true; if (whatsappService) whatsappService.stop(); app.quit(); } }
+      { label: "Exit AXIVESTRA", click: () => { isQuitting = true; if (whatsappService) whatsappService.stop(); app.quit(); } }
     ]));
     tray.on("double-click", () => createWindow());
   } catch (_) {}
