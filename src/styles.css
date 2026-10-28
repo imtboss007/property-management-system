@@ -1049,3 +1049,52 @@ h2,h3{color:#e5f2fc}
 .ax-chart-stage>.ax-chart-empty{align-self:center}
 .ax-record-actions button.danger,.ax-row-actions button.danger{color:#f09ba5;border-color:#5b3340;background:#2a1d2b}
 .ax-record-actions button.danger:hover,.ax-row-actions button.danger:hover{color:#fff0f2;border-color:#a65065;background:#542b3b}
+
+
+/* Consistent AXIVESTRA treatment for financial, legal, document and governance surfaces */
+.document-upload-card,.property-detail-section,.module-data-section{background:linear-gradient(145deg,#0d2234,#091a2a);border-color:#24445b;color:#d3e7f5}
+.upload-picker{background:#0a1b2b;border-color:#2a5870;color:#81e5f1}
+.upload-picker input,.upload-picker span{color:#86a4ba}
+.document-upload-card label,.module-data-grid label,.property-detail-section label{color:#b1cde0}
+.document-upload-card input,.document-upload-card select,.document-upload-card textarea,.module-data-grid input,.module-data-grid select,.property-detail-section input,.property-detail-section select,.property-detail-section textarea{background:#071827;border-color:#2a4a62;color:#e7f5ff}
+.document-upload-card input::placeholder,.module-data-grid input::placeholder,.property-detail-section input::placeholder{color:#64839b}
+.finance-summary>div{background:linear-gradient(145deg,#10283c,#0b1d2d);border-color:#24445b}
+.finance-summary span{color:#819eb4}
+.finance-summary strong{color:#eaf8ff}
+.finance-footnote{color:#7695ab}
+.governance-list{background:transparent}
+.governance-row{border-bottom-color:#1e3b50}
+.governance-row strong{color:#def1fc}
+.governance-row small{color:#7f9eb4}
+.priority-dot{box-shadow:0 0 10px #ffffff18}
+.risk-overview-card,.approval-summary-grid>div{background:linear-gradient(145deg,#10283c,#0b1d2d);border-color:#24445b}
+.risk-overview-card span,.approval-summary-grid span{color:#83a3b9}
+.risk-overview-card strong,.approval-summary-grid strong{color:#edf8ff}
+.governance-callout{background:linear-gradient(110deg,#0d3547,#10283a);border-color:#225469;color:#6ce0ec}
+.governance-callout strong{color:#b9f6fb}
+.governance-callout p{color:#83a7ba}
+.signal-row{background:#0e2335;border-color:#243f55}
+.signal-row strong{color:#e5f3fd}
+.signal-row small{color:#8aa7bb}
+.signal-high{background:#301e2a;color:#f19aaa;border-color:#593547}
+.signal-medium{background:#332b1e;color:#f2c779;border-color:#605032}
+.signal-clear{background:#11302f;color:#8ce9ce;border-color:#23554b}
+.form-section-title p{color:#7e9eb5}
+.finance-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.finance-actions .primary-button,.finance-actions .secondary-button{white-space:nowrap}
+.settings-card{background:linear-gradient(145deg,#0d2336,#091a2a);border-color:#25445b}
+.settings-card h3{color:#e9f7ff}
+.settings-card p{color:#83a2b7}
+.approval-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.risk-severity-mark{box-shadow:0 0 8px #ffffff14}
+.record-side .status-pill,.record-side .wa-status{white-space:nowrap}
+.contact-form-row,.form-row{min-width:0}
+.form-card select option{background:#0b1e30;color:#e5f5ff}
+.form-card input[type="checkbox"],.form-card input[type="radio"],.document-upload-card input[type="checkbox"]{accent-color:#20d9ef}
+.record-card .delete-button,.record-card .edit-button{transition:all .18s}
+.record-card .delete-button:hover{background:#482b39;color:#ffb2ba;border-color:#8e4e60}
+@media(max-width:760px){
+  .finance-summary,.risk-overview-grid,.approval-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .finance-actions{width:100%}
+  .finance-actions>*{flex:1 1 auto}
+}
