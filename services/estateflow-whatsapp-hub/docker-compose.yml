@@ -1,0 +1,19 @@
+services:
+  estateflow-whatsapp-hub:
+    build: .
+    container_name: estateflow-whatsapp-hub
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Bind to loopback by default. Put an HTTPS reverse proxy in front for remote access.
+      - "127.0.0.1:47822:47822"
+    volumes:
+      - estateflow-whatsapp-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:47822/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+volumes:
+  estateflow-whatsapp-data:
