@@ -125,6 +125,11 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
   });
   const [queue, setQueue] = useState<ScheduleRow[]>([]);
+  const [addressBook, setAddressBook] = useState<WhatsAppAddressBook>({ contacts: [], groups: [], lastSyncedAt: "", connected: false });
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [recipientMode, setRecipientMode] = useState<"contact" | "group">("contact");
+  const [selectedGroupJid, setSelectedGroupJid] = useState("");
   const [selectedContactId, setSelectedContactId] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState("");
@@ -147,6 +152,16 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     () => contacts.find(contact => contact.id === selectedContactId),
     [contacts, selectedContactId]
   );
+  const groupOptions = useMemo(() => {
+    const byJid = new Map<string, WhatsAppGroupOption>();
+    for (const group of [...savedGroups, ...addressBook.groups]) {
+      const jid = String(group.jid || group.id || "");
+      if (!jid.endsWith("@g.us")) continue;
+      byJid.set(jid, { ...byJid.get(jid), ...group, id: group.id || jid, jid, name: group.name || group.subject || byJid.get(jid)?.name || "WhatsApp group" });
+    }
+    return Array.from(byJid.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [savedGroups, addressBook.groups]);
+  const selectedGroup = useMemo(() => groupOptions.find(group => group.jid === selectedGroupJid), [groupOptions, selectedGroupJid]);
 
   useEffect(() => {
     if (!api) return;
@@ -157,6 +172,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         if (!active) return;
         setStatus(nextStatus);
         setQueue(nextQueue);
+        try {
+          const nextAddressBook = await api.getAddressBook();
+          if (active) setAddressBook(nextAddressBook);
+        } catch { /* Some remote senders do not expose address-book sync; keep the saved cache visible. */ }
       } catch (error) {
         if (active) setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) }));
       }
@@ -170,9 +189,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       if (payload.reason === "reply-detected") setLocalNotice("A reply was detected. Pending follow-ups to that contact were cancelled.");
       if (payload.reason === "connection-lost") setLocalNotice("WhatsApp disconnected. Pending messages remain saved; reconnect before they are due.");
     });
-    const remoteHubConfigured = Boolean(companionHost.trim() && companionToken.trim());
-    const poll = localApi && !remoteHubConfigured ? undefined : window.setInterval(() => { void refresh(); }, 4000);
-    return () => { active = false; unsubscribe(); if (poll !== undefined) window.clearInterval(poll); };
+    const poll = window.setInterval(() => { void refresh(); }, 8000);
+    return () => { active = false; unsubscribe(); window.clearInterval(poll); };
   }, [api, localApi]);
 
   useEffect(() => {
@@ -232,6 +250,51 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     const copyValue = async (value: string, label: string) => {
     try { await navigator.clipboard.writeText(value); inform(label + " copied."); }
     catch { inform("Select the " + label.toLowerCase() + " field and copy it manually."); }
+  };
+
+  const applyAddressBook = (book: WhatsAppAddressBook) => {
+    setAddressBook(book);
+    if (book.contacts.length) onImportContacts?.(book.contacts);
+    if (book.groups.length) onImportGroups?.(book.groups);
+  };
+
+  const importSavedAddressBook = async () => {
+    if (!api) {
+      inform("Open EstateFlow on the Windows PC or connect to its companion address to import the saved WhatsApp cache.");
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const book = await api.getAddressBook();
+      applyAddressBook(book);
+      inform(`Saved cache loaded: ${book.contacts.length} WhatsApp contacts and ${book.groups.length} groups. EstateFlow keeps these records when WhatsApp is disconnected.`);
+    } catch (error) {
+      inform("Could not load the saved WhatsApp cache: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const syncWhatsAppAddressBook = async () => {
+    if (!api) {
+      inform("Open the Windows EstateFlow app or connect to your Windows companion first.");
+      return;
+    }
+    setSyncBusy(true);
+    try {
+      const book = await api.syncAddressBook();
+      applyAddressBook(book);
+      const warningText = (book.warnings || []).join(" ");
+      inform(`WhatsApp sync finished: ${book.contacts.length} contacts and ${book.groups.length} groups saved in EstateFlow. ${book.note || ""} ${warningText}`.trim());
+    } catch (error) {
+      try {
+        const cached = await api.getAddressBook();
+        setAddressBook(cached);
+      } catch {}
+      inform("Live sync did not complete. Your previously saved contacts/groups have not been deleted. " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setSyncBusy(false);
+    }
   };
 
   const connectQr = async () => {
