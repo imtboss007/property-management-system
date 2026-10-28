@@ -103,6 +103,68 @@ export function createProvider(config, sessionState) {
     return payload;
   }
 
+  async function requestCompatible(routes, method = "GET", body) {
+    let lastError;
+    for (const route of routes) {
+      try {
+        return await request(route, method, body);
+      } catch (error) {
+        lastError = error;
+        const message = String(error instanceof Error ? error.message : error).toLowerCase();
+        if (!/404|405|not found|cannot get|cannot post|unknown endpoint|route not found|method not allowed/.test(message)) {
+          throw error;
+        }
+      }
+    }
+    throw lastError || new Error("The WhatsApp gateway does not support this endpoint.");
+  }
+
+  function arrayFromResponse(payload, keys = []) {
+    const data = unwrap(payload);
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (Array.isArray(data[key])) return data[key];
+      if (Array.isArray(payload?.[key])) return payload[key];
+    }
+    return [];
+  }
+
+  async function listContacts() {
+    const id = await ensureSession();
+    let payload;
+    if (providerName === "openwa") {
+      payload = await requestCompatible([
+        "/sessions/" + encodeURIComponent(id) + "/contacts?limit=1000&offset=0",
+        "/api/sessions/" + encodeURIComponent(id) + "/contacts?limit=1000&offset=0"
+      ]);
+    } else {
+      payload = await requestCompatible([
+        "/contacts/" + encodeURIComponent(id),
+        "/api/contacts/" + encodeURIComponent(id)
+      ]);
+    }
+    return arrayFromResponse(payload, ["contacts", "items", "results", "data"]);
+  }
+
+  async function listGroups() {
+    const id = await ensureSession();
+    let payload;
+    if (providerName === "openwa") {
+      payload = await requestCompatible([
+        "/sessions/" + encodeURIComponent(id) + "/groups?limit=1000&offset=0",
+        "/api/sessions/" + encodeURIComponent(id) + "/groups?limit=1000&offset=0"
+      ]);
+    } else {
+      payload = await requestCompatible([
+        "/groups/" + encodeURIComponent(id),
+        "/api/groups/" + encodeURIComponent(id)
+      ]);
+    }
+    return arrayFromResponse(payload, ["groups", "items", "results", "data", "chats"])
+      .filter(group => String(group?.id || group?.jid || "").endsWith("@g.us"));
+  }
+
   async function ensureSession() {
     if (sessionState.sessionId) return sessionState.sessionId;
     if (options.sessionId) {
@@ -320,20 +382,30 @@ export function createProvider(config, sessionState) {
       await request("/sessions/" + encodeURIComponent(id) + "/logout", "POST");
       return { ok: true };
     },
-    async sendText(rawPhone, message) {
+    async listContacts() {
+      return listContacts();
+    },
+    async listGroups() {
+      return listGroups();
+    },
+    async sendText(rawPhoneOrJid, message) {
       const id = sessionState.sessionId || options.sessionId;
       if (!id) throw new Error("Create or link a WhatsApp session before sending.");
-      const phone = phoneDigits(rawPhone);
+      const raw = String(rawPhoneOrJid || "").trim();
+      const destination = raw.endsWith("@g.us") || raw.endsWith("@c.us") || raw.endsWith("@s.whatsapp.net") || raw.endsWith("@lid")
+        ? raw
+        : jidFor(phoneDigits(raw), providerName);
       let payload;
       if (providerName === "openwa") {
-        payload = await request("/sessions/" + encodeURIComponent(id) + "/messages/send-text", "POST", {
-          chatId: jidFor(phone, providerName),
-          text: message
-        });
+        payload = await requestCompatible([
+          "/sessions/" + encodeURIComponent(id) + "/messages/send-text",
+          "/api/sessions/" + encodeURIComponent(id) + "/messages/send-text"
+        ], "POST", { chatId: destination, text: message });
       } else {
-        payload = await request("/messages/" + encodeURIComponent(id) + "/" + encodeURIComponent(jidFor(phone, providerName)) + "/send", "POST", {
-          message
-        });
+        payload = await requestCompatible([
+          "/messages/" + encodeURIComponent(id) + "/" + encodeURIComponent(destination) + "/send",
+          "/api/messages/" + encodeURIComponent(id) + "/" + encodeURIComponent(destination) + "/send"
+        ], "POST", { message });
       }
       const data = unwrap(payload);
       const messageId = data.messageId || data.id || data.key?.id || data.message?.id || data.messages?.[0]?.id || "";
