@@ -476,6 +476,46 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own EstateFlow phone on a trusted network. Do not forward it or set up router port forwarding.</p>
     </section>}
 
+    <section className="data-panel wa-address-book">
+      <div className="section-heading">
+        <div><span className="section-kicker">SAVED WHATSAPP DIRECTORY</span><h2>Sync WhatsApp contacts & groups</h2>
+          <p>Import the names and phone numbers exposed by your linked WhatsApp session. Saved records stay in EstateFlow when WhatsApp is disconnected or unlinked.</p>
+        </div>
+        <Users size={22}/>
+      </div>
+      <div className="wa-address-book-stats">
+        <div><span>WhatsApp contacts cached</span><strong>{addressBook.contacts.length}</strong></div>
+        <div><span>WhatsApp groups cached</span><strong>{groupOptions.length}</strong></div>
+        <div><span>EstateFlow contacts</span><strong>{contacts.length}</strong></div>
+      </div>
+      <div className="form-actions wa-address-book-actions">
+        <button className="primary-button" disabled={!supported || syncBusy || !status.connected} onClick={() => void syncWhatsAppAddressBook()}><RefreshCw size={15}/>{syncBusy ? "Syncing…" : "Sync WhatsApp now"}</button>
+        <button className="secondary-button" disabled={!supported || importBusy} onClick={() => void importSavedAddressBook()}><Users size={15}/>{importBusy ? "Loading saved cache…" : "Import saved contacts & groups"}</button>
+      </div>
+      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in EstateFlow. A disconnected phone cannot deliver messages; connect again to send.</p>
+      {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
+      {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
+      <div className="wa-address-book-columns">
+        <section>
+          <h3>Saved WhatsApp contacts</h3>
+          <div className="wa-scroll-list">
+            {addressBook.contacts.length === 0
+              ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
+              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" onClick={() => onImportContacts?.([contact])}>Save contact</button></div>)}
+          </div>
+        </section>
+        <section>
+          <h3>Saved WhatsApp groups</h3>
+          <div className="wa-scroll-list">
+            {groupOptions.length === 0
+              ? <p className="wa-muted">No cached WhatsApp groups yet. Sync while WhatsApp is connected.</p>
+              : groupOptions.slice(0,1000).map(group=><div className="wa-address-row" key={group.jid}><div><strong>{group.name}</strong><small>{group.size ? group.size + " members · " : ""}{group.jid}</small></div><button className="secondary-button" onClick={() => onImportGroups?.([group])}>Save group</button></div>)}
+          </div>
+        </section>
+      </div>
+      <p className="wa-local-storage-note">EstateFlow does not create or delete WhatsApp groups. Create or manage groups in WhatsApp, then sync them here. Previously synced group names remain saved even when the WhatsApp account is offline.</p>
+    </section>
+
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
         <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based client follow-ups; do not send unsolicited bulk messages. Session data is stored locally on this PC, not in Supabase.</p>
