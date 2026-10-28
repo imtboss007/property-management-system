@@ -59,6 +59,65 @@ const navigation = [
 
 type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
 const moduleFields: Record<string, ModuleField[]> = {
+  "Property Sale": [
+    { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
+    { key: "buyer", label: "Buyer", placeholder: "Buyer contact or legal entity" },
+    { key: "askingPrice", label: "Asking price (₹)", placeholder: "Amount", type: "number" },
+    { key: "agreedPrice", label: "Agreed price (₹)", placeholder: "Amount", type: "number" },
+    { key: "offerDate", label: "Offer date", placeholder: "Date", type: "date" },
+    { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
+    { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" }
+  ],
+  "Property Loans": [
+    { key: "borrower", label: "Borrower / applicant", placeholder: "Client or company" },
+    { key: "lender", label: "Lender / loan provider", placeholder: "Bank, NBFC or private lender" },
+    { key: "loanType", label: "Loan type", placeholder: "Mortgage / LAP / business / construction" },
+    { key: "loanAmount", label: "Loan amount requested (₹)", placeholder: "Amount", type: "number" },
+    { key: "sanctionedAmount", label: "Sanctioned amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "outstandingAmount", label: "Outstanding amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "Rate", type: "number" },
+    { key: "loanStage", label: "Loan processing stage", placeholder: "Lead / documents / valuation / legal / sanction / disbursal" },
+    { key: "applicationDate", label: "Application date", placeholder: "Date", type: "date" },
+    { key: "targetSanctionDate", label: "Target sanction date", placeholder: "Date", type: "date" },
+    { key: "targetDisbursementDate", label: "Target disbursement / completion date", placeholder: "Date", type: "date" },
+    { key: "loanOfficer", label: "Loan officer / person to call", placeholder: "Name / contact" },
+    { key: "pendingDocuments", label: "Pending documents / blockers", placeholder: "KYC, bank statements, title, valuation…" }
+  ],
+  "JV / JDA / JD": [
+    { key: "landowner", label: "Landowner / owner group", placeholder: "Names or entity" },
+    { key: "developer", label: "Developer / partner", placeholder: "Company or contact" },
+    { key: "sharingRatio", label: "Sharing ratio / allocation", placeholder: "e.g. 60:40" },
+    { key: "projectValue", label: "Estimated project value (₹)", placeholder: "Amount", type: "number" },
+    { key: "agreementStage", label: "Agreement stage", placeholder: "Term sheet / diligence / draft / signed" },
+    { key: "targetSigningDate", label: "Target agreement signing", placeholder: "Date", type: "date" },
+    { key: "targetHandoverDate", label: "Target handover / possession", placeholder: "Date", type: "date" },
+    { key: "keyObligations", label: "Key obligations / blockers", placeholder: "Approvals, allocation, construction milestones" }
+  ],
+  "SR Rate Settlement": [
+    { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
+    { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
+    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
+    { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
+    { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
+  ],
+  "Agricultural Land": [
+    { key: "landClassification", label: "Land classification", placeholder: "Agricultural / converted / restricted" },
+    { key: "rtcStatus", label: "RTC / Pahani status", placeholder: "Available / pending / requires correction" },
+    { key: "waterAndAccess", label: "Water, access and utilities", placeholder: "Borewell / road / power" },
+    { key: "dueDiligenceStatus", label: "Due diligence status", placeholder: "Title / survey / mutation / conversion" },
+    { key: "targetDueDiligenceDate", label: "Target due-diligence completion", placeholder: "Date", type: "date" },
+    { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" }
+  ],
+  "Commercial Land": [
+    { key: "zoning", label: "Zoning / permitted use", placeholder: "Commercial / industrial / mixed use" },
+    { key: "currentUse", label: "Current use / tenant", placeholder: "Occupancy / lease" },
+    { key: "titleStatus", label: "Title / encumbrance status", placeholder: "Clear / pending / issue identified" },
+    { key: "dueDiligenceStage", label: "Due diligence stage", placeholder: "Title / zoning / access / approvals" },
+    { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
+    { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" }
+  ],
   "Startup": [
     { key: "stage", label: "Startup stage", placeholder: "Pre-seed, seed, Series A…" },
     { key: "sector", label: "Sector", placeholder: "Fintech, healthtech, climate…" },
@@ -76,7 +135,8 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "ownershipPercent", label: "Ownership (%)", placeholder: "Percentage", type: "number" },
     { key: "entryPrice", label: "Entry price per share (₹)", placeholder: "Price", type: "number" },
     { key: "currentValuation", label: "Current valuation (₹)", placeholder: "Amount", type: "number" },
-    { key: "custodian", label: "Custodian / broker", placeholder: "Institution or account reference" }
+    { key: "custodian", label: "Custodian / broker", placeholder: "Institution or account reference" },
+    { key: "targetExitDate", label: "Target exit / review date", placeholder: "Date", type: "date" }
   ],
   "Unsecured Company Loan": [
     { key: "borrowerCompany", label: "Borrowing company", placeholder: "Legal company name" },
@@ -86,6 +146,7 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "tenureMonths", label: "Tenure (months)", placeholder: "Months", type: "number" },
     { key: "repaymentFrequency", label: "Repayment frequency", placeholder: "Monthly / quarterly / bullet" },
     { key: "guarantees", label: "Guarantees / covenants", placeholder: "Guarantees, DSCR, covenants…" },
+    { key: "targetDisbursementDate", label: "Target disbursement date", placeholder: "Date", type: "date" },
     { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
   ],
   "Personal Loan": [
@@ -96,7 +157,10 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "tenureMonths", label: "Tenure (months)", placeholder: "Months", type: "number" },
     { key: "emi", label: "EMI (₹)", placeholder: "Monthly instalment", type: "number" },
     { key: "purpose", label: "Loan purpose", placeholder: "Purpose" },
-    { key: "guarantor", label: "Guarantor / co-obligant", placeholder: "Optional" }
+    { key: "guarantor", label: "Guarantor / co-obligant", placeholder: "Optional" },
+    { key: "targetSanctionDate", label: "Target sanction date", placeholder: "Date", type: "date" },
+    { key: "targetDisbursementDate", label: "Target disbursement date", placeholder: "Date", type: "date" },
+    { key: "firstEmiDate", label: "First EMI date", placeholder: "Date", type: "date" }
   ],
   "Housing Loan": [
     { key: "lender", label: "Lender", placeholder: "Bank / housing finance company" },
@@ -106,7 +170,12 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "tenureMonths", label: "Original tenure (months)", placeholder: "Months", type: "number" },
     { key: "emi", label: "EMI (₹)", placeholder: "Monthly instalment", type: "number" },
     { key: "ltv", label: "Loan-to-value (%)", placeholder: "LTV ratio", type: "number" },
-    { key: "rateType", label: "Interest rate type", placeholder: "Fixed / floating / hybrid" }
+    { key: "rateType", label: "Interest rate type", placeholder: "Fixed / floating / hybrid" },
+    { key: "applicationDate", label: "Application date", placeholder: "Date", type: "date" },
+    { key: "targetSanctionDate", label: "Target sanction date", placeholder: "Date", type: "date" },
+    { key: "targetDisbursementDate", label: "Target disbursement date", placeholder: "Date", type: "date" },
+    { key: "firstEmiDate", label: "First EMI date", placeholder: "Date", type: "date" },
+    { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
   ],
   "House Purchase": [
     { key: "buyer", label: "Buyer / purchaser", placeholder: "Buyer name" },
@@ -141,7 +210,8 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "hurdleRate", label: "Hurdle rate (%)", placeholder: "Preferred return", type: "number" },
     { key: "benchmark", label: "Benchmark", placeholder: "Reference index or hurdle" },
     { key: "administrator", label: "Fund administrator / custodian", placeholder: "Service provider" },
-    { key: "reportingPeriod", label: "Reporting period", placeholder: "Quarter / fiscal year" }
+    { key: "reportingPeriod", label: "Reporting period", placeholder: "Quarter / fiscal year" },
+    { key: "nextReportingDate", label: "Next reporting deadline", placeholder: "Date", type: "date" }
   ],
   "Investor Relations": [
     { key: "investorType", label: "Investor type", placeholder: "LP, family office, VC, institution…" },
@@ -153,7 +223,8 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "kycStatus", label: "KYC status", placeholder: "Pending / in review / cleared / expired" },
     { key: "sourceOfFunds", label: "Source of funds", placeholder: "Documented source-of-funds summary" },
     { key: "riskRating", label: "Investor risk rating", placeholder: "Low / medium / high" },
-    { key: "lastReportDate", label: "Last investor report date", placeholder: "Date", type: "date" }
+    { key: "lastReportDate", label: "Last investor report date", placeholder: "Date", type: "date" },
+    { key: "nextContactDate", label: "Next investor follow-up date", placeholder: "Date", type: "date" }
   ],
   "Compliance & KYC": [
     { key: "counterpartyLegalName", label: "Counterparty legal name", placeholder: "Name matching official records" },
@@ -874,6 +945,33 @@ export default function App() {
   );
 }
 
+function getPropertyDeadline(property: PropertyRecord): { date: string; label: string } | null {
+  if (property.targetDeadline) return { date: property.targetDeadline, label: "Target completion / loan deadline" };
+  const candidates: Record<string, Array<[string,string]>> = {
+    "Property Sale": [["targetClosingDate","Target closing / registration date"]],
+    "Property Loans": [["targetSanctionDate","Target sanction date"],["targetDisbursementDate","Target disbursement date"]],
+    "JV / JDA / JD": [["targetSigningDate","Target agreement signing"],["targetHandoverDate","Target handover / possession"]],
+    "SR Rate Settlement": [["targetSettlementDate","Target settlement date"]],
+    "Agricultural Land": [["targetDueDiligenceDate","Target due-diligence completion"],["targetClosingDate","Target acquisition / registration"]],
+    "Commercial Land": [["targetClosingDate","Target closing / registration date"]],
+    "Startup": [["targetCloseDate","Target close date"]],
+    "Equity": [["targetExitDate","Target exit / review date"]],
+    "Unsecured Company Loan": [["targetDisbursementDate","Target disbursement date"],["maturityDate","Maturity date"]],
+    "Personal Loan": [["targetSanctionDate","Target sanction date"],["targetDisbursementDate","Target disbursement date"],["firstEmiDate","First EMI date"]],
+    "Housing Loan": [["targetSanctionDate","Target sanction date"],["targetDisbursementDate","Target disbursement date"],["firstEmiDate","First EMI date"],["maturityDate","Maturity date"]],
+    "House Purchase": [["targetRegistrationDate","Target registration date"],["possessionDate","Possession date"]],
+    "Litigation": [["limitationDate","Limitation / legal deadline"],["nextHearingDate","Next hearing date"]],
+    "Fund & Portfolio Management": [["nextReportingDate","Next reporting deadline"]],
+    "Investor Relations": [["nextContactDate","Next investor follow-up date"]],
+    "Compliance & KYC": [["reviewDueDate","Next KYC review date"]]
+  };
+  for (const [key,label] of candidates[property.module] ?? []) {
+    const date = property.moduleData?.[key];
+    if (date) return { date, label };
+  }
+  return null;
+}
+
 type RelationshipHubProps = {
   properties: PropertyRecord[];
   contacts: ContactRecord[];
@@ -895,10 +993,10 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
   const resolveContact=(property:PropertyRecord)=>contacts.find(contact=>contact.id===property.primaryContactId)
     || contacts.find(contact=>contact.name.trim().toLowerCase()===(property.contact || "").trim().toLowerCase());
   const activeProperties=properties.filter(property=>!["Completed","Closed","Settled"].includes(property.status));
-  const overdueDeadlines=activeProperties.filter(property=>Boolean(property.targetDeadline && property.targetDeadline<today));
+  const overdueDeadlines=activeProperties.filter(property=>{const deadline=getPropertyDeadline(property);return Boolean(deadline && deadline.date<today);});
   const overdueFollowups=activeProperties.filter(property=>Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today));
   const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
-  const orderedProperties=[...properties].sort((a,b)=>(a.targetDeadline || a.nextFollowUpDate || "9999-12-31").localeCompare(b.targetDeadline || b.nextFollowUpDate || "9999-12-31"));
+  const orderedProperties=[...properties].sort((a,b)=>(getPropertyDeadline(a)?.date || a.nextFollowUpDate || "9999-12-31").localeCompare(getPropertyDeadline(b)?.date || b.nextFollowUpDate || "9999-12-31"));
   return <section className="data-panel relationship-hub">
     <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 16 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
     <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
@@ -908,7 +1006,8 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
       const contact=resolveContact(property);
       const relatedTasks=tasks.filter(task=>(task.propertyId===property.id || (!task.propertyId && task.property===property.title)) && !task.done);
       const relatedFinancials=financials.filter(item=>item.propertyId===property.id || (!item.propertyId && item.property===property.title));
-      const deadlineOverdue=Boolean(property.targetDeadline && property.targetDeadline<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
+      const deadline=getPropertyDeadline(property);
+      const deadlineOverdue=Boolean(deadline && deadline.date<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
       const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
       const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
       return <article className="record-card relationship-record" key={property.id}>
@@ -918,7 +1017,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
           <p>{property.module} <span>•</span> {property.location || "Location not entered"}</p>
           <small>Contact: {contact ? <button className="inline-link" onClick={onOpenContacts}>{contact.name} · {contact.role}</button> : <button className="inline-link" onClick={onEditProperty.bind(null,property)}>Link a contact</button>}</small>
           {contact?.phone && <small>Phone: {contact.phone}</small>}
-          {property.targetDeadline && <small><strong>Target completion / loan deadline:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{property.targetDeadline}{deadlineOverdue?" · OVERDUE":""}</span></small>}
+          {deadline && <small><strong>{deadline.label}:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{deadline.date}{deadlineOverdue?" · OVERDUE":""}</span></small>}
           {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
           {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
           <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: ₹{recordedAmount.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
