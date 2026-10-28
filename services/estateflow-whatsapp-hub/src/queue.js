@@ -55,6 +55,7 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
     const repeatCount = Math.max(1, Math.min(20, Number.parseInt(payload?.repeatCount, 10) || 1));
     const intervalDays = Math.max(1, Math.min(365, Number.parseInt(payload?.intervalDays, 10) || 1));
     const seriesId = crypto.randomUUID();
+    const contactId = String(payload?.contactId || "").slice(0, 120);
     const contactName = String(payload?.contactName || "").trim().slice(0, 160);
     const propertyId = String(payload?.propertyId || "").slice(0, 120);
     const propertyTitle = String(payload?.propertyTitle || "").trim().slice(0, 240);
