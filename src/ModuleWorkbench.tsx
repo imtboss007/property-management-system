@@ -74,8 +74,8 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const missingData = records.filter(row => !row.location || !row.value || (fields.length > 0 && fields.some(field => !String(row.moduleData?.[field.key] || "").trim()))).length;
   const statuses = Array.from(new Set(records.map(row => row.status || "Unspecified")));
   const stageCounts = statuses.map(status => ({ status, count: records.filter(row => row.status === status).length })).sort((a,b) => b.count-a.count);
-  const dataFields = fields.length ? fields : [
-    { key: "location", label: "Location", placeholder: "" },
+  const coreDataFields: ModuleField[] = [
+    { key: "location", label: "Location / collateral", placeholder: "" },
     { key: "value", label: "Value / exposure", placeholder: "" },
     { key: "targetDeadline", label: "Target deadline", placeholder: "" },
     { key: "nextFollowUpDate", label: "Next follow-up", placeholder: "" },
@@ -83,6 +83,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     { key: "ownershipDetails", label: "Ownership / parties", placeholder: "" },
     { key: "notes", label: "Notes / evidence", placeholder: "" }
   ];
+  const dataFields = [...coreDataFields, ...fields.filter(field => !coreDataFields.some(core => core.key === field.key))];
   const getFieldValue = (record: ModuleRecord, key: string) => key === "location" || key === "value" || key === "targetDeadline" || key === "nextFollowUpDate" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
     ? String(record[key as keyof ModuleRecord] || "")
     : String(record.moduleData?.[key] || "");
