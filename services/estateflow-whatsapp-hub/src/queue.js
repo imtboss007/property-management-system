@@ -44,7 +44,12 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
 
   async function schedule(payload, immediate = false) {
     await ensureLoaded();
-    const phone = phoneDigits(payload?.phone);
+    const groupJid = String(payload?.groupJid || "").trim();
+    const destinationType = groupJid ? "group" : "contact";
+    if (destinationType === "group" && !groupJid.endsWith("@g.us")) {
+      throw new Error("Choose a valid WhatsApp group that has been synced in EstateFlow.");
+    }
+    const phone = destinationType === "contact" ? phoneDigits(payload?.phone) : "";
     const message = String(payload?.message || "").trim();
     if (!message) throw new Error("Write a message before scheduling.");
     if (message.length > 4000) throw new Error("Messages must be 4000 characters or fewer.");
@@ -57,6 +62,8 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
     const seriesId = crypto.randomUUID();
     const contactId = String(payload?.contactId || "").slice(0, 120);
     const contactName = String(payload?.contactName || "").trim().slice(0, 160);
+    const groupName = String(payload?.groupName || "").trim().slice(0, 240);
+    const expectedSenderNumber = String(payload?.expectedSenderNumber || "").replace(/\\D/g, "").slice(0, 20);
     const propertyId = String(payload?.propertyId || "").slice(0, 120);
     const propertyTitle = String(payload?.propertyTitle || "").trim().slice(0, 240);
     const taskId = String(payload?.taskId || "").slice(0, 120);
@@ -69,6 +76,10 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
         seriesId,
         sequence: index + 1,
         repeatCount,
+        destinationType,
+        groupJid,
+        groupName,
+        expectedSenderNumber,
         phone,
         contactId,
         contactName,
@@ -147,14 +158,21 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
     onChange(reason || row.status);
   }
 
-  async function recordReply(rawPhone) {
+  async function recordReply(rawPhoneOrGroupJid) {
     await ensureLoaded();
-    const phone = phoneDigits(rawPhone);
+    const raw = String(rawPhoneOrGroupJid || "").trim();
+    const groupJid = raw.endsWith("@g.us") ? raw : "";
+    const phone = groupJid ? "" : phoneDigits(raw);
     let cancelled = 0;
     for (const row of rows) {
-      if (row.status !== "scheduled" || !row.stopOnReply || row.phone !== phone) continue;
+      if (row.status !== "scheduled" || !row.stopOnReply) continue;
+      const matchesGroup = Boolean(groupJid && row.destinationType === "group" && row.groupJid === groupJid);
+      const matchesContact = Boolean(!groupJid && row.destinationType !== "group" && row.phone === phone);
+      if (!matchesGroup && !matchesContact) continue;
       row.status = "cancelled";
-      row.lastError = "Pending follow-ups stopped because this contact replied.";
+      row.lastError = matchesGroup
+        ? "Pending group follow-ups stopped because a new message appeared in this WhatsApp group."
+        : "Pending follow-ups stopped because this contact replied.";
       row.updatedAt = new Date().toISOString();
       cancelled++;
     }
