@@ -6,7 +6,7 @@ import {
 
 type ContactOption = { id: string; name: string; phone: string; role?: string; whatsappName?: string; whatsappJid?: string };
 type PropertyOption = { id: string; title: string };
-type WhatsAppGroupOption = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
+type WhatsAppGroupOption = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string; source?: string; lastSyncedAt?: string };
 type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type ScheduleRow = {
