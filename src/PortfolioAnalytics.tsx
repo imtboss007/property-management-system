@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
 type FinancialRow = { id: string; type: string; amount: string; date: string };
@@ -98,6 +98,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
     </div>
     <div className="ax-analytics-grid">
       <div className="ax-chart-stage">
+        <div className="ax-chart-mode-title"><strong>{title}</strong><p>{subtitle}</p></div>
         {empty ? <div className="ax-chart-empty"><div className="ax-empty-orbit"><PieChart size={28}/></div><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : "Add your first property/deal record to activate interactive charts."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
         : focus === "cashflow" ? <CashflowChart rows={cashflowRows} type={chartType} showLabels={showLabels} onSelect={setSelected} selected={selected}/>
         : chartType === "donut" ? <DonutChart items={visibleItems} total={totalChart} selected={selected} onSelect={setSelected} centerLabel={focus === "allocation" ? "TRACKED VALUE" : "RECORDS"} centerValue={focus === "allocation" && metric === "value" ? compact(totalChart) : String(totalChart)} showLabels={showLabels}/>
@@ -115,7 +116,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
           <strong className="ax-inspector-total">{properties.length}</strong><small>Saved property / deal records</small>
           <div className="ax-inspector-pair"><span>Open records</span><strong>{properties.filter(row => !["Completed", "Closed"].includes(row.status)).length}</strong></div>
           <div className="ax-inspector-pair"><span>Closed records</span><strong>{properties.filter(row => ["Completed", "Closed"].includes(row.status)).length}</strong></div>
-          <div className="ax-inspector-pair"><span>Tasks open</span><strong>{openTasks}</strong></div>
+          <div className="ax-inspector-pair"><span>Tasks open</span><strong>{openTasks}</strong></div><div className="ax-inspector-pair"><span>Overdue tasks</span><strong>{overdueTasks}</strong></div>
         </> : <>
           <strong className="ax-inspector-total">{compact(trackedValue)}</strong><small>Total entered asset value</small>
           <div className="ax-inspector-pair"><span>Active modules</span><strong>{moduleRows.filter(row => row.count > 0).length}</strong></div>
