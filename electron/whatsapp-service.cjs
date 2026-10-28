@@ -265,6 +265,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     baileys = {
       makeWASocket,
       useMultiFileAuthState: module.useMultiFileAuthState,
+      Browsers: module.Browsers || {},
       DisconnectReason: module.DisconnectReason || {}
     };
     return baileys;
@@ -284,6 +285,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         authState = auth.state;
         const nextSocket = lib.makeWASocket({
           auth: auth.state,
+          browser: typeof lib.Browsers.macOS === "function" ? lib.Browsers.macOS("Desktop") : undefined,
           printQRInTerminal: false,
           markOnlineOnConnect: false,
           syncFullHistory: true,
