@@ -240,14 +240,14 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       inform("Use HTTPS for a hub outside your trusted local network.");
       return;
     }
-    if (!tokenInput.trim()) { inform("Enter the EstateFlow hub token from the private hub configuration."); return; }
+    if (!tokenInput.trim()) { inform("Enter the AXIVESTRA hub token from the private hub configuration."); return; }
     try {
       localStorage.setItem("estateflow.whatsapp.host", host);
       localStorage.setItem("estateflow.whatsapp.token", tokenInput.trim());
     } catch {}
     setCompanionHost(host);
     setCompanionToken(tokenInput.trim());
-    inform("EstateFlow hub connection saved. The connection status will show whether the gateway is reachable.");
+    inform("AXIVESTRA hub connection saved. The connection status will show whether the gateway is reachable.");
   };
 
     const copyValue = async (value: string, label: string) => {
@@ -263,14 +263,14 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   const importSavedAddressBook = async () => {
     if (!api) {
-      inform("Open EstateFlow on the Windows PC or connect to its companion address to import the saved WhatsApp cache.");
+      inform("Open AXIVESTRA on the Windows PC or connect to its companion address to import the saved WhatsApp cache.");
       return;
     }
     setImportBusy(true);
     try {
       const book = await api.getAddressBook();
       applyAddressBook(book);
-      inform(`Saved cache loaded: ${book.contacts.length} WhatsApp contacts and ${book.groups.length} groups. EstateFlow keeps these records when WhatsApp is disconnected.`);
+      inform(`Saved cache loaded: ${book.contacts.length} WhatsApp contacts and ${book.groups.length} groups. AXIVESTRA keeps these records when WhatsApp is disconnected.`);
     } catch (error) {
       inform("Could not load the saved WhatsApp cache: " + (error instanceof Error ? error.message : String(error)));
     } finally {
@@ -280,7 +280,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   const syncWhatsAppAddressBook = async () => {
     if (!api) {
-      inform("Open the Windows EstateFlow app or connect to your Windows companion first.");
+      inform("Open the Windows AXIVESTRA app or connect to your Windows companion first.");
       return;
     }
     setSyncBusy(true);
@@ -288,7 +288,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       const book = await api.syncAddressBook();
       applyAddressBook(book);
       const warningText = (book.warnings || []).join(" ");
-      inform(`WhatsApp sync finished: ${book.contacts.length} contacts and ${book.groups.length} groups saved in EstateFlow. ${book.note || ""} ${warningText}`.trim());
+      inform(`WhatsApp sync finished: ${book.contacts.length} contacts and ${book.groups.length} groups saved in AXIVESTRA. ${book.note || ""} ${warningText}`.trim());
     } catch (error) {
       try {
         const cached = await api.getAddressBook();
@@ -330,7 +330,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   const disconnect = async () => {
     if (!api) return;
-    if (!window.confirm("Disconnect this WhatsApp linked device from EstateFlow? Saved scheduled messages will remain in the queue.")) return;
+    if (!window.confirm("Disconnect this WhatsApp linked device from AXIVESTRA? Saved scheduled messages will remain in the queue.")) return;
     setBusy(true);
     try {
       await api.disconnect();
@@ -383,7 +383,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       setConsentConfirmed(false);
       inform(immediate
         ? "Message added to the send queue and will be sent shortly if WhatsApp is connected."
-        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. Keep EstateFlow running in the Windows system tray.");
+        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. Keep AXIVESTRA running in the Windows system tray.");
     } catch (error) {
       inform("Could not schedule message: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
@@ -422,8 +422,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   return <section className="data-panel whatsapp-workspace">
     <div className="section-heading">
-      <div><span className="section-kicker">WHATSAPP CONNECTION</span><h2>WhatsApp automation</h2>
-        <p>Link your own WhatsApp account, select a contact, and schedule one message or a follow-up sequence.</p>
+      <div><span className="section-kicker">AXIVESTRA COMMUNICATIONS</span><h2>Message command centre</h2>
+        <p>Link your account, import your directory, choose an individual or group, then automate consent-based conversations linked to your portfolio records.</p>
       </div>
       <MessageCircle size={22}/>
     </div>
@@ -435,7 +435,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <p>{status.connected
           ? "Connected account: " + (status.senderNumber ? "+" + status.senderNumber : status.displayName || "Linked WhatsApp account")
           : supported ? "Choose QR scan or phone-number pairing code to link your WhatsApp account."
-          : "This Android/browser build is a companion interface. The Windows EstateFlow app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
+          : "This Android/browser build is a companion interface. The Windows AXIVESTRA app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
         <small>{status.platform.startsWith("gateway-") ? "The linked WhatsApp session and message queue live on the hub server." : status.connected ? "Session saved locally on this Windows user profile." : "Link the account through the configured sender; the session stays with that sender."}</small>
         {status.error && <small className="wa-connection-error">{status.error}</small>}
         {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
@@ -464,39 +464,39 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     </div>}
 
     <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">UNIFIED WHATSAPP HUB</span><h2>Connect EstateFlow to the hub</h2><p>Use one hub that connects EstateFlow to the configured WhatsApp gateway. Leave these fields empty on Windows to use the built-in sender.</p></div><Smartphone size={22}/></div>
+      <div className="section-heading"><div><span className="section-kicker">GATEWAY CONTROL</span><h2>Connect your messaging gateway</h2><p>Use one hub that connects AXIVESTRA to the configured WhatsApp gateway. Leave these fields empty on Windows to use the built-in sender.</p></div><Smartphone size={22}/></div>
       <label>Hub address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47822 or https://your-domain" autoCapitalize="none" autoCorrect="off"/></label>
-      <label>EstateFlow hub token<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Private token from hub configuration" autoCapitalize="none" autoCorrect="off"/></label>
-      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save hub connection</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Saved hub connection removed. EstateFlow will use its built-in Windows sender when available."); }}><Unplug size={15}/>Forget hub</button>}</div>
+      <label>AXIVESTRA hub token<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Private token from hub configuration" autoCapitalize="none" autoCorrect="off"/></label>
+      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save hub connection</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Saved hub connection removed. AXIVESTRA will use its built-in Windows sender when available."); }}><Unplug size={15}/>Forget hub</button>}</div>
       <p className="wa-local-storage-note"><Info size={14}/>Use HTTP only on a trusted private LAN. For remote access use HTTPS. Keep the hub token private; the WhatsApp gateway API key stays on the hub server.</p>
     </section>
 
         {localApi && bridgeInfo && !(companionHost.trim() && companionToken.trim()) && <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">CONNECT YOUR ANDROID APP</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in EstateFlow on your Android phone.</p></div><Smartphone size={22}/></div>
+      <div className="section-heading"><div><span className="section-kicker">PHONE COMPANION</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in AXIVESTRA on your Android phone.</p></div><Smartphone size={22}/></div>
       <label>Windows PC address<input readOnly value={bridgeInfo.urls[0] || ("http://your-pc-ip:" + bridgeInfo.port)} onFocus={event => event.currentTarget.select()}/></label>
       {bridgeInfo.urls.length > 1 && <label>Other available PC addresses<input readOnly value={bridgeInfo.urls.join("    ")} onFocus={event => event.currentTarget.select()}/></label>}
-      <label>EstateFlow companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
+      <label>AXIVESTRA companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
       <div className="form-actions"><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.urls[0] || "", "Windows PC address")}><CheckCircle2 size={15}/>Copy address</button><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.token, "Companion code")}><CheckCircle2 size={15}/>Copy code</button></div>
-      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own EstateFlow phone on a trusted network. Do not forward it or set up router port forwarding.</p>
+      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own AXIVESTRA phone on a trusted network. Do not forward it or set up router port forwarding.</p>
     </section>}
 
     <section className="data-panel wa-address-book">
       <div className="section-heading">
-        <div><span className="section-kicker">SAVED WHATSAPP DIRECTORY</span><h2>Sync WhatsApp contacts & groups</h2>
-          <p>Import the names and phone numbers exposed by your linked WhatsApp session. Saved records stay in EstateFlow when WhatsApp is disconnected or unlinked.</p>
+        <div><span className="section-kicker">DIRECTORY INTELLIGENCE</span><h2>People & groups directory</h2>
+          <p>Import the names and phone numbers exposed by your linked WhatsApp session. Saved records stay in AXIVESTRA when WhatsApp is disconnected or unlinked.</p>
         </div>
         <Users size={22}/>
       </div>
       <div className="wa-address-book-stats">
         <div><span>WhatsApp contacts cached</span><strong>{addressBook.contacts.length}</strong></div>
         <div><span>WhatsApp groups cached</span><strong>{groupOptions.length}</strong></div>
-        <div><span>EstateFlow contacts</span><strong>{contacts.length}</strong></div>
+        <div><span>AXIVESTRA contacts</span><strong>{contacts.length}</strong></div>
       </div>
       <div className="form-actions wa-address-book-actions">
         <button className="primary-button" disabled={!supported || syncBusy || !status.connected} onClick={() => void syncWhatsAppAddressBook()}><RefreshCw size={15}/>{syncBusy ? "Syncing…" : "Sync WhatsApp now"}</button>
         <button className="secondary-button" disabled={!supported || importBusy} onClick={() => void importSavedAddressBook()}><Users size={15}/>{importBusy ? "Loading saved cache…" : "Import saved contacts & groups"}</button>
       </div>
-      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in EstateFlow. A disconnected phone cannot deliver messages; connect again to send.</p>
+      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send.</p>
       {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
       {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
       <div className="wa-address-book-columns">
@@ -505,7 +505,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
           <div className="wa-scroll-list">
             {addressBook.contacts.length === 0
               ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
-              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to EstateFlow"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
+              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to AXIVESTRA"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
           </div>
         </section>
         <section>
@@ -517,12 +517,12 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
           </div>
         </section>
       </div>
-      <p className="wa-local-storage-note">EstateFlow does not create or delete WhatsApp groups. Create or manage groups in WhatsApp, then sync them here. Previously synced group names remain saved even when the WhatsApp account is offline.</p>
+      <p className="wa-local-storage-note">AXIVESTRA does not create or delete WhatsApp groups. Create or manage groups in WhatsApp, then sync them here. Previously synced group names remain saved even when the WhatsApp account is offline.</p>
     </section>
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
-        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; EstateFlow caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured EstateFlow database.</p>
+        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured AXIVESTRA database.</p>
       </div>
     </div>
 
@@ -538,7 +538,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       </div>
       {recipientMode === "contact" ? <>
         <label>Select saved contact
-          <span>Imported WhatsApp names and numbers are now available in EstateFlow Contacts.</span>
+          <span>Imported WhatsApp names and numbers are now available in AXIVESTRA Contacts.</span>
           <select size={Math.min(Math.max(contacts.filter(contact => contact.phone.trim()).length, 4), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
             <option value="">Choose a contact</option>
             {contacts.filter(contact => contact.phone.trim()).map(contact =>
@@ -552,7 +552,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         </div>
       </> : <div className="wa-group-target">
         <label>Select saved WhatsApp group
-          <span>Groups are cached in EstateFlow and remain visible when WhatsApp is disconnected. Sending requires the linked account to be connected.</span>
+          <span>Groups are cached in AXIVESTRA and remain visible when WhatsApp is disconnected. Sending requires the linked account to be connected.</span>
           <select size={Math.min(Math.max(sendableGroupOptions.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
             <option value="">Choose a WhatsApp group</option>
             {sendableGroupOptions.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
@@ -583,7 +583,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
         <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
-      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Delivery runs through the active sender: the built-in Windows sender or the configured EstateFlow hub. Keep that sender/server running, connected, and online at the scheduled time.</p>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Delivery runs through the active sender: the built-in Windows sender or the configured AXIVESTRA hub. Keep that sender/server running, connected, and online at the scheduled time.</p>
     </div>
 
     {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
@@ -596,7 +596,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     </div>
 
     <div className="section-heading wa-queue-heading">
-      <div><span className="section-kicker">LOCAL SCHEDULE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
+      <div><span className="section-kicker">MESSAGE QUEUE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
       {supported && <button className="secondary-button" onClick={() => { if (api) void api.getQueue().then(setQueue); }}><RefreshCw size={15}/>Refresh</button>}
     </div>
     {queue.length === 0 ? <div className="empty-state"><CalendarClock size={24}/><strong>No scheduled messages yet</strong><p>Choose a contact and schedule your first follow-up above.</p></div> :
