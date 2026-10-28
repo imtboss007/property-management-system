@@ -5,13 +5,14 @@ EstateFlow can run in local-only mode without credentials. To enable secure shar
 ## 1. Create the project
 Create a Supabase project from the Supabase dashboard. Keep the project URL and publishable/anon key available. Do not use a `service_role` key in the app.
 
-## 2. Create the tables, relationship links and private document bucket
+## 2. Create the tables, relationship links, WhatsApp directory and private document bucket
 Open the project's SQL Editor and run the migrations in date order, using the complete contents from this repository:
 
 1. `supabase/migrations/202610270001_estateflow_core.sql`
 2. `supabase/migrations/202610290001_estateflow_relationship_links.sql`
+3. `supabase/migrations/202610290002_estateflow_whatsapp_address_book.sql`
 
-The second migration adds reusable contact/property links across deal records, tasks, documents, financial transactions, risks, approvals and WhatsApp follow-ups. It also adds target deadlines and next-follow-up fields to every module record. Re-running the migrations is designed to be safe.
+The relationship migration links contacts/properties to tasks, documents, transactions, risks, approvals and WhatsApp follow-ups, and adds target deadlines and next-action fields. The WhatsApp address-book migration saves WhatsApp display-name/JID metadata on contacts and creates a private, owner-scoped table for saved WhatsApp group names and identifiers. Re-running the migrations is designed to be safe.
 
 The migration creates owner-scoped tables for:
 - Property/deal records across all sixteen EstateFlow modules, including contact links and loan/deal deadlines
