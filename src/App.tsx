@@ -514,7 +514,7 @@ export default function App() {
     (async () => {
       const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult, whatsappGroupResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,primary_contact_id,target_deadline,next_follow_up_date,next_action,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
-        supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
+        supabase.from("contacts").select("id,name,phone,role,notes,whatsapp_name,whatsapp_jid").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_id,contact_id,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
         supabase.from("documents").select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
         supabase.from("financial_transactions").select("id,property_id,contact_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
@@ -756,6 +756,101 @@ export default function App() {
       ? "Contact saved and synced with your shared workspace."
       : "Contact saved on this device.");
   };
+  const normalizedContactPhone = (value: string) => {
+    let digits = String(value || "").replace(/\\D/g, "");
+    if (digits.startsWith("00")) digits = digits.slice(2);
+    return digits;
+  };
+
+  const importWhatsAppContacts = (incoming: SyncedWhatsAppContact[]) => {
+    const next = [...contacts];
+    const changed: ContactRecord[] = [];
+    let added = 0;
+    let refreshed = 0;
+    for (const item of incoming) {
+      const phone = String(item.phone || "").trim();
+      const digits = normalizedContactPhone(phone);
+      if (digits.length < 8 || digits.length > 15) continue;
+      const waName = String(item.whatsappName || item.name || item.notify || "").trim();
+      if (!waName) continue;
+      const currentIndex = next.findIndex(contact => normalizedContactPhone(contact.phone) === digits);
+      if (currentIndex >= 0) {
+        const previous = next[currentIndex];
+        const isGenericName = !previous.name.trim() || normalizedContactPhone(previous.name) === digits;
+        const merged: ContactRecord = {
+          ...previous,
+          name: isGenericName ? waName : previous.name,
+          phone: previous.phone || phone,
+          whatsappName: waName,
+          whatsappJid: item.jid || item.id || previous.whatsappJid || ""
+        };
+        if (merged.name !== previous.name || merged.whatsappName !== previous.whatsappName || merged.whatsappJid !== previous.whatsappJid || merged.phone !== previous.phone) {
+          next[currentIndex] = merged;
+          changed.push(merged);
+          refreshed++;
+        }
+      } else {
+        const record: ContactRecord = {
+          id: uid(),
+          name: waName,
+          phone,
+          role: "Other",
+          notes: "Imported from the linked WhatsApp address book.",
+          whatsappName: waName,
+          whatsappJid: item.jid || item.id || ""
+        };
+        next.unshift(record);
+        changed.push(record);
+        added++;
+      }
+    }
+    if (changed.length) {
+      setContacts(next);
+      changed.forEach(record => remoteUpsert("contacts", {
+        id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes,
+        whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || ""
+      }));
+    }
+    setNotice(`WhatsApp contacts saved: ${added} added, ${refreshed} existing contact records refreshed. They remain in EstateFlow when WhatsApp is disconnected.`);
+  };
+
+  const importWhatsAppGroups = (incoming: SavedWhatsAppGroup[]) => {
+    const next = [...savedWhatsAppGroups];
+    const changed: SavedWhatsAppGroup[] = [];
+    for (const group of incoming) {
+      const jid = String(group.jid || group.id || "").trim();
+      if (!jid.endsWith("@g.us")) continue;
+      const existingIndex = next.findIndex(item => item.jid === jid);
+      const previous = existingIndex >= 0 ? next[existingIndex] : undefined;
+      const sourceId = String(group.id || "");
+      const record: SavedWhatsAppGroup = {
+        id: previous?.id || (sourceId && !sourceId.endsWith("@g.us") ? sourceId : uid()),
+        jid,
+        name: String(group.name || group.subject || previous?.name || "WhatsApp group"),
+        description: String(group.description || previous?.description || ""),
+        size: Number(group.size ?? previous?.size ?? 0),
+        lastSyncedAt: String(group.lastSyncedAt || new Date().toISOString())
+      };
+      if (previous) {
+        if (previous.name !== record.name || previous.description !== record.description || previous.size !== record.size || previous.lastSyncedAt !== record.lastSyncedAt) {
+          next[existingIndex] = record;
+          changed.push(record);
+        }
+      } else {
+        next.push(record);
+        changed.push(record);
+      }
+    }
+    if (changed.length) {
+      setSavedWhatsAppGroups(next);
+      changed.forEach(group => remoteUpsert("whatsapp_groups", {
+        id: group.id, jid: group.jid, name: group.name, description: group.description,
+        member_count: group.size || 0, last_synced_at: group.lastSyncedAt || null
+      }));
+    }
+    setNotice(`WhatsApp groups saved: ${changed.length} added or refreshed. Saved group names remain in EstateFlow after WhatsApp is disconnected.`);
+  };
+
   const saveTask = (data: Omit<TaskRecord, "id" | "done">) => {
     const record: TaskRecord = editingTask
       ? { ...editingTask, ...data }
@@ -1026,7 +1121,7 @@ export default function App() {
             </div>}
             {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={`Download ${record.name}`}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={`Delete ${record.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text={backendConfigured && session ? "Upload a property document above. Files are private and download links expire after 60 seconds." : "Configure the backend to upload and protect documents across devices."} action="Back to overview" onClick={()=>go("Overview")}/>}
           </section>}
-          {active === "WhatsApp Automation" && <WhatsAppScheduler contacts={contacts.map(contact => ({ id: contact.id, name: contact.name, phone: contact.phone, role: contact.role }))} properties={properties.map(property => ({ id: property.id, title: property.title }))} initialContactId={whatsAppPrefill?.contactId} initialPropertyId={whatsAppPrefill?.propertyId} initialTaskId={whatsAppPrefill?.taskId} initialTaskTitle={whatsAppPrefill?.taskTitle} onNotice={setNotice} />}
+          {active === "WhatsApp Automation" && <WhatsAppScheduler contacts={contacts.map(contact => ({ id: contact.id, name: contact.name, phone: contact.phone, role: contact.role, whatsappName: contact.whatsappName, whatsappJid: contact.whatsappJid }))} properties={properties.map(property => ({ id: property.id, title: property.title }))} savedGroups={savedWhatsAppGroups} onImportContacts={importWhatsAppContacts} onImportGroups={importWhatsAppGroups} initialContactId={whatsAppPrefill?.contactId} initialPropertyId={whatsAppPrefill?.propertyId} initialTaskId={whatsAppPrefill?.taskId} initialTaskTitle={whatsAppPrefill?.taskTitle} onNotice={setNotice} />}
           {active === "Risk & Compliance" && <section className="data-panel">
             <div className="section-heading"><div><span className="section-kicker">CONTROL FRAMEWORK</span><h2>Risk & compliance register</h2><p>Track risks, owners, mitigation and time-bound actions.</p></div><button className="primary-button" onClick={()=>setShowRiskForm(true)}><Plus size={16}/> Log risk</button></div>
             <div className="risk-overview-grid"><div className="risk-overview-card"><span>High / critical open risks</span><strong>{highRiskCount}</strong></div><div className="risk-overview-card"><span>Open litigation matters</span><strong>{openLitigationCount}</strong></div><div className="risk-overview-card"><span>Overdue tasks</span><strong>{overdueTaskCount}</strong></div><div className="risk-overview-card"><span>Documents expiring in 30 days</span><strong>{expiringDocumentCount}</strong></div></div>
