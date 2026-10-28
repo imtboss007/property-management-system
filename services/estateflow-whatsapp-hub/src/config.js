@@ -30,8 +30,14 @@ export function loadConfig(env = process.env) {
   const openwaBase = safeBaseUrl(env.OPENWA_BASE_URL, "OPENWA_BASE_URL", allowInsecureHttp);
   const waAkgBase = safeBaseUrl(env.WA_AKG_BASE_URL, "WA_AKG_BASE_URL", allowInsecureHttp);
   const publicWebhookUrl = safeBaseUrl(env.ESTATEFLOW_PUBLIC_WEBHOOK_URL, "ESTATEFLOW_PUBLIC_WEBHOOK_URL", false);
-  if (publicWebhookUrl && new URL(publicWebhookUrl).protocol !== "https:") {
-    throw new Error("ESTATEFLOW_PUBLIC_WEBHOOK_URL must use HTTPS so the gateway can securely call back into EstateFlow.");
+  if (publicWebhookUrl) {
+    const callback = new URL(publicWebhookUrl);
+    if (callback.protocol !== "https:") {
+      throw new Error("ESTATEFLOW_PUBLIC_WEBHOOK_URL must use HTTPS so the gateway can securely call back into EstateFlow.");
+    }
+    if (!callback.pathname.replace(/\\/+$/, "").endsWith("/api/webhook/incoming")) {
+      throw new Error("ESTATEFLOW_PUBLIC_WEBHOOK_URL must end with /api/webhook/incoming.");
+    }
   }
   const openwaConfigured = Boolean(openwaBase && hasValue(env.OPENWA_API_KEY));
   const waAkgConfigured = Boolean(waAkgBase && hasValue(env.WA_AKG_API_KEY));
