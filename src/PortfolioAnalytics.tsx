@@ -213,7 +213,7 @@ function CashflowChart({ rows, type, showLabels, onSelect, selected }: {
   return <div className="ax-cashflow-bars"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Monthly cashflow bar chart">
     {[0,1,2,3,4].map(n=><g key={n}><line x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#1c3550" strokeDasharray="4 6"/><text x={left-8} y={top+n*(height-top-bottom)/4+4} textAnchor="end" fill="#7893ac" fontSize="10">{compact(max*(1-n/4))}</text></g>)}
     {rows.map((row,index)=><g key={row.key} onClick={()=>onSelect(selected===row.key?"":row.key)} className="ax-chart-point">
-      <rect x={xAt(index)-barWidth-2} y={yAt(row.inflow)} width={barWidth} height={height-bottom-yAt(row.inflow)} rx="3" fill="#20d9ef" opacity={selected&&selected!==row.key?.7:1}/>
+      <rect x={xAt(index)-barWidth-2} y={yAt(row.inflow)} width={barWidth} height={height-bottom-yAt(row.inflow)} rx="3" fill="#20d9ef" opacity={selected && selected !== row.key ? 0.7 : 1}/>
       <rect x={xAt(index)+2} y={yAt(row.outflow)} width={barWidth} height={height-bottom-yAt(row.outflow)} rx="3" fill="#fc7796" opacity={selected&&selected!==row.key?.7:1}/>
       {showLabels&&<text x={xAt(index)} y={height-15} textAnchor="middle" fill="#8da6be" fontSize="11">{row.name}</text>}
       <title>{row.fullName}: inflow {compact(row.inflow)}, outflow {compact(row.outflow)}</title>
