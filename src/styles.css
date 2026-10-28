@@ -535,3 +535,16 @@ h1{font-family:"Manrope",sans-serif;color:#102b42;letter-spacing:-1.25px}
 .wa-queue-row .record-main{min-width:0}
 .wa-queue-row .record-main small{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(max-width:760px){.wa-link-options{grid-template-columns:1fr}.wa-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.wa-schedule-actions>*{flex:1 1 100%}.wa-qr-panel,.wa-pair-panel{padding:14px}}
+
+
+/* Linked client/deal workflow */
+.linked-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.linked-actions a { text-decoration: none; }
+.inline-link { display: inline; border: 0; background: transparent; padding: 0; color: #436d4b; text-decoration: underline; text-underline-offset: 2px; font: inherit; cursor: pointer; }
+.form-help { margin: -3px 0 12px; color: #8a6f39; font-size: 11px; line-height: 1.6; }
+.relationship-summary { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.relationship-record .record-main { min-width: 0; }
+.deadline-overdue { color: #b54238; font-weight: 700; }
+.deadline-status { color: #a43f34; background: #fae9e6; }
+.relationship-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+@media (max-width: 720px) { .relationship-summary { grid-template-columns: repeat(2, minmax(0,1fr)); } .linked-actions .secondary-button { white-space: normal; } }
