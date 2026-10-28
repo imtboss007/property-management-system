@@ -789,6 +789,19 @@ export default function App() {
             {filteredProperties.filter(p=>active==="All Properties"||p.module===active).length ? <div className="record-list">{filteredProperties.filter(p=>active==="All Properties"||p.module===active).map(p=><article className="record-card" key={p.id}><div className="record-symbol"><Building2 size={20}/></div><div className="record-main"><h3>{p.title}</h3><p><MapPin size={14}/>{p.location || "Location not entered"} <span>•</span> {p.module}</p>{(contacts.find(contact=>contact.id===p.primaryContactId)?.name || p.contact)&&<small>Primary contact: {contacts.find(contact=>contact.id===p.primaryContactId)?.name || p.contact}</small>}{p.targetDeadline&&<small><strong>Target deadline:</strong> {p.targetDeadline}</small>}{p.nextFollowUpDate&&<small><strong>Next follow-up:</strong> {p.nextFollowUpDate}</small>}{p.nextAction&&<small><strong>Next action:</strong> {p.nextAction}</small>}{(p.surveyNumber || p.areaValue) && <small>{p.surveyNumber ? `Survey no. ${p.surveyNumber}` : ""}{p.surveyNumber && p.areaValue ? " · " : ""}{p.areaValue ? `Area: ${p.areaValue} ${p.areaUnit || "sq ft"}` : ""}</small>}{p.ownershipDetails&&<small>Ownership: {p.ownershipDetails}</small>}{p.dimensions&&<small>Dimensions: {p.dimensions}</small>}{Object.entries(p.moduleData ?? {}).filter(([,value])=>String(value).trim()).slice(0,4).map(([key,value])=><small key={key}><strong>{moduleFields[p.module]?.find(field=>field.key===key)?.label ?? key}:</strong> {value}</small>)}{p.notes&&<small>{p.notes}</small>}{(() => { const linkedContact = contacts.find(contact=>contact.id===p.primaryContactId) || contacts.find(contact=>contact.name.trim().toLowerCase()===(p.contact || "").trim().toLowerCase()); return linkedContact ? <div className="linked-actions"><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${linkedContact.name} · ${p.title}`,date:p.nextFollowUpDate || today,time:"10:00",type:"Call",property:p.title,propertyId:p.id,contactId:linkedContact.id,contactName:linkedContact.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(linkedContact.id,p.id)}>Schedule WhatsApp</button></div> : null; })()}</div><div className="record-side"><strong>{p.value ? `₹ ${p.value}` : "Value not set"}</strong><span className="status-pill">{p.status}</span><button className="edit-button" onClick={()=>openPropertyForm(p)} aria-label={`Edit ${p.title}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteProperty(p.id)} aria-label={`Delete ${p.title}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<LandPlot size={22}/>} title="No property records yet" text="Add your first record. It will be stored in this browser on this device." action="Add property" onClick={()=>openPropertyForm()}/>}</section> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             {contacts.length ? <div className="record-list">{contacts.filter(c=>`${c.name} ${c.phone} ${c.role}`.toLowerCase().includes(search.toLowerCase())).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {c.role || "Contact"}</p>{c.notes&&<small>{c.notes}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (!property.primaryContactId && property.contact.trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id)?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+          {active === "Client & Deal Hub" && <RelationshipHub
+            properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
+            onEditProperty={openPropertyForm}
+            onAddProperty={()=>openPropertyForm()}
+            onAddContact={()=>openContactForm()}
+            onOpenContacts={()=>go("Contacts")}
+            onOpenTasks={()=>go("Schedule & Tasks")}
+            onSchedule={(property,contact)=>openTaskForm(null,{title:`Call ${contact?.name ?? "stakeholder"} · ${property.title}`,date:property.nextFollowUpDate || property.targetDeadline || today,time:"10:00",type:"Call",property:property.title,propertyId:property.id,contactId:contact?.id,contactName:contact?.name})}
+            onWhatsApp={openWhatsAppFor}
+            onEditTask={openTaskForm}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+          />}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
             {tasks.length ? <TaskList tasks={[...tasks].sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
@@ -846,6 +859,72 @@ export default function App() {
       {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} contacts={contacts} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
     </main>
   );
+}
+
+type RelationshipHubProps = {
+  properties: PropertyRecord[];
+  contacts: ContactRecord[];
+  tasks: TaskRecord[];
+  financials: FinancialRecord[];
+  today: string;
+  onEditProperty: (property: PropertyRecord) => void;
+  onAddProperty: () => void;
+  onAddContact: () => void;
+  onOpenContacts: () => void;
+  onOpenTasks: () => void;
+  onSchedule: (property: PropertyRecord, contact?: ContactRecord) => void;
+  onWhatsApp: (contactId?: string, propertyId?: string) => void;
+  onEditTask: (task: TaskRecord) => void;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+};
+function RelationshipHub({properties,contacts,tasks,financials,today,onEditProperty,onAddProperty,onAddContact,onOpenContacts,onOpenTasks,onSchedule,onWhatsApp,onEditTask,onToggleTask,onDeleteTask}:RelationshipHubProps) {
+  const resolveContact=(property:PropertyRecord)=>contacts.find(contact=>contact.id===property.primaryContactId)
+    || contacts.find(contact=>contact.name.trim().toLowerCase()===(property.contact || "").trim().toLowerCase());
+  const activeProperties=properties.filter(property=>!["Completed","Closed","Settled"].includes(property.status));
+  const overdueDeadlines=activeProperties.filter(property=>Boolean(property.targetDeadline && property.targetDeadline<today));
+  const overdueFollowups=activeProperties.filter(property=>Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today));
+  const linkedCount=properties.filter(property=>Boolean(resolveContact(property))).length;
+  const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+  const orderedProperties=[...properties].sort((a,b)=>(a.targetDeadline || a.nextFollowUpDate || "9999-12-31").localeCompare(b.targetDeadline || b.nextFollowUpDate || "9999-12-31"));
+  return <section className="data-panel relationship-hub">
+    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 16 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
+    <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
+    <div className="notice"><Handshake size={17}/>Select one saved contact on each deal record. The same contact then appears across call reminders, financial transactions, risk/approval items and WhatsApp follow-ups.</div>
+    {properties.length===0 && <Empty icon={<LandPlot size={22}/>} title="Add your first deal or property record" text="Every module record can be linked to a client, deadline and next action here." action="Create deal record" onClick={onAddProperty}/>}
+    {properties.length>0 && <div className="record-list">{orderedProperties.map(property=>{
+      const contact=resolveContact(property);
+      const relatedTasks=tasks.filter(task=>(task.propertyId===property.id || (!task.propertyId && task.property===property.title)) && !task.done);
+      const relatedFinancials=financials.filter(item=>item.propertyId===property.id || (!item.propertyId && item.property===property.title));
+      const deadlineOverdue=Boolean(property.targetDeadline && property.targetDeadline<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
+      const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
+      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
+      return <article className="record-card relationship-record" key={property.id}>
+        <div className="record-symbol"><Building2 size={20}/></div>
+        <div className="record-main">
+          <h3>{property.title}</h3>
+          <p>{property.module} <span>•</span> {property.location || "Location not entered"}</p>
+          <small>Contact: {contact ? <button className="inline-link" onClick={onOpenContacts}>{contact.name} · {contact.role}</button> : <button className="inline-link" onClick={onEditProperty.bind(null,property)}>Link a contact</button>}</small>
+          {contact?.phone && <small>Phone: {contact.phone}</small>}
+          {property.targetDeadline && <small><strong>Target completion / loan deadline:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{property.targetDeadline}{deadlineOverdue?" · OVERDUE":""}</span></small>}
+          {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
+          {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
+          <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: ₹{recordedAmount.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
+          {relatedTasks.slice(0,2).map(task=><small key={task.id}>Next task: {task.title} · {task.date} {task.time}{task.contactName ? ` · ${task.contactName}` : ""}</small>)}
+          <div className="linked-actions">
+            <button className="secondary-button" onClick={()=>onEditProperty(property)}><Pencil size={14}/> Edit links / deadlines</button>
+            {contact?.phone && <a className="secondary-button" href={`tel:${contact.phone}`}><Phone size={14}/> Call contact</a>}
+            {contact && <button className="secondary-button" onClick={()=>onSchedule(property,contact)}><CalendarClock size={14}/> Schedule call / reminder</button>}
+            {contact && <button className="secondary-button" onClick={()=>onWhatsApp(contact.id,property.id)}><MessageCircle size={14}/> Schedule WhatsApp</button>}
+          </div>
+        </div>
+        <div className="record-side"><strong>{property.value ? `₹ ${Number(property.value).toLocaleString("en-IN",{maximumFractionDigits:2})}` : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
+      </article>;
+    })}</div>}
+    <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
+    {openTasks.length ? <TaskList tasks={openTasks.slice(0,8)} toggle={onToggleTask} remove={onDeleteTask} edit={onEditTask}/> : <Empty icon={<CalendarClock size={22}/>} title="No open reminders" text="Create a call, document collection, loan deadline or meeting reminder." action="Open schedule" onClick={onOpenTasks}/>}
+    <div className="relationship-footer-actions"><button className="secondary-button" onClick={onOpenContacts}><Users size={15}/> Manage contacts</button><button className="secondary-button" onClick={onOpenTasks}><CalendarClock size={15}/> Manage reminders</button></div>
+  </section>;
 }
 
 function Stat({label,value,icon}:{label:string;value:number|string;icon:ReactNode}) { return <div className="stat-card"><span>{icon}</span><div><strong>{value}</strong><small>{label}</small></div></div>; }
