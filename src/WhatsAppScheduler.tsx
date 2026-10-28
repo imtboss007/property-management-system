@@ -505,7 +505,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
           <div className="wa-scroll-list">
             {addressBook.contacts.length === 0
               ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
-              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" onClick={() => onImportContacts?.([contact])}>Save contact</button></div>)}
+              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to EstateFlow"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
           </div>
         </section>
         <section>
