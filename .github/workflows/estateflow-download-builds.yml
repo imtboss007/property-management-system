@@ -1,4 +1,4 @@
-name: EstateFlow Download Builds
+name: AXIVESTRA Download Builds
 
 on:
   push:
@@ -29,7 +29,7 @@ jobs:
       - name: Save installer for download
         uses: actions/upload-artifact@v4
         with:
-          name: EstateFlow-Windows-Installer
+          name: AXIVESTRA-Windows-Installer
           path: release-dist/*.exe
           if-no-files-found: error
           retention-days: 14
@@ -65,7 +65,7 @@ jobs:
       - name: Save APK for download
         uses: actions/upload-artifact@v4
         with:
-          name: EstateFlow-Android-APK
+          name: AXIVESTRA-Android-APK
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
