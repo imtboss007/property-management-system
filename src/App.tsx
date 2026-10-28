@@ -19,7 +19,7 @@ type PropertyRecord = {
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
-type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string; whatsappName?: string; whatsappJid?: string };
+type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string };
 type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
@@ -1348,13 +1348,27 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
   </form>;
 }
 function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSave:(v:Omit<ContactRecord,"id">)=>void;onCancel:()=>void}) {
-  const [form,setForm]=useState({name:initial?.name ?? "",phone:initial?.phone ?? "",role:initial?.role ?? "Buyer",notes:initial?.notes ?? ""});
+  const roleOptions=["Client","Mediator","Funder","Landowner","Property buyer","Property seller","Builder / developer","Borrower","Lender","Investor","Company owner / director","Broker / agent","Professional adviser","Guarantor","JV / JDA partner","Advocate","Contractor","Employee / salaried","Supplier / vendor","Introducer / referral partner","Tenant","Loan officer","Bank relationship manager","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Other"];
+  const initialRoles=initial?.roles?.length ? initial.roles : initial?.role ? [initial.role] : ["Client"];
+  const [form,setForm]=useState({name:initial?.name ?? "",phone:initial?.phone ?? "",role:initial?.role ?? initialRoles[0] ?? "Client",roles:initialRoles,customRoles:initial?.customRoles ?? "",email:initial?.email ?? "",address:initial?.address ?? "",profession:initial?.profession ?? "",employer:initial?.employer ?? "",designation:initial?.designation ?? "",businessType:initial?.businessType ?? "",incomeSources:initial?.incomeSources ?? "",associatedCompany:initial?.associatedCompany ?? "",relationshipNotes:initial?.relationshipNotes ?? "",notes:initial?.notes ?? ""});
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
-  return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.name.trim())onSave(form);}}>
-    <label>Full name *<input required value={form.name} onChange={e=>update("name",e.target.value)} placeholder="Contact name"/></label>
-    <div className="form-two"><label>Phone<input value={form.phone} onChange={e=>update("phone",e.target.value)} placeholder="+91..."/></label><label>Role<select value={form.role} onChange={e=>update("role",e.target.value)}>{["Buyer","Seller","Broker","Lawyer","Lender","Borrower","Co-borrower","Loan officer","Bank relationship manager","Guarantor","Property owner","Tenant","Developer","Investor / LP","Venture capital / fund","Family office","Asset manager","Fund administrator","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Regulator / government office","Portfolio company","Other"].map(s=><option key={s}>{s}</option>)}</select></label></div>
-    <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)}/></label>
-    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save contact"}</button></div>
+  const toggleRole=(role:string,checked:boolean)=>setForm(p=>({...p,roles:checked?[...p.roles,role]:p.roles.filter(item=>item!==role),role:checked&&p.roles.length===0?role:p.role}));
+  return <form className="form-card ax-contact-intelligence-form" onSubmit={e=>{e.preventDefault();if(form.name.trim())onSave({...form,role:form.roles[0]||form.role,roles:form.roles});}}>
+    <h3>Identity & contact</h3>
+    <label>Full / legal name *<input required value={form.name} onChange={e=>update("name",e.target.value)} placeholder="Contact or company name"/></label>
+    <div className="form-two"><label>Phone / WhatsApp<input value={form.phone} onChange={e=>update("phone",e.target.value)} placeholder="+91..."/></label><label>Email<input type="email" value={form.email} onChange={e=>update("email",e.target.value)} placeholder="name@company.com"/></label></div>
+    <label>Address<input value={form.address} onChange={e=>update("address",e.target.value)} placeholder="Optional address"/></label>
+    <h3>Multiple roles <small>Select every role that applies</small></h3>
+    <div className="ax-role-picker">{roleOptions.map(role=><label key={role} className={form.roles.includes(role)?"selected":""}><input type="checkbox" checked={form.roles.includes(role)} onChange={e=>toggleRole(role,e.target.checked)}/><span>{role}</span></label>)}</div>
+    <label>Custom roles (comma-separated)<input value={form.customRoles} onChange={e=>update("customRoles",e.target.value)} placeholder="Add roles not listed above"/></label>
+    <h3>Profession, employment & business</h3>
+    <div className="form-two"><label>Profession / occupation<input value={form.profession} onChange={e=>update("profession",e.target.value)} placeholder="e.g. manufacturer, consultant"/></label><label>Employer / business<input value={form.employer} onChange={e=>update("employer",e.target.value)} placeholder="Company or employer"/></label></div>
+    <div className="form-two"><label>Designation<input value={form.designation} onChange={e=>update("designation",e.target.value)} placeholder="Director, manager, employee…"/></label><label>Business / employment type<input value={form.businessType} onChange={e=>update("businessType",e.target.value)} placeholder="Salaried, proprietor, partner, director…"/></label></div>
+    <div className="form-two"><label>Associated company / entities<input value={form.associatedCompany} onChange={e=>update("associatedCompany",e.target.value)} placeholder="Companies or businesses"/></label><label>Income sources (optional)<input value={form.incomeSources} onChange={e=>update("incomeSources",e.target.value)} placeholder="Salary, rent, agriculture, business…"/></label></div>
+    <label>Relationship / referral context<textarea rows={2} value={form.relationshipNotes} onChange={e=>update("relationshipNotes",e.target.value)} placeholder="Who introduced this person? Relevant business connections…"/></label>
+    <label>Notes / verification context<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Keep sensitive details minimal and record source/verification where relevant."/></label>
+    <p className="ax-form-note">Optional fields may be left blank. A contact can hold several roles at once; the role used in a particular deal should be recorded separately on that deal.</p>
+    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save master contact"}</button></div>
   </form>;
 }
 function TaskForm({properties,contacts,initial,defaultValues,onSave,onCancel}:{properties:PropertyRecord[];contacts:ContactRecord[];initial?:TaskRecord|null;defaultValues?:Partial<TaskRecord>|null;onSave:(v:Omit<TaskRecord,"id"|"done">)=>void;onCancel:()=>void}) {
