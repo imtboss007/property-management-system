@@ -33,3 +33,7 @@ test("constructs the workspace chat endpoint and encodes slug", () => {
   const config = loadConfig({ ...validEnv, ANYTHINGLLM_WORKSPACE_SLUG: "legal workspace" });
   assert.equal(workspaceChatUrl(config), "http://anythingllm:3001/api/v1/workspace/legal%20workspace/chat");
 });
+
+test("requires HTTPS for a remote production upstream", () => {
+  assert.throws(() => loadConfig({ ...validEnv, NODE_ENV: "production", ANYTHINGLLM_BASE_URL: "http://example.com" }), /Use HTTPS/);
+});
