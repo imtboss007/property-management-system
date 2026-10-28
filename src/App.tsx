@@ -467,6 +467,7 @@ export default function App() {
         id,
         user_id: session.user.id,
         property_id: property?.id ?? null,
+        contact_id: documentContact || null,
         property_label: property?.title ?? "",
         name: file.name,
         category: documentCategory,
@@ -481,7 +482,7 @@ export default function App() {
         throw metadataError;
       }
       const record: DocumentRecord = {
-        id: data.id, propertyId: data.property_id ?? "", property: data.property_label ?? "",
+        id: data.id, propertyId: data.property_id ?? "", property: data.property_label ?? "", contactId: data.contact_id ?? "",
         name: data.name, category: data.category, storagePath: data.storage_path,
         mimeType: data.mime_type, sizeBytes: Number(data.size_bytes ?? 0),
         expiresOn: data.expires_on ?? "", notes: data.notes ?? "", createdAt: data.created_at
@@ -489,6 +490,7 @@ export default function App() {
       setDocuments(prev => [record, ...prev]);
       setDocumentNotes("");
       setDocumentExpiry("");
+      setDocumentContact("");
       setNotice("Document uploaded to private cloud storage.");
     } catch (error) {
       setNotice(`Document upload failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -543,7 +545,9 @@ export default function App() {
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
       value: record.value.trim() ? Number(record.value) : null, status: record.status,
-      contact: record.contact, notes: record.notes, created_at: record.createdAt,
+      contact: record.contact, primary_contact_id: record.primaryContactId || null,
+      target_deadline: record.targetDeadline || null, next_follow_up_date: record.nextFollowUpDate || null,
+      next_action: record.nextAction || "", notes: record.notes, created_at: record.createdAt,
       survey_number: record.surveyNumber, ownership_details: record.ownershipDetails,
       area_value: record.areaValue.trim() ? Number(record.areaValue) : null,
       area_unit: record.areaUnit, dimensions: record.dimensions,
@@ -575,7 +579,8 @@ export default function App() {
       : [...prev, record]).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)));
     remoteUpsert("tasks", {
       id: record.id, title: record.title, due_date: record.date, due_time: record.time,
-      task_type: record.type, property_label: record.property, notes: record.notes, is_done: record.done
+      task_type: record.type, property_id: record.propertyId || null, contact_id: record.contactId || null,
+      property_label: record.property, notes: record.notes, is_done: record.done
     });
     closeTaskForm();
     setNotice(backendConfigured && session
@@ -594,6 +599,7 @@ export default function App() {
       id: record.id,
       property_id: record.propertyId || null,
       property_label: record.property,
+      contact_id: record.contactId || null,
       transaction_type: record.type,
       amount: Number(record.amount),
       transaction_date: record.date,
@@ -617,7 +623,8 @@ export default function App() {
     remoteUpsert("risk_register", {
       id: record.id, title: record.title, category: record.category, severity: record.severity,
       status: record.status, owner: record.owner, due_date: record.dueDate || null,
-      entity_label: record.entity, mitigation: record.mitigation, created_at: record.createdAt
+      entity_label: record.entity, property_id: record.propertyId || null, contact_id: record.contactId || null,
+      mitigation: record.mitigation, created_at: record.createdAt
     });
     setShowRiskForm(false);
     setNotice(backendConfigured && session ? "Risk added to the shared register." : "Risk saved on this device.");
@@ -628,7 +635,8 @@ export default function App() {
     remoteUpsert("risk_register", {
       id: updated.id, title: updated.title, category: updated.category, severity: updated.severity,
       status: updated.status, owner: updated.owner, due_date: updated.dueDate || null,
-      entity_label: updated.entity, mitigation: updated.mitigation, created_at: updated.createdAt
+      entity_label: updated.entity, property_id: updated.propertyId || null, contact_id: updated.contactId || null,
+      mitigation: updated.mitigation, created_at: updated.createdAt
     });
   };
   const deleteRisk = (id: string) => {
@@ -640,6 +648,7 @@ export default function App() {
     setApprovalRequests(prev => [record, ...prev]);
     remoteUpsert("approval_requests", {
       id: record.id, title: record.title, approval_type: record.area, entity_label: record.entity,
+      property_id: record.propertyId || null, contact_id: record.contactId || null,
       requested_by: record.requestedBy, approver: record.approver, priority: record.priority,
       status: record.status, rationale: record.rationale, decision_notes: "", requested_at: record.requestedAt, decided_at: null
     });
@@ -651,6 +660,7 @@ export default function App() {
     setApprovalRequests(prev => prev.map(item => item.id === record.id ? updated : item));
     remoteUpsert("approval_requests", {
       id: updated.id, title: updated.title, approval_type: updated.area, entity_label: updated.entity,
+      property_id: updated.propertyId || null, contact_id: updated.contactId || null,
       requested_by: updated.requestedBy, approver: updated.approver, priority: updated.priority,
       status: updated.status, rationale: updated.rationale, decision_notes: updated.decisionNotes,
       requested_at: updated.requestedAt, decided_at: updated.decidedAt
@@ -827,12 +837,12 @@ export default function App() {
           <footer className="footer"><span>EstateFlow © 2026</span><span>{backendConfigured && session ? "Shared database connected" : "Local-only mode · Device data is not synced"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
-      {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} initial={editingTask} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
-      {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
-      {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
-      {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
+      {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
+      {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
+      {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} contacts={contacts} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
+      {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} contacts={contacts} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
     </main>
   );
 }
@@ -843,10 +853,13 @@ function TaskList({tasks,toggle,remove,edit}:{tasks:TaskRecord[];toggle:(id:stri
   return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>{t.property}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
 }
 function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}) { return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} aria-label="Close"><X size={19}/></button></div>{children}</section></div>; }
-function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:string;initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
-    value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",notes:initial?.notes ?? "",
+    value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",
+    primaryContactId:initial?.primaryContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
+    targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
+    nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
     areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
     moduleData:initial?.moduleData ?? {}
@@ -854,11 +867,16 @@ function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:str
   const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
   const selectedFields=moduleFields[form.module] ?? [];
   return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
-    <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use a clear title and status so the record can be found in reports and approvals.</p></div>
-    <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Series A investment / Apartment purchase"/></label>
+    <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
+    <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>update("module",event.target.value)}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<input type="number" min="0" step="0.01" value={form.value} onChange={event=>update("value",event.target.value)} placeholder="Enter amount"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><label>Primary contact<input value={form.contact} onChange={event=>update("contact",event.target.value)} placeholder="Counterparty / founder / borrower / counsel"/></label></div>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><label>Primary contact<select value={form.primaryContactId} onChange={event=>{const id=event.target.value;setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}><option value="">No contact linked</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select></label></div>
+    {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
+    <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
+      <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
+      <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
+    </div>
     {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
       <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
@@ -869,7 +887,6 @@ function PropertyForm({defaultModule,initial,onSave,onCancel}:{defaultModule:str
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
   </form>;
 }
-
 function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSave:(v:Omit<ContactRecord,"id">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({name:initial?.name ?? "",phone:initial?.phone ?? "",role:initial?.role ?? "Buyer",notes:initial?.notes ?? ""});
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
@@ -880,65 +897,70 @@ function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSa
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save contact"}</button></div>
   </form>;
 }
-function TaskForm({properties,initial,onSave,onCancel}:{properties:PropertyRecord[];initial?:TaskRecord|null;onSave:(v:Omit<TaskRecord,"id"|"done">)=>void;onCancel:()=>void}) {
-  const [form,setForm]=useState({title:initial?.title ?? "",date:initial?.date ?? new Date().toISOString().slice(0,10),time:initial?.time ?? "10:00",type:initial?.type ?? "Follow-up",property:initial?.property ?? "",notes:initial?.notes ?? ""});
+function TaskForm({properties,contacts,initial,defaultValues,onSave,onCancel}:{properties:PropertyRecord[];contacts:ContactRecord[];initial?:TaskRecord|null;defaultValues?:Partial<TaskRecord>|null;onSave:(v:Omit<TaskRecord,"id"|"done">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState(()=>{
+    const selectedPropertyId=initial?.propertyId || defaultValues?.propertyId || properties.find(item=>item.title===initial?.property)?.id || "";
+    const selectedContactId=initial?.contactId || defaultValues?.contactId || contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contactName ?? "").trim().toLowerCase())?.id || "";
+    return {title:initial?.title ?? defaultValues?.title ?? "",date:initial?.date ?? defaultValues?.date ?? new Date().toISOString().slice(0,10),
+      time:initial?.time ?? defaultValues?.time ?? "10:00",type:initial?.type ?? defaultValues?.type ?? "Follow-up",
+      propertyId:selectedPropertyId,property:initial?.property ?? defaultValues?.property ?? properties.find(item=>item.id===selectedPropertyId)?.title ?? "",
+      contactId:selectedContactId,contactName:initial?.contactName ?? defaultValues?.contactName ?? contacts.find(item=>item.id===selectedContactId)?.name ?? "",
+      notes:initial?.notes ?? defaultValues?.notes ?? ""};
+  });
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
-  return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.title.trim())onSave(form);}}>
-    <label>Task / reminder *<input required value={form.title} onChange={e=>update("title",e.target.value)} placeholder="e.g. Call lawyer about document"/></label>
+  return <form className="form-card" onSubmit={e=>{e.preventDefault();if(form.title.trim())onSave({...form,property:properties.find(item=>item.id===form.propertyId)?.title ?? form.property,contactName:contacts.find(item=>item.id===form.contactId)?.name ?? form.contactName});}}>
+    <label>Task / reminder *<input required value={form.title} onChange={e=>update("title",e.target.value)} placeholder="e.g. Call loan officer about sanction status"/></label>
     <div className="form-two"><label>Date *<input required type="date" value={form.date} onChange={e=>update("date",e.target.value)}/></label><label>Time *<input required type="time" value={form.time} onChange={e=>update("time",e.target.value)}/></label></div>
-    <div className="form-two"><label>Task type<select value={form.type} onChange={e=>update("type",e.target.value)}>{["Follow-up","Meeting","Payment","Registration","Document deadline","Site visit","Other"].map(s=><option key={s}>{s}</option>)}</select></label><label>Related property<select value={form.property} onChange={e=>update("property",e.target.value)}><option value="">None selected</option>{properties.map(p=><option key={p.id} value={p.title}>{p.title}</option>)}</select></label></div>
-    <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="Details or preparation required"/></label>
+    <div className="form-two"><label>Task type<select value={form.type} onChange={e=>update("type",e.target.value)}>{["Call","WhatsApp follow-up","Loan processing","Loan deadline","Document collection","Follow-up","Meeting","Payment","Registration","Document deadline","Site visit","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Related deal / property<select value={form.propertyId} onChange={e=>{const id=e.target.value;setForm(p=>({...p,propertyId:id,property:properties.find(item=>item.id===id)?.title ?? ""}));}}><option value="">None selected</option>{properties.map(p=><option key={p.id} value={p.id}>{p.title} · {p.module}</option>)}</select></label></div>
+    <label>Related contact<select value={form.contactId} onChange={e=>{const id=e.target.value;setForm(p=>({...p,contactId:id,contactName:contacts.find(item=>item.id===id)?.name ?? ""}));}}><option value="">No contact selected</option>{contacts.map(c=><option key={c.id} value={c.id}>{c.name} · {c.role}{c.phone ? ` · ${c.phone}` : ""}</option>)}</select></label>
+    <label>Notes<textarea rows={3} value={form.notes} onChange={e=>update("notes",e.target.value)} placeholder="What to ask, what is pending, and next step"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save task"}</button></div>
   </form>;
 }
-
-function FinancialForm({properties,initial,onSave,onCancel}:{properties:PropertyRecord[];initial?:FinancialRecord|null;onSave:(value:Omit<FinancialRecord,"id">)=>void;onCancel:()=>void}) {
-  const [form,setForm]=useState({
-    propertyId:initial?.propertyId ?? "",
-    property:initial?.property ?? "",
-    type:initial?.type ?? "Receipt",
-    amount:initial?.amount ?? "",
-    date:initial?.date ?? new Date().toISOString().slice(0,10),
-    party:initial?.party ?? "",
-    reference:initial?.reference ?? "",
-    notes:initial?.notes ?? ""
+function FinancialForm({properties,contacts,initial,onSave,onCancel}:{properties:PropertyRecord[];contacts:ContactRecord[];initial?:FinancialRecord|null;onSave:(value:Omit<FinancialRecord,"id">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState(()=>{
+    const contactId=initial?.contactId || contacts.find(item=>item.name.trim().toLowerCase()===(initial?.party ?? "").trim().toLowerCase())?.id || "";
+    return {propertyId:initial?.propertyId ?? "",property:initial?.property ?? "",contactId,type:initial?.type ?? "Receipt",
+      amount:initial?.amount ?? "",date:initial?.date ?? new Date().toISOString().slice(0,10),party:initial?.party ?? "",
+      reference:initial?.reference ?? "",notes:initial?.notes ?? ""};
   });
   const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
   const types=["Purchase","Sale","Advance","Loan Disbursal","Loan Repayment","Interest","Instalment","Brokerage","Expense","Receipt","Settlement","Other"];
-  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.amount.trim() && Number(form.amount)>=0){const property=properties.find(item=>item.id===form.propertyId);onSave({...form,property:property?.title ?? form.property});}}}>
+  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.amount.trim() && Number(form.amount)>=0){const property=properties.find(item=>item.id===form.propertyId);const contact=contacts.find(item=>item.id===form.contactId);onSave({...form,property:property?.title ?? form.property,party:contact?.name ?? form.party});}}}>
     <div className="form-two"><label>Transaction type<select value={form.type} onChange={event=>update("type",event.target.value)}>{types.map(type=><option key={type}>{type}</option>)}</select></label><label>Amount (₹) *<input required type="number" min="0" step="0.01" value={form.amount} onChange={event=>update("amount",event.target.value)} placeholder="0.00"/></label></div>
-    <div className="form-two"><label>Date *<input required type="date" value={form.date} onChange={event=>update("date",event.target.value)}/></label><label>Related property<select value={form.propertyId} onChange={event=>{const value=event.target.value;update("propertyId",value);update("property",properties.find(item=>item.id===value)?.title ?? "");}}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title}</option>)}</select></label></div>
-    <div className="form-two"><label>Party / counterparty<input value={form.party} onChange={event=>update("party",event.target.value)} placeholder="Buyer, seller, bank, broker"/></label><label>Reference number<input value={form.reference} onChange={event=>update("reference",event.target.value)} placeholder="Receipt / bank reference"/></label></div>
+    <div className="form-two"><label>Date *<input required type="date" value={form.date} onChange={event=>update("date",event.target.value)}/></label><label>Related deal / property<select value={form.propertyId} onChange={event=>{const value=event.target.value;update("propertyId",value);update("property",properties.find(item=>item.id===value)?.title ?? "");}}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title} · {property.module}</option>)}</select></label></div>
+    <label>Related contact<select value={form.contactId} onChange={event=>{const id=event.target.value;setForm(previous=>({...previous,contactId:id,party:contacts.find(item=>item.id===id)?.name ?? previous.party}));}}><option value="">Select borrower / lender / counterparty</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}</option>)}</select></label>
+    <div className="form-two"><label>Party / counterparty name<input value={form.party} onChange={event=>update("party",event.target.value)} placeholder="Borrower, lender, buyer or seller"/></label><label>Reference number<input value={form.reference} onChange={event=>update("reference",event.target.value)} placeholder="Receipt / bank reference"/></label></div>
     <label>Notes<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Payment method, interest period, settlement details"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save transaction"}</button></div>
   </form>;
 }
-
-function RiskForm({properties,onSave,onCancel}:{properties:PropertyRecord[];onSave:(value:Omit<RiskRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
-  const [form,setForm]=useState({title:"",category:"Legal",severity:"High",status:"Open",owner:"",dueDate:"",entity:"",mitigation:""});
+function RiskForm({properties,contacts,onSave,onCancel}:{properties:PropertyRecord[];contacts:ContactRecord[];onSave:(value:Omit<RiskRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState({title:"",category:"Legal",severity:"High",status:"Open",owner:"",dueDate:"",entity:"",propertyId:"",contactId:"",mitigation:""});
   const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
   return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
     <label>Risk title *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="Describe the risk or control gap"/></label>
     <div className="form-two"><label>Risk category<select value={form.category} onChange={event=>update("category",event.target.value)}>{["Credit","Financial","Legal","Operational","Market","Compliance","Fraud","Cybersecurity","Data","Reputational","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Severity<select value={form.severity} onChange={event=>update("severity",event.target.value)}>{["Low","Medium","High","Critical"].map(value=><option key={value}>{value}</option>)}</select></label></div>
     <div className="form-two"><label>Status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Open","Mitigating","Monitoring","Closed"].map(value=><option key={value}>{value}</option>)}</select></label><label>Owner<input value={form.owner} onChange={event=>update("owner",event.target.value)} placeholder="Responsible person / team"/></label></div>
-    <div className="form-two"><label>Linked deal / matter<select value={form.entity} onChange={event=>update("entity",event.target.value)}><option value="">Not linked</option>{properties.map(property=><option key={property.id}>{property.title}</option>)}</select></label><label>Action due date<input type="date" value={form.dueDate} onChange={event=>update("dueDate",event.target.value)}/></label></div>
+    <div className="form-two"><label>Linked deal / matter<select value={form.propertyId} onChange={event=>{const id=event.target.value;setForm(p=>({...p,propertyId:id,entity:properties.find(item=>item.id===id)?.title ?? ""}));}}><option value="">Not linked</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title} · {property.module}</option>)}</select></label><label>Action due date<input type="date" value={form.dueDate} onChange={event=>update("dueDate",event.target.value)}/></label></div>
+    <label>Related contact<select value={form.contactId} onChange={event=>update("contactId",event.target.value)}><option value="">No contact selected</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}</option>)}</select></label>
     <label>Mitigation / next control action<textarea rows={3} value={form.mitigation} onChange={event=>update("mitigation",event.target.value)} placeholder="Control owner, evidence, action and target"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">Save risk</button></div>
   </form>;
 }
-function ApprovalForm({properties,onSave,onCancel}:{properties:PropertyRecord[];onSave:(value:Omit<ApprovalRequest,"id"|"requestedAt"|"decidedAt"|"decisionNotes"|"status">)=>void;onCancel:()=>void}) {
-  const [form,setForm]=useState({title:"",area:"Investment",entity:"",requestedBy:"",approver:"",priority:"Normal",rationale:""});
+function ApprovalForm({properties,contacts,onSave,onCancel}:{properties:PropertyRecord[];contacts:ContactRecord[];onSave:(value:Omit<ApprovalRequest,"id"|"requestedAt"|"decidedAt"|"decisionNotes"|"status">)=>void;onCancel:()=>void}) {
+  const [form,setForm]=useState({title:"",area:"Investment",entity:"",propertyId:"",contactId:"",requestedBy:"",approver:"",priority:"Normal",rationale:""});
   const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
   return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.title.trim())onSave(form);}}>
     <label>Decision / approval requested *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Approve loan disbursal / settlement"/></label>
     <div className="form-two"><label>Approval area<select value={form.area} onChange={event=>update("area",event.target.value)}>{["Investment","Equity","Credit","Property purchase","Property sale","Payment","Settlement","Legal filing","Expense","Document release","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Priority<select value={form.priority} onChange={event=>update("priority",event.target.value)}>{["Low","Normal","High","Urgent"].map(value=><option key={value}>{value}</option>)}</select></label></div>
-    <label>Linked record<select value={form.entity} onChange={event=>update("entity",event.target.value)}><option value="">Not linked</option>{properties.map(property=><option key={property.id}>{property.title}</option>)}</select></label>
+    <label>Linked deal / record<select value={form.propertyId} onChange={event=>{const id=event.target.value;setForm(p=>({...p,propertyId:id,entity:properties.find(item=>item.id===id)?.title ?? ""}));}}><option value="">Not linked</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title} · {property.module}</option>)}</select></label>
+    <label>Related contact<select value={form.contactId} onChange={event=>update("contactId",event.target.value)}><option value="">No contact selected</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role}</option>)}</select></label>
     <div className="form-two"><label>Requested by<input value={form.requestedBy} onChange={event=>update("requestedBy",event.target.value)} placeholder="Requestor name"/></label><label>Approver / reviewer<input value={form.approver} onChange={event=>update("approver",event.target.value)} placeholder="Reviewer name"/></label></div>
     <label>Rationale and supporting evidence<textarea rows={3} value={form.rationale} onChange={event=>update("rationale",event.target.value)} placeholder="Why approval is required; evidence to review"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">Submit request</button></div>
   </form>;
 }
-
 function AuthScreen({
   loading, mode, setMode, email, setEmail, password, setPassword, busy, notice, onSubmit
 }: {
