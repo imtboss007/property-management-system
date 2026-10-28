@@ -518,7 +518,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
-        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based client follow-ups; do not send unsolicited bulk messages. Session data is stored locally on this PC, not in Supabase.</p>
+        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; EstateFlow caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured EstateFlow database.</p>
       </div>
     </div>
 
