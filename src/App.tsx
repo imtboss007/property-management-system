@@ -763,6 +763,8 @@ export default function App() {
       : "Property record saved on this device.");
   };
   const saveContact = (data: Omit<ContactRecord, "id">) => {
+    const duplicate = !editingContact && data.phone.trim() && contacts.find(item => sameContactPhone(item.phone, data.phone));
+    if (duplicate && !window.confirm(`A contact named "${duplicate.name}" already has this phone number. Create another contact anyway? Cancel to edit the existing master profile instead.`)) return;
     const record: ContactRecord = editingContact ? { ...editingContact, ...data } : { ...data, id: uid() };
     setContacts(prev => editingContact
       ? prev.map(item => item.id === record.id ? record : item)
@@ -798,10 +800,10 @@ export default function App() {
       const currentIndex = next.findIndex(contact => sameContactPhone(contact.phone, phone));
       if (currentIndex >= 0) {
         const previous = next[currentIndex];
-        const isGenericName = !previous.name.trim() || normalizedContactPhone(previous.name) === digits;
+        // Keep the verified or user-edited master name intact on WhatsApp re-sync.
         const merged: ContactRecord = {
           ...previous,
-          name: isGenericName ? waName : previous.name,
+          name: previous.name, // WhatsApp display names must never overwrite the saved master name.
           phone: previous.phone || phone,
           whatsappName: waName,
           whatsappJid: item.jid || item.id || previous.whatsappJid || ""
