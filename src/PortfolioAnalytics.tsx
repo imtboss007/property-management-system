@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, BarChart3, ChartNoAxesCombined, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
 type FinancialRow = { id: string; type: string; amount: string; date: string };
@@ -86,7 +86,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       <div className="ax-chart-type" role="group" aria-label="Chart type">
         <button className={chartType === "donut" ? "active" : ""} onClick={() => setChartType("donut")} title="Ring chart" aria-label="Ring chart"><PieChart size={16}/></button>
         <button className={chartType === "bar" ? "active" : ""} onClick={() => setChartType("bar")} title="Bar chart" aria-label="Bar chart"><BarChart3 size={16}/></button>
-        <button className={chartType === "line" ? "active" : ""} onClick={() => setChartType("line")} title="Line chart" aria-label="Line chart"><ChartNoAxesCombined size={16}/></button>
+        <button className={chartType === "line" ? "active" : ""} onClick={() => setChartType("line")} title="Line chart" aria-label="Line chart"><TrendingUp size={16}/></button>
       </div>
     </div>
     <div className="ax-analytics-tabs" role="tablist" aria-label="Analytics view">
