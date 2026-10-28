@@ -1,6 +1,6 @@
-# EstateFlow backend setup
+# AXIVESTRA backend setup
 
-EstateFlow can run in local-only mode without credentials. To enable secure shared data across the Windows and Android builds, connect a Supabase project.
+AXIVESTRA can run in local-only mode without credentials. To enable secure shared data across the Windows and Android builds, connect a Supabase project.
 
 ## 1. Create the project
 Create a Supabase project from the Supabase dashboard. Keep the project URL and publishable/anon key available. Do not use a `service_role` key in the app.
@@ -15,7 +15,7 @@ Open the project's SQL Editor and run the migrations in date order, using the co
 The relationship migration links contacts/properties to tasks, documents, transactions, risks, approvals and WhatsApp follow-ups, and adds target deadlines and next-action fields. The WhatsApp address-book migration saves WhatsApp display-name/JID metadata on contacts and creates a private, owner-scoped table for saved WhatsApp group names and identifiers. Re-running the migrations is designed to be safe.
 
 The migration creates owner-scoped tables for:
-- Property/deal records across all sixteen EstateFlow modules, including contact links and loan/deal deadlines
+- Property/deal records across all sixteen AXIVESTRA modules, including contact links and loan/deal deadlines
 - Contacts
 - One-time tasks and due dates linked to both a contact and property/deal
 - Private document metadata
@@ -45,7 +45,7 @@ A date/time stored by the app is not a reliable background reminder by itself. S
 
 ## WhatsApp queue, automatic delivery and stop-on-reply
 
-The front end can queue a single scheduled follow-up only after the recipient opt-in checkbox is confirmed. The server worker sends an **approved WhatsApp template**; the free-form notes in EstateFlow are not sent as the actual template body. Template parameter values must match the order and count configured in the approved Meta template.
+The front end can queue a single scheduled follow-up only after the recipient opt-in checkbox is confirmed. The server worker sends an **approved WhatsApp template**; the free-form notes in AXIVESTRA are not sent as the actual template body. Template parameter values must match the order and count configured in the approved Meta template.
 
 ### Deploy Edge Functions
 Install the Supabase CLI, link this repository to your Supabase project, then deploy both functions:
@@ -106,7 +106,7 @@ The screening and KYC fields are recordkeeping only. They do not run live sancti
 
 The WhatsApp page now supports a server-side sender status check, single scheduled messages, CSV bulk scheduling for up to 5,000 rows per import, an auditable queue/history list, cancellation of queued rows, and routing metadata for eligible official WhatsApp Groups API destinations.
 
-**The sender number is different from a recipient number.** The sender must be a business phone registered with Meta WhatsApp Business Platform / Cloud API. EstateFlow cannot connect a normal personal WhatsApp app by entering a phone number or scanning a QR code.
+**The sender number is different from a recipient number.** The sender must be a business phone registered with Meta WhatsApp Business Platform / Cloud API. AXIVESTRA cannot connect a normal personal WhatsApp app by entering a phone number or scanning a QR code.
 
 Configure these as Supabase Edge Function secrets (never store the service-role key or WhatsApp token in Vite/desktop/mobile settings):
 - SUPABASE_URL
@@ -135,7 +135,7 @@ Open WhatsApp Automation → Bulk schedule · CSV → Download sample CSV. Each 
 - template_language
 - opt_in_confirmed
 
-Optional columns: target_label, contact_name, template_parameters, scheduled_at, audience_label, message_notes. Use pipe-separated template parameters, in the exact order the approved template expects. Set opt_in_confirmed to true/yes/1 for every row. Leave scheduled_at blank to use the default date and time selected in EstateFlow, or provide an ISO timestamp for each recipient. Ten-digit Indian numbers are automatically prefixed with 91 (editable default country code). The application validates the entire CSV before starting insert batches of 100. Imports are limited to 5,000 rows per file.
+Optional columns: target_label, contact_name, template_parameters, scheduled_at, audience_label, message_notes. Use pipe-separated template parameters, in the exact order the approved template expects. Set opt_in_confirmed to true/yes/1 for every row. Leave scheduled_at blank to use the default date and time selected in AXIVESTRA, or provide an ISO timestamp for each recipient. Ten-digit Indian numbers are automatically prefixed with 91 (editable default country code). The application validates the entire CSV before starting insert batches of 100. Imports are limited to 5,000 rows per file.
 
 A 700-message list is queued as 700 separate one-to-one sends. The worker processes up to 100 due rows per run, so messages can require multiple runs and are not guaranteed to land at the same second. Actual delivery requires successful Meta API submission; a “sent” status means the API accepted the request, not necessarily that the recipient read the message.
 
@@ -152,7 +152,7 @@ If the app still opens its dashboard but the WhatsApp connection shows **Supabas
 1. Open https://github.com/imtboss007/property-management-system/settings/variables/actions.
 2. Add repository Actions variables named exactly `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Get both from your own Supabase project’s API settings; the second must be the public/publishable anon key, never a `service_role` key.
 3. Push a new commit or manually run GitHub Actions again so both the EXE and APK are rebuilt with those variables.
-4. Install the newly built app. It should now show the EstateFlow sign-in screen. Create an account or sign in.
+4. Install the newly built app. It should now show the AXIVESTRA sign-in screen. Create an account or sign in.
 5. Apply the SQL migrations and deploy `whatsapp-status`, `whatsapp-worker` and `whatsapp-webhook`. Add Meta's sender credentials under Supabase Edge Function secrets, then use **Check connection** again.
 
 Do not paste either key into chat or commit a populated `.env.local` file. The public anon/publishable key will be included in the client build by design; protect user data with the database Row Level Security policies.
