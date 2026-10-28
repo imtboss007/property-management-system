@@ -16,6 +16,12 @@ on:
   pull_request:
     paths:
       - "services/estateflow-whatsapp-hub/**"
+      - "src/**"
+      - "electron/**"
+      - "package.json"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+      - "supabase/migrations/**"
       - ".github/workflows/whatsapp-hub-checks.yml"
   workflow_dispatch:
 
@@ -36,6 +42,9 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run check
+      - name: Check Electron WhatsApp service syntax
+        run: node --check electron/whatsapp-service.cjs && node --check electron/preload.cjs
+        working-directory: ../..
   estateflow-app-build:
     runs-on: ubuntu-latest
     steps:
