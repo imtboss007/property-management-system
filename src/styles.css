@@ -553,3 +553,36 @@ h1{font-family:"Manrope",sans-serif;color:#102b42;letter-spacing:-1.25px}
 .linked-stakeholder { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 110px; max-width: 220px; padding: 9px; border: 1px solid #e5ebe1; border-radius: 8px; background: #fbfcfa; }
 .linked-stakeholder strong { font-size: 10px; color: #2b4432; }
 .linked-stakeholder small { font-size: 9px; color: #859087; }
+
+
+/* Persistent WhatsApp contacts and group directory */
+.wa-address-book { margin-top: 18px; }
+.wa-address-book-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 16px 0; }
+.wa-address-book-stats > div { min-width: 0; padding: 14px; border: 1px solid #e7ece4; border-radius: 10px; background: #fbfcfa; }
+.wa-address-book-stats span, .wa-address-book-stats strong { display: block; }
+.wa-address-book-stats span { color: #7d897f; font-size: 10px; margin-bottom: 7px; }
+.wa-address-book-stats strong { color: #254431; font: 700 22px "Manrope",sans-serif; }
+.wa-address-book-actions { margin: 12px 0; }
+.wa-address-book-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; margin-top: 16px; }
+.wa-address-book-columns section { min-width: 0; }
+.wa-address-book-columns h3 { margin: 0 0 10px; font: 700 13px "Manrope",sans-serif; color: #304435; }
+.wa-scroll-list { max-height: 300px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e8ece5; border-radius: 10px; background: #fff; }
+.wa-address-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #edf0eb; }
+.wa-address-row:last-child { border-bottom: 0; }
+.wa-address-row > div { min-width: 0; flex: 1; }
+.wa-address-row strong, .wa-address-row small { display: block; overflow-wrap: anywhere; }
+.wa-address-row strong { color: #2e4032; font-size: 11px; margin-bottom: 3px; }
+.wa-address-row small { color: #818b82; font-size: 9px; }
+.wa-muted { color: #8a9289; font-size: 11px; padding: 16px; line-height: 1.6; }
+.wa-group-target { display: grid; gap: 10px; }
+.wa-group-target select, .wa-form select[size], .form-card select[size] { max-width: 100%; overflow-y: auto; }
+.wa-group-target .notice p { margin: 5px 0 0; }
+@media (max-width: 720px) {
+  .wa-address-book-stats { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+  .wa-address-book-stats > div { padding: 10px 8px; }
+  .wa-address-book-stats strong { font-size: 18px; }
+  .wa-address-book-stats span { font-size: 9px; line-height: 1.45; }
+  .wa-address-book-columns { grid-template-columns: 1fr; }
+  .wa-address-row { align-items: flex-start; }
+  .wa-address-row .secondary-button { white-space: nowrap; padding: 7px 8px; }
+}
