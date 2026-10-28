@@ -46,7 +46,7 @@ function reply(res, status, body) {
     "X-Content-Type-Options": "nosniff",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-EstateFlow-Token, X-EstateFlow-Webhook-Token, X-Webhook-Signature, X-Hub-Signature-256",
+    "Access-Control-Allow-Headers": "Content-Type, X-EstateFlow-Token, X-EstateFlow-Webhook-Token, X-Webhook-Signature, X-OpenWA-Signature, X-Hub-Signature-256",
     "Access-Control-Allow-Private-Network": "true"
   });
   res.end(status === 204 ? "" : JSON.stringify(body));
@@ -67,7 +67,11 @@ function authenticated(req) {
 
 function verifyWebhook(req, raw) {
   if (timingSafeMatch(req.headers["x-estateflow-webhook-token"], config.webhookToken)) return true;
-  const signature = String(req.headers["x-webhook-signature"] || req.headers["x-hub-signature-256"] || "");
+  const signature = String(
+    req.headers["x-webhook-signature"] ||
+    req.headers["x-openwa-signature"] ||
+    req.headers["x-hub-signature-256"] || ""
+  );
   if (!signature.startsWith("sha256=")) return false;
   const expected = "sha256=" + crypto.createHmac("sha256", config.webhookToken).update(raw).digest("hex");
   return timingSafeMatch(signature, expected);
