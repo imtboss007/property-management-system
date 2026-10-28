@@ -9,7 +9,7 @@ import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
-  Trash2, Phone, MapPin, CalendarDays, CircleCheck, Pencil, Download,
+  Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck
 } from "lucide-react";
 
@@ -1104,6 +1104,7 @@ export default function App() {
             contacts={contacts}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
+            onDelete={deleteProperty}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
