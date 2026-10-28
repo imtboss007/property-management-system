@@ -69,3 +69,48 @@ test("recovered rows that were sending are marked failed rather than auto-sent t
     assert.match(row.lastError, /avoid duplicates/);
   });
 });
+
+
+test("schedules WhatsApp group messages against the exact group JID and stops the sequence on group activity", async () => {
+  await sandbox(async dataDir => {
+    const queue = createQueueStore({ dataDir });
+    const groupPayload = {
+      groupJid: "120363000000000001@g.us",
+      groupName: "Property Loan Follow-ups",
+      expectedSenderNumber: "919876543210",
+      message: "Reminder: please share the loan status update.",
+      scheduledAt: new Date(Date.now() + 60_000).toISOString(),
+      repeatCount: 3,
+      intervalDays: 2,
+      consentConfirmed: true,
+      stopOnReply: true,
+      propertyId: "loan-deal-7",
+      propertyTitle: "Loan deal 7"
+    };
+    const result = await queue.schedule(groupPayload);
+    assert.equal(result.rows.length, 3);
+    assert.equal(result.rows[0].destinationType, "group");
+    assert.equal(result.rows[0].groupJid, groupPayload.groupJid);
+    assert.equal(result.rows[0].groupName, groupPayload.groupName);
+    assert.equal(result.rows[0].expectedSenderNumber, "919876543210");
+    assert.equal(result.rows[0].propertyId, "loan-deal-7");
+
+    const cancelled = await queue.recordReply(groupPayload.groupJid);
+    assert.equal(cancelled, 3);
+    const rows = await queue.list();
+    assert.ok(rows.every(row => row.status === "cancelled"));
+    assert.ok(rows.every(row => row.lastError.includes("group")));
+  });
+});
+
+test("rejects invalid group JIDs while allowing the saved exact JID to be supplied", async () => {
+  await sandbox(async dataDir => {
+    const queue = createQueueStore({ dataDir });
+    await assert.rejects(queue.schedule({
+      groupJid: "not-a-group",
+      message: "Test message",
+      scheduledAt: new Date(Date.now() + 60_000).toISOString(),
+      consentConfirmed: true
+    }), /valid WhatsApp group/);
+  });
+});
