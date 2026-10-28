@@ -1,19 +1,19 @@
-# EstateFlow WhatsApp Hub
+# AXIVESTRA WhatsApp Hub
 
-This small adapter lets the existing EstateFlow WhatsApp screen use one normalized API while the transport underneath is OpenWA or WA-AKG. It combines useful patterns from both projects:
+This small adapter lets the existing AXIVESTRA WhatsApp screen use one normalized API while the transport underneath is OpenWA or WA-AKG. It combines useful patterns from both projects:
 
 - A persistent scheduler with one-time and recurring client follow-ups.
 - Gateway API access, QR/pairing flow, and connection status.
 - Syncable WhatsApp contacts, phone numbers/display names, and group names cached in the hub's persistent data directory.
-- Individual or group destinations linked to EstateFlow contacts, properties/deals and tasks; group sends require the exact group ID to have been confirmed for the currently synced account.
-- EstateFlow-owned queue, opt-in confirmation, stop-on-contact-reply or group activity, cancellation/retry, cooldown, daily cap, and message history fields.
-- One common API so EstateFlow does not need separate screens for the two gateway products.
+- Individual or group destinations linked to AXIVESTRA contacts, properties/deals and tasks; group sends require the exact group ID to have been confirmed for the currently synced account.
+- AXIVESTRA-owned queue, opt-in confirmation, stop-on-contact-reply or group activity, cancellation/retry, cooldown, daily cap, and message history fields.
+- One common API so AXIVESTRA does not need separate screens for the two gateway products.
 
-This adds integration code; it does not copy either upstream project's source code. If both gateways are configured with the automatic setting, OpenWA is selected as the only active transport. EstateFlow never sends a queued message through both providers.
+This adds integration code; it does not copy either upstream project's source code. If both gateways are configured with the automatic setting, OpenWA is selected as the only active transport. AXIVESTRA never sends a queued message through both providers.
 
 ## WhatsApp account warning
 
-Both WA-AKG and OpenWA use unofficial WhatsApp Web connections. They can expose a linked account to restriction or logout. Use a dedicated test number first; do not begin with a primary personal or business number. For production customer messaging, EstateFlow's existing Supabase functions for the official WhatsApp Business Platform are the preferred compliance-oriented route.
+Both WA-AKG and OpenWA use unofficial WhatsApp Web connections. They can expose a linked account to restriction or logout. Use a dedicated test number first; do not begin with a primary personal or business number. For production customer messaging, AXIVESTRA's existing Supabase functions for the official WhatsApp Business Platform are the preferred compliance-oriented route.
 
 Only message people who have opted in or otherwise expect the communication. The repeat cap is 20 messages per sequence, sends are rate-limited, and the system does not create an infinite “send until reply” loop. A “sent” result means the gateway accepted the send request; it does not mean that the recipient read it.
 
@@ -32,11 +32,11 @@ Only message people who have opted in or otherwise expect the communication. The
 
 The service refuses to start if either secret is missing or too short. The runtime data directory stores the session ID and queue and is excluded from Git. Back it up securely. Never commit .env, API keys, linked-session credentials, QR codes, or pairing codes.
 
-## Connect EstateFlow
+## Connect AXIVESTRA
 
 In the WhatsApp Automation screen, enter the hub's address and ESTATEFLOW_BRIDGE_TOKEN in the companion connection section. For a PC and phone on the same trusted LAN, use the PC's private LAN address. For remote access, use an HTTPS reverse proxy and its HTTPS address. The supplied Docker Compose file binds the hub to host loopback by default. For an Android phone on the same LAN, set HUB_BIND_IP in .env to the host's private LAN IP and restrict port 47822 with the host firewall to that LAN only; never expose raw HTTP on a public interface. For cloud access, keep the hub bound to loopback and use an HTTPS reverse proxy. ESTATEFLOW_PUBLIC_WEBHOOK_URL must be a public HTTPS URL ending in /api/webhook/incoming.
 
-The endpoints mirror EstateFlow's companion API:
+The endpoints mirror AXIVESTRA's companion API:
 - GET /api/status
 - GET /api/queue
 - GET /api/address-book
@@ -53,7 +53,7 @@ Every /api endpoint requires the X-EstateFlow-Token header. The public health en
 
 ## QR and pairing
 
-Use Connect with QR in EstateFlow. If pairing by phone number is preferred, use the pairing-code control. On the phone, open WhatsApp, then Linked devices, and follow the on-screen linking steps. The hub asks the configured gateway to create or start a session, then reads its connection state and QR endpoint.
+Use Connect with QR in AXIVESTRA. If pairing by phone number is preferred, use the pairing-code control. On the phone, open WhatsApp, then Linked devices, and follow the on-screen linking steps. The hub asks the configured gateway to create or start a session, then reads its connection state and QR endpoint.
 
 Gateway versions may change their response format. Before linking a real number, verify that /api/status returns the real status and QR image from the installed gateway version. The adapter reports status errors instead of assuming a connection worked.
 
@@ -69,4 +69,4 @@ A verified private one-to-one inbound message cancels pending follow-ups for tha
 
 ## Scope and deployment status
 
-This adapter implements the unified interface and local queue. It still requires a running upstream gateway, server credentials, webhook configuration, and live end-to-end testing. No gateway has been deployed or linked by committing these files. See the main EstateFlow repository's setup notes for its official WhatsApp Business Platform path, which remains separate from these unofficial gateway adapters.
+This adapter implements the unified interface and local queue. It still requires a running upstream gateway, server credentials, webhook configuration, and live end-to-end testing. No gateway has been deployed or linked by committing these files. See the main AXIVESTRA repository's setup notes for its official WhatsApp Business Platform path, which remains separate from these unofficial gateway adapters.
