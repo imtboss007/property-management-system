@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { backendConfigured, supabase } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
+import PortfolioAnalytics from "./PortfolioAnalytics";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -1004,13 +1005,13 @@ export default function App() {
   return (
     <main className="app-shell">
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
-        <div className="brand"><div className="brand-mark"><Building2 size={23} /></div><div><strong>EstateFlow</strong><span>PROPERTY WORKSPACE</span></div>
+        <div className="brand"><div className="brand-mark ax-brand-mark"><img src="./axivestra-mark.svg" alt="" /></div><div><strong>AXIVESTRA</strong><span>ASSET INTELLIGENCE</span></div>
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}</button>)}</nav>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
-          <div className="profile"><div className="avatar">EF</div><div className="profile-text"><strong>My Workspace</strong><span>Property Manager</span></div><span className="online-dot" /></div></div>
+          <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
       </aside>
       {mobileMenu && <button className="scrim" onClick={() => setMobileMenu(false)} aria-label="Close menu" />}
       <section className="main-panel">
@@ -1019,15 +1020,15 @@ export default function App() {
           <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>⌘ K</kbd></label><button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
         </header>
         <div className="content">
-          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> YOUR PROPERTY COMMAND CENTRE</div><h1>{active === "Overview" ? "Good things are in motion." : active}</h1><p className="subtitle">{active === "Overview" ? "Your properties, deals and follow-ups — thoughtfully organised." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
+          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Overview" && <>
             <section className="institutional-banner">
               <div className="institutional-copy">
-                <span className="institutional-label"><span className="live-dot"/> PORTFOLIO CONTROL CENTRE</span>
-                <h2>Property. Capital. Credit. Legal.</h2>
-                <p>One governed workspace for transactions, investment opportunities, lending exposure and litigation deadlines.</p>
+                <span className="institutional-label"><span className="live-dot"/> AXIVESTRA COMMAND MATRIX</span>
+                <h2>Every asset. Every obligation. One intelligence layer.</h2>
+                <p>Unify property operations, lending, investments, legal matters and follow-ups in a single command centre.</p>
                 <div className="banner-actions"><button className="hero-button" onClick={()=>go("All Properties")}>Open deal pipeline <ArrowUpRight size={16}/></button><button className="banner-ghost" onClick={()=>go("Risk & Compliance")}>Review risk signals <ShieldCheck size={15}/></button></div>
               </div>
               <div className="banner-aside">
@@ -1054,7 +1055,14 @@ export default function App() {
                 <button className="control-metric" onClick={()=>go("Documents")}><span className="control-metric-icon violet"><FileText size={17}/></span><span><strong>{expiringDocumentCount}</strong><small>Documents expiring in 30 days</small></span><ArrowUpRight size={15}/></button>
               </div>
             </div>
-            <div className="section-heading module-section-heading"><div><span className="section-kicker">WORKSPACES</span><h2>Business modules</h2><p>Sixteen connected modules across assets, capital, lending, funds, investor services, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <PortfolioAnalytics
+              properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
+              financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
+              tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
+              modules={modules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
+              onOpenModule={name => go(name)}
+            />
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Sixteen interconnected workspaces across assets, capital, lending, funds, investor services, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
@@ -1403,7 +1411,7 @@ function AuthScreen({
   return <main className="auth-shell">
     <section className="auth-card">
       <div className="brand-mark auth-brand"><Building2 size={24}/></div>
-      <div className="auth-eyebrow">ESTATEFLOW · SECURE WORKSPACE</div>
+      <div className="auth-eyebrow">AXIVESTRA · SECURE WORKSPACE</div>
       <h1>{loading ? "Connecting your workspace" : mode === "signIn" ? "Welcome back." : "Create your workspace."}</h1>
       <p>{loading ? "Loading your private records from the shared database." : "Sign in to keep your property deals, contacts and tasks synced across devices."}</p>
       {!loading && <form className="form-card" onSubmit={onSubmit}>
@@ -1412,7 +1420,7 @@ function AuthScreen({
         <button className="primary-button auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signIn" ? "Sign in" : "Create account"}</button>
       </form>}
       {notice && <div className="notice auth-notice">{notice}</div>}
-      {!loading && <button type="button" className="auth-switch" onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); }}>{mode === "signIn" ? "New to EstateFlow? Create an account" : "Already registered? Sign in"}</button>}
+      {!loading && <button type="button" className="auth-switch" onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); }}>{mode === "signIn" ? "New to AXIVESTRA? Create an account" : "Already registered? Sign in"}</button>}
       <small>Personal records are protected by database row-level security. Never share your password or backend secrets.</small>
     </section>
   </main>;
