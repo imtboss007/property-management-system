@@ -4,7 +4,9 @@ This small adapter lets the existing EstateFlow WhatsApp screen use one normaliz
 
 - A persistent scheduler with one-time and recurring client follow-ups.
 - Gateway API access, QR/pairing flow, and connection status.
-- EstateFlow-owned queue, opt-in confirmation, per-contact stop-on-reply, cancellation/retry, cooldown, daily cap, and message history fields.
+- Syncable WhatsApp contacts, phone numbers/display names, and group names cached in the hub's persistent data directory.
+- Individual or group destinations linked to EstateFlow contacts, properties/deals and tasks; group sends require the exact group ID to have been confirmed for the currently synced account.
+- EstateFlow-owned queue, opt-in confirmation, stop-on-contact-reply or group activity, cancellation/retry, cooldown, daily cap, and message history fields.
 - One common API so EstateFlow does not need separate screens for the two gateway products.
 
 This adds integration code; it does not copy either upstream project's source code. If both gateways are configured with the automatic setting, OpenWA is selected as the only active transport. EstateFlow never sends a queued message through both providers.
@@ -37,6 +39,8 @@ In the WhatsApp Automation screen, enter the hub's address and ESTATEFLOW_BRIDGE
 The endpoints mirror EstateFlow's companion API:
 - GET /api/status
 - GET /api/queue
+- GET /api/address-book
+- POST /api/sync-address-book
 - POST /api/connect
 - POST /api/pairing-code
 - POST /api/disconnect
@@ -61,7 +65,7 @@ Set ESTATEFLOW_PUBLIC_WEBHOOK_URL to the hub's public HTTPS URL ending in /api/w
 
 Both signatures are checked against the exact raw request body with ESTATEFLOW_WEBHOOK_TOKEN. The app shows a warning when stop-on-reply is not configured. The hub does not treat a mere status response or an unsigned webhook as an authenticated reply.
 
-A verified private one-to-one inbound message cancels pending follow-ups for that number. Group messages and messages sent from your own account are ignored. Test the signature and payload with a consenting test contact before using production contacts.
+A verified private one-to-one inbound message cancels pending follow-ups for that number. A verified incoming group message cancels the remaining pending sequence for that same group when stop-on-reply is enabled. Messages sent from your own account are ignored. Test the signature and payload with a consenting test contact and test group before using production recipients.
 
 ## Scope and deployment status
 
