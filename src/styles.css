@@ -548,3 +548,8 @@ h1{font-family:"Manrope",sans-serif;color:#102b42;letter-spacing:-1.25px}
 .deadline-status { color: #a43f34; background: #fae9e6; }
 .relationship-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 @media (max-width: 720px) { .relationship-summary { grid-template-columns: repeat(2, minmax(0,1fr)); } .linked-actions .secondary-button { white-space: normal; } }
+
+
+.linked-stakeholder { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 110px; max-width: 220px; padding: 9px; border: 1px solid #e5ebe1; border-radius: 8px; background: #fbfcfa; }
+.linked-stakeholder strong { font-size: 10px; color: #2b4432; }
+.linked-stakeholder small { font-size: 9px; color: #859087; }
