@@ -1,3 +1,5 @@
+import QRCode from "qrcode";
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function unwrap(payload) {
@@ -131,12 +133,25 @@ export function createProvider(config, sessionState) {
     const data = unwrap(payload);
     const rawStatus = statusValue(data);
     const connected = typeof data.connected === "boolean" ? data.connected : isConnected(rawStatus);
+    const qrCandidates = [
+      data.qrDataUrl, data.qrCode, data.qr, data.qrImage, data.qrcode
+    ].filter(value => typeof value === "string" && value.trim());
     let qrDataUrl = pickQr(data);
     if (!connected && !qrDataUrl) {
       try {
         const qrPayload = await request("/sessions/" + encodeURIComponent(id) + "/qr");
-        qrDataUrl = pickQr(unwrap(qrPayload));
+        const qrData = unwrap(qrPayload);
+        qrDataUrl = pickQr(qrData);
+        qrCandidates.push(qrData.qrDataUrl, qrData.qrCode, qrData.qr, qrData.qrImage, qrData.qrcode);
       } catch (_) {}
+    }
+    if (!connected && !qrDataUrl) {
+      // WA-AKG may return the QR payload string rather than a PNG data URL.
+      const rawQr = qrCandidates.find(value => typeof value === "string" && value.trim() && !value.startsWith("data:image/"));
+      if (rawQr) {
+        try { qrDataUrl = await QRCode.toDataURL(rawQr, { width: 280, margin: 1, errorCorrectionLevel: "M" }); }
+        catch (_) {}
+      }
     }
     const sender = data.senderNumber || data.phoneNumber || data.phone || data.number || data.user?.id || "";
     return {
