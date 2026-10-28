@@ -1,4 +1,4 @@
-name: EstateFlow WhatsApp Hub Checks
+name: AXIVESTRA WhatsApp Hub Checks
 
 on:
   push:
