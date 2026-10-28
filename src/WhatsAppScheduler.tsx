@@ -344,6 +344,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   const makePayload = () => {
     const due = new Date(date + "T" + time + ":00");
     if (recipientMode === "group" && !selectedGroup) throw new Error("Select a WhatsApp group from your saved group list.");
+    if (recipientMode === "group" && status.connected && !sendableGroupOptions.some(group => group.jid === selectedGroupJid)) throw new Error("This group is not verified for the currently linked WhatsApp account. Sync groups again before scheduling.");
     if (recipientMode === "contact" && !target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
     if (!message.trim()) throw new Error("Write the message to send.");
     if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
