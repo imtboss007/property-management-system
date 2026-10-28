@@ -1,10 +1,10 @@
 {
-  "name": "estateflow-property-management",
+  "name": "axivestra-property-intelligence",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "EstateFlow property workspace for Windows, Android, and web.",
-  "author": "EstateFlow",
+  "description": "AXIVESTRA asset intelligence workspace for Windows, Android, and web.",
+  "author": "AXIVESTRA",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
@@ -38,7 +38,7 @@
   },
   "build": {
     "appId": "com.estateflow.propertymanagement",
-    "productName": "EstateFlow",
+    "productName": "AXIVESTRA",
     "asar": true,
     "directories": {
       "output": "release-dist"
@@ -57,7 +57,7 @@
           ]
         }
       ],
-      "artifactName": "EstateFlow-Setup-${version}-${arch}.${ext}"
+      "artifactName": "AXIVESTRA-Setup-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -65,7 +65,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "EstateFlow"
+      "shortcutName": "AXIVESTRA"
     }
   }
 }
