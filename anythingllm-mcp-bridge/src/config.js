@@ -14,7 +14,7 @@ export function loadConfig(env = process.env) {
   if (!["http:", "https:"].includes(baseUrl.protocol)) {
     throw new Error("ANYTHINGLLM_BASE_URL must use HTTP or HTTPS");
   }
-  if (process.env.NODE_ENV === "production" && baseUrl.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(baseUrl.hostname)) {
+  if (env.NODE_ENV === "production" && baseUrl.protocol !== "https:" && !["localhost", "127.0.0.1", "anythingllm"].includes(baseUrl.hostname)) {
     throw new Error("Use HTTPS for a remote AnythingLLM endpoint in production");
   }
   if (String(env.BRIDGE_BEARER_TOKEN).length < 32) {
