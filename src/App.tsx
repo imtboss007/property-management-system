@@ -278,7 +278,7 @@ export default function App() {
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(null);
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
   const [taskPrefill, setTaskPrefill] = useState<Partial<TaskRecord> | null>(null);
-  const [whatsAppPrefill, setWhatsAppPrefill] = useState<{ contactId?: string; propertyId?: string } | null>(null);
+  const [whatsAppPrefill, setWhatsAppPrefill] = useState<{ contactId?: string; propertyId?: string; taskId?: string; taskTitle?: string } | null>(null);
   const [documentContact, setDocumentContact] = useState("");
   const [notice, setNotice] = useState("");
   const [session, setSession] = useState<Session | null>(null);
@@ -602,7 +602,7 @@ export default function App() {
   const closeContactForm = () => { setShowContactForm(false); setEditingContact(null); };
   const openTaskForm = (record: TaskRecord | null = null, prefill: Partial<TaskRecord> | null = null) => { setEditingTask(record); setTaskPrefill(prefill); setShowTaskForm(true); };
   const closeTaskForm = () => { setShowTaskForm(false); setEditingTask(null); setTaskPrefill(null); };
-  const openWhatsAppFor = (contactId?: string, propertyId?: string) => { setWhatsAppPrefill({ contactId, propertyId }); setActive("WhatsApp Automation"); setMobileMenu(false); setNotice(""); };
+  const openWhatsAppFor = (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => { setWhatsAppPrefill({ contactId, propertyId, taskId, taskTitle }); setActive("WhatsApp Automation"); setMobileMenu(false); setNotice(""); };
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
 
@@ -911,7 +911,7 @@ export default function App() {
             </div>}
             {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={`Download ${record.name}`}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={`Delete ${record.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text={backendConfigured && session ? "Upload a property document above. Files are private and download links expire after 60 seconds." : "Configure the backend to upload and protect documents across devices."} action="Back to overview" onClick={()=>go("Overview")}/>}
           </section>}
-          {active === "WhatsApp Automation" && <WhatsAppScheduler contacts={contacts.map(contact => ({ id: contact.id, name: contact.name, phone: contact.phone, role: contact.role }))} properties={properties.map(property => ({ id: property.id, title: property.title }))} initialContactId={whatsAppPrefill?.contactId} initialPropertyId={whatsAppPrefill?.propertyId} onNotice={setNotice} />}
+          {active === "WhatsApp Automation" && <WhatsAppScheduler contacts={contacts.map(contact => ({ id: contact.id, name: contact.name, phone: contact.phone, role: contact.role }))} properties={properties.map(property => ({ id: property.id, title: property.title }))} initialContactId={whatsAppPrefill?.contactId} initialPropertyId={whatsAppPrefill?.propertyId} initialTaskId={whatsAppPrefill?.taskId} initialTaskTitle={whatsAppPrefill?.taskTitle} onNotice={setNotice} />}
           {active === "Risk & Compliance" && <section className="data-panel">
             <div className="section-heading"><div><span className="section-kicker">CONTROL FRAMEWORK</span><h2>Risk & compliance register</h2><p>Track risks, owners, mitigation and time-bound actions.</p></div><button className="primary-button" onClick={()=>setShowRiskForm(true)}><Plus size={16}/> Log risk</button></div>
             <div className="risk-overview-grid"><div className="risk-overview-card"><span>High / critical open risks</span><strong>{highRiskCount}</strong></div><div className="risk-overview-card"><span>Open litigation matters</span><strong>{openLitigationCount}</strong></div><div className="risk-overview-card"><span>Overdue tasks</span><strong>{overdueTaskCount}</strong></div><div className="risk-overview-card"><span>Documents expiring in 30 days</span><strong>{expiringDocumentCount}</strong></div></div>
@@ -993,7 +993,7 @@ type RelationshipHubProps = {
   onOpenContacts: () => void;
   onOpenTasks: () => void;
   onSchedule: (property: PropertyRecord, contact?: ContactRecord) => void;
-  onWhatsApp: (contactId?: string, propertyId?: string) => void;
+  onWhatsApp: (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => void;
   onEditTask: (task: TaskRecord) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
@@ -1043,15 +1043,15 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
       </article>;
     })}</div>}
     <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
-    {openTasks.length ? <TaskList tasks={openTasks.slice(0,8)} toggle={onToggleTask} remove={onDeleteTask} edit={onEditTask}/> : <Empty icon={<CalendarClock size={22}/>} title="No open reminders" text="Create a call, document collection, loan deadline or meeting reminder." action="Open schedule" onClick={onOpenTasks}/>}
+    {openTasks.length ? <TaskList tasks={openTasks.slice(0,8)} toggle={onToggleTask} remove={onDeleteTask} edit={onEditTask} onWhatsApp={onWhatsApp}/> : <Empty icon={<CalendarClock size={22}/>} title="No open reminders" text="Create a call, document collection, loan deadline or meeting reminder." action="Open schedule" onClick={onOpenTasks}/>}
     <div className="relationship-footer-actions"><button className="secondary-button" onClick={onOpenContacts}><Users size={15}/> Manage contacts</button><button className="secondary-button" onClick={onOpenTasks}><CalendarClock size={15}/> Manage reminders</button></div>
   </section>;
 }
 
 function Stat({label,value,icon}:{label:string;value:number|string;icon:ReactNode}) { return <div className="stat-card"><span>{icon}</span><div><strong>{value}</strong><small>{label}</small></div></div>; }
 function Empty({icon,title,text,action,onClick}:{icon:ReactNode;title:string;text:string;action:string;onClick:()=>void}) { return <div className="empty-state"><div className="empty-icon">{icon}</div><strong>{title}</strong><p>{text}</p><button className="secondary-button" onClick={onClick}><Plus size={15}/>{action}</button></div>; }
-function TaskList({tasks,toggle,remove,edit}:{tasks:TaskRecord[];toggle:(id:string)=>void;remove:(id:string)=>void;edit?:(task:TaskRecord)=>void}) {
-  return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>Deal: {t.property}</small>}{t.contactName&&<small>Contact: {t.contactName}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
+function TaskList({tasks,toggle,remove,edit,onWhatsApp}:{tasks:TaskRecord[];toggle:(id:string)=>void;remove:(id:string)=>void;edit?:(task:TaskRecord)=>void;onWhatsApp?:(contactId?:string,propertyId?:string,taskId?:string,taskTitle?:string)=>void}) {
+  return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>Deal: {t.property}</small>}{t.contactName&&<small>Contact: {t.contactName}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}{onWhatsApp && t.contactId && <button className="edit-button" onClick={()=>onWhatsApp(t.contactId,t.propertyId,t.id,t.title)} aria-label={`Schedule WhatsApp for ${t.title}`} title="Schedule WhatsApp"><MessageCircle size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
 }
 function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}) { return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} aria-label="Close"><X size={19}/></button></div>{children}</section></div>; }
 function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
