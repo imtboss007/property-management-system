@@ -26,7 +26,7 @@ type DirectStatus = {
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
 type BridgeInfo = { port: number; urls: string[]; token: string };
-type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
+type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
