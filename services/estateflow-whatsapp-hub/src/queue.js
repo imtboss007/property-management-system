@@ -70,6 +70,7 @@ export function createQueueStore({ dataDir, onChange = () => {} }) {
         sequence: index + 1,
         repeatCount,
         phone,
+        contactId,
         contactName,
         propertyId,
         propertyTitle,
