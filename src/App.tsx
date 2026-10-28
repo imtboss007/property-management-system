@@ -13,17 +13,17 @@ import {
 
 type PropertyRecord = {
   id: string; title: string; module: string; location: string; value: string;
-  status: string; contact: string; notes: string; createdAt: string;
+  status: string; contact: string; primaryContactId?: string; targetDeadline?: string; nextFollowUpDate?: string; nextAction?: string; notes: string; createdAt: string;
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
-type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; notes: string; done: boolean };
-type DocumentRecord = { id: string; propertyId: string; property: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
+type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
+type DocumentRecord = { id: string; propertyId: string; property: string; contactId?: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 
-type FinancialRecord = { id: string; propertyId: string; property: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
-type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; mitigation: string; createdAt: string };
-type ApprovalRequest = { id: string; title: string; area: string; entity: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
+type FinancialRecord = { id: string; propertyId: string; property: string; contactId?: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
+type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; propertyId?: string; contactId?: string; mitigation: string; createdAt: string };
+type ApprovalRequest = { id: string; title: string; area: string; entity: string; propertyId?: string; contactId?: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
 
 const modules = [
@@ -48,6 +48,7 @@ const navigation = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
+  { name: "Client & Deal Hub", icon: Handshake },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
   { name: "Schedule & Tasks", icon: CalendarClock },
@@ -205,6 +206,9 @@ export default function App() {
   const [editingProperty, setEditingProperty] = useState<PropertyRecord | null>(null);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(null);
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
+  const [taskPrefill, setTaskPrefill] = useState<Partial<TaskRecord> | null>(null);
+  const [whatsAppPrefill, setWhatsAppPrefill] = useState<{ contactId?: string; propertyId?: string } | null>(null);
+  const [documentContact, setDocumentContact] = useState("");
   const [notice, setNotice] = useState("");
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(backendConfigured);
@@ -327,13 +331,13 @@ export default function App() {
     setApprovalRequests(load(`estateflow.${scope}.approvals`, []));
     (async () => {
       const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult] = await Promise.all([
-        supabase.from("property_records").select("id,title,module,location,value,status,contact,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
+        supabase.from("property_records").select("id,title,module,location,value,status,contact,primary_contact_id,target_deadline,next_follow_up_date,next_action,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
-        supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
-        supabase.from("documents").select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
-        supabase.from("financial_transactions").select("id,property_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
-        supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,mitigation,created_at").order("created_at", { ascending: false }),
-        supabase.from("approval_requests").select("id,title,approval_type,entity_label,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false })
+        supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_id,contact_id,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
+        supabase.from("documents").select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
+        supabase.from("financial_transactions").select("id,property_id,contact_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
+        supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,property_id,contact_id,mitigation,created_at").order("created_at", { ascending: false }),
+        supabase.from("approval_requests").select("id,title,approval_type,entity_label,property_id,contact_id,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false })
       ]);
       const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? riskResult.error ?? approvalResult.error;
       if (queryError) throw queryError;
@@ -346,6 +350,10 @@ export default function App() {
         value: row.value === null || row.value === undefined ? "" : String(row.value),
         status: row.status ?? "Active",
         contact: row.contact ?? "",
+        primaryContactId: row.primary_contact_id ?? "",
+        targetDeadline: row.target_deadline ?? "",
+        nextFollowUpDate: row.next_follow_up_date ?? "",
+        nextAction: row.next_action ?? "",
         notes: row.notes ?? "",
         surveyNumber: row.survey_number ?? "",
         ownershipDetails: row.ownership_details ?? "",
@@ -370,6 +378,9 @@ export default function App() {
         time: String(row.due_time ?? "10:00").slice(0, 5),
         type: row.task_type ?? "Follow-up",
         property: row.property_label ?? "",
+        propertyId: row.property_id ?? "",
+        contactId: row.contact_id ?? "",
+        contactName: (contactResult.data ?? []).find(contact => contact.id === row.contact_id)?.name ?? "",
         notes: row.notes ?? "",
         done: Boolean(row.is_done)
       })));
@@ -377,6 +388,7 @@ export default function App() {
         id: row.id,
         propertyId: row.property_id ?? "",
         property: row.property_label ?? "",
+        contactId: row.contact_id ?? "",
         name: row.name,
         category: row.category ?? "Other",
         storagePath: row.storage_path,
@@ -390,6 +402,7 @@ export default function App() {
         id: row.id,
         propertyId: row.property_id ?? "",
         property: row.property_label ?? "",
+        contactId: row.contact_id ?? "",
         type: row.transaction_type,
         amount: String(row.amount ?? "0"),
         date: row.transaction_date,
@@ -401,12 +414,13 @@ export default function App() {
         id: row.id, title: row.title, category: row.category ?? "Operational",
         severity: row.severity ?? "Medium", status: row.status ?? "Open",
         owner: row.owner ?? "", dueDate: row.due_date ?? "", entity: row.entity_label ?? "",
+        propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
         mitigation: row.mitigation ?? "", createdAt: row.created_at ?? new Date().toISOString()
       })));
       setApprovalRequests((approvalResult.data ?? []).map(row => ({
         id: row.id, title: row.title, area: row.approval_type ?? "General",
-        entity: row.entity_label ?? "", requestedBy: row.requested_by ?? "",
-        approver: row.approver ?? "", priority: row.priority ?? "Normal",
+        entity: row.entity_label ?? "", propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
+        requestedBy: row.requested_by ?? "", approver: row.approver ?? "", priority: row.priority ?? "Normal",
         status: row.status ?? "pending", rationale: row.rationale ?? "",
         decisionNotes: row.decision_notes ?? "", requestedAt: row.requested_at ?? new Date().toISOString(),
         decidedAt: row.decided_at ?? ""
@@ -461,7 +475,7 @@ export default function App() {
         size_bytes: file.size,
         expires_on: documentExpiry || null,
         notes: documentNotes
-      }).select("id,property_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").single();
+      }).select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").single();
       if (metadataError) {
         await supabase.storage.from("property-documents").remove([storagePath]);
         throw metadataError;
@@ -513,8 +527,9 @@ export default function App() {
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
   const closeContactForm = () => { setShowContactForm(false); setEditingContact(null); };
-  const openTaskForm = (record: TaskRecord | null = null) => { setEditingTask(record); setShowTaskForm(true); };
-  const closeTaskForm = () => { setShowTaskForm(false); setEditingTask(null); };
+  const openTaskForm = (record: TaskRecord | null = null, prefill: Partial<TaskRecord> | null = null) => { setEditingTask(record); setTaskPrefill(prefill); setShowTaskForm(true); };
+  const closeTaskForm = () => { setShowTaskForm(false); setEditingTask(null); setTaskPrefill(null); };
+  const openWhatsAppFor = (contactId?: string, propertyId?: string) => { setWhatsAppPrefill({ contactId, propertyId }); go("WhatsApp Automation"); };
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
 
