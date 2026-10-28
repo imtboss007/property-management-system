@@ -159,17 +159,81 @@ export function createProvider(config, sessionState) {
       platform: "gateway-" + providerName,
       connected,
       connecting: ["connecting", "starting", "initializing", "qr_ready", "scan_qr"].includes(String(rawStatus).toLowerCase()),
+      connectionState: String(rawStatus || "").toLowerCase(),
       senderNumber: String(sender).replace(/\D/g, ""),
       displayName: String(data.displayName || data.name || data.pushName || ""),
       qrDataUrl,
       pairingCode: String(data.pairingCode || data.pairing_code || ""),
       lastConnectedAt: String(data.lastConnectedAt || data.connectedAt || ""),
+      webhook: config.publicWebhookUrl
+        ? (sessionState.webhookRegistration?.url === config.publicWebhookUrl &&
+           sessionState.webhookRegistration?.sessionId === id &&
+           sessionState.webhookRegistration?.configured === true
+            ? { configured: true, provider: providerName }
+            : { configured: false, reason: "Stop-on-reply webhook has not been verified by registration yet." })
+        : { configured: false, reason: "Set ESTATEFLOW_PUBLIC_WEBHOOK_URL before relying on automatic stop-on-reply." },
       error: ""
     };
   }
 
+  async function configureWebhook() {
+    if (!config.publicWebhookUrl) {
+      return {
+        configured: false,
+        reason: "Stop-on-reply is not active yet. Set ESTATEFLOW_PUBLIC_WEBHOOK_URL to this hub's public HTTPS /api/webhook/incoming address."
+      };
+    }
+
+    const id = await ensureSession();
+    const previous = sessionState.webhookRegistration;
+    if (previous?.provider === providerName && previous?.sessionId === id &&
+        previous?.url === config.publicWebhookUrl && previous?.configured === true) {
+      return { configured: true, provider: providerName, url: config.publicWebhookUrl };
+    }
+
+    const route = providerName === "openwa"
+      ? "/sessions/" + encodeURIComponent(id) + "/webhooks"
+      : "/webhooks/" + encodeURIComponent(id);
+    await request(route, "POST", {
+      name: "EstateFlow stop-on-reply",
+      url: config.publicWebhookUrl,
+      secret: config.webhookToken,
+      events: ["message.received"]
+    });
+
+    sessionState.webhookRegistration = {
+      configured: true,
+      provider: providerName,
+      sessionId: id,
+      url: config.publicWebhookUrl,
+      registeredAt: new Date().toISOString()
+    };
+    await sessionState.save();
+    return { configured: true, provider: providerName, url: config.publicWebhookUrl };
+  }
+
   return {
     name: providerName,
+    async configureWebhook() {
+      try { return await configureWebhook(); }
+      catch (error) {
+        const result = {
+          configured: false,
+          provider: providerName,
+          error: error instanceof Error ? error.message : String(error)
+        };
+        sessionState.webhookRegistration = {
+          configured: false,
+          provider: providerName,
+          sessionId: sessionState.sessionId || options.sessionId || "",
+          url: config.publicWebhookUrl || "",
+          lastError: result.error,
+          failedAt: new Date().toISOString()
+        };
+        await sessionState.save();
+        return result;
+      }
+    },
     async status() {
       try {
         return await fetchSession();
@@ -185,7 +249,8 @@ export function createProvider(config, sessionState) {
       const id = await ensureSession();
       await request("/sessions/" + encodeURIComponent(id) + "/start", "POST");
       await sleep(250);
-      return fetchSession();
+      const webhook = await configureWebhook();
+      return { ...(await fetchSession()), webhook };
     },
     async requestPairingCode(rawPhone) {
       const id = await ensureSession();
