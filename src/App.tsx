@@ -17,7 +17,9 @@ type PropertyRecord = {
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
-type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string };
+type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string; whatsappName?: string; whatsappJid?: string };
+type SavedWhatsAppGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
+type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
 type DocumentRecord = { id: string; propertyId: string; property: string; contactId?: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 
@@ -360,6 +362,7 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
+  const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
   const [financials, setFinancials] = useState<FinancialRecord[]>(() => load("estateflow.financials", []));
   const [riskRecords, setRiskRecords] = useState<RiskRecord[]>(() => load("estateflow.risks", []));
@@ -428,6 +431,10 @@ export default function App() {
     if (backendConfigured && (!session || !remoteReady)) return;
     localStorage.setItem(storageKey("contacts"), JSON.stringify(contacts));
   }, [contacts, session?.user.id, remoteReady]);
+  useEffect(() => {
+    if (backendConfigured && (!session || !remoteReady)) return;
+    localStorage.setItem(storageKey("whatsappGroups"), JSON.stringify(savedWhatsAppGroups));
+  }, [savedWhatsAppGroups, session?.user.id, remoteReady]);
 
   useEffect(() => {
     if (backendConfigured && (!session || !remoteReady)) return;
@@ -470,7 +477,7 @@ export default function App() {
   const expiryWindowDate = inThirtyDays.toISOString().slice(0, 10);
   const expiringDocumentCount = documents.filter(item => item.expiresOn && item.expiresOn >= today && item.expiresOn <= expiryWindowDate).length;
 
-  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests", payload: Record<string, unknown>) => {
+  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests" | "whatsapp_groups", payload: Record<string, unknown>) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).upsert({ ...payload, user_id: session.user.id }).then(({ error }) => {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
@@ -482,7 +489,7 @@ export default function App() {
       if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
     });
   };
-  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests", id: string) => {
+  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests" | "whatsapp_groups", id: string) => {
     if (!backendConfigured || !supabase || !session) return;
     void supabase.from(table).delete().eq("id", id).eq("user_id", session.user.id).then(({ error }) => {
       if (error) setNotice(`Cloud deletion failed. ${error.message}`);
@@ -499,21 +506,23 @@ export default function App() {
     setRemoteReady(false);
     setProperties(load(`estateflow.${scope}.properties`, []));
     setContacts(load(`estateflow.${scope}.contacts`, []));
+    setSavedWhatsAppGroups(load(`estateflow.${scope}.whatsappGroups`, []));
     setTasks(load(`estateflow.${scope}.tasks`, []));
     setFinancials(load(`estateflow.${scope}.financials`, []));
     setRiskRecords(load(`estateflow.${scope}.risks`, []));
     setApprovalRequests(load(`estateflow.${scope}.approvals`, []));
     (async () => {
-      const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult] = await Promise.all([
+      const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult, whatsappGroupResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,primary_contact_id,target_deadline,next_follow_up_date,next_action,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
         supabase.from("contacts").select("id,name,phone,role,notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_id,contact_id,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
         supabase.from("documents").select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
         supabase.from("financial_transactions").select("id,property_id,contact_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
         supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,property_id,contact_id,mitigation,created_at").order("created_at", { ascending: false }),
-        supabase.from("approval_requests").select("id,title,approval_type,entity_label,property_id,contact_id,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false })
+        supabase.from("approval_requests").select("id,title,approval_type,entity_label,property_id,contact_id,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false }),
+        supabase.from("whatsapp_groups").select("id,jid,name,description,member_count,last_synced_at").order("name", { ascending: true })
       ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? riskResult.error ?? approvalResult.error;
+      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? riskResult.error ?? approvalResult.error ?? whatsappGroupResult.error;
       if (queryError) throw queryError;
       if (cancelled) return;
       setProperties((propertyResult.data ?? []).map(row => ({
@@ -543,7 +552,9 @@ export default function App() {
         name: row.name,
         phone: row.phone ?? "",
         role: row.role ?? "Other",
-        notes: row.notes ?? ""
+        notes: row.notes ?? "",
+        whatsappName: row.whatsapp_name ?? "",
+        whatsappJid: row.whatsapp_jid ?? ""
       })));
       setTasks((taskResult.data ?? []).map(row => ({
         id: row.id,
@@ -591,6 +602,7 @@ export default function App() {
         propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
         mitigation: row.mitigation ?? "", createdAt: row.created_at ?? new Date().toISOString()
       })));
+      setSavedWhatsAppGroups((whatsappGroupResult.data ?? []).map(row => ({ id: row.id, jid: row.jid, name: row.name, description: row.description ?? "", size: Number(row.member_count ?? 0), lastSyncedAt: row.last_synced_at ?? "" })));
       setApprovalRequests((approvalResult.data ?? []).map(row => ({
         id: row.id, title: row.title, area: row.approval_type ?? "General",
         entity: row.entity_label ?? "", propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
@@ -738,7 +750,7 @@ export default function App() {
     setContacts(prev => editingContact
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
-    remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes });
+    remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes, whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || "" });
     closeContactForm();
     setNotice(backendConfigured && session
       ? "Contact saved and synced with your shared workspace."
