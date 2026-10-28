@@ -35,7 +35,7 @@ export function loadConfig(env = process.env) {
     if (callback.protocol !== "https:") {
       throw new Error("ESTATEFLOW_PUBLIC_WEBHOOK_URL must use HTTPS so the gateway can securely call back into EstateFlow.");
     }
-    if (!callback.pathname.replace(/\\/+$/, "").endsWith("/api/webhook/incoming")) {
+    if (!callback.pathname.replace(/\/+$/, "").endsWith("/api/webhook/incoming")) {
       throw new Error("ESTATEFLOW_PUBLIC_WEBHOOK_URL must end with /api/webhook/incoming.");
     }
   }
