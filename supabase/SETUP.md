@@ -5,16 +5,21 @@ EstateFlow can run in local-only mode without credentials. To enable secure shar
 ## 1. Create the project
 Create a Supabase project from the Supabase dashboard. Keep the project URL and publishable/anon key available. Do not use a `service_role` key in the app.
 
-## 2. Create the tables and private document bucket
-Open the project's SQL Editor, copy the complete contents of `supabase/migrations/202610270001_estateflow_core.sql` from this repository, and run it.
+## 2. Create the tables, relationship links and private document bucket
+Open the project's SQL Editor and run the migrations in date order, using the complete contents from this repository:
+
+1. `supabase/migrations/202610270001_estateflow_core.sql`
+2. `supabase/migrations/202610290001_estateflow_relationship_links.sql`
+
+The second migration adds reusable contact/property links across deal records, tasks, documents, financial transactions, risks, approvals and WhatsApp follow-ups. It also adds target deadlines and next-follow-up fields to every module record. Re-running the migrations is designed to be safe.
 
 The migration creates owner-scoped tables for:
-- Property records across all six EstateFlow modules
+- Property/deal records across all sixteen EstateFlow modules, including contact links and loan/deal deadlines
 - Contacts
-- One-time tasks and due dates
+- One-time tasks and due dates linked to both a contact and property/deal
 - Private document metadata
-- Financial transactions
-- WhatsApp follow-up queue metadata
+- Financial transactions linked to contact and property/deal
+- WhatsApp follow-up queue metadata linked to contacts, properties/deals and tasks
 - Audit events
 
 It also creates a private `property-documents` Storage bucket with user-folder policies. Do not make the bucket public.
