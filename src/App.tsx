@@ -757,7 +757,7 @@ export default function App() {
       : "Contact saved on this device.");
   };
   const normalizedContactPhone = (value: string) => {
-    let digits = String(value || "").replace(/\\D/g, "");
+    let digits = String(value || "").replace(/\D/g, "");
     if (digits.startsWith("00")) digits = digits.slice(2);
     return digits;
   };
