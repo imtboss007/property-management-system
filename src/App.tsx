@@ -897,7 +897,6 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
   const activeProperties=properties.filter(property=>!["Completed","Closed","Settled"].includes(property.status));
   const overdueDeadlines=activeProperties.filter(property=>Boolean(property.targetDeadline && property.targetDeadline<today));
   const overdueFollowups=activeProperties.filter(property=>Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today));
-  const linkedCount=properties.filter(property=>Boolean(resolveContact(property))).length;
   const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const orderedProperties=[...properties].sort((a,b)=>(a.targetDeadline || a.nextFollowUpDate || "9999-12-31").localeCompare(b.targetDeadline || b.nextFollowUpDate || "9999-12-31"));
   return <section className="data-panel relationship-hub">
