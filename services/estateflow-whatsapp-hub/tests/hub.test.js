@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { loadConfig, safeConfigSummary } from "../src/config.js";
 import { isConnected, jidFor, normalizeQr } from "../src/provider.js";
-import { parseIncoming } from "../src/webhook.js";
+import { parseIncoming, verifyWebhookSignature } from "../src/webhook.js";
 
 const secrets = {
   ESTATEFLOW_BRIDGE_TOKEN: "a".repeat(48),
@@ -50,6 +51,28 @@ test("rejects remote HTTP gateway URLs unless explicitly allowed", () => {
     OPENWA_BASE_URL: "http://gateway.example.com/api",
     OPENWA_API_KEY: "test-key"
   }), /must use HTTPS/);
+});
+
+test("requires a public HTTPS callback for automatic stop-on-reply", () => {
+  assert.throws(() => loadConfig({
+    ...secrets,
+    ESTATEFLOW_PUBLIC_WEBHOOK_URL: "http://gateway.example.com/api/webhook/incoming"
+  }), /must use HTTPS/);
+  const config = loadConfig({
+    ...secrets,
+    ESTATEFLOW_PUBLIC_WEBHOOK_URL: "https://estateflow.example.com/api/webhook/incoming"
+  });
+  assert.equal(config.publicWebhookUrl, "https://estateflow.example.com/api/webhook/incoming");
+});
+
+test("verifies HMAC-SHA256 webhook signatures for both provider header formats", () => {
+  const rawBody = JSON.stringify({ event: "message.received", data: { from: "919876543210@s.whatsapp.net" } });
+  const secret = "test-webhook-secret-that-is-long-enough";
+  const signature = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  // Both WA-AKG (X-Webhook-Signature) and OpenWA (X-OpenWA-Signature) use this signature format.
+  assert.equal(verifyWebhookSignature(rawBody, signature, secret), true);
+  assert.equal(verifyWebhookSignature(rawBody + " ", signature, secret), false);
+  assert.equal(verifyWebhookSignature(rawBody, "", secret), false);
 });
 
 test("normalizes phone numbers to the provider JID formats", () => {
