@@ -18,7 +18,7 @@ type PropertyRecord = {
   moduleData: Record<string, string>;
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; notes: string; whatsappName?: string; whatsappJid?: string };
-type SavedWhatsAppGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
+type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
 type DocumentRecord = { id: string; propertyId: string; property: string; contactId?: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
