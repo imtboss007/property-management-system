@@ -44,7 +44,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       const status = String(property.status || "Unspecified").trim() || "Unspecified";
       map.set(status, (map.get(status) || 0) + 1);
     });
-    return Array.from(map.entries()).map(([name, value], index) => ({ name, value, color: PALETTE[index % PALETTE.length] })).sort((a, b) => b.value - a.value);
+    return Array.from(map.entries()).map(([name, value], index) => ({ name, value, count: value, color: PALETTE[index % PALETTE.length] })).sort((a, b) => b.value - a.value);
   }, [properties]);
 
   const cashflowRows = useMemo(() => {
@@ -132,8 +132,8 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
         }} disabled={focus === "cashflow" || (focus === "allocation" && !visibleItems.length)}>Explore selected data <ArrowUpRight size={15}/></button>
       </aside>
     </div>
-    {focus === "allocation" && <div className="ax-chart-legend">
-      {visibleItems.slice(0, 8).map((item, index) => <button key={item.name} className={selected === item.name ? "selected" : ""} onClick={() => { setSelected(selected === item.name ? "" : item.name); if (modules.some(module => module.name === item.name)) onOpenModule(item.name); }}>
+    {focus !== "cashflow" && <div className="ax-chart-legend">
+      {visibleItems.slice(0, 8).map((item, index) => <button key={item.name} className={selected === item.name ? "selected" : ""} onClick={() => { setSelected(selected === item.name ? "" : item.name); if (focus === "allocation" && modules.some(module => module.name === item.name)) onOpenModule(item.name); }}>
         <i style={{ background: item.color || PALETTE[index % PALETTE.length] }}/><span>{item.name}</span><strong>{metric === "value" ? compact(item.value) : item.value}</strong>
       </button>)}
       {visibleItems.length === 0 && <span className="ax-muted">No module allocation until you add records.</span>}
