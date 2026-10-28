@@ -330,7 +330,7 @@ export function createProvider(config, sessionState) {
         });
       } else {
         payload = await request("/messages/" + encodeURIComponent(id) + "/" + encodeURIComponent(jidFor(phone, providerName)) + "/send", "POST", {
-          message: { text: message }
+          message
         });
       }
       const data = unwrap(payload);
