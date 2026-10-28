@@ -14,7 +14,7 @@ let sessionState = { sessionId: "" };
 await fs.mkdir(config.dataDir, { recursive: true });
 try {
   const saved = JSON.parse(await fs.readFile(sessionStatePath, "utf8"));
-  sessionState = { sessionId: String(saved.sessionId || "") };
+  sessionState = { ...saved, sessionId: String(saved.sessionId || "") };
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
   sessionState = { sessionId: config.openwa.sessionId || config.waAkg.sessionId || "" };
@@ -22,7 +22,8 @@ try {
 
 sessionState.save = async () => {
   const tmp = sessionStatePath + ".tmp";
-  await fs.writeFile(tmp, JSON.stringify({ sessionId: sessionState.sessionId }, null, 2), { mode: 0o600 });
+  const { save, ...persisted } = sessionState;
+  await fs.writeFile(tmp, JSON.stringify(persisted, null, 2), { mode: 0o600 });
   await fs.rename(tmp, sessionStatePath);
 };
 
