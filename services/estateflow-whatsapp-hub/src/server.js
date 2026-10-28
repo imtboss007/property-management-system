@@ -44,7 +44,7 @@ async function saveAddressBook() {
 function normalizeAddressBookContact(raw) {
   if (!raw || typeof raw !== "object") return null;
   const jid = String(raw.id || raw.jid || "");
-  const rawDigits = String(raw.phoneNumber || raw.phone || (jid.includes("@") ? jid.split("@")[0] : jid)).replace(/\\D/g, "");
+  const rawDigits = String(raw.phoneNumber || raw.phone || (jid.includes("@") ? jid.split("@")[0] : jid)).replace(/\D/g, "");
   const phone = rawDigits.length >= 8 && rawDigits.length <= 15 ? "+" + rawDigits : "";
   const whatsappName = String(raw.name || raw.verifiedName || raw.notify || raw.pushName || "").trim();
   if (!jid && !phone) return null;
@@ -65,10 +65,10 @@ function mergeAddressBookContacts(rawContacts) {
   for (const raw of Array.isArray(rawContacts) ? rawContacts : []) {
     const contact = normalizeAddressBookContact(raw);
     if (!contact) continue;
-    const digits = String(contact.phone || "").replace(/\\D/g, "");
+    const digits = String(contact.phone || "").replace(/\D/g, "");
     const index = addressBook.contacts.findIndex(item =>
       (contact.jid && (item.jid === contact.jid || item.id === contact.jid)) ||
-      (digits && String(item.phone || "").replace(/\\D/g, "") === digits)
+      (digits && String(item.phone || "").replace(/\D/g, "") === digits)
     );
     if (index < 0) addressBook.contacts.push(contact);
     else addressBook.contacts[index] = {
