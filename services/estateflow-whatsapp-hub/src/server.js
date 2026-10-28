@@ -163,7 +163,13 @@ const server = http.createServer(async (req, res) => {
         const data = value?.data && typeof value.data === "object" ? value.data : value;
         const key = data?.key || {};
         const messageId = String(value.messageId || data.messageId || data.id || key.id || "");
-        const deliveryStatus = String(value.status || data.status || value.event || value.type || "");
+        const rawStatus = String(value.status || data.status || "").toLowerCase();
+        const eventName = String(value.event || value.type || value.name || "").toLowerCase();
+        const deliveryStatus = ["delivered", "read", "failed"].includes(rawStatus)
+          ? rawStatus
+          : eventName.endsWith(".delivered") ? "delivered"
+            : eventName.endsWith(".read") ? "read"
+              : eventName.endsWith(".failed") ? "failed" : rawStatus;
         const recorded = messageId ? await queue.recordDeliveryStatus(messageId, deliveryStatus, value.error || data.error || "") : false;
         reply(res, 200, { ok: true, deliveryStatusRecorded: recorded });
         return;
