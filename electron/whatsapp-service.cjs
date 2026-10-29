@@ -716,11 +716,11 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     response.end(JSON.stringify(value));
   }
 
-  async function readBridgeBody(request) {
+  async function readBridgeBody(request, maxBytes = 1024 * 1024) {
     let raw = "";
     for await (const chunk of request) {
       raw += chunk.toString("utf8");
-      if (raw.length > 1024 * 1024) throw new Error("Request body is too large.");
+      if (raw.length > maxBytes) throw new Error("Request body is too large.");
     }
     return raw.trim() ? JSON.parse(raw) : {};
   }
@@ -789,7 +789,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         bridgeReply(response, 405, { ok: false, error: "Method not allowed." });
         return;
       }
-      const body = await readBridgeBody(request);
+      const body = await readBridgeBody(request, route === "/api/data-sync" ? 25 * 1024 * 1024 : 1024 * 1024);
       let result;
       if (route === "/api/sync-address-book") {
         result = await syncAddressBook();
