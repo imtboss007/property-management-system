@@ -100,7 +100,7 @@ export async function prepareCompanyWorkspace(
 
   // Existing company caches are not blindly pushed on every login: the sync baseline lets
   // the next sync distinguish local edits, cloud edits, offline new records and deletions.
-  if (initialized && baselineText) {
+  if (initialized && baselineText && !importLegacy) {
     for (const item of collectionKeys) {
       const key = scopedStorageKey(company.id, item.storageKey);
       const scopedText = localStorage.getItem(key);
@@ -143,15 +143,23 @@ export async function prepareCompanyWorkspace(
       } catch {
         throw new Error("Saved local company data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
       }
-    } else if (importLegacy) {
+    }
+    if (importLegacy) {
       const legacyText = localStorage.getItem(item.storageKey);
       if (legacyText) {
+        let legacyRows: Array<Record<string, unknown> & { id: string }> = [];
         try {
           const value = JSON.parse(legacyText);
-          if (Array.isArray(value)) localRows = value.filter(row => row && typeof row.id === "string");
+          if (!Array.isArray(value)) throw new Error("Expected a JSON array.");
+          legacyRows = value.filter(row => row && typeof row.id === "string");
         } catch {
           throw new Error("Legacy local data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
         }
+        // Keep company-scoped versions on ID collision; import only legacy-only records.
+        const localById = new Map<string, Record<string, unknown> & { id: string }>();
+        for (const row of legacyRows) localById.set(row.id, row);
+        for (const row of localRows) localById.set(row.id, row);
+        localRows = Array.from(localById.values());
       }
     }
 
@@ -192,6 +200,12 @@ export async function prepareCompanyWorkspace(
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.syncBaseline"), JSON.stringify(baseline));
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.initialized"), "1");
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.lastCloudSync"), new Date().toISOString());
+  if (importLegacy) {
+    // Once the user explicitly assigns legacy data to this company and cloud/local
+    // initialization succeeds, remove unscoped sources so another company cannot import
+    // the same records by accident.
+    for (const item of collectionKeys) localStorage.removeItem(item.storageKey);
+  }
   return { counts, uploaded };
 }
 
