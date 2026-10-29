@@ -33,6 +33,7 @@ create table if not exists public.company_records (
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
   created_by uuid not null references auth.users(id) on delete restrict,
   updated_by uuid not null references auth.users(id) on delete restrict,
   unique (company_id, record_type, record_key)
@@ -108,6 +109,7 @@ on public.company_memberships for insert to authenticated
 with check (
   public.has_company_role(company_id, array['owner','admin'])
   and role <> 'owner'
+  and created_by = auth.uid()
 );
 
 create policy "owners and admins can update non-owner memberships"
@@ -163,5 +165,69 @@ with check (
   and actor_user_id = auth.uid()
 );
 
--- Deliberately no client-side policy to create a company or assign an owner.
--- Bootstrap the first owner through a trusted admin operation after identity verification.
+-- Company creation is safe to expose because it creates a new company and makes the
+-- authenticated caller its first owner in one transaction. It cannot join another company.
+create or replace function public.create_company_with_owner(company_name text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  new_company_id uuid;
+  clean_name text := trim(company_name);
+  caller_id uuid := auth.uid();
+begin
+  if caller_id is null then
+    raise exception 'Authentication required.';
+  end if;
+  if clean_name is null or length(clean_name) < 1 or length(clean_name) > 160 then
+    raise exception 'Company name must contain 1 to 160 characters.';
+  end if;
+
+  insert into public.companies(name, created_by)
+  values (clean_name, caller_id)
+  returning id into new_company_id;
+
+  insert into public.company_memberships(company_id, user_id, role, created_by)
+  values (new_company_id, caller_id, 'owner', caller_id);
+
+  return new_company_id;
+end;
+$;
+
+revoke all on function public.create_company_with_owner(text) from public;
+grant execute on function public.create_company_with_owner(text) to authenticated;
+
+-- Explicit least-privilege table grants complement RLS. Policies alone do not revoke
+-- underlying table privileges inherited from project default grants.
+revoke all on table public.companies from anon, authenticated;
+revoke all on table public.company_memberships from anon, authenticated;
+revoke all on table public.company_records from anon, authenticated;
+revoke all on table public.company_audit_events from anon, authenticated;
+
+grant select, update on table public.companies to authenticated;
+grant select, insert, update, delete on table public.company_memberships to authenticated;
+grant select, insert, update, delete on table public.company_records to authenticated;
+grant select, insert on table public.company_audit_events to authenticated;
+
+-- A deleted_at change is governed by the same role tier as a physical delete.
+create or replace function public.guard_company_record_soft_delete()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if old.deleted_at is null and new.deleted_at is not null
+     and not public.has_company_role(old.company_id, array['owner','admin','manager']) then
+    raise exception 'Only owners, admins and managers can delete company records.';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists company_records_soft_delete_guard on public.company_records;
+create trigger company_records_soft_delete_guard
+before update on public.company_records
+for each row execute function public.guard_company_record_soft_delete();
