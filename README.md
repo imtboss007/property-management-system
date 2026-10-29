@@ -20,7 +20,7 @@ AXIVESTRA remains usable as a local-first app without hosted credentials. When `
 
 In cloud mode, the database migration at `supabase/migrations/202610290001_auth_company_rbac.sql` defines company memberships, role checks and row-level policies. The first signed-in user can create a company and becomes its owner. Apply the migration to your Supabase project before using cloud login.
 
-Cloud sync covers properties, contacts, WhatsApp groups, tasks, financials, risks, approval requests and audit events. Document file bytes remain in the local IndexedDB vault; WhatsApp linked-device credentials remain on the Windows sender. Existing unscoped local records are imported only after an explicit choice. When IDs collide during the first merge, the current device's version wins and remote-only records are preserved.
+Cloud sync covers properties, contacts, WhatsApp groups, tasks, financials, risks, approval requests and local audit events. Records are reconciled with a per-company baseline, and cloud deletion tombstones prevent stale devices resurrecting deleted records. Email invitations and role changes are available to owners/admins once the Supabase Edge Function is deployed. Document file bytes remain in the local IndexedDB vault; WhatsApp linked-device credentials remain on the Windows sender. Existing unscoped local records are imported only after an explicit choice.
 
 To enable cloud mode:
 1. Copy `.env.example` to `.env.local` for local development and set the Supabase Project URL and public publishable/anon key.
@@ -28,7 +28,7 @@ To enable cloud mode:
 3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**.
 4. Build fresh Windows and Android artifacts after adding those values. Existing installers do not gain them retroactively.
 
-See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for setup, role limits, record migration and release acceptance tests. This is an implementation stage, not a claim of production certification; test row-level security with separate users/companies before real sensitive data is used.
+See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for Supabase setup, Edge Function deployment, role limits, data migration and release acceptance tests. This is an implementation stage, not a claim of production certification; test row-level security with separate users/companies before real sensitive data is used.
 
 WhatsApp uses a separate Windows linked-device sender and local-network companion. Keep it on a trusted network, protect its companion token, and send automated follow-ups only to recipients who expect and consent to receive them. Live WhatsApp behaviour must be validated on the actual account/devices; a passing build is not a substitute for that test.
 
