@@ -534,7 +534,7 @@ export default function App() {
   };
 
   const syncWithPc = async () => {
-    const host = syncHost.trim().replace(/\\/+$/, "");
+    const host = syncHost.trim().replace(/\/+$/, "");
     const token = syncToken.trim();
     let parsed: URL;
     try { parsed = new URL(host); } catch { setSyncStatus("Enter the PC companion address shown in WhatsApp Automation."); return; }
