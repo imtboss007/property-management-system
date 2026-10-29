@@ -14,7 +14,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 - Optional Supabase email/password sign-in, account registration, session restoration, sign-out, password-recovery request, company selection and company creation.
 - Company membership roles: owner, admin, manager, staff and read-only; Settings UI to list members, invite a new email, add/change an existing account by UUID, and remove non-owner memberships.
 - Company-scoped local cache namespaces and per-record cloud sync with a persisted baseline, periodic refresh, local/remote change reconciliation, safe deletion tombstones and a deterministic conflict rule (latest local audit timestamp vs cloud update timestamp; ties favour the cloud record). This is not field-level merge.
-- Ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion and server-generated membership governance events.
+- Three ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion, server-generated membership governance events, server-stamped cloud timestamps and company-rename audit entries.
 - Supabase Edge Function `invite-company-member` that requires a signed-in JWT and checks company owner/admin membership before inviting a new email and assigning a non-owner role.
 - CI step to type-check the Deno Edge Function.
 - Windows and Android build workflows with optional public Supabase client configuration. Without project URL/key, the build explicitly remains local-only.
@@ -45,7 +45,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 ## Required one-time hosted setup
 
 1. Create a dedicated Supabase project.
-2. Apply both SQL files in order:
+2. Apply all three SQL migrations in order:
    - `supabase/migrations/202610290001_auth_company_rbac.sql`
    - `supabase/migrations/202610290002_rbac_hardening.sql`
    - `supabase/migrations/202610290003_metadata_audit_hardening.sql`
@@ -58,7 +58,7 @@ This cannot be completed against a real Supabase project by repository-only chan
 
 ## Acceptance tests required before production
 
-- [ ] Apply both SQL migrations to a dedicated test project with zero SQL errors.
+- [ ] Apply all three SQL migrations to a dedicated test project with zero SQL errors.
 - [ ] Create two test users and two companies; verify neither user can read, insert, update or delete the other company's rows using both UI and direct Data API requests.
 - [ ] Verify read-only is denied writes; staff is denied deletion; non-owner members cannot grant, edit or remove an owner.
 - [ ] Create a company, sign out/in, switch companies and verify data does not bleed across local caches.
