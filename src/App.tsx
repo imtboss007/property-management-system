@@ -717,13 +717,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         const { error } = await supabase.from("company_memberships")
           .update({ role: memberRole }).eq("company_id", company.id).eq("user_id", targetId);
         if (error) throw error;
-        await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_role_changed", entity_type: "membership", entity_key: targetId, label: "Role changed to " + memberRole });
         setMemberStatus("Company role updated.");
       } else {
         const { error } = await supabase.from("company_memberships")
           .insert({ company_id: company.id, user_id: targetId, role: memberRole, created_by: userId });
         if (error) throw error;
-        await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_added", entity_type: "membership", entity_key: targetId, label: "Added with role " + memberRole });
         setMemberStatus("Member added. They can sign in with their own account.");
       }
       setMemberUserId("");
@@ -740,7 +738,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     try {
       const { error } = await supabase.from("company_memberships").delete().eq("company_id", company.id).eq("user_id", targetId);
       if (error) throw error;
-      await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_removed", entity_type: "membership", entity_key: targetId, label: "Company membership removed" });
       setMemberStatus("Member access removed.");
       await loadCompanyMembers();
     } catch (cause) {
