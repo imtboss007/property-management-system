@@ -14,13 +14,23 @@ AXIVESTRA is a local-first property, finance, investment, legal and operations w
 - Local data persistence, IndexedDB document vault, and JSON backup/restore.
 - Responsive desktop and mobile layouts.
 
-## Local-first architecture — no Supabase
+## Local-first and hosted cloud modes
 
-AXIVESTRA's core application does not use Supabase and does not require a hosted database. Business records are stored in the browser/device's local storage; document files are stored in a local IndexedDB vault using [Dexie.js](https://github.com/dexie/Dexie.js) (Apache-2.0).
+AXIVESTRA remains usable as a local-first app without hosted credentials. When `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are configured at build time, the app enables Supabase email/password authentication, company selection, company-scoped cloud records, and role-aware company access. Without those values, the app explicitly offers local-only mode; it does not pretend cloud login or multi-device cloud sync is active.
 
-**Local storage is per installation/device.** Data does not automatically synchronize between browser, Windows and Android. JSON backup/restore covers business records; download document files separately before moving devices or clearing app data. The app does not provide a cloud login or remote database.
+In cloud mode, the database migration at `supabase/migrations/202610290001_auth_company_rbac.sql` defines company memberships, role checks and row-level policies. The first signed-in user can create a company and becomes its owner. Apply the migration to your Supabase project before using cloud login.
 
-WhatsApp linked-device automation is a separate companion service. It requires a compatible gateway, a running companion service, private gateway credentials and appropriate webhook configuration for stop-on-reply. QR/pairing, sending, reply cancellation and Android-to-PC connectivity still require live end-to-end testing on the actual gateway and devices. Unofficial WhatsApp Web gateways may risk account restrictions; use a dedicated test number and only message people who expect or consent to receive messages.
+Cloud sync covers properties, contacts, WhatsApp groups, tasks, financials, risks, approval requests and audit events. Document file bytes remain in the local IndexedDB vault; WhatsApp linked-device credentials remain on the Windows sender. Existing unscoped local records are imported only after an explicit choice. When IDs collide during the first merge, the current device's version wins and remote-only records are preserved.
+
+To enable cloud mode:
+1. Copy `.env.example` to `.env.local` for local development and set the Supabase Project URL and public publishable/anon key.
+2. Apply the SQL migration to the same project and configure Supabase Auth email settings and approved redirect URLs.
+3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**.
+4. Build fresh Windows and Android artifacts after adding those values. Existing installers do not gain them retroactively.
+
+See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for setup, role limits, record migration and release acceptance tests. This is an implementation stage, not a claim of production certification; test row-level security with separate users/companies before real sensitive data is used.
+
+WhatsApp uses a separate Windows linked-device sender and local-network companion. Keep it on a trusted network, protect its companion token, and send automated follow-ups only to recipients who expect and consent to receive them. Live WhatsApp behaviour must be validated on the actual account/devices; a passing build is not a substitute for that test.
 
 ## Build Windows + Android
 
