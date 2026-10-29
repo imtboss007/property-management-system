@@ -618,7 +618,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <section>
           <h3>Saved WhatsApp contacts</h3>
           <div className="wa-scroll-list">
-            <div className="wa-search-field"><Search size={16}/><input type="search" value={directoryContactSearch} onChange={event => setDirectoryContactSearch(event.target.value)} placeholder="Search synced contacts by name or number…" aria-label="Search synced WhatsApp directory"/></div>
+            <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={directoryContactSearch} onChange={event => setDirectoryContactSearch(event.target.value)} placeholder="Search synced contacts by name or number…" aria-label="Search synced WhatsApp directory"/>{directoryContactSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setDirectoryContactSearch("")} aria-label="Clear directory contact search">×</button>}</div>
             {addressBook.contacts.length === 0
               ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
               : filteredDirectoryContacts.length === 0
@@ -629,7 +629,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <section>
           <h3>Saved WhatsApp groups</h3>
           <div className="wa-scroll-list">
-            <div className="wa-search-field"><Search size={16}/><input type="search" value={directoryGroupSearch} onChange={event => setDirectoryGroupSearch(event.target.value)} placeholder="Search synced groups by name…" aria-label="Search synced WhatsApp groups"/></div>
+            <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={directoryGroupSearch} onChange={event => setDirectoryGroupSearch(event.target.value)} placeholder="Search synced groups by name…" aria-label="Search synced WhatsApp groups"/>{directoryGroupSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setDirectoryGroupSearch("")} aria-label="Clear directory group search">×</button>}</div>
             {groupOptions.length === 0
               ? <p className="wa-muted">No cached WhatsApp groups yet. Sync while WhatsApp is connected.</p>
               : filteredDirectoryGroups.length === 0
@@ -658,10 +658,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <button className={recipientMode === "group" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("group"); setSelectedContactId(""); setTarget(""); }} role="tab" aria-selected={recipientMode === "group"}>WhatsApp group</button>
       </div>
       {recipientMode === "contact" ? <>
-        <label>Select saved contact
+        <label className="searchable-contact-picker">Select saved contact
           <span>Search by contact name, WhatsApp name, phone number or role. Synced contacts remain saved when disconnected.</span>
-          <div className="wa-search-field"><Search size={16}/><input type="search" value={recipientSearch} onChange={event => setRecipientSearch(event.target.value)} placeholder="Type a contact name or number…" aria-label="Search saved WhatsApp contacts"/></div>
-          <select size={Math.min(Math.max(filteredRecipientContacts.length, 3), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
+          <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={recipientSearch} onChange={event => setRecipientSearch(event.target.value)} placeholder="Type a contact name or number…" aria-label="Search saved WhatsApp contacts"/>{recipientSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setRecipientSearch("")} aria-label="Clear contact search">×</button>}</div>
+          <select className="searchable-contact-picker__select" size={Math.min(Math.max(filteredRecipientContacts.length, 3), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
             <option value="">Choose a contact ({filteredRecipientContacts.length})</option>
             {filteredRecipientContacts.map(contact =>
               <option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
@@ -674,10 +674,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
           <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
         </div>
       </> : <div className="wa-group-target">
-        <label>Select saved WhatsApp group
+        <label className="searchable-contact-picker">Select saved WhatsApp group
           <span>Search by group name. Saved groups remain cached even when WhatsApp is disconnected.</span>
-          <div className="wa-search-field"><Search size={16}/><input type="search" value={recipientGroupSearch} onChange={event => setRecipientGroupSearch(event.target.value)} placeholder="Type a group name…" aria-label="Search saved WhatsApp groups"/></div>
-          <select size={Math.min(Math.max(filteredRecipientGroups.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
+          <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={recipientGroupSearch} onChange={event => setRecipientGroupSearch(event.target.value)} placeholder="Type a group name…" aria-label="Search saved WhatsApp groups"/>{recipientGroupSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setRecipientGroupSearch("")} aria-label="Clear group search">×</button>}</div>
+          <select className="searchable-contact-picker__select" size={Math.min(Math.max(filteredRecipientGroups.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
             <option value="">Choose a WhatsApp group ({filteredRecipientGroups.length})</option>
             {filteredRecipientGroups.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
           </select>
