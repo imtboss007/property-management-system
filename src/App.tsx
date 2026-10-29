@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { localDb } from "./lib/local-db";
+import { supabase, syncCompanyWorkspace, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
@@ -353,9 +354,19 @@ const uid = () => {
     return (character === "x" ? random : (random & 0x3 | 0x8)).toString(16);
   });
 };
+const storageKey = (key: string): string => {
+  if (!key.startsWith("estateflow.")) return key;
+  try {
+    const companyId = localStorage.getItem("axivestra.activeCompanyId");
+    return companyId ? `axivestra.company.${companyId}.${key}` : key;
+  } catch { return key; }
+};
 const load = <T,>(key: string, fallback: T): T => {
-  try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as T : fallback; }
+  try { const value = localStorage.getItem(storageKey(key)); return value ? JSON.parse(value) as T : fallback; }
   catch { return fallback; }
+};
+const saveLocal = (key: string, value: unknown) => {
+  try { localStorage.setItem(storageKey(key), JSON.stringify(value)); } catch { /* browser quota errors are handled by explicit backups */ }
 };
 
 type SyncSnapshot = {
@@ -377,7 +388,9 @@ function mergeById<T extends { id: string }>(localRows: T[], remoteRows: T[]): T
 }
 
 
-export default function App() {
+type AppProps = { company?: WorkspaceCompany; userId?: string; email?: string; onSignOut?: () => void; onSwitchCompany?: () => void };
+
+export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
@@ -444,34 +457,57 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("estateflow.properties", JSON.stringify(properties));
+    saveLocal("estateflow.properties", properties);
   }, [properties]);
 
   useEffect(() => {
-    localStorage.setItem("estateflow.contacts", JSON.stringify(contacts));
+    saveLocal("estateflow.contacts", contacts);
   }, [contacts]);
   useEffect(() => {
-    localStorage.setItem("estateflow.whatsappGroups", JSON.stringify(savedWhatsAppGroups));
+    saveLocal("estateflow.whatsappGroups", savedWhatsAppGroups);
   }, [savedWhatsAppGroups]);
 
   useEffect(() => {
-    localStorage.setItem("estateflow.tasks", JSON.stringify(tasks));
+    saveLocal("estateflow.tasks", tasks);
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem("estateflow.financials", JSON.stringify(financials));
+    saveLocal("estateflow.financials", financials);
   }, [financials]);
   useEffect(() => {
-    localStorage.setItem("estateflow.risks", JSON.stringify(riskRecords));
+    saveLocal("estateflow.risks", riskRecords);
   }, [riskRecords]);
   useEffect(() => {
-    localStorage.setItem("estateflow.approvals", JSON.stringify(approvalRequests));
+    saveLocal("estateflow.approvals", approvalRequests);
   }, [approvalRequests]);
 
   // Local audit trail: record entity-level changes without copying private field values into the log.
   useEffect(() => {
-    localStorage.setItem("estateflow.auditEvents", JSON.stringify(auditEvents));
+    saveLocal("estateflow.auditEvents", auditEvents);
   }, [auditEvents]);
+
+  // In authenticated company mode, sync business records to the company-scoped Supabase table.
+  // Local storage remains an offline cache. Documents' file bytes and WhatsApp session credentials
+  // deliberately remain device-local; the cloud sync is additive and preserves remote-only rows.
+  useEffect(() => {
+    if (!company || !userId || !supabase || company.role === "read_only") return;
+    const timer = window.setTimeout(() => {
+      const collections = {
+        properties: properties as WorkspaceCollections["properties"],
+        contacts: contacts as WorkspaceCollections["contacts"],
+        whatsappGroups: savedWhatsAppGroups as WorkspaceCollections["whatsappGroups"],
+        tasks: tasks as WorkspaceCollections["tasks"],
+        financials: financials as WorkspaceCollections["financials"],
+        riskRecords: riskRecords as WorkspaceCollections["riskRecords"],
+        approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
+        auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
+      };
+      void syncCompanyWorkspace(company, userId, collections).catch(error => {
+        setNotice("Cloud sync failed. Your local copy is preserved. " + (error instanceof Error ? error.message : String(error)));
+      });
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [company?.id, company?.role, userId, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
 
   useEffect(() => {
     const collections: Record<string, unknown[]> = {
@@ -1028,7 +1064,7 @@ export default function App() {
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
-          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label><button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
+          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
