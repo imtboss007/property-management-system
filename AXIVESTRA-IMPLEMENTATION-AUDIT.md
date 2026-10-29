@@ -14,7 +14,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 - Optional Supabase email/password sign-in, account registration, session restoration, sign-out, password-recovery request, company selection and company creation.
 - Company membership roles: owner, admin, manager, staff and read-only; Settings UI to list members, invite a new email, add/change an existing account by UUID, and remove non-owner memberships.
 - Company-scoped local cache namespaces and per-record cloud sync with a persisted baseline, periodic refresh, local/remote change reconciliation, safe deletion tombstones and a deterministic conflict rule (latest local audit timestamp vs cloud update timestamp; ties favour the cloud record). This is not field-level merge.
-- Three ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion, server-generated membership governance events, server-stamped cloud timestamps and company-rename audit entries.
+- Four ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion, server-generated membership governance events, server-stamped cloud timestamps, company-rename audit entries and staff approval restrictions.
 - Supabase Edge Function `invite-company-member` that requires a signed-in JWT and checks company owner/admin membership before inviting a new email and assigning a non-owner role.
 - CI step to type-check the Deno Edge Function.
 - Windows and Android build workflows with optional public Supabase client configuration. Without project URL/key, the build explicitly remains local-only.
@@ -33,7 +33,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 |---|---|---|
 | Core UI and 16 workspaces | Implemented in repository | Real screen-by-screen Windows/mobile usability review and business acceptance tests |
 | Local storage / backup | Implemented in source | Verify real browser/device backup restore, corrupted backups, large documents and ID collisions |
-| WhatsApp | User reported QR, pairing and PC/mobile use working in this chat | Preserve the working build; regression-test delivery, reply cancellation, offline recovery and rate limits on real consenting test accounts |
+| WhatsApp | User reported QR, pairing and PC/mobile use working in this chat | Searchable recipient/directory lists and Windows startup/tray scheduling are now in source; regression-test persistent cache, one-time/repeated individual/group delivery, reply cancellation, sleep/recovery and rate limits on real consenting test accounts |
 | Authentication UI | Implemented in source | Configure real Supabase project, Auth email provider and site/recovery URLs |
 | Multi-company/RBAC | SQL and client integration implemented in source | Apply all four migrations; test cross-company isolation and direct API attempts against a real Supabase test project |
 | Email invitations | Edge Function and UI implemented in source | Deploy function; configure email/SMTP; test an actual invite and account acceptance |
@@ -45,7 +45,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 ## Required one-time hosted setup
 
 1. Create a dedicated Supabase project.
-2. Apply all three SQL migrations in order:
+2. Apply all four SQL migrations in order:
    - `supabase/migrations/202610290001_auth_company_rbac.sql`
    - `supabase/migrations/202610290002_rbac_hardening.sql`
    - `supabase/migrations/202610290003_metadata_audit_hardening.sql`
