@@ -27,7 +27,7 @@ function unitKind(rawUnit: string): PropertyRangeQuery["kind"] | null {
 
 function priceMultiplier(rawUnit: string): number {
   const unit = cleanUnit(rawUnit);
-  if (/^cr/.test(unit) || /^crore/.test(unit)) return 10_000_000;
+  if (/^(cr|crore)/.test(unit)) return 10_000_000;
   if (/^(lakh|lac)/.test(unit)) return 100_000;
   return 1;
 }
@@ -56,17 +56,14 @@ function parseStoredMoney(value: unknown): number | null {
   return Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
-export function parsePropertyRangeQuery(query: string): PropertyRangeQuery | null {
-  const match = query.match(RANGE_PATTERN);
-  if (!match) return null;
-
+function parseRangeMatch(match: RegExpExecArray, fullQuery: string): PropertyRangeQuery | null {
   const firstAmount = Number(match[1].replace(/,/g, ""));
   const secondAmount = Number(match[3].replace(/,/g, ""));
   const firstUnit = match[2] || "";
   const secondUnit = match[4] || "";
   const firstKind = unitKind(firstUnit);
   const secondKind = unitKind(secondUnit);
-  const hasCurrencyMarker = /₹|\b(?:rs\.?|inr|rupees?)\b/i.test(query);
+  const hasCurrencyMarker = /₹|\b(?:rs\.?|inr|rupees?)\b/i.test(fullQuery);
 
   const kind = firstKind || secondKind || (hasCurrencyMarker ? "price" : null);
   if (!kind || (firstKind && secondKind && firstKind !== secondKind)) return null;
@@ -91,6 +88,23 @@ export function parsePropertyRangeQuery(query: string): PropertyRangeQuery | nul
   return { kind, min: Math.min(first, second), max: Math.max(first, second) };
 }
 
+export function parsePropertyRangeQueries(query: string): PropertyRangeQuery[] {
+  const ranges: PropertyRangeQuery[] = [];
+  for (const match of query.matchAll(new RegExp(RANGE_PATTERN.source, "gi"))) {
+    const parsed = parseRangeMatch(match, query);
+    if (!parsed) continue;
+    if (!ranges.some(range => range.kind === parsed.kind && range.min === parsed.min && range.max === parsed.max)) {
+      ranges.push(parsed);
+    }
+  }
+  return ranges;
+}
+
+// Retained for callers that only need the first numeric range in a query.
+export function parsePropertyRangeQuery(query: string): PropertyRangeQuery | null {
+  return parsePropertyRangeQueries(query)[0] ?? null;
+}
+
 export function getPropertyPriceForRangeSearch(record: PropertySearchRecord): number | null {
   const headline = parseStoredMoney(record.value);
   if (headline !== null && headline > 0) return headline;
@@ -105,15 +119,18 @@ export function getPropertyPriceForRangeSearch(record: PropertySearchRecord): nu
   return candidates[0] ?? null;
 }
 
+export function getPropertyAreaInSquareFeet(record: PropertySearchRecord): number | null {
+  const area = Number(String(record.areaValue ?? "").replace(/,/g, ""));
+  const multiplier = areaMultiplierToSqFt(String(record.areaUnit ?? ""));
+  if (!Number.isFinite(area) || area <= 0 || multiplier === null) return null;
+  return area * multiplier;
+}
+
 export function propertyMatchesRange(record: PropertySearchRecord, range: PropertyRangeQuery): boolean {
   if (range.kind === "price") {
     const value = getPropertyPriceForRangeSearch(record);
     return value !== null && value >= range.min && value <= range.max;
   }
-
-  const area = Number(String(record.areaValue ?? "").replace(/,/g, ""));
-  const multiplier = areaMultiplierToSqFt(String(record.areaUnit ?? ""));
-  if (!Number.isFinite(area) || area <= 0 || multiplier === null) return false;
-  const areaInSqFt = area * multiplier;
-  return areaInSqFt >= range.min && areaInSqFt <= range.max;
+  const area = getPropertyAreaInSquareFeet(record);
+  return area !== null && area >= range.min && area <= range.max;
 }

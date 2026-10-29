@@ -5,7 +5,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
-import { parsePropertyRangeQuery, propertyMatchesRange, getPropertyPriceForRangeSearch } from "./lib/property-range-search";
+import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -446,6 +446,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
+  const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
@@ -838,17 +839,33 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setMemberBusy(false); }
   };
 
-  const rangeSearch = useMemo(() => parsePropertyRangeQuery(search), [search]);
-  const filteredModules = rangeSearch ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+  const rangeSearches = useMemo(() => parsePropertyRangeQueries(search), [search]);
+  const rangeSearch = rangeSearches[0] ?? null;
+  const filteredModules = rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(property => {
-    if (rangeSearch) return propertyMatchesRange(property, rangeSearch);
+    if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
     const searchableText = [
       property.title, property.module, property.location, property.contact, property.status,
       property.surveyNumber, property.areaValue, property.areaUnit, property.dimensions,
       property.ownershipDetails, property.notes, ...Object.values(property.moduleData ?? {})
     ].join(" ").toLowerCase();
     return searchableText.includes(search.toLowerCase());
-  }), [properties, search, rangeSearch]);
+  }), [properties, search, rangeSearches]);
+  const rangeSortedProperties = useMemo(() => {
+    if (!rangeSearches.length || rangeSort === "best") return filteredProperties;
+    const getSortValue = (property: PropertyRecord) => rangeSort.startsWith("price")
+      ? getPropertyPriceForRangeSearch(property)
+      : getPropertyAreaInSquareFeet(property);
+    const direction = rangeSort.endsWith("high") ? -1 : 1;
+    return [...filteredProperties].sort((left, right) => {
+      const a = getSortValue(left);
+      const b = getSortValue(right);
+      if (a === null && b === null) return 0;
+      if (a === null) return 1;
+      if (b === null) return -1;
+      return (a - b) * direction;
+    });
+  }, [filteredProperties, rangeSearches, rangeSort]);
   const formatRangePrice = (property: PropertyRecord) => {
     const value = getPropertyPriceForRangeSearch(property);
     return value === null ? "Value not entered" : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
@@ -1434,18 +1451,28 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
-          {rangeSearch && <section className="ax-property-range-results" aria-live="polite">
+          {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
             <div className="ax-property-range-results__head">
               <div>
-                <span className="section-kicker">{rangeSearch.kind === "price" ? "PRICE RANGE" : "LAND / AREA RANGE"} · SMART PROPERTY SEARCH</span>
-                <h2>{rangeSearch.kind === "price" ? "Properties by value" : "Properties by area"}</h2>
+                <span className="section-kicker">{rangeSearches.length > 1 ? "COMBINED FILTERS" : rangeSearch?.kind === "price" ? "PRICE RANGE" : "LAND / AREA RANGE"} · SMART PROPERTY SEARCH</span>
+                <h2>{rangeSearches.length > 1 ? "Properties matching every range" : rangeSearch?.kind === "price" ? "Properties by value" : "Properties by area"}</h2>
                 <p>Query: <strong>{search}</strong> · {filteredProperties.length} matching record{filteredProperties.length === 1 ? "" : "s"}</p>
+                <div className="ax-property-range-chips">{rangeSearches.map((range,index)=><span className="ax-property-range-chip" key={range.kind + "-" + index}>{range.kind === "price" ? "Price" : "Area"}: {range.kind === "price" ? "₹" + range.min.toLocaleString("en-IN") + " – ₹" + range.max.toLocaleString("en-IN") : Math.round(range.min).toLocaleString("en-IN") + " – " + Math.round(range.max).toLocaleString("en-IN") + " sq ft equivalent"}</span>)}</div>
               </div>
-              <button type="button" className="secondary-button" onClick={() => setSearch("")}>Clear search</button>
+              <div className="ax-property-range-results__controls">
+                <label>Sort results<select value={rangeSort} onChange={event => setRangeSort(event.target.value as typeof rangeSort)}>
+                  <option value="best">Best match / saved order</option>
+                  <option value="price-low">Lowest price first</option>
+                  <option value="price-high">Highest price first</option>
+                  <option value="area-low">Smallest area first</option>
+                  <option value="area-high">Largest area first</option>
+                </select></label>
+                <button type="button" className="secondary-button" onClick={() => { setSearch(""); setRangeSort("best"); }}>Clear search</button>
+              </div>
             </div>
-            {filteredProperties.length > 0
+            {rangeSortedProperties.length > 0
               ? <div className="ax-property-range-results__list">
-                  {filteredProperties.map(property => <button type="button" className="ax-property-range-result" key={property.id} onClick={() => go(property.module)}>
+                  {rangeSortedProperties.map(property => <button type="button" className="ax-property-range-result" key={property.id} onClick={() => go(property.module)}>
                     <span className="ax-property-range-result__main">
                       <strong>{property.title || "Untitled property record"}</strong>
                       <small>{property.module}{property.location ? " · " + property.location : " · Location not entered"}</small>
@@ -1460,7 +1487,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 </div>
               : <div className="ax-property-range-results__empty">
                   <Search size={21}/>
-                  <div><strong>No saved records match this range.</strong><small>Check the value and area fields on the property record. Records with missing area or price data are not guessed into the results.</small></div>
+                  <div><strong>No saved records match these ranges.</strong><small>Every entered range must match the same record. Check the price and area fields; missing data is not guessed into results.</small></div>
                 </div>}
           </section>}
           {active === "Overview" && !rangeSearch && <>

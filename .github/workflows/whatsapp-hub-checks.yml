@@ -89,6 +89,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - name: Test property price/area range search and combined filters
+        run: node scripts/property-range-search.test.cjs
       - name: Test WhatsApp phone normalisation and deduplication helper
         run: node scripts/whatsapp-contact-normalization.test.cjs
       - run: npm run build
