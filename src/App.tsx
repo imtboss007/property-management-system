@@ -359,14 +359,14 @@ const load = <T,>(key: string, fallback: T): T => {
 };
 
 type SyncSnapshot = {
-  properties: Array<{ id: string; [key: string]: unknown }>;
-  contacts: Array<{ id: string; [key: string]: unknown }>;
-  whatsappGroups: Array<{ id: string; [key: string]: unknown }>;
-  tasks: Array<{ id: string; [key: string]: unknown }>;
-  financials: Array<{ id: string; [key: string]: unknown }>;
-  riskRecords: Array<{ id: string; [key: string]: unknown }>;
-  approvalRequests: Array<{ id: string; [key: string]: unknown }>;
-  auditEvents: Array<{ id: string; [key: string]: unknown }>;
+  properties: Array<{ id: string }>;
+  contacts: Array<{ id: string }>;
+  whatsappGroups: Array<{ id: string }>;
+  tasks: Array<{ id: string }>;
+  financials: Array<{ id: string }>;
+  riskRecords: Array<{ id: string }>;
+  approvalRequests: Array<{ id: string }>;
+  auditEvents: Array<{ id: string }>;
 };
 
 function mergeById<T extends { id: string }>(localRows: T[], remoteRows: T[]): T[] {
@@ -510,10 +510,6 @@ export default function App() {
     }
     if (changes.length) setAuditEvents(current => [...changes.reverse(), ...current].slice(0, 1000));
   }, [properties, contacts, tasks, financials, riskRecords, approvalRequests]);
-
-  const currentSyncSnapshot = (): SyncSnapshot => ({
-    properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents
-  });
 
   const mergeSyncSnapshot = (remote: Partial<SyncSnapshot>) => {
     const merged = {
