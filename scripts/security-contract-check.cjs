@@ -133,6 +133,23 @@ check("phone normalisation has an executable regression test wired into the app 
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /\+91 \(98765\) 43210/i) &&
   has(read(".github/workflows/whatsapp-hub-checks.yml"), /node scripts\/whatsapp-contact-normalization\.test\.cjs/i));
 
+check("QR-linked WhatsApp credentials are stored and reused to reconnect after desktop restart",
+  has(whatsappService, /useMultiFileAuthState\(authDir\)/i) &&
+  has(whatsappService, /fs\.access\(path\.join\(authDir, "creds\.json"\)\)/i) &&
+  has(whatsappService, /await startSocket\(\)/i) &&
+  has(electronMain, /app\.setLoginItemSettings\(\{ openAtLogin: true/i));
+check("closing and reopening the app restores cached WhatsApp contacts and groups automatically",
+  has(read("src/App.tsx"), /restoreSavedWhatsAppDirectory/i) &&
+  has(read("src/App.tsx"), /localStorage\.getItem\("estateflow\.whatsapp\.host"\)/i) &&
+  has(read("src/App.tsx"), /localStorage\.getItem\("estateflow\.whatsapp\.token"\)/i) &&
+  has(read("src/App.tsx"), /\/api\/address-book/i) &&
+  has(read("src/App.tsx"), /window\.addEventListener\("focus", onFocus\)/i) &&
+  has(read("src/App.tsx"), /setInterval\(\(\) => \{ void restoreSavedWhatsAppDirectory\(\); \}, 60000\)/i));
+check("regular business records and saved WhatsApp groups remain persisted locally across app reopen",
+  has(read("src/App.tsx"), /saveLocal\("estateflow\.contacts", contacts\)/i) &&
+  has(read("src/App.tsx"), /saveLocal\("estateflow\.whatsappGroups", savedWhatsAppGroups\)/i) &&
+  has(whatsappService, /whatsapp-scheduled-messages\.json/i) &&
+  has(whatsappService, /whatsapp-address-book\.json/i));
 check("WhatsApp directory sync is persistent and does not prune previously synced entries",
   has(whatsappService, /whatsapp-address-book\.json/i) &&
   has(whatsappService, /async function upsertWhatsAppContacts/i) &&
