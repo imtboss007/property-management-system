@@ -556,8 +556,8 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
         <p>{status.connected
           ? "Connected account: " + (status.senderNumber ? "+" + status.senderNumber : status.displayName || "Linked WhatsApp account")
           : supported ? "Choose QR scan or phone-number pairing code to link your WhatsApp account."
-          : "This Android/browser build is a companion interface. The Windows AXIVESTRA app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
-        <small>{status.platform.startsWith("gateway-") ? "The linked WhatsApp session and message queue live on the hub server." : status.connected ? "Session saved locally on this Windows user profile." : "Link the account through the configured sender; the session stays with that sender."}</small>
+          : cloudEnabled ? "Sign in and select your AXIVESTRA company to use the always-on cloud sender. The cloud host keeps schedules running with both apps closed." : "This Android/browser build is a companion interface. The Windows AXIVESTRA app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
+        <small>{status.platform.startsWith("gateway-") || status.platform.startsWith("cloud-") ? "The linked WhatsApp session and message queue live on the hosted sender; app windows can be closed." : status.connected ? "Session saved locally on this Windows user profile." : "Link the account through the configured sender; the session stays with that sender."}</small>
         {status.error && <small className="wa-connection-error">{status.error}</small>}
         {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
         {status.webhook?.configured && <small>Automatic stop-on-reply webhook registered with {status.webhook.provider || "the WhatsApp gateway"}.</small>}
