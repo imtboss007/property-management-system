@@ -65,6 +65,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run check
+      - name: Build the hosted sender Docker image
+        run: docker build --tag axivestra-whatsapp-hub:ci .
       - name: Check Electron WhatsApp service syntax
         run: node --check services/estateflow-whatsapp-hub/src/baileys-provider.js && node --check electron/main.cjs && node --check electron/whatsapp-service.cjs && node --check electron/preload.cjs
         working-directory: .
