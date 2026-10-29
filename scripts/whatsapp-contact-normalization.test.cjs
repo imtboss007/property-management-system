@@ -16,4 +16,4 @@ for (const [input, expected] of cases) {
   assert.equal(normalizeDigits(input), expected, `normalizeDigits(${JSON.stringify(input)})`);
 }
 
-process.stdout.write(`WhatsApp contact normalisation tests passed (${cases.length} cases).\\n`);
+process.stdout.write(`WhatsApp contact normalisation tests passed (${cases.length} cases).\n`);
