@@ -165,6 +165,9 @@ export default function AuthGate() {
           localStorage.setItem(companyDocumentKey, legacyDocumentMetadata);
         }
         await assignLegacyVaultToCompany(company.id);
+        // Migration is an explicit one-company assignment. Removing the legacy source prevents
+        // later company switches from offering the same document metadata for a second import.
+        localStorage.removeItem("estateflow.documents");
       }
       setMigrationCompany(null);
       setActiveCompany(company);
