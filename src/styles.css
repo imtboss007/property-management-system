@@ -1205,3 +1205,16 @@ h2,h3{color:#e5f2fc}
 .company-session button:hover{border-color:#4ccce6}
 @media(max-width:780px){.company-session{max-width:180px;gap:5px;flex-wrap:wrap}.company-session-name{max-width:95px}.auth-company-row{padding:10px}.auth-create-row{align-items:stretch;flex-direction:column}.auth-create-button{width:100%}}
 @media(max-width:480px){.auth-shell{padding:12px}.auth-card{border-radius:18px}.auth-brand span{font-size:11px}.auth-signout{padding:7px;font-size:10px}.company-session{max-width:130px}.company-session-role{display:none}.company-session button{padding:4px 5px}}
+
+.member-access-form{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(120px,.8fr) auto;align-items:end;gap:10px;margin:14px 0 12px}
+.member-access-form label{display:flex;flex-direction:column;gap:7px;color:var(--text-secondary,#9fb7c9);font-size:12px;font-weight:700;min-width:0}
+.member-access-form input,.member-access-form select{width:100%;min-width:0;min-height:42px;padding:9px 11px;border:1px solid rgba(130,167,194,.25);border-radius:9px;background:rgba(3,12,22,.55);color:var(--text-primary,#eef8ff)}
+.member-access-form select option{background:#0b1d2d;color:#eef8ff}
+.company-member-list{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.company-member-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(125,165,195,.15);border-radius:10px;background:rgba(8,23,38,.36)}
+.company-member-row>div{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.company-member-row strong{font-size:11px;font-weight:600;color:var(--text-primary,#d9eaf5);overflow-wrap:anywhere}
+.company-member-row small{font-size:10px;text-transform:capitalize;color:var(--text-muted,#8ba7ba)}
+.company-member-row .delete-button{white-space:nowrap}
+@media(max-width:800px){.member-access-form{grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)}.member-access-form button{grid-column:1/-1}.company-member-row{padding:9px}}
+@media(max-width:480px){.member-access-form{grid-template-columns:minmax(0,1fr)}.company-member-row{align-items:flex-start}.company-member-row .delete-button{font-size:10px}}
