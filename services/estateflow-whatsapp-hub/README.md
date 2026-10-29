@@ -13,7 +13,7 @@ This adds integration code; it does not copy either upstream project's source co
 
 ## WhatsApp account warning
 
-Both WA-AKG and OpenWA use unofficial WhatsApp Web connections. They can expose a linked account to restriction or logout. Use a dedicated test number first; do not begin with a primary personal or business number. For production customer messaging, AXIVESTRA's existing Supabase functions for the official WhatsApp Business Platform are the preferred compliance-oriented route.
+Both WA-AKG and OpenWA use unofficial WhatsApp Web connections. They can expose a linked account to restriction or logout. Use a dedicated test number first; do not begin with a primary personal or business number. For production customer messaging, use Meta's official WhatsApp Business Platform with a separately hosted, secured integration. This repository's local-first app does not require a hosted database.
 
 Only message people who have opted in or otherwise expect the communication. The repeat cap is 20 messages per sequence, sends are rate-limited, and the system does not create an infinite “send until reply” loop. A “sent” result means the gateway accepted the send request; it does not mean that the recipient read it.
 
@@ -69,4 +69,4 @@ A verified private one-to-one inbound message cancels pending follow-ups for tha
 
 ## Scope and deployment status
 
-This adapter implements the unified interface and local queue. It still requires a running upstream gateway, server credentials, webhook configuration, and live end-to-end testing. No gateway has been deployed or linked by committing these files. See the main AXIVESTRA repository's setup notes for its official WhatsApp Business Platform path, which remains separate from these unofficial gateway adapters.
+This adapter implements the unified interface and local queue. It still requires a running upstream gateway, server credentials, webhook configuration, and live end-to-end testing. No gateway has been deployed or linked by committing these files. See the official Meta WhatsApp Business Platform documentation for its separate compliant integration path.

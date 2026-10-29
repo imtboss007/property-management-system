@@ -1,6 +1,6 @@
 
 name: EstateFlow PC and Android builds
-# Supabase client configuration is optional; WhatsApp linked-device scheduling runs locally.
+# Local-first build; no hosted database credentials required.
 
 concurrency:
   group: estateflow-builds-${{ github.ref }}
@@ -33,9 +33,6 @@ jobs:
         run: npm install
 
       - name: Build Windows EXE
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
         run: npm run build && npx electron-builder --win nsis --x64 --publish never
 
       - name: Upload Windows installer (direct file, no ZIP wrapper)

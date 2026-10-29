@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { backendConfigured, supabase } from "./lib/supabase";
+import type { ReactNode } from "react";
+import { localDb } from "./lib/local-db";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
@@ -389,14 +388,6 @@ export default function App() {
   const [whatsAppPrefill, setWhatsAppPrefill] = useState<{ contactId?: string; propertyId?: string; taskId?: string; taskTitle?: string } | null>(null);
   const [documentContact, setDocumentContact] = useState("");
   const [notice, setNotice] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(backendConfigured);
-  const [remoteReady, setRemoteReady] = useState(!backendConfigured);
-  const [authMode, setAuthMode] = useState<"signIn" | "signUp">("signIn");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authNotice, setAuthNotice] = useState("");
-  const [authBusy, setAuthBusy] = useState(false);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -412,64 +403,42 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const storageKey = (name: string) =>
-    backendConfigured && session ? `estateflow.${session.user.id}.${name}` : `estateflow.${name}`;
+  // Local-first mode keeps the existing estateflow.* browser keys for backward compatibility.
 
   useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false);
-      setRemoteReady(true);
-      return;
-    }
-    let alive = true;
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!alive) return;
-      if (error) setAuthNotice(error.message);
-      setSession(data.session);
-      setAuthLoading(false);
+    let cancelled = false;
+    void localDb.documents.orderBy("createdAt").reverse().toArray().then(saved => {
+      if (!cancelled) setDocuments(saved.map(({ file: _file, ...record }) => record));
+    }).catch(error => {
+      if (!cancelled) setNotice("Local document vault could not be opened: " + (error instanceof Error ? error.message : String(error)));
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!alive) return;
-      setSession(nextSession);
-      setRemoteReady(!nextSession);
-    });
-    return () => {
-      alive = false;
-      subscription.unsubscribe();
-    };
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("properties"), JSON.stringify(properties));
-  }, [properties, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.properties", JSON.stringify(properties));
+  }, [properties]);
 
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("contacts"), JSON.stringify(contacts));
-  }, [contacts, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.contacts", JSON.stringify(contacts));
+  }, [contacts]);
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("whatsappGroups"), JSON.stringify(savedWhatsAppGroups));
-  }, [savedWhatsAppGroups, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.whatsappGroups", JSON.stringify(savedWhatsAppGroups));
+  }, [savedWhatsAppGroups]);
 
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("tasks"), JSON.stringify(tasks));
-  }, [tasks, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.tasks", JSON.stringify(tasks));
+  }, [tasks]);
 
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("financials"), JSON.stringify(financials));
-  }, [financials, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.financials", JSON.stringify(financials));
+  }, [financials]);
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("risks"), JSON.stringify(riskRecords));
-  }, [riskRecords, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.risks", JSON.stringify(riskRecords));
+  }, [riskRecords]);
   useEffect(() => {
-    if (backendConfigured && (!session || !remoteReady)) return;
-    localStorage.setItem(storageKey("approvals"), JSON.stringify(approvalRequests));
-  }, [approvalRequests, session?.user.id, remoteReady]);
+    localStorage.setItem("estateflow.approvals", JSON.stringify(approvalRequests));
+  }, [approvalRequests]);
 
   const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(p =>
@@ -494,248 +463,80 @@ export default function App() {
   const expiryWindowDate = inThirtyDays.toISOString().slice(0, 10);
   const expiringDocumentCount = documents.filter(item => item.expiresOn && item.expiresOn >= today && item.expiresOn <= expiryWindowDate).length;
 
-  const remoteUpsert = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests" | "whatsapp_groups", payload: Record<string, unknown>) => {
-    if (!backendConfigured || !supabase || !session) return;
-    void supabase.from(table).upsert({ ...payload, user_id: session.user.id }).then(({ error }) => {
-      if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
-    });
-  };
-  const remoteUpdateTask = (id: string, payload: Record<string, unknown>) => {
-    if (!backendConfigured || !supabase || !session) return;
-    void supabase.from("tasks").update(payload).eq("id", id).eq("user_id", session.user.id).then(({ error }) => {
-      if (error) setNotice(`Cloud sync failed; your device copy remains saved. ${error.message}`);
-    });
-  };
-  const remoteDelete = (table: "property_records" | "contacts" | "tasks" | "financial_transactions" | "risk_register" | "approval_requests" | "whatsapp_groups", id: string) => {
-    if (!backendConfigured || !supabase || !session) return;
-    void supabase.from(table).delete().eq("id", id).eq("user_id", session.user.id).then(({ error }) => {
-      if (error) setNotice(`Cloud deletion failed. ${error.message}`);
-    });
-  };
-
-  useEffect(() => {
-    if (!backendConfigured || !supabase || !session) {
-      if (!backendConfigured) setRemoteReady(true);
-      return;
-    }
-    let cancelled = false;
-    const scope = session.user.id;
-    setRemoteReady(false);
-    setProperties(load(`estateflow.${scope}.properties`, []));
-    setContacts(load(`estateflow.${scope}.contacts`, []));
-    setSavedWhatsAppGroups(load(`estateflow.${scope}.whatsappGroups`, []));
-    setTasks(load(`estateflow.${scope}.tasks`, []));
-    setFinancials(load(`estateflow.${scope}.financials`, []));
-    setRiskRecords(load(`estateflow.${scope}.risks`, []));
-    setApprovalRequests(load(`estateflow.${scope}.approvals`, []));
-    (async () => {
-      const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult, whatsappGroupResult] = await Promise.all([
-        supabase.from("property_records").select("id,title,module,location,value,status,contact,primary_contact_id,target_deadline,next_follow_up_date,next_action,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
-        supabase.from("contacts").select("id,name,phone,role,notes,whatsapp_name,whatsapp_jid,roles,custom_roles,email,address,profession,employer,designation,business_type,income_sources,associated_company,relationship_notes").order("created_at", { ascending: false }),
-        supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_id,contact_id,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
-        supabase.from("documents").select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
-        supabase.from("financial_transactions").select("id,property_id,contact_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
-        supabase.from("risk_register").select("id,title,category,severity,status,owner,due_date,entity_label,property_id,contact_id,mitigation,created_at").order("created_at", { ascending: false }),
-        supabase.from("approval_requests").select("id,title,approval_type,entity_label,property_id,contact_id,requested_by,approver,priority,status,rationale,decision_notes,requested_at,decided_at").order("requested_at", { ascending: false }),
-        supabase.from("whatsapp_groups").select("id,jid,name,description,member_count,last_synced_at").order("name", { ascending: true })
-      ]);
-      const queryError = propertyResult.error ?? contactResult.error ?? taskResult.error ?? documentResult.error ?? financialResult.error ?? riskResult.error ?? approvalResult.error ?? whatsappGroupResult.error;
-      if (queryError) throw queryError;
-      if (cancelled) return;
-      setProperties((propertyResult.data ?? []).map(row => ({
-        id: row.id,
-        title: row.title,
-        module: row.module,
-        location: row.location ?? "",
-        value: row.value === null || row.value === undefined ? "" : String(row.value),
-        status: row.status ?? "Active",
-        contact: row.contact ?? "",
-        primaryContactId: row.primary_contact_id ?? "",
-        targetDeadline: row.target_deadline ?? "",
-        nextFollowUpDate: row.next_follow_up_date ?? "",
-        nextAction: row.next_action ?? "",
-        notes: row.notes ?? "",
-        surveyNumber: row.survey_number ?? "",
-        ownershipDetails: row.ownership_details ?? "",
-        areaValue: row.area_value === null || row.area_value === undefined ? "" : String(row.area_value),
-        areaUnit: row.area_unit ?? "sq ft",
-        dimensions: row.dimensions ?? "",
-        ratePerUnit: row.rate_per_unit === null || row.rate_per_unit === undefined ? "" : String(row.rate_per_unit),
-        moduleData: row.module_data && typeof row.module_data === "object" ? Object.fromEntries(Object.entries(row.module_data).map(([key, value]) => [key, String(value ?? "")])) : {},
-        createdAt: row.created_at ?? new Date().toISOString()
-      })));
-      setContacts((contactResult.data ?? []).map(row => ({
-        id: row.id,
-        name: row.name,
-        phone: row.phone ?? "",
-        role: row.role ?? "Other",
-        roles: Array.isArray(row.roles) ? row.roles : (row.role ? [row.role] : ["Other"]),
-        customRoles: row.custom_roles ?? "",
-        email: row.email ?? "",
-        address: row.address ?? "",
-        profession: row.profession ?? "",
-        employer: row.employer ?? "",
-        designation: row.designation ?? "",
-        businessType: row.business_type ?? "",
-        incomeSources: row.income_sources ?? "",
-        associatedCompany: row.associated_company ?? "",
-        relationshipNotes: row.relationship_notes ?? "",
-        notes: row.notes ?? "",
-        whatsappName: row.whatsapp_name ?? "",
-        whatsappJid: row.whatsapp_jid ?? ""
-      })));
-      setTasks((taskResult.data ?? []).map(row => ({
-        id: row.id,
-        title: row.title,
-        date: row.due_date,
-        time: String(row.due_time ?? "10:00").slice(0, 5),
-        type: row.task_type ?? "Follow-up",
-        property: row.property_label ?? "",
-        propertyId: row.property_id ?? "",
-        contactId: row.contact_id ?? "",
-        contactName: (contactResult.data ?? []).find(contact => contact.id === row.contact_id)?.name ?? "",
-        notes: row.notes ?? "",
-        done: Boolean(row.is_done)
-      })));
-      setDocuments((documentResult.data ?? []).map(row => ({
-        id: row.id,
-        propertyId: row.property_id ?? "",
-        property: row.property_label ?? "",
-        contactId: row.contact_id ?? "",
-        name: row.name,
-        category: row.category ?? "Other",
-        storagePath: row.storage_path,
-        mimeType: row.mime_type ?? "application/octet-stream",
-        sizeBytes: Number(row.size_bytes ?? 0),
-        expiresOn: row.expires_on ?? "",
-        notes: row.notes ?? "",
-        createdAt: row.created_at ?? new Date().toISOString()
-      })));
-      setFinancials((financialResult.data ?? []).map(row => ({
-        id: row.id,
-        propertyId: row.property_id ?? "",
-        property: row.property_label ?? "",
-        contactId: row.contact_id ?? "",
-        type: row.transaction_type,
-        amount: String(row.amount ?? "0"),
-        date: row.transaction_date,
-        party: row.party ?? "",
-        reference: row.reference_number ?? "",
-        notes: row.notes ?? ""
-      })));
-      setRiskRecords((riskResult.data ?? []).map(row => ({
-        id: row.id, title: row.title, category: row.category ?? "Operational",
-        severity: row.severity ?? "Medium", status: row.status ?? "Open",
-        owner: row.owner ?? "", dueDate: row.due_date ?? "", entity: row.entity_label ?? "",
-        propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
-        mitigation: row.mitigation ?? "", createdAt: row.created_at ?? new Date().toISOString()
-      })));
-      setSavedWhatsAppGroups((whatsappGroupResult.data ?? []).map(row => ({ id: row.id, jid: row.jid, name: row.name, description: row.description ?? "", size: Number(row.member_count ?? 0), lastSyncedAt: row.last_synced_at ?? "" })));
-      setApprovalRequests((approvalResult.data ?? []).map(row => ({
-        id: row.id, title: row.title, area: row.approval_type ?? "General",
-        entity: row.entity_label ?? "", propertyId: row.property_id ?? "", contactId: row.contact_id ?? "",
-        requestedBy: row.requested_by ?? "", approver: row.approver ?? "", priority: row.priority ?? "Normal",
-        status: row.status ?? "pending", rationale: row.rationale ?? "",
-        decisionNotes: row.decision_notes ?? "", requestedAt: row.requested_at ?? new Date().toISOString(),
-        decidedAt: row.decided_at ?? ""
-      })));
-      setNotice("Connected to the shared AXIVESTRA database.");
-      setRemoteReady(true);
-    })().catch((error: unknown) => {
-      if (cancelled) return;
-      setNotice(`Cloud data could not be loaded; this account's device cache is shown. ${error instanceof Error ? error.message : String(error)}`);
-      setRemoteReady(true);
-    });
-    return () => { cancelled = true; };
-  }, [session?.user.id]);
+  // Local-only persistence is handled by the state effects above.
+  const remoteUpsert = (_table: string, _payload: Record<string, unknown>) => {};
+  const remoteUpdateTask = (_id: string, _payload: Record<string, unknown>) => {};
+  const remoteDelete = (_table: string, _id: string) => {};
 
   const uploadDocument = async (file: File) => {
-    if (!supabase || !backendConfigured || !session) {
-      setNotice("Secure document upload requires a configured and signed-in shared database.");
+    const maxBytes = 25 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setNotice("This file exceeds the 25 MB local-vault limit. Compress it or choose a smaller file.");
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
-      setNotice("This file exceeds the 25 MB limit. Compress it or select a smaller file.");
-      return;
-    }
-    const allowedTypes = [
+    const allowedMimeTypes = new Set([
       "application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ];
-    if (!allowedTypes.includes(file.type)) {
+    ]);
+    const allowedExtensions = /\.(pdf|jpe?g|png|webp|docx?)$/i;
+    if (!allowedMimeTypes.has(file.type) && !allowedExtensions.test(file.name)) {
       setNotice("Choose a PDF, JPEG, PNG, WebP, DOC or DOCX file.");
       return;
     }
     setUploadingDocument(true);
     const id = uid();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120) || "document";
-    const storagePath = `${session.user.id}/${id}/${safeName}`;
+    const property = properties.find(item => item.id === documentProperty);
+    const record: DocumentRecord = {
+      id, propertyId: property?.id ?? "", property: property?.title ?? "", contactId: documentContact || "",
+      name: file.name, category: documentCategory, storagePath: id,
+      mimeType: file.type || "application/octet-stream", sizeBytes: file.size, expiresOn: documentExpiry,
+      notes: documentNotes, createdAt: new Date().toISOString()
+    };
     try {
-      const { error: uploadError } = await supabase.storage.from("property-documents").upload(storagePath, file, {
-        contentType: file.type,
-        upsert: false
-      });
-      if (uploadError) throw uploadError;
-      const property = properties.find(item => item.id === documentProperty);
-      const { data, error: metadataError } = await supabase.from("documents").insert({
-        id,
-        user_id: session.user.id,
-        property_id: property?.id ?? null,
-        contact_id: documentContact || null,
-        property_label: property?.title ?? "",
-        name: file.name,
-        category: documentCategory,
-        storage_path: storagePath,
-        mime_type: file.type,
-        size_bytes: file.size,
-        expires_on: documentExpiry || null,
-        notes: documentNotes
-      }).select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").single();
-      if (metadataError) {
-        await supabase.storage.from("property-documents").remove([storagePath]);
-        throw metadataError;
-      }
-      const record: DocumentRecord = {
-        id: data.id, propertyId: data.property_id ?? "", property: data.property_label ?? "", contactId: data.contact_id ?? "",
-        name: data.name, category: data.category, storagePath: data.storage_path,
-        mimeType: data.mime_type, sizeBytes: Number(data.size_bytes ?? 0),
-        expiresOn: data.expires_on ?? "", notes: data.notes ?? "", createdAt: data.created_at
-      };
-      setDocuments(prev => [record, ...prev]);
+      await localDb.documents.put({ ...record, file });
+      setDocuments(previous => [record, ...previous.filter(item => item.id !== id)]);
       setDocumentNotes("");
       setDocumentExpiry("");
       setDocumentContact("");
-      setNotice("Document uploaded to private cloud storage.");
+      setNotice("Document saved in AXIVESTRA's local vault on this device.");
     } catch (error) {
-      setNotice(`Document upload failed: ${error instanceof Error ? error.message : String(error)}`);
+      setNotice("Local document save failed: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setUploadingDocument(false);
     }
   };
+
   const downloadDocument = async (record: DocumentRecord) => {
-    if (!supabase) return;
-    const { data, error } = await supabase.storage.from("property-documents").createSignedUrl(record.storagePath, 60);
-    if (error) {
-      setNotice(`Could not create a secure document link: ${error.message}`);
-      return;
+    try {
+      const saved = await localDb.documents.get(record.id);
+      if (!saved?.file) {
+        setNotice("The document file is missing from this device. Restore it from your own document backup.");
+        return;
+      }
+      const url = URL.createObjectURL(saved.file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = saved.name;
+      link.rel = "noopener";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setNotice("Document download started.");
+    } catch (error) {
+      setNotice("Document download failed: " + (error instanceof Error ? error.message : String(error)));
     }
-    const link = document.createElement("a");
-    link.href = data.signedUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.click();
   };
+
   const deleteDocument = async (record: DocumentRecord) => {
-    if (!supabase || !session) return;
-    const { error } = await supabase.from("documents").delete().eq("id", record.id).eq("user_id", session.user.id);
-    if (error) {
-      setNotice(`Document record could not be deleted: ${error.message}`);
-      return;
+    if (!window.confirm("Permanently delete the local file '" + record.name + "'?")) return;
+    try {
+      await localDb.documents.delete(record.id);
+      setDocuments(previous => previous.filter(item => item.id !== record.id));
+      setNotice("Document and local file deleted.");
+    } catch (error) {
+      setNotice("Document delete failed: " + (error instanceof Error ? error.message : String(error)));
     }
-    const { error: storageError } = await supabase.storage.from("property-documents").remove([record.storagePath]);
-    setDocuments(prev => prev.filter(item => item.id !== record.id));
-    if (storageError) setNotice(`Metadata deleted, but file cleanup failed: ${storageError.message}`);
-    else setNotice("Document and its private cloud file were deleted.");
   };
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
@@ -769,9 +570,7 @@ export default function App() {
       module_data: record.moduleData ?? {}
     });
     closePropertyForm();
-    setNotice(backendConfigured && session
-      ? "Property record saved and synced with your shared workspace."
-      : "Property record saved on this device.");
+    setNotice("Property record saved on this device.");
   };
   const saveContact = (data: Omit<ContactRecord, "id">) => {
     const record: ContactRecord = editingContact ? { ...editingContact, ...data } : { ...data, id: uid() };
@@ -782,9 +581,7 @@ export default function App() {
       : [record, ...prev]);
     remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, roles: record.roles ?? [record.role], custom_roles: record.customRoles || "", email: record.email || "", address: record.address || "", profession: record.profession || "", employer: record.employer || "", designation: record.designation || "", business_type: record.businessType || "", income_sources: record.incomeSources || "", associated_company: record.associatedCompany || "", relationship_notes: record.relationshipNotes || "", notes: record.notes, whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || "" });
     closeContactForm();
-    setNotice(backendConfigured && session
-      ? "Contact saved and synced with your shared workspace."
-      : "Contact saved on this device.");
+    setNotice("Contact saved on this device.");
   };
   const normalizedContactPhone = (value: string) => {
     let digits = String(value || "").replace(/\D/g, "");
@@ -899,9 +696,7 @@ export default function App() {
       property_label: record.property, notes: record.notes, is_done: record.done
     });
     closeTaskForm();
-    setNotice(backendConfigured && session
-      ? "Task saved and synced. Background notifications still require a scheduler."
-      : "Task saved on this device. Background notifications still require a scheduler.");
+    setNotice("Task saved on this device. Background notifications still require a scheduler.");
   };
   const deleteProperty = (id: string) => { const record = properties.find(item => item.id === id); if (!window.confirm(`Delete ${record?.title || "this record"}? This removes it from your AXIVESTRA workspace.`)) return; setProperties(prev => prev.filter(p => p.id !== id)); remoteDelete("property_records", id); };
   const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); remoteDelete("contacts", id); };
@@ -924,9 +719,7 @@ export default function App() {
       notes: record.notes
     });
     closeFinancialForm();
-    setNotice(backendConfigured && session
-      ? "Financial transaction saved and synced with your shared workspace."
-      : "Financial transaction saved on this device.");
+    setNotice("Financial transaction saved on this device.");
   };
   const deleteFinancial = (id: string) => {
     setFinancials(prev => prev.filter(item => item.id !== id));
@@ -943,7 +736,7 @@ export default function App() {
       mitigation: record.mitigation, created_at: record.createdAt
     });
     setShowRiskForm(false);
-    setNotice(backendConfigured && session ? "Risk added to the shared register." : "Risk saved on this device.");
+    setNotice("Risk saved on this device.");
   };
   const closeRisk = (record: RiskRecord) => {
     const updated = { ...record, status: record.status === "Closed" ? "Open" : "Closed" };
@@ -969,7 +762,7 @@ export default function App() {
       status: record.status, rationale: record.rationale, decision_notes: "", requested_at: record.requestedAt, decided_at: null
     });
     setShowApprovalForm(false);
-    setNotice(backendConfigured && session ? "Approval request submitted to the shared queue." : "Approval request saved on this device.");
+    setNotice("Approval request saved on this device.");
   };
   const decideApproval = (record: ApprovalRequest, status: "approved" | "rejected") => {
     const updated: ApprovalRequest = { ...record, status, decisionNotes: status === "approved" ? "Approved in AXIVESTRA." : "Rejected in AXIVESTRA.", decidedAt: new Date().toISOString() };
@@ -993,43 +786,6 @@ export default function App() {
     setTasks(prev => prev.map(item => item.id === id ? { ...item, done: isDone } : item));
     remoteUpdateTask(id, { is_done: isDone });
   };
-
-  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!supabase) return;
-    setAuthBusy(true);
-    setAuthNotice("");
-    try {
-      if (authMode === "signIn") {
-        const { error } = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.auth.signUp({ email: authEmail.trim(), password: authPassword });
-        if (error) throw error;
-        if (!data.session) setAuthNotice("Account created. Check your email to confirm it, then sign in.");
-        else setAuthNotice("Account created and signed in.");
-      }
-    } catch (error) {
-      setAuthNotice(error instanceof Error ? error.message : String(error));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  if (backendConfigured && (authLoading || !session || !remoteReady)) {
-    return <AuthScreen
-      loading={authLoading || Boolean(session && !remoteReady)}
-      mode={authMode}
-      setMode={setAuthMode}
-      email={authEmail}
-      setEmail={setAuthEmail}
-      password={authPassword}
-      setPassword={setAuthPassword}
-      busy={authBusy}
-      notice={authNotice}
-      onSubmit={handleAuthSubmit}
-    />;
-  }
 
   return (
     <main className="app-shell">
@@ -1067,7 +823,7 @@ export default function App() {
                 <small>Based on values entered in AXIVESTRA</small>
                 <div className="banner-divider"/>
                 <div className="banner-aside-row"><span>Last refreshed</span><strong>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
-                <div className="banner-aside-row"><span>Data mode</span><strong>{backendConfigured && session ? "Shared workspace" : "Local device"}</strong></div>
+                <div className="banner-aside-row"><span>Data mode</span><strong>Local device</strong></div>
               </div>
             </section>
             <div className="stats-grid institutional-stats">
@@ -1159,8 +915,9 @@ export default function App() {
             onDeleteTask={deleteTask}
           />}
           {active === "Documents" && <section className="data-panel">
-            <div className="section-heading"><div><h2>Private document vault</h2><p>{documents.length} saved documents · private cloud storage when connected</p></div><FileText size={21}/></div>
-            {!backendConfigured || !session ? <div className="notice notice-warn">Secure document upload is disabled in local-only mode. Configure the shared database and sign in to store deeds, ECs, khata, RTC/Pahani, tax receipts and agreements privately.</div> : <div className="document-upload-card">
+            <div className="section-heading"><div><h2>Local document vault</h2><p>{documents.length} saved documents · files stored on this device</p></div><FileText size={21}/></div>
+            <div className="notice notice-warn">Documents are saved in this browser/app's local database. They do not sync to your PC or other phone automatically. Download important files separately before changing devices or clearing app data.</div>
+            <div className="document-upload-card">
               <div className="form-two">
                 <label>Document category<select value={documentCategory} onChange={event=>setDocumentCategory(event.target.value)}>{["Sale deed","Encumbrance Certificate","RTC / Pahani","Khata","Tax receipt","Loan document","JV / JDA agreement","Legal opinion","Identity / KYC","Other"].map(value=><option key={value}>{value}</option>)}</select></label>
                 <label>Related property<select value={documentProperty} onChange={event=>setDocumentProperty(event.target.value)}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title}</option>)}</select></label>
@@ -1170,9 +927,9 @@ export default function App() {
                 <label>Expiry / renewal date<input type="date" value={documentExpiry} onChange={event=>setDocumentExpiry(event.target.value)}/></label>
                 <label>Notes<input value={documentNotes} onChange={event=>setDocumentNotes(event.target.value)} placeholder="Document number, authority, comments"/></label>
               </div>
-              <label className="upload-picker">Select a document (PDF, image, DOC/DOCX · max 25 MB)<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" disabled={uploadingDocument} onChange={event=>{const file=event.target.files?.[0];if(file)void uploadDocument(file);event.currentTarget.value="";}}/><span>{uploadingDocument ? "Uploading privately…" : "Choose file to upload"}</span></label>
-            </div>}
-            {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={`Download ${record.name}`}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={`Delete ${record.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text={backendConfigured && session ? "Upload a property document above. Files are private and download links expire after 60 seconds." : "Configure the backend to upload and protect documents across devices."} action="Back to overview" onClick={()=>go("Overview")}/>}
+              <label className="upload-picker">Select a document (PDF, image, DOC/DOCX · max 25 MB)<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" disabled={uploadingDocument} onChange={event=>{const file=event.target.files?.[0];if(file)void uploadDocument(file);event.currentTarget.value="";}}/><span>{uploadingDocument ? "Saving locally…" : "Save document on this device"}</span></label>
+            </div>
+            {documents.length ? <div className="record-list document-list">{documents.map(record=><article className="record-card" key={record.id}><div className="record-symbol"><FileText size={20}/></div><div className="record-main"><h3>{record.name}</h3><p>{record.category}{record.property ? <><span>•</span>{record.property}</> : null}</p>{record.expiresOn&&<small>Expiry / renewal: {record.expiresOn}</small>}{record.notes&&<small>{record.notes}</small>}<small>{(record.sizeBytes/1024/1024).toFixed(2)} MB · Saved locally</small></div><div className="record-side"><button className="edit-button" onClick={()=>void downloadDocument(record)} aria-label={"Download " + record.name}><Download size={15}/></button><button className="delete-button" onClick={()=>void deleteDocument(record)} aria-label={"Delete " + record.name}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<FileText size={22}/>} title="No documents uploaded yet" text="Select a document above to store it in the local vault." action="Back to overview" onClick={()=>go("Overview")}/>}
           </section>}
           {active === "WhatsApp Automation" && <WhatsAppScheduler contacts={contacts.map(contact => ({ id: contact.id, name: contact.name, phone: contact.phone, role: contact.role, whatsappName: contact.whatsappName, whatsappJid: contact.whatsappJid }))} properties={properties.map(property => ({ id: property.id, title: property.title }))} savedGroups={savedWhatsAppGroups} onImportContacts={importWhatsAppContacts} onImportGroups={importWhatsAppGroups} initialContactId={whatsAppPrefill?.contactId} initialPropertyId={whatsAppPrefill?.propertyId} initialTaskId={whatsAppPrefill?.taskId} initialTaskTitle={whatsAppPrefill?.taskTitle} onNotice={setNotice} />}
           {active === "Risk & Compliance" && <section className="data-panel">
@@ -1194,8 +951,8 @@ export default function App() {
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Records are currently stored in this browser's local storage. They are not synced across devices and may be lost if browser data is cleared.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);data.whatsappGroups.forEach((group:SavedWhatsAppGroup)=>remoteUpsert("whatsapp_groups",{id:group.id,jid:group.jid,name:group.name,description:group.description||"",member_count:group.size||0,last_synced_at:group.lastSyncedAt||null}));}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button>{backendConfigured && session && <button className="secondary-button" onClick={async () => { await supabase?.auth.signOut(); }}>Sign out of shared workspace</button>}</div></section>}
-          <footer className="footer"><span>AXIVESTRA © 2026</span><span>{backendConfigured && session ? "Shared database connected" : "Local-only mode · Device data is not synced"}</span></footer>
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Business records are stored in this device's browser storage; document files are saved in the local IndexedDB vault. There is no cloud account or automatic device-to-device sync. Export business records as JSON, and download document files separately before changing devices or clearing app data.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div></section>}
+          <footer className="footer"><span>AXIVESTRA © 2026</span><span>Local-only mode · Device data is not synced</span></footer>
         </div>
       </section>
       {showPropertyForm && <Modal title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
@@ -1447,35 +1204,4 @@ function ApprovalForm({properties,contacts,onSave,onCancel}:{properties:Property
     <label>Rationale and supporting evidence<textarea rows={3} value={form.rationale} onChange={event=>update("rationale",event.target.value)} placeholder="Why approval is required; evidence to review"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">Submit request</button></div>
   </form>;
-}
-function AuthScreen({
-  loading, mode, setMode, email, setEmail, password, setPassword, busy, notice, onSubmit
-}: {
-  loading: boolean;
-  mode: "signIn" | "signUp";
-  setMode: (mode: "signIn" | "signUp") => void;
-  email: string;
-  setEmail: (value: string) => void;
-  password: string;
-  setPassword: (value: string) => void;
-  busy: boolean;
-  notice: string;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return <main className="auth-shell">
-    <section className="auth-card">
-      <div className="brand-mark auth-brand"><img src="./axivestra-mark.svg" alt="AXIVESTRA architectural logo"/></div>
-      <div className="auth-eyebrow">AXIVESTRA · SECURE WORKSPACE</div>
-      <h1>{loading ? "Connecting your workspace" : mode === "signIn" ? "Welcome back." : "Create your workspace."}</h1>
-      <p>{loading ? "Loading your private records from the shared database." : "Sign in to keep your property deals, contacts and tasks synced across devices."}</p>
-      {!loading && <form className="form-card" onSubmit={onSubmit}>
-        <label>Email address<input type="email" required autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="you@example.com"/></label>
-        <label>Password<input type="password" required minLength={8} autoComplete={mode === "signIn" ? "current-password" : "new-password"} value={password} onChange={event => setPassword(event.target.value)} placeholder="At least 8 characters"/></label>
-        <button className="primary-button auth-submit" type="submit" disabled={busy}>{busy ? "Please wait…" : mode === "signIn" ? "Sign in" : "Create account"}</button>
-      </form>}
-      {notice && <div className="notice auth-notice">{notice}</div>}
-      {!loading && <button type="button" className="auth-switch" onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); }}>{mode === "signIn" ? "New to AXIVESTRA? Create an account" : "Already registered? Sign in"}</button>}
-      <small>Personal records are protected by database row-level security. Never share your password or backend secrets.</small>
-    </section>
-  </main>;
 }

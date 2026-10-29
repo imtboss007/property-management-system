@@ -1,6 +1,6 @@
 # AXIVESTRA — Asset Intelligence Platform
 
-A connected asset intelligence platform for property, finance, investments, legal work and operations, packaged for Windows desktop and Android mobile. Includes an animated navy/cyan command centre, selectable interactive charts, module-specific workbenches, data-completeness audits, a scrollable 16-module directory, and synced WhatsApp contacts/groups. GitHub Actions builds a Windows `.exe` installer and Android `.apk`; successful builds are published in GitHub Releases.
+A connected asset intelligence platform for property, finance, investments, legal work and operations, packaged for Windows desktop and Android mobile. Includes an animated navy/cyan command centre, selectable interactive charts, module-specific workbenches, data-completeness audits, a scrollable 16-module directory, and synced WhatsApp contacts/groups. GitHub Actions builds a Windows `.exe` installer and Android `.apk`; successful builds are available as GitHub Actions artifacts.
 
 ## AXIVESTRA interface
 
@@ -14,16 +14,15 @@ A connected asset intelligence platform for property, finance, investments, lega
 - Property records with module, location, value, status, contact, and notes.
 - Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
 - Master contact intelligence: multiple simultaneous standard/custom roles, profession, employer, designation, business type, associated company, optional income sources, email/address and referral context; role and professional fields appear in contact search/cards.
-- Supabase migration `supabase/migrations/202610290001_contact_intelligence_profile.sql` adds cloud columns for the expanded profile and backfills each existing primary role into the roles array. Apply this migration to the configured Supabase project before deploying this code with cloud mode enabled.
 - Phone-match duplicate warning before creating a new contact; it does not silently merge records.
 - One-time task records with date, time, type, linked property, notes, completion, and delete.
 - WhatsApp click-to-chat helper that opens a prefilled message.
-- Local data persistence in the app's browser/device storage and JSON backup/restore.
+- Local data persistence in the app's browser/device storage, IndexedDB document vault, and JSON backup/restore.
 - Responsive layouts for desktop and mobile.
 
-## Important scope notes
+## Local-first architecture
 
-This is the cross-platform installable MVP. Data is stored locally on each device and does not yet synchronize between PC and Android. Saved tasks are records; reliable background notifications require a hosted scheduler and notification channel. The WhatsApp screen opens a prefilled chat but does not auto-send, repeat messages, or detect inbound replies. These production automation features require a deployed backend, WhatsApp Business Platform credentials, webhook configuration, message-template compliance where applicable, consent/opt-out handling, and server-side job tracking. Secure cloud login, roles, and cloud document storage are not yet connected.
+AXIVESTRA does not use Supabase or require a hosted database. Business records stay in the device's existing browser storage; document files are stored in a local IndexedDB vault using [Dexie.js](https://github.com/dexie/Dexie.js) (Apache-2.0). JSON backup/restore covers business records; download document files separately before changing devices or clearing app data. No automatic PC-to-Android synchronization or cloud login is provided. The Windows WhatsApp linked-device workflow remains a separate local companion service and requires its own gateway/runtime configuration.
 
 ## Download Windows + Android from this repository
 
