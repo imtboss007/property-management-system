@@ -95,5 +95,7 @@ jobs:
         run: node scripts/property-range-search.test.cjs
       - name: Test WhatsApp phone normalisation and deduplication helper
         run: node scripts/whatsapp-contact-normalization.test.cjs
+      - name: Test bidirectional PC/Android sync and deletion protection
+        run: node scripts/device-sync.test.cjs
       - run: npm run build
 

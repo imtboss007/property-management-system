@@ -30,6 +30,8 @@ type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; 
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
+  getDataSync?: () => Promise<{ ok: boolean; revision: number; updatedAt: string; snapshot: Partial<import("./lib/device-sync").DeviceSyncSnapshot> }>;
+  saveDataSync?: (expectedRevision: number, snapshot: import("./lib/device-sync").DeviceSyncSnapshot) => Promise<{ ok: boolean; conflict?: boolean; revision: number; updatedAt: string; snapshot: Partial<import("./lib/device-sync").DeviceSyncSnapshot> }>;
   getQueue: () => Promise<ScheduleRow[]>;
   getAddressBook: () => Promise<WhatsAppAddressBook>;
   syncAddressBook: () => Promise<WhatsAppAddressBook>;
@@ -177,11 +179,8 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
 
 export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
-  const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
-  const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
-  const [hostInput, setHostInput] = useState(() => readSaved("estateflow.whatsapp.host"));
-  const [tokenInput, setTokenInput] = useState(() => readSaved("estateflow.whatsapp.token"));
-  const [bridgeInfo, setBridgeInfo] = useState<BridgeInfo | null>(null);
+  const [companionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
+  const [companionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
   const api = useMemo<WhatsAppApi | undefined>(() => {
     // A saved hub is the selected transport; otherwise keep the built-in Windows fallback.
     // A single queue row is never sent through both transports.
@@ -291,13 +290,6 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   }, [api, localApi]);
 
   useEffect(() => {
-    if (!localApi?.getBridgeInfo || (companionHost.trim() && companionToken.trim())) return;
-    void localApi.getBridgeInfo().then(setBridgeInfo).catch(error => {
-      setLocalNotice("Could not load phone companion details: " + (error instanceof Error ? error.message : String(error)));
-    });
-  }, [localApi, companionHost, companionToken]);
-
-  useEffect(() => {
     if (initialContactId) setSelectedContactId(initialContactId);
     if (initialPropertyId) setSelectedPropertyId(initialPropertyId);
     if (initialTaskId) setSelectedTaskId(initialTaskId);
@@ -313,40 +305,6 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   const inform = (text: string) => {
     setLocalNotice(text);
     onNotice(text);
-  };
-
-  const saveCompanionSettings = () => {
-    const host = hostInput.trim().replace(/\/+$/, "");
-    let parsed: URL;
-    try { parsed = new URL(host); }
-    catch { inform("Enter a full hub address, such as http://192.168.1.10:47822 or an HTTPS address."); return; }
-    if (!["http:", "https:"].includes(parsed.protocol) || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
-      inform("Enter only the hub address and port. Use HTTPS for remote access; HTTP is for a trusted local network.");
-      return;
-    }
-    const hostname = parsed.hostname.toLowerCase();
-    const localHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)
-      || hostname.endsWith(".local")
-      || /^10\./.test(hostname)
-      || /^192\.168\./.test(hostname)
-      || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
-    if (parsed.protocol === "http:" && !localHost) {
-      inform("Use HTTPS for a hub outside your trusted local network.");
-      return;
-    }
-    if (!tokenInput.trim()) { inform("Enter the AXIVESTRA hub token from the private hub configuration."); return; }
-    try {
-      localStorage.setItem("estateflow.whatsapp.host", host);
-      localStorage.setItem("estateflow.whatsapp.token", tokenInput.trim());
-    } catch {}
-    setCompanionHost(host);
-    setCompanionToken(tokenInput.trim());
-    inform("AXIVESTRA hub connection saved. The connection status will show whether the gateway is reachable.");
-  };
-
-    const copyValue = async (value: string, label: string) => {
-    try { await navigator.clipboard.writeText(value); inform(label + " copied."); }
-    catch { inform("Select the " + label.toLowerCase() + " field and copy it manually."); }
   };
 
   const applyAddressBook = (book: WhatsAppAddressBook) => {
@@ -577,23 +535,6 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <p>On WhatsApp, choose <strong>Linked devices → Link a device → Link with phone number</strong> and enter the code. This is a WhatsApp pairing code, not your WhatsApp PIN or password.</p>
       </div>
     </div>}
-
-    <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">GATEWAY CONTROL</span><h2>Connect your messaging gateway</h2><p>Use one hub that connects AXIVESTRA to the configured WhatsApp gateway. Leave these fields empty on Windows to use the built-in sender.</p></div><Smartphone size={22}/></div>
-      <label>Hub address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47822 or https://your-domain" autoCapitalize="none" autoCorrect="off"/></label>
-      <label>AXIVESTRA hub token<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Private token from hub configuration" autoCapitalize="none" autoCorrect="off"/></label>
-      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save hub connection</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Saved hub connection removed. AXIVESTRA will use its built-in Windows sender when available."); }}><Unplug size={15}/>Forget hub</button>}</div>
-      <p className="wa-local-storage-note"><Info size={14}/>Use HTTP only on a trusted private LAN. For remote access use HTTPS. Keep the hub token private; the WhatsApp gateway API key stays on the hub server.</p>
-    </section>
-
-        {localApi && bridgeInfo && !(companionHost.trim() && companionToken.trim()) && <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">PHONE COMPANION</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in AXIVESTRA on your Android phone.</p></div><Smartphone size={22}/></div>
-      <label>Windows PC address<input readOnly value={bridgeInfo.urls[0] || ("http://your-pc-ip:" + bridgeInfo.port)} onFocus={event => event.currentTarget.select()}/></label>
-      {bridgeInfo.urls.length > 1 && <label>Other available PC addresses<input readOnly value={bridgeInfo.urls.join("    ")} onFocus={event => event.currentTarget.select()}/></label>}
-      <label>AXIVESTRA companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
-      <div className="form-actions"><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.urls[0] || "", "Windows PC address")}><CheckCircle2 size={15}/>Copy address</button><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.token, "Companion code")}><CheckCircle2 size={15}/>Copy code</button></div>
-      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own AXIVESTRA phone on a trusted network. Do not forward it or set up router port forwarding.</p>
-    </section>}
 
     <section className="data-panel wa-address-book">
       <div className="section-heading">

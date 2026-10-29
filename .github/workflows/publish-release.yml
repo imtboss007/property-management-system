@@ -50,8 +50,7 @@ jobs:
       - name: Download Windows installer artifact
         uses: actions/download-artifact@v8
         with:
-          pattern: AXIVESTRA-Setup-*-x64.exe
-          merge-multiple: true
+          name: AXIVESTRA-Windows
           path: dist/release
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
@@ -60,7 +59,7 @@ jobs:
       - name: Download Android APK artifact
         uses: actions/download-artifact@v8
         with:
-          name: app-debug.apk
+          name: AXIVESTRA-Android
           path: dist/release
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}

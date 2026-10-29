@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
+import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, UserPlus } from "lucide-react";
 import App from "./App";
 import { assignLegacyVaultToCompany } from "./lib/local-db";
 import { hasLegacyLocalRecords, prepareCompanyWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
@@ -10,7 +10,6 @@ type Membership = { company_id: string; role: CompanyRole };
 
 export default function AuthGate() {
   const [checked, setChecked] = useState(false);
-  const [localMode, setLocalMode] = useState(false);
   const [recoverySession, setRecoverySession] = useState(false);
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
@@ -226,11 +225,8 @@ export default function AuthGate() {
     }
   };
 
-  if (!supabase && !localMode) {
-    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Asset Intelligence Platform</span></div></div><div className="auth-icon"><Smartphone size={25}/></div><span className="auth-kicker">LOCAL WORKSPACE</span><h1>Use AXIVESTRA on this device</h1><p className="auth-copy">Cloud login is not configured in this build. Your current workspace remains local to this device; it is not protected by cloud company isolation.</p><div className="auth-warning"><ShieldCheck size={18}/><div><strong>Cloud sign-in is not enabled</strong><span>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to the build environment, then apply the Supabase migrations to enable account and company access.</span></div></div><button className="auth-primary" onClick={() => { localStorage.removeItem("axivestra.activeCompanyId"); setLocalMode(true); }}>Continue in local mode <ArrowRight size={17}/></button><a className="auth-link" href="https://github.com/imtboss007/property-management-system/blob/feature/estateflow-unified-whatsapp-automation/SUPABASE-AUTH-SETUP.md" target="_blank" rel="noreferrer">Open cloud setup guide</a></div></div>;
-  }
-
-  if (!supabase && localMode) return <App />;
+  // Local-first installs open straight into AXIVESTRA; phone pairing is built into Settings.
+  if (!supabase) return <App />;
 
   if (!checked) return <div className="auth-shell"><div className="auth-card auth-loading"><LoaderCircle className="auth-spinner" size={28}/><strong>Restoring secure session…</strong></div></div>;
 

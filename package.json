@@ -1,6 +1,6 @@
 {
   "name": "axivestra-property-intelligence",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "description": "AXIVESTRA asset intelligence workspace for Windows, Android, and web.",
@@ -14,7 +14,7 @@
     "desktop:dir": "npm run build && electron-builder --dir",
     "android:sync": "npm run build && cap sync android",
     "cap:sync": "cap sync",
-    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs"
+    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/device-sync.test.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
@@ -26,7 +26,8 @@
     "@whiskeysockets/baileys": "6.7.24",
     "qrcode": "^1.5.4",
     "dexie": "^4.0.8",
-    "@supabase/supabase-js": "^2.118.0"
+    "@supabase/supabase-js": "^2.118.0",
+    "@capacitor-mlkit/barcode-scanning": "^6.2.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
@@ -36,7 +37,8 @@
     "electron": "^34.0.0",
     "electron-builder": "^26.0.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "@types/qrcode": "^1.5.5"
   },
   "build": {
     "appId": "com.estateflow.propertymanagement",

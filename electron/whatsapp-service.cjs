@@ -804,11 +804,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   function bridgeInfo() {
     const interfaces = os.networkInterfaces();
     const addresses = [];
+    const isPrivateIPv4 = address => /^10\./.test(address)
+      || /^192\.168\./.test(address)
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(address);
     for (const entries of Object.values(interfaces)) {
       for (const item of entries || []) {
-        if (item && !item.internal && (item.family === "IPv4" || item.family === 4)) {
-          addresses.push("http://" + item.address + ":" + bridgePort);
-        }
+        if (!item || item.internal || !(item.family === "IPv4" || item.family === 4) || !isPrivateIPv4(item.address)) continue;
+        addresses.push("http://" + item.address + ":" + bridgePort);
       }
     }
     return { port: bridgePort, urls: Array.from(new Set(addresses)), token: bridgeToken };
@@ -858,6 +860,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     }
     try {
       const route = url.pathname;
+      const body = request.method === "POST"
+        ? await readBridgeBody(request, route === "/api/data-sync" ? 25 * 1024 * 1024 : 1024 * 1024)
+        : {};
       if (request.method === "GET" && route === "/api/data-sync") {
         const store = await readDataSyncStore();
         bridgeReply(response, 200, { ok: true, schemaVersion: store.schemaVersion, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot });
@@ -899,7 +904,6 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         bridgeReply(response, 405, { ok: false, error: "Method not allowed." });
         return;
       }
-      const body = await readBridgeBody(request, route === "/api/data-sync" ? 25 * 1024 * 1024 : 1024 * 1024);
       let result;
       if (route === "/api/sync-address-book") {
         result = await syncAddressBook();
@@ -961,6 +965,27 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   ipcMain.handle("estateflow:wa:get-address-book", getAddressBook);
   ipcMain.handle("estateflow:wa:sync-address-book", syncAddressBook);
   ipcMain.handle("estateflow:wa:get-bridge-info", async () => { await startBridge(); return bridgeInfo(); });
+  ipcMain.handle("estateflow:wa:get-data-sync", async () => {
+    const store = await readDataSyncStore();
+    return { ok: true, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot };
+  });
+  ipcMain.handle("estateflow:wa:save-data-sync", async (_event, payload) => {
+    const expectedRevision = Number(payload && payload.expectedRevision);
+    const snapshot = payload && payload.snapshot;
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("A valid sync revision is required.");
+    if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("A valid AXIVESTRA data snapshot is required.");
+    const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "__axivestraSync"];
+    for (const key of allowed) {
+      if (key === "__axivestraSync") continue;
+      if (snapshot[key] !== undefined && !Array.isArray(snapshot[key])) throw new Error("Invalid data collection: " + key);
+      if (Array.isArray(snapshot[key]) && snapshot[key].length > 50000) throw new Error("Collection exceeds the 50,000-record safety limit: " + key);
+    }
+    const committed = await commitDataSync(expectedRevision, snapshot);
+    if (committed.conflict) {
+      return { ok: false, conflict: true, revision: committed.current.revision, updatedAt: committed.current.updatedAt, snapshot: committed.current.snapshot };
+    }
+    return { ok: true, revision: committed.next.revision, updatedAt: committed.next.updatedAt, snapshot: committed.next.snapshot };
+  });
   ipcMain.handle("estateflow:wa:connect", async () => {
     pairingRequested = false;
     status.pairingCode = "";
