@@ -800,6 +800,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const remoteDelete = (_table: string, _id: string) => {};
 
   const uploadDocument = async (file: File) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or replace documents.");
+      return;
+    }
     const maxBytes = 25 * 1024 * 1024;
     if (file.size > maxBytes) {
       setNotice("This file exceeds the 25 MB local-vault limit. Compress it or choose a smaller file.");
@@ -864,6 +868,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const deleteDocument = async (record: DocumentRecord) => {
+    if (company && !["owner", "admin", "manager"].includes(company.role)) {
+      setNotice("Your company role cannot delete documents. Ask a manager or owner.");
+      return;
+    }
     if (!window.confirm("Permanently delete the local file '" + record.name + "'?")) return;
     try {
       const saved = await localDb.documents.get(record.id);
