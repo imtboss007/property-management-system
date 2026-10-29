@@ -68,7 +68,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 ## WhatsApp search and background scheduling
 
 - Contact and group recipient selectors support text search by name, number or group name; the directory has separate search fields.
-- A successful WhatsApp sync imports the available contact and group cache into AXIVESTRA's saved records. A later disconnect or smaller sync response does not clear previously saved contacts/groups; sync is additive/upsert-based. User-deleted app records are a separate manual action.
+- A successful WhatsApp sync imports the available contact and group cache into AXIVESTRA's saved records. Contact/group cache refreshes merge incoming metadata with previously saved entries, so an empty or partial response does not clear previously saved contacts/groups; sync is additive/upsert-based. Group send eligibility is still verified against the currently linked account and is never blindly unioned across accounts. User-deleted app records are a separate manual action.
 - The packaged Windows app is configured to start hidden at Windows login and keeps its scheduler running in the system tray when the window is closed. Open AXIVESTRA from the tray to manage messages. Selecting **Exit AXIVESTRA** intentionally stops the sender.
 - Scheduled messages still require the Windows PC to be powered on, awake, online, and linked to WhatsApp at the due time. Sleep, shutdown, internet loss, WhatsApp logout or an upstream protocol change can interrupt delivery. The Android APK is a companion UI; it does not itself host the Windows sender.
 
