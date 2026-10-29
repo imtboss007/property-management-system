@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { localDb } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
