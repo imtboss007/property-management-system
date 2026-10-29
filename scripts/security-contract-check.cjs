@@ -95,6 +95,8 @@ check("Windows message queue runs in tray and starts hidden at user login",
 check("WhatsApp contact sync only upserts the persistent cache and does not clear it on disconnect",
   has(read("electron/whatsapp-service.cjs"), /async function upsertWhatsAppContacts/i) &&
   has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /function mergeAddressBookCache/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /const merged = mergeAddressBookCache\(addressBook, book\)/i) &&
   has(read("src/App.tsx"), /They remain in AXIVESTRA when WhatsApp is disconnected/i));
 check("one-time and repeated messages support individual contacts and groups",
   has(read("src/WhatsAppScheduler.tsx"), /sendMode === "repeat"/i) &&
