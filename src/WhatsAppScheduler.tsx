@@ -309,6 +309,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       const latest = await api.getStatus();
       setStatus(latest);
     } catch (error) {
+      try { setStatus(await api.getStatus()); } catch {}
       inform("Could not start WhatsApp linking: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
   };
@@ -324,7 +325,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       inform("Pairing code generated. On your phone, open WhatsApp → Linked devices → Link a device → Link with phone number, then enter the code.");
       if (result.code) setStatus(previous => ({ ...previous, pairingCode: result.code, qrDataUrl: "" }));
     } catch (error) {
-      inform("Could not generate a pairing code: " + (error instanceof Error ? error.message : String(error)));
+      // Refresh status even on failure so the user sees the sender's actual error
+      // and can use QR fallback rather than being left with a stale connecting screen.
+      try { setStatus(await api.getStatus()); } catch {}
+      inform("Could not generate a pairing code: " + (error instanceof Error ? error.message : String(error)) + " If the code is not shown, try Connect with QR.");
     } finally { setBusy(false); }
   };
 
