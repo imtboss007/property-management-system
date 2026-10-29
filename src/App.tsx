@@ -1218,14 +1218,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             token = localStorage.getItem("estateflow.whatsapp.token") || "";
           } catch {}
           if (!host.trim() || !token.trim()) return;
-          const base = host.trim().replace(/\\/+$/, "");
+          const base = host.trim().replace(/\/+$/, "");
           let parsed: URL;
           try { parsed = new URL(base); } catch { return; }
           if (!["http:", "https:"].includes(parsed.protocol)) return;
           const hostname = parsed.hostname.toLowerCase();
           const privateHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)
-            || hostname.endsWith(".local") || /^10\\./.test(hostname)
-            || /^192\\.168\\./.test(hostname) || /^172\\.(1[6-9]|2\\d|3[01])\\./.test(hostname);
+            || hostname.endsWith(".local") || /^10\./.test(hostname)
+            || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
           if (parsed.protocol === "http:" && !privateHost) return;
           const response = await fetch(base + "/api/address-book", {
             headers: { "X-EstateFlow-Token": token, "Cache-Control": "no-store" }
