@@ -280,7 +280,7 @@ export async function syncCompanyWorkspace(
     if (entity) {
       const matching = collections.auditEvents
         .filter(event => event.recordId === recordId && event.entity === entity)
-        .reduce((latest, event) => Math.max(latest, Date.parse(event.at) || 0), 0);
+        .reduce((latest, event) => Math.max(latest, Date.parse(String(event.at ?? "")) || 0), 0);
       if (matching) return matching;
     }
     return 0;
