@@ -449,7 +449,7 @@ export default function App() {
   }, [auditEvents]);
 
   useEffect(() => {
-    const collections: Record<string, Array<{ id: string; [key: string]: unknown }>> = {
+    const collections: Record<string, unknown[]> = {
       Property: properties,
       Contact: contacts,
       Task: tasks,
@@ -458,7 +458,8 @@ export default function App() {
       Approval: approvalRequests
     };
     const snapshot: Record<string, Array<{ id: string; fingerprint: string; label: string }>> = {};
-    for (const [entity, records] of Object.entries(collections)) {
+    for (const [entity, rawRecords] of Object.entries(collections)) {
+      const records = rawRecords as Array<{ id: string; [key: string]: unknown }>;
       snapshot[entity] = records.map(record => ({
         id: String(record.id),
         fingerprint: JSON.stringify(record),
