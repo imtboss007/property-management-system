@@ -766,6 +766,8 @@ export default function App() {
     const duplicate = !editingContact && data.phone.trim() && contacts.find(item => sameContactPhone(item.phone, data.phone));
     if (duplicate && !window.confirm(`A contact named "${duplicate.name}" already has this phone number. Create another contact anyway? Cancel to edit the existing master profile instead.`)) return;
     const record: ContactRecord = editingContact ? { ...editingContact, ...data } : { ...data, id: uid() };
+    const possibleDuplicate = !editingContact && Boolean(record.phone) && contacts.find(item => sameContactPhone(item.phone, record.phone));
+    if (possibleDuplicate && !window.confirm(`A contact with a matching phone already exists: ${possibleDuplicate.name}. Save a separate contact anyway?`)) return;
     setContacts(prev => editingContact
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
