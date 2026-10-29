@@ -61,7 +61,7 @@ async function verifiedUser(request: Request) {
 }
 async function getCloudStatus(request: Request, companyId: string) {
   const auth = await verifiedUser(request);
-  if (!("user" in auth) || !("client" in auth)) return jsonResponse(401, { ok: false, ready: false, error: auth.error || "Authentication required." });
+  if ("error" in auth) return jsonResponse(401, { ok: false, ready: false, error: auth.error });
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(companyId)) {
     return jsonResponse(400, { ok: false, ready: false, error: "Select a valid AXIVESTRA company." });
   }
