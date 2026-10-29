@@ -11,8 +11,12 @@ const DAILY_SEND_LIMIT = 60;
 const SEND_COOLDOWN_MS = 12000;
 const MISSED_SCHEDULE_GRACE_MS = 30 * 60 * 1000;
 
+function normalizeDigits(raw) {
+  return String(raw || "").replace(/\D/g, "");
+}
+
 function normalizePhone(raw) {
-  let digits = String(raw || "").replace(/\D/g, "");
+  let digits = normalizeDigits(raw);
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
   if (digits.length === 10) digits = "91" + digits;
@@ -84,6 +88,26 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     } catch (error) {
       if (error && error.code !== "ENOENT") status.error = "Could not read saved schedule: " + error.message;
       queue = [];
+      return;
+    }
+
+    // A process may exit after recording a send as in-flight but before its final status is saved.
+    // Never automatically resend that row: delivery may already have reached WhatsApp.
+    let recoveredInterruptedSend = false;
+    for (const row of queue) {
+      if (!row || row.status !== "sending") continue;
+      row.status = "failed";
+      row.lastError = "AXIVESTRA restarted while this message was being sent. Delivery is uncertain; check the WhatsApp chat before retrying to avoid a duplicate.";
+      row.updatedAt = new Date().toISOString();
+      recoveredInterruptedSend = true;
+    }
+    if (recoveredInterruptedSend) {
+      try {
+        await saveQueue();
+      } catch (error) {
+        status.error = "Could not persist interrupted-message recovery: " + (error instanceof Error ? error.message : String(error));
+      }
+      publish("queue-recovered");
     }
   }
 
@@ -133,9 +157,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   function normalizeWaContact(raw) {
     if (!raw || typeof raw !== "object") return null;
     const rawJid = String(raw.id || raw.jid || "");
-    let digits = String(raw.phoneNumber || raw.phone || "").replace(/\\D/g, "");
+    let digits = normalizeDigits(raw.phoneNumber || raw.phone);
     if (!digits && rawJid.endsWith("@s.whatsapp.net")) {
-      digits = rawJid.split("@")[0].split(":")[0].replace(/\\D/g, "");
+      digits = normalizeDigits(rawJid.split("@")[0].split(":")[0]);
     }
     if (digits.startsWith("00")) digits = digits.slice(2);
     if (digits.length < 8 || digits.length > 15) return null;
@@ -162,7 +186,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       const incoming = normalizeWaContact(raw);
       if (!incoming) continue;
       const existingIndex = whatsappContacts.findIndex(item => item.id === incoming.id ||
-        String(item.phone || "").replace(/\\D/g, "") === incoming.phone.replace(/\\D/g, ""));
+        normalizeDigits(item.phone) === normalizeDigits(incoming.phone));
       if (existingIndex >= 0) {
         const previous = whatsappContacts[existingIndex];
         whatsappContacts[existingIndex] = {
@@ -965,4 +989,4 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   };
 }
 
-module.exports = { createWhatsAppService };
+module.exports = { createWhatsAppService, normalizeDigits };
