@@ -1218,3 +1218,7 @@ h2,h3{color:#e5f2fc}
 .company-member-row .delete-button{white-space:nowrap}
 @media(max-width:800px){.member-access-form{grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)}.member-access-form button{grid-column:1/-1}.company-member-row{padding:9px}}
 @media(max-width:480px){.member-access-form{grid-template-columns:minmax(0,1fr)}.company-member-row{align-items:flex-start}.company-member-row .delete-button{font-size:10px}}
+
+.member-existing-access{margin:12px 0 4px;padding:11px 12px;border:1px solid rgba(125,165,195,.18);border-radius:10px;background:rgba(8,23,38,.28)}
+.member-existing-access summary{cursor:pointer;color:#8ccfdf;font-size:12px;font-weight:700}
+.member-existing-access .member-access-form{margin-top:13px}
