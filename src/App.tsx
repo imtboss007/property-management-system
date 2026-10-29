@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { localDb } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
@@ -659,7 +659,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     if (company && ["owner", "admin"].includes(company.role)) void loadCompanyMembers();
   }, [company?.id, company?.role, loadCompanyMembers]);
 
-  const addCompanyMember = async (event: React.FormEvent) => {
+  const addCompanyMember = async (event: FormEvent) => {
     event.preventDefault();
     if (!company || !userId || !supabase) return;
     const targetId = memberUserId.trim();
