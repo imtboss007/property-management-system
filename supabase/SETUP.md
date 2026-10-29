@@ -9,11 +9,11 @@ Create a Supabase project from the Supabase dashboard. Keep the project URL and 
 Open the project's SQL Editor and run the migrations in date order, using the complete contents from this repository:
 
 1. `supabase/migrations/202610270001_estateflow_core.sql`
-2. `supabase/migrations/202610290001_estateflow_relationship_links.sql`
-3. `supabase/migrations/202610290002_estateflow_whatsapp_address_book.sql`
+2. `supabase/migrations/202610270002_whatsapp_bulk_scheduling.sql`
+3. `supabase/migrations/202610290001_estateflow_relationship_links.sql`
 4. `supabase/migrations/202610290001_contact_intelligence_profile.sql`
-5. `supabase/migrations/202610290002_contact_phone_lookup_index.sql`
-6. `supabase/migrations/202610270002_whatsapp_bulk_scheduling.sql`
+5. `supabase/migrations/202610290002_estateflow_whatsapp_address_book.sql`
+6. `supabase/migrations/202610290002_contact_phone_lookup_index.sql`
 
 Apply each file once in the order above. The contact-intelligence migration backfills existing single-role contacts into the roles array; the phone index supports duplicate suggestions and intentionally does not enforce unique phone numbers. The bulk-scheduling migration adds CSV batch metadata to the existing WhatsApp queue. These are SQL Editor instructions; if using the Supabase CLI, use the project's configured migration workflow and verify its migration history rather than assuming the SQL Editor has tracked applied files.
 
