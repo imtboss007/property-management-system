@@ -24,7 +24,7 @@ check("Cloud queue keeps company/user scope and explicit consent",
   /consent_confirmed = true/.test(migration));
 check("Cloud sender is locked to one configured company at status, queue, and reply-stop layers",
   /AXIVESTRA_WA_COMPANY_ID/.test(edge) &&
-  /companyId !== senderCompanyId/.test(edge) &&
+  /senderCompanyId !== companyId/.test(edge) &&
   /target_company_id: senderCompanyId/.test(edge) &&
   /company_id = target_company_id/.test(migration));
 check("Due queue uses locked claims and avoids blind crash retries",
