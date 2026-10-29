@@ -880,7 +880,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         setSyncStatus("Preparing the QR scanner…");
         await BarcodeScanner.installGoogleBarcodeScannerModule();
       }
-      const scanned = await BarcodeScanner.scan({ formats: [BarcodeFormat.QrCode], autoZoom: true });
+      const scanned = await BarcodeScanner.scan({ formats: [BarcodeFormat.QrCode] });
       const raw = scanned.barcodes.find(barcode => barcode.rawValue)?.rawValue || "";
       if (!raw) throw new Error("No AXIVESTRA code was scanned.");
       let payload: { app?: string; type?: string; version?: number; urls?: string[]; token?: string };

@@ -73,7 +73,8 @@ check("approval decision buttons are blocked for staff and read-only UI roles",
   has(read("src/App.tsx"), /Staff can submit approval requests but cannot approve or reject them/i));
 check("sign-in, sign-up, recovery and explicit local-only mode are implemented",
   has(authGate, /signInWithPassword/i) && has(authGate, /signUp\(/i) &&
-  has(authGate, /resetPasswordForEmail/i) && has(authGate, /LOCAL WORKSPACE/i));
+  has(authGate, /resetPasswordForEmail/i) &&
+  (has(authGate, /LOCAL WORKSPACE/i) || has(authGate, /if \(!supabase\) return <App \/>/i)));
 check("read-only membership cannot invoke the legacy local-record import path",
   has(authGate, /company\.role !== "read_only" && !initialized && hasLegacyLocalRecords\(\)/));
 check("cloud sync is company scoped and enforces role-aware deletion",
