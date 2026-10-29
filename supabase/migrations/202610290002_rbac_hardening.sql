@@ -8,6 +8,13 @@ drop policy if exists "members can append audit events" on public.company_audit_
 revoke all on table public.company_audit_events from anon, authenticated;
 grant select on table public.company_audit_events to authenticated;
 
+-- Clients use soft-delete tombstones; direct physical deletes bypass restoration safeguards.
+revoke delete on table public.company_records from authenticated;
+grant select, insert, update on table public.company_records to authenticated;
+
+-- Keep a trustworthy actor ID for membership changes made via the server-side invite function.
+alter table public.company_memberships add column if not exists updated_by uuid references auth.users(id) on delete set null;
+
 create or replace function public.guard_company_record_identity()
 returns trigger
 language plpgsql
@@ -39,6 +46,31 @@ create trigger company_records_identity_guard
 before insert or update on public.company_records
 for each row execute function public.guard_company_record_identity();
 
+create or replace function public.guard_company_membership_actor()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $axivestra$
+begin
+  if auth.uid() is not null then
+    if tg_op = 'INSERT' then
+      new.created_by := auth.uid();
+    end if;
+    new.updated_by := auth.uid();
+  else
+    -- Service-role invitation requests must explicitly identify the verified caller.
+    new.updated_by := coalesce(new.updated_by, new.created_by);
+  end if;
+  return new;
+end;
+$axivestra$;
+
+drop trigger if exists company_membership_actor_guard on public.company_memberships;
+create trigger company_membership_actor_guard
+before insert or update on public.company_memberships
+for each row execute function public.guard_company_membership_actor();
+
 create or replace function public.log_company_membership_change()
 returns trigger
 language plpgsql
@@ -55,20 +87,20 @@ begin
   if tg_op = 'INSERT' then
     target_company_id := new.company_id;
     target_user_id := new.user_id;
-    actor_id := coalesce(auth.uid(), new.created_by);
+    actor_id := coalesce(auth.uid(), new.updated_by, new.created_by);
     action_name := 'member_added';
     action_label := 'Company membership created with role ' || new.role;
   elsif tg_op = 'UPDATE' then
     if old.role is not distinct from new.role then return new; end if;
     target_company_id := new.company_id;
     target_user_id := new.user_id;
-    actor_id := coalesce(auth.uid(), new.created_by, old.created_by);
+    actor_id := coalesce(auth.uid(), new.updated_by, new.created_by, old.created_by);
     action_name := 'member_role_changed';
     action_label := 'Company membership role changed to ' || new.role;
   else
     target_company_id := old.company_id;
     target_user_id := old.user_id;
-    actor_id := coalesce(auth.uid(), old.created_by);
+    actor_id := coalesce(auth.uid(), old.updated_by, old.created_by);
     action_name := 'member_removed';
     action_label := 'Company membership removed';
   end if;
@@ -92,5 +124,6 @@ after insert or update or delete on public.company_memberships
 for each row execute function public.log_company_membership_change();
 
 revoke all on function public.guard_company_record_identity() from public;
+revoke all on function public.guard_company_membership_actor() from public;
 revoke all on function public.guard_company_record_soft_delete() from public;
 revoke all on function public.log_company_membership_change() from public;
