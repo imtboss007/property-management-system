@@ -239,11 +239,22 @@ security definer
 set search_path = ''
 as $axivestra$
 begin
+  if tg_op = 'INSERT' then
+    if auth.uid() is null then
+      raise exception 'Authenticated user context is required to create a company record.';
+    end if;
+    -- Do not trust creator/updater IDs supplied in a request payload.
+    new.created_by := auth.uid();
+    new.updated_by := auth.uid();
+    return new;
+  end if;
+
   if old.company_id is distinct from new.company_id
      or old.record_type is distinct from new.record_type
      or old.record_key is distinct from new.record_key then
     raise exception 'Company, record type and record key are immutable. Create a new scoped record instead.';
   end if;
+  -- Keep original creator immutable when an authorised member updates a shared record.
   new.created_by := old.created_by;
   return new;
 end;
@@ -251,7 +262,7 @@ $axivestra$;
 
 drop trigger if exists company_records_identity_guard on public.company_records;
 create trigger company_records_identity_guard
-before update on public.company_records
+before insert or update on public.company_records
 for each row execute function public.guard_company_record_identity();
 
 -- Write membership audit events on the server so clients cannot forge governance history.
