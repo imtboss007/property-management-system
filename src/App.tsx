@@ -448,6 +448,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
+  // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
+  const contactsRef = useRef(contacts);
+  contactsRef.current = contacts;
+  const savedWhatsAppGroupsRef = useRef(savedWhatsAppGroups);
+  savedWhatsAppGroupsRef.current = savedWhatsAppGroups;
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
   const [financials, setFinancials] = useState<FinancialRecord[]>(() => load("estateflow.financials", []));
   const [riskRecords, setRiskRecords] = useState<RiskRecord[]>(() => load("estateflow.risks", []));
@@ -1092,7 +1097,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const importWhatsAppContacts = (incoming: SyncedWhatsAppContact[]) => {
-    const next = [...contacts];
+    const next = [...contactsRef.current];
     const changed: ContactRecord[] = [];
     let added = 0;
     let refreshed = 0;
@@ -1134,17 +1139,18 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       }
     }
     if (changed.length) {
+      contactsRef.current = next;
       setContacts(next);
       changed.forEach(record => remoteUpsert("contacts", {
         id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes,
         whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || ""
       }));
     }
-    setNotice(`WhatsApp contacts saved: ${added} added, ${refreshed} existing contact records refreshed. They remain in AXIVESTRA when WhatsApp is disconnected.`);
+    if (added || refreshed) setNotice(`WhatsApp contacts restored: ${added} new, ${refreshed} refreshed. Saved contacts remain available when WhatsApp is disconnected.`);
   };
 
   const importWhatsAppGroups = (incoming: SavedWhatsAppGroup[]) => {
-    const next = [...savedWhatsAppGroups];
+    const next = [...savedWhatsAppGroupsRef.current];
     const changed: SavedWhatsAppGroup[] = [];
     for (const group of incoming) {
       const jid = String(group.jid || group.id || "").trim();
@@ -1171,13 +1177,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       }
     }
     if (changed.length) {
+      savedWhatsAppGroupsRef.current = next;
       setSavedWhatsAppGroups(next);
       changed.forEach(group => remoteUpsert("whatsapp_groups", {
         id: group.id, jid: group.jid, name: group.name, description: group.description,
         member_count: group.size || 0, last_synced_at: group.lastSyncedAt || null
       }));
     }
-    setNotice(`WhatsApp groups saved: ${changed.length} added or refreshed. Saved group names remain in AXIVESTRA after WhatsApp is disconnected.`);
+    if (changed.length) setNotice(`WhatsApp groups restored: ${changed.length} added or refreshed. Saved group names remain available when WhatsApp is disconnected.`);
   };
 
   const saveTask = (data: Omit<TaskRecord, "id" | "done">) => {
