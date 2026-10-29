@@ -1,77 +1,91 @@
-# AXIVESTRA hosted sign-in, company isolation and cloud sync
+# AXIVESTRA hosted sign-in, company isolation, invitations and cloud sync
 
 ## Implemented in source
 - Supabase email/password sign-in, account registration, session restoration, sign-out and password-recovery request.
-- Company selector and owner-created company workspace using `create_company_with_owner`.
-- Membership roles: `owner`, `admin`, `manager`, `staff`, and `read_only`.
-- A separate local cache namespace per selected company. Legacy `estateflow.*` records are not auto-assigned; first-time entry asks before importing them.
-- Per-record cloud sync for properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and local audit events. Remote-only rows are retained; local rows win where IDs collide.
-- RLS, explicit table grants, owner-safe membership policies, and role-checked cloud record deletion in SQL.
-- Windows and Android build workflows accept the public client configuration from Actions secrets. Without them, builds remain in local-only mode.
+- Company selector and owner-created company workspace using the `create_company_with_owner` RPC.
+- Company membership roles: `owner`, `admin`, `manager`, `staff`, and `read_only`.
+- Settings UI for listing company members, changing non-owner roles, removing non-owner members, inviting a new email, and adding/updating an existing Supabase Auth user by UUID.
+- Server-side Edge Function for company invitation. The function verifies the caller, checks owner/admin membership, blocks assignment of owner, sends the Supabase Auth invite, and grants company access.
+- Database-generated membership audit entries; clients do not have direct insert privileges to the governance audit table.
+- Per-company local cache and baseline-aware cloud sync for properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and local audit events. Sync pulls newer remote values, uploads local changes, merges remote-only rows, periodically refreshes while the workspace is open, and respects cloud deletion tombstones.
+- Company record keys/types/company IDs are immutable in the database; the creator identity is set server-side and preserved on update.
+- Optional cloud auth. Without configured public Supabase client values, the app remains available in explicitly labelled local-only mode.
 
-## Configure Supabase (required to enable account access)
+## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. In **SQL Editor**, review and apply `supabase/migrations/202610290001_auth_company_rbac.sql`. Confirm all statements succeed. This workflow commits the migration but does not apply it to a live project.
-3. In Supabase **Authentication → Providers**, enable Email/password and choose email-confirmation settings.
-4. Under Authentication URL configuration, set the actual deployed web origin as Site URL and add approved redirect URLs. Test password recovery from that origin.
+2. In **SQL Editor**, review and apply `supabase/migrations/202610290001_auth_company_rbac.sql`. Confirm every statement succeeds. The migration is committed but has **not** been applied to a live project by this workflow.
+3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
+4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
-   - `VITE_SUPABASE_URL` — the project URL.
-   - `VITE_SUPABASE_PUBLISHABLE_KEY` — the public publishable key (or legacy anon key).
+   - `VITE_SUPABASE_URL`: the Supabase project URL.
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`: public publishable key (or legacy anon key).
 6. For GitHub builds, add repository Actions secrets under **Settings → Secrets and variables → Actions**:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_PUBLISHABLE_KEY`
-   These are public client values embedded at build time. Never use a `service_role` key, database password, WhatsApp token or signing key in Vite variables.
-7. Rebuild both the Windows installer and Android APK after adding the secrets. Old installers/APKs do not gain the configuration later.
-8. Open AXIVESTRA, create an account, confirm email if enabled, sign in, and create a company. The authenticated user becomes the first owner.
+   These are public client values embedded at build time. Never place a `service_role`/secret key, database password, WhatsApp token or signing key in Vite variables.
+7. Rebuild both Windows and Android after adding these values. Existing installers/APKs do not gain the configuration retroactively.
+8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
-## Add a member to an existing company
-A member-management screen is not implemented yet. Until then, an owner/admin must add a membership in Supabase SQL Editor after verifying the user's identity and company. Replace every placeholder:
+## Deploy the invitation Edge Function
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project as the SQL migration:
 
-```sql
-insert into public.company_memberships (company_id, user_id, role, created_by)
-values (
-  'COMPANY_UUID'::uuid,
-  'AUTH_USER_UUID'::uuid,
-  'staff',
-  'OWNER_AUTH_USER_UUID'::uuid
-);
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase functions deploy invite-company-member
 ```
 
-Client membership policies prevent ordinary callers from assigning or removing an owner. Ownership transfer and removal require a dedicated audited procedure and are not exposed in the app.
+Supabase provides the function's server-side project URL and keys. The function supports both the legacy `SUPABASE_SERVICE_ROLE_KEY` environment variable and newer `SUPABASE_SECRET_KEYS` JSON environment configuration; it never sends a privileged key to the app. Do not paste any service/secret key into GitHub source or `VITE_*` variables. The function requires a valid signed-in user's JWT and independently checks the caller's company membership.
+
+Optionally configure an approved invitation redirect URL in Supabase Edge Function secrets, using the real deployed app origin:
+
+```bash
+supabase secrets set AXIVESTRA_INVITE_REDIRECT_URL=https://YOUR_APPROVED_APP_ORIGIN
+```
+
+Also configure Supabase Auth's invite email template, SMTP/provider delivery and rate limits. If the email already has a Supabase account, the app explains that you should use the existing user's UUID flow. Email invitations have not been live-tested because this repository workflow has no access to your project.
+
+## Manage company members
+In **Settings → Company member access**, an owner/admin can:
+- Invite a new user by email and choose Admin, Manager, Staff or Read-only.
+- Add/change an existing Supabase Auth user by UUID if the email already has an account.
+- Remove non-owner membership or change roles. An owner cannot be changed or removed through this UI.
+
+The UI updates company membership through RLS policies; member changes are written to `company_audit_events` by a database trigger. Owner transfer/removal needs a separate reviewed governance procedure and is not included.
 
 ## Roles and enforcement
-- `owner`: full company workspace and governance.
-- `admin`: company administration and business records; cannot grant/remove owner membership.
-- `manager`: business create/update/delete.
-- `staff`: business create/update; cannot delete shared cloud records.
-- `read_only`: cloud reads only; app mutation guards are UX controls, not the security boundary.
+- `owner`: all company workspace and governance.
+- `admin`: company settings and member administration; cannot grant/remove owner membership.
+- `manager`: create/update/delete operational records.
+- `staff`: create/update records; cannot delete shared company records.
+- `read_only`: cloud reads only. Interface guards are for usability; database RLS is the authorization boundary.
 
-Database row-level security (RLS) is the authorization boundary for cloud records. Each record is stored with a company ID and read/written under the signed-in Supabase identity.
+Database row-level security (RLS), least-privilege grants and immutable record identity are the security boundary for cloud records. Every business record is scoped by company ID and checked against the signed-in user's membership.
 
 ## Existing local data migration
-On first company access from a device, if unscoped legacy records exist, AXIVESTRA asks whether to import and merge them into that company or use cloud data. Back up first. On ID collisions, the device's local version wins; cloud-only records are kept. Do not import the same legacy records into multiple companies unless intentional.
+On first access to a company on a device, AXIVESTRA detects unscoped legacy records and asks whether to import them into the selected company or use cloud data. Back up first. For the first import only, local rows win matching ID conflicts and cloud-only rows are preserved. After that, a per-company baseline reconciles local and remote edits; overlapping edits use the latest local audit time versus the server's last update time, with ties preferring the remote value. Cloud tombstones prevent stale devices from resurrecting deleted rows. This is pragmatic conflict handling, not field-level merging; review important financial/legal changes after conflict notices.
 
-## Important limits before production
-- The migration is committed but is not applied to a live project by this workflow. Use a test project first.
-- Document file bytes remain in the local IndexedDB vault; only listed business-record collections sync. Export/restore document-vault backups separately per device.
-- WhatsApp linked-device credentials, QR and pairing codes remain on the Windows sender and are not uploaded.
-- Company membership management UI, invite acceptance, ownership transfer, field-level conflict resolution and production Android signing are not complete.
-- Device-local caches are not encrypted against someone who can access the OS profile. Use device encryption, screen locks and encrypted backups.
-- Routine sync refuses to revive soft-deleted cloud records. Restoration of a deleted ID needs an owner-controlled recovery procedure.
-- Real-account tests for RLS, recovery, cross-company isolation, multi-device sync and WhatsApp behaviour are still required.
+## Data boundaries
+- Business records sync through the company-scoped Supabase table.
+- Document file bytes stay in the local IndexedDB vault and need separate backup/restore per device.
+- WhatsApp linked-device credentials, QR/pairing codes and the private PC companion token stay on the Windows sender and are never uploaded as business records.
+- Local browser/device caches are not encrypted against someone who can access the OS profile. Use device encryption, screen locks and encrypted backups.
+- Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply the migration to a dedicated Supabase test project and confirm it runs without errors.
-- [ ] Create User A / Company A and User B / Company B; verify neither user can read or modify the other's records, including direct API requests.
-- [ ] Verify read-only cannot write and staff cannot delete via the Data API.
-- [ ] Test create company, logout/login, company switching and record isolation.
-- [ ] Import local records once and verify sync from Windows to Android and back.
-- [ ] Test record create/update/delete on two devices, including stale-cache deletion recovery.
-- [ ] Test email confirmation, password recovery, session expiry and membership revocation.
-- [ ] Test document backup/restore, including actual file bytes.
-- [ ] Test WhatsApp pairing, contacts/groups, delivery, stop-on-reply and offline recovery with consenting test accounts.
-- [ ] Install on a clean Windows profile and a real Android device; produce a separately signed Android release before public distribution.
-- [ ] Run all CI checks and retain build artifacts.
+- [ ] Apply the migration to a dedicated Supabase test project and verify it runs without SQL errors.
+- [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
+- [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
+- [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.
+- [ ] Verify Read-only cannot write and Staff cannot delete through direct API requests.
+- [ ] Test company create, logout/login, company switching and cache isolation.
+- [ ] Create/update/delete a record on Windows and confirm a second device receives changes; test offline changes and deletion tombstones.
+- [ ] Test simultaneous edits of a record and manually review the chosen conflict result.
+- [ ] Test session expiry, email confirmation, password recovery, revoked membership and attempted owner escalation.
+- [ ] Back up/restore documents and verify actual file bytes.
+- [ ] Test WhatsApp QR/pairing, contacts/groups, delivery, stop-on-reply and offline recovery with consenting real test accounts.
+- [ ] Install on a clean Windows profile and real Android device. The current APK workflow produces a debug APK; configure a separate signed release before public distribution.
+- [ ] Run all CI checks. Keep `main` unchanged until you explicitly approve merging the feature branch.
 
-## Security
-Never commit auth tokens, WhatsApp session files, QR/pairing codes, private hub tokens, database passwords, signing keys or a Supabase service-role key. Keep network companion endpoints on trusted private networks and review RLS grants before production.
+## Security rules
+Never commit auth tokens, WhatsApp session files, QR/pairing codes, private hub tokens, database passwords, signing keys or Supabase secret/service-role keys. Keep the Windows companion on a trusted private network.
