@@ -296,7 +296,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         authState = auth.state;
         const nextSocket = lib.makeWASocket({
           auth: auth.state,
-          browser: typeof lib.Browsers.macOS === "function" ? lib.Browsers.macOS("Desktop") : undefined,
+          // This sender runs as a Windows desktop app. Prefer a matching desktop fingerprint
+          // rather than advertising itself as macOS; keep fallbacks for older Baileys builds.
+          browser: typeof lib.Browsers.windows === "function"
+            ? lib.Browsers.windows("AXIVESTRA")
+            : typeof lib.Browsers.macOS === "function"
+              ? lib.Browsers.macOS("Desktop")
+              : undefined,
           printQRInTerminal: false,
           markOnlineOnConnect: false,
           syncFullHistory: true,
@@ -332,8 +338,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
             publish("connected");
           }
           if (update.connection === "close") {
-            const code = update.lastDisconnect && update.lastDisconnect.error && update.lastDisconnect.error.output && update.lastDisconnect.error.output.statusCode;
+            const disconnectError = update.lastDisconnect && update.lastDisconnect.error;
+            const code = disconnectError && disconnectError.output && disconnectError.output.statusCode;
             const loggedOut = code === lib.DisconnectReason.loggedOut;
+            const detail = String(disconnectError && (disconnectError.message || disconnectError.data || disconnectError.output?.payload?.message) || "").trim();
             socket = null;
             status.connected = false;
             status.connecting = false;
@@ -346,11 +354,14 @@ function createWhatsAppService({ app, ipcMain, notify }) {
               return;
             }
             if (loggedOut) {
-              status.error = "WhatsApp logged this linked device out. Connect again using QR or the pairing code.";
+              status.error = "WhatsApp logged this linked device out. Connect again using QR or the pairing code." + (code ? " (code " + code + ")" : "");
               publish("logged-out");
               return;
             }
-            status.error = "WhatsApp connection dropped. EstateFlow will try to reconnect.";
+            // Keep the protocol close code visible: 401/405/428 often indicate a WhatsApp
+            // handshake/session rejection, not a QR-rendering problem.
+            status.error = "WhatsApp connection closed" + (code ? " (code " + code + ")" : "") +
+              (detail ? ": " + detail : ".") + " Check the internet connection, then try a fresh QR. If this repeats, the linked-device library/session handshake may be rejected by WhatsApp.";
             publish("connection-lost");
             setTimeout(() => {
               if (!status.connected && !socket && !intentionalLogout) void startSocket();
@@ -660,6 +671,20 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       status.qrDataUrl = "";
       status.error = error instanceof Error ? error.message : String(error);
       publish("pairing-error");
+      // If this was a fresh/unregistered session, recreate the socket so WhatsApp can emit
+      // a new QR event. The QR event may have arrived while pairingRequested was true and
+      // therefore was intentionally hidden; simply flipping the flag is not enough.
+      if (!(authState && authState.creds && authState.creds.registered) && socket && !status.connected) {
+        const previousSocket = socket;
+        socket = null;
+        try { previousSocket.end(undefined); } catch (_) {}
+        status.connecting = false;
+        try { await startSocket(); } catch (restartError) {
+          status.error = (status.error ? status.error + " " : "") + "QR fallback could not restart: " +
+            (restartError instanceof Error ? restartError.message : String(restartError));
+          publish("pairing-fallback-error");
+        }
+      }
       throw error;
     }
   }
