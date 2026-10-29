@@ -83,6 +83,7 @@ declare changed integer;
 begin
   if auth.uid() is null then raise exception 'Authentication required.'; end if;
   if target_company_id is null then raise exception 'Company scope required.'; end if;
+  if not public.is_company_member(target_company_id) then raise exception 'Company membership required.'; end if;
   update public.whatsapp_cloud_messages m
     set status = 'cancelled', updated_at = now()
     where m.id = target_message_id
@@ -105,6 +106,7 @@ declare changed integer;
 begin
   if auth.uid() is null then raise exception 'Authentication required.'; end if;
   if target_company_id is null then raise exception 'Company scope required.'; end if;
+  if not public.is_company_member(target_company_id) then raise exception 'Company membership required.'; end if;
   update public.whatsapp_cloud_messages m
     set status = 'scheduled', scheduled_at = now() + interval '1 minute',
         attempt_count = 0, last_error = '', provider_message_id = '',
