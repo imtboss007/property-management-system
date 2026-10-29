@@ -1,6 +1,6 @@
 # AXIVESTRA — Authentication, Company Isolation & RBAC Implementation Plan
 
-Status: next development stage
+Status: implementation present in source; live deployment and acceptance testing remain
 Target branch: `feature/estateflow-unified-whatsapp-automation`
 Main branch: must remain untouched until the user explicitly approves a merge.
 
