@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.estateflow.propertymanagement',
-  appName: 'EstateFlow',
+  appName: 'AXIVESTRA',
   webDir: 'dist',
   bundledWebRuntime: false,
   plugins: { CapacitorHttp: { enabled: true } },

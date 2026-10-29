@@ -1,29 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
-  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info
+  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users, Search
 } from "lucide-react";
 
-type ContactOption = { id: string; name: string; phone: string; role?: string };
+type ContactOption = { id: string; name: string; phone: string; role?: string; whatsappName?: string; whatsappJid?: string };
+type PropertyOption = { id: string; title: string };
+type WhatsAppGroupOption = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
+type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string; source?: string; lastSyncedAt?: string };
+type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
-  phone: string; contactName: string; message: string; scheduledAt: string;
+  destinationType?: "contact" | "group"; groupJid?: string; groupName?: string;
+  phone: string; contactId?: string; contactName: string; message: string; scheduledAt: string;
+  propertyId?: string; propertyTitle?: string; taskId?: string; taskTitle?: string;
   status: "scheduled" | "sending" | "sent" | "failed" | "cancelled" | string;
   consentConfirmed: boolean; stopOnReply: boolean; createdAt: string;
-  sentAt?: string; lastError?: string;
+  sentAt?: string; lastError?: string; deliveryStatus?: string;
 };
 type DirectStatus = {
   supported: boolean; platform: string; connected: boolean; connecting: boolean;
   senderNumber: string; displayName: string; qrDataUrl: string; pairingCode: string;
   error: string; lastConnectedAt: string;
+  webhook?: { configured: boolean; reason?: string; error?: string; provider?: string };
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
 type BridgeInfo = { port: number; urls: string[]; token: string };
-type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string };
+type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
   getQueue: () => Promise<ScheduleRow[]>;
+  getAddressBook: () => Promise<WhatsAppAddressBook>;
+  syncAddressBook: () => Promise<WhatsAppAddressBook>;
   connect: () => Promise<{ ok: boolean }>;
   requestPairingCode: (phone: string) => Promise<{ ok: boolean; code: string }>;
   disconnect: () => Promise<{ ok: boolean }>;
@@ -44,7 +53,7 @@ function readSaved(key: string) {
 function createRemoteApi(host: string, token: string): WhatsAppApi {
   const base = host.trim().replace(/\/+$/, "");
   const request = async (path: string, method: "GET" | "POST" = "GET", body?: Record<string, unknown>): Promise<CompanionResponse> => {
-    if (!/^http:\/\//i.test(base)) throw new Error("Windows PC address must start with http://");
+    if (!/^https?:\/\//i.test(base)) throw new Error("Enter an http:// local address or an https:// secured address.");
     const response = await fetch(base + path, {
       method,
       headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token },
@@ -60,6 +69,14 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   return {
     getStatus: async () => (await request("/api/status")).status || fallbackStatus(),
     getQueue: async () => (await request("/api/queue")).queue || [],
+    getAddressBook: async () => {
+      const data = await request("/api/address-book");
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts };
+    },
+    syncAddressBook: async () => {
+      const data = await request("/api/sync-address-book", "POST");
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts, warnings: data.warnings, note: data.note };
+    },
     connect: async () => { const data = await request("/api/connect", "POST"); return { ok: Boolean(data.ok) }; },
     requestPairingCode: async phone => { const data = await request("/api/pairing-code", "POST", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
     disconnect: async () => { const data = await request("/api/disconnect", "POST"); return { ok: Boolean(data.ok) }; },
@@ -71,7 +88,7 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; onNotice: (message: string) => void };
+type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -87,7 +104,78 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
-export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
+// Treat imported WhatsApp metadata as an additive cache: a transient empty/partial
+// response must never erase contacts or group names already saved on this device.
+// Verified group membership is deliberately NOT unioned across refreshes/accounts.
+function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsAppAddressBook): WhatsAppAddressBook {
+  const contacts: SyncedWhatsAppContact[] = [];
+  for (const contact of [...previous.contacts, ...incoming.contacts]) {
+    const digits = String(contact.phone || "").replace(/\D/g, "");
+    const key = String(contact.jid || contact.id || "");
+    const index = contacts.findIndex(saved => {
+      const savedDigits = String(saved.phone || "").replace(/\D/g, "");
+      const savedKey = String(saved.jid || saved.id || "");
+      return Boolean((digits && savedDigits && digits === savedDigits) || (key && savedKey && key === savedKey));
+    });
+    if (index < 0) {
+      contacts.push(contact);
+    } else {
+      const saved = contacts[index];
+      contacts[index] = {
+        ...saved,
+        ...contact,
+        id: contact.id || saved.id,
+        jid: contact.jid || saved.jid,
+        phone: contact.phone || saved.phone,
+        name: contact.name || saved.name,
+        whatsappName: contact.whatsappName || saved.whatsappName,
+        notify: contact.notify || saved.notify,
+        verifiedName: contact.verifiedName || saved.verifiedName,
+        lastSyncedAt: contact.lastSyncedAt || saved.lastSyncedAt
+      };
+    }
+  }
+
+  const groups: WhatsAppGroupOption[] = [];
+  for (const group of [...previous.groups, ...incoming.groups]) {
+    const jid = String(group.jid || group.id || "");
+    if (!jid.endsWith("@g.us")) continue;
+    const index = groups.findIndex(saved => String(saved.jid || saved.id || "") === jid);
+    if (index < 0) {
+      groups.push({ ...group, jid });
+    } else {
+      const saved = groups[index];
+      groups[index] = {
+        ...saved,
+        ...group,
+        id: group.id || saved.id || jid,
+        jid,
+        name: group.name || group.subject || saved.name || saved.subject || "WhatsApp group",
+        subject: group.subject || saved.subject || group.name || saved.name,
+        description: group.description || saved.description,
+        size: Number.isFinite(group.size) && Number(group.size) > 0 ? group.size : saved.size,
+        lastSyncedAt: group.lastSyncedAt || saved.lastSyncedAt
+      };
+    }
+  }
+  contacts.sort((a, b) => String(a.whatsappName || a.name).localeCompare(String(b.whatsappName || b.name)));
+  groups.sort((a, b) => a.name.localeCompare(b.name));
+
+  const sameAccount = !previous.accountNumber || !incoming.accountNumber || previous.accountNumber === incoming.accountNumber;
+  return {
+    contacts,
+    groups,
+    lastSyncedAt: incoming.lastSyncedAt || previous.lastSyncedAt,
+    connected: incoming.connected,
+    accountNumber: incoming.accountNumber || previous.accountNumber || "",
+    activeGroupJids: Array.isArray(incoming.activeGroupJids) ? incoming.activeGroupJids : (sameAccount ? previous.activeGroupJids || [] : []),
+    counts: { contacts: contacts.length, groups: groups.length },
+    warnings: incoming.warnings?.length ? incoming.warnings : previous.warnings,
+    note: incoming.note || previous.note
+  };
+}
+
+export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken, setCompanionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
@@ -95,9 +183,11 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
   const [tokenInput, setTokenInput] = useState(() => readSaved("estateflow.whatsapp.token"));
   const [bridgeInfo, setBridgeInfo] = useState<BridgeInfo | null>(null);
   const api = useMemo<WhatsAppApi | undefined>(() => {
+    // A saved hub is the selected transport; otherwise keep the built-in Windows fallback.
+    // A single queue row is never sent through both transports.
+    if (companionHost.trim() && companionToken.trim()) return createRemoteApi(companionHost, companionToken);
     if (localApi) return localApi;
-    if (!companionHost.trim() || !companionToken.trim()) return undefined;
-    return createRemoteApi(companionHost, companionToken);
+    return undefined;
   }, [localApi, companionHost, companionToken]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
@@ -106,7 +196,19 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
   });
   const [queue, setQueue] = useState<ScheduleRow[]>([]);
+  const [addressBook, setAddressBook] = useState<WhatsAppAddressBook>({ contacts: [], groups: [], lastSyncedAt: "", connected: false });
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [recipientMode, setRecipientMode] = useState<"contact" | "group">("contact");
+  const [selectedGroupJid, setSelectedGroupJid] = useState("");
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientGroupSearch, setRecipientGroupSearch] = useState("");
+  const [directoryContactSearch, setDirectoryContactSearch] = useState("");
+  const [directoryGroupSearch, setDirectoryGroupSearch] = useState("");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState("");
+  const [selectedTaskTitle, setSelectedTaskTitle] = useState("");
   const [target, setTarget] = useState("");
   const [contactName, setContactName] = useState("");
   const [message, setMessage] = useState("Hello, I am following up on our property discussion. Please let me know a convenient time to talk.");
@@ -125,6 +227,38 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     () => contacts.find(contact => contact.id === selectedContactId),
     [contacts, selectedContactId]
   );
+  const groupOptions = useMemo(() => {
+    const byJid = new Map<string, WhatsAppGroupOption>();
+    for (const group of [...savedGroups, ...addressBook.groups]) {
+      const jid = String(group.jid || group.id || "");
+      if (!jid.endsWith("@g.us")) continue;
+      byJid.set(jid, { ...byJid.get(jid), ...group, id: group.id || jid, jid, name: group.name || group.subject || byJid.get(jid)?.name || "WhatsApp group" });
+    }
+    return Array.from(byJid.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [savedGroups, addressBook.groups]);
+  const sendableGroupOptions = useMemo(() => status.connected
+    ? groupOptions.filter(group => (addressBook.activeGroupJids || []).includes(group.jid) && (!addressBook.accountNumber || addressBook.accountNumber === status.senderNumber))
+    : groupOptions, [groupOptions, status.connected, status.senderNumber, addressBook.activeGroupJids, addressBook.accountNumber]);
+  const selectedGroup = useMemo(() => groupOptions.find(group => group.jid === selectedGroupJid), [groupOptions, selectedGroupJid]);
+  const filteredRecipientContacts = useMemo(() => {
+    const query = recipientSearch.trim().toLocaleLowerCase();
+    return contacts
+      .filter(contact => contact.phone.trim())
+      .filter(contact => !query || `${contact.name} ${contact.whatsappName || ""} ${contact.phone} ${contact.role || ""}`.toLocaleLowerCase().includes(query))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts, recipientSearch]);
+  const filteredRecipientGroups = useMemo(() => {
+    const query = recipientGroupSearch.trim().toLocaleLowerCase();
+    return sendableGroupOptions.filter(group => !query || `${group.name} ${group.jid}`.toLocaleLowerCase().includes(query));
+  }, [sendableGroupOptions, recipientGroupSearch]);
+  const filteredDirectoryContacts = useMemo(() => {
+    const query = directoryContactSearch.trim().toLocaleLowerCase();
+    return addressBook.contacts.filter(contact => !query || `${contact.whatsappName || ""} ${contact.name} ${contact.phone}`.toLocaleLowerCase().includes(query));
+  }, [addressBook.contacts, directoryContactSearch]);
+  const filteredDirectoryGroups = useMemo(() => {
+    const query = directoryGroupSearch.trim().toLocaleLowerCase();
+    return groupOptions.filter(group => !query || `${group.name} ${group.jid}`.toLocaleLowerCase().includes(query));
+  }, [groupOptions, directoryGroupSearch]);
 
   useEffect(() => {
     if (!api) return;
@@ -135,6 +269,10 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
         if (!active) return;
         setStatus(nextStatus);
         setQueue(nextQueue);
+        try {
+          const nextAddressBook = await api.getAddressBook();
+          if (active) setAddressBook(previous => mergeAddressBookCache(previous, nextAddressBook));
+        } catch { /* Some remote senders do not expose address-book sync; keep the saved cache visible. */ }
       } catch (error) {
         if (active) setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) }));
       }
@@ -148,16 +286,23 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       if (payload.reason === "reply-detected") setLocalNotice("A reply was detected. Pending follow-ups to that contact were cancelled.");
       if (payload.reason === "connection-lost") setLocalNotice("WhatsApp disconnected. Pending messages remain saved; reconnect before they are due.");
     });
-    const poll = localApi ? undefined : window.setInterval(() => { void refresh(); }, 4000);
-    return () => { active = false; unsubscribe(); if (poll !== undefined) window.clearInterval(poll); };
+    const poll = window.setInterval(() => { void refresh(); }, 8000);
+    return () => { active = false; unsubscribe(); window.clearInterval(poll); };
   }, [api, localApi]);
 
   useEffect(() => {
-    if (!localApi?.getBridgeInfo) return;
+    if (!localApi?.getBridgeInfo || (companionHost.trim() && companionToken.trim())) return;
     void localApi.getBridgeInfo().then(setBridgeInfo).catch(error => {
       setLocalNotice("Could not load phone companion details: " + (error instanceof Error ? error.message : String(error)));
     });
-  }, [localApi]);
+  }, [localApi, companionHost, companionToken]);
+
+  useEffect(() => {
+    if (initialContactId) setSelectedContactId(initialContactId);
+    if (initialPropertyId) setSelectedPropertyId(initialPropertyId);
+    if (initialTaskId) setSelectedTaskId(initialTaskId);
+    if (initialTaskTitle) setSelectedTaskTitle(initialTaskTitle);
+  }, [initialContactId, initialPropertyId, initialTaskId, initialTaskTitle]);
 
   useEffect(() => {
     if (!selectedContact) return;
@@ -172,23 +317,82 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
 
   const saveCompanionSettings = () => {
     const host = hostInput.trim().replace(/\/+$/, "");
-    if (!/^http:\/\/[^/]+(?::\d+)?$/i.test(host)) {
-      inform("Enter the Windows PC address including its port, for example http://192.168.1.10:47821.");
+    let parsed: URL;
+    try { parsed = new URL(host); }
+    catch { inform("Enter a full hub address, such as http://192.168.1.10:47822 or an HTTPS address."); return; }
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.pathname !== "/" || parsed.search || parsed.hash || parsed.username || parsed.password) {
+      inform("Enter only the hub address and port. Use HTTPS for remote access; HTTP is for a trusted local network.");
       return;
     }
-    if (!tokenInput.trim()) { inform("Enter the EstateFlow companion code shown in the Windows app."); return; }
+    const hostname = parsed.hostname.toLowerCase();
+    const localHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)
+      || hostname.endsWith(".local")
+      || /^10\./.test(hostname)
+      || /^192\.168\./.test(hostname)
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    if (parsed.protocol === "http:" && !localHost) {
+      inform("Use HTTPS for a hub outside your trusted local network.");
+      return;
+    }
+    if (!tokenInput.trim()) { inform("Enter the AXIVESTRA hub token from the private hub configuration."); return; }
     try {
       localStorage.setItem("estateflow.whatsapp.host", host);
       localStorage.setItem("estateflow.whatsapp.token", tokenInput.trim());
     } catch {}
     setCompanionHost(host);
     setCompanionToken(tokenInput.trim());
-    inform("Windows PC connection saved. EstateFlow is checking the companion now.");
+    inform("AXIVESTRA hub connection saved. The connection status will show whether the gateway is reachable.");
   };
 
-  const copyValue = async (value: string, label: string) => {
+    const copyValue = async (value: string, label: string) => {
     try { await navigator.clipboard.writeText(value); inform(label + " copied."); }
     catch { inform("Select the " + label.toLowerCase() + " field and copy it manually."); }
+  };
+
+  const applyAddressBook = (book: WhatsAppAddressBook) => {
+    const merged = mergeAddressBookCache(addressBook, book);
+    setAddressBook(merged);
+    if (merged.contacts.length) onImportContacts?.(merged.contacts);
+    if (merged.groups.length) onImportGroups?.(merged.groups);
+  };
+
+  const importSavedAddressBook = async () => {
+    if (!api) {
+      inform("Open AXIVESTRA on the Windows PC or connect to its companion address to import the saved WhatsApp cache.");
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const book = await api.getAddressBook();
+      applyAddressBook(book);
+      inform(`Saved cache loaded: ${book.contacts.length} WhatsApp contacts and ${book.groups.length} groups. AXIVESTRA keeps these records when WhatsApp is disconnected.`);
+    } catch (error) {
+      inform("Could not load the saved WhatsApp cache: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const syncWhatsAppAddressBook = async () => {
+    if (!api) {
+      inform("Open the Windows AXIVESTRA app or connect to your Windows companion first.");
+      return;
+    }
+    setSyncBusy(true);
+    try {
+      const book = await api.syncAddressBook();
+      applyAddressBook(book);
+      const warningText = (book.warnings || []).join(" ");
+      inform(`WhatsApp sync finished: ${book.contacts.length} contacts and ${book.groups.length} groups saved in AXIVESTRA. ${book.note || ""} ${warningText}`.trim());
+    } catch (error) {
+      try {
+        const cached = await api.getAddressBook();
+        setAddressBook(previous => mergeAddressBookCache(previous, cached));
+      } catch {}
+      inform("Live sync did not complete. Your previously saved contacts/groups have not been deleted. " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setSyncBusy(false);
+    }
   };
 
   const connectQr = async () => {
@@ -200,6 +404,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       const latest = await api.getStatus();
       setStatus(latest);
     } catch (error) {
+      try { setStatus(await api.getStatus()); } catch {}
       inform("Could not start WhatsApp linking: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
   };
@@ -215,13 +420,16 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       inform("Pairing code generated. On your phone, open WhatsApp → Linked devices → Link a device → Link with phone number, then enter the code.");
       if (result.code) setStatus(previous => ({ ...previous, pairingCode: result.code, qrDataUrl: "" }));
     } catch (error) {
-      inform("Could not generate a pairing code: " + (error instanceof Error ? error.message : String(error)));
+      // Refresh status even on failure so the user sees the sender's actual error
+      // and can use QR fallback rather than being left with a stale connecting screen.
+      try { setStatus(await api.getStatus()); } catch {}
+      inform("Could not generate a pairing code: " + (error instanceof Error ? error.message : String(error)) + " If the code is not shown, try Connect with QR.");
     } finally { setBusy(false); }
   };
 
   const disconnect = async () => {
     if (!api) return;
-    if (!window.confirm("Disconnect this WhatsApp linked device from EstateFlow? Saved scheduled messages will remain in the queue.")) return;
+    if (!window.confirm("Disconnect this WhatsApp linked device from AXIVESTRA? Saved scheduled messages will remain in the queue.")) return;
     setBusy(true);
     try {
       await api.disconnect();
@@ -232,14 +440,38 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     } finally { setBusy(false); }
   };
 
+  const resetPairingSession = async () => {
+    if (!api) return;
+    if (!window.confirm("Reset the saved WhatsApp link on the sender and start fresh? This removes only AXIVESTRA's local linked-device session, not your WhatsApp account or saved message queue. You will need to link the device again.")) return;
+    setBusy(true);
+    try {
+      await api.disconnect();
+      setStatus(await api.getStatus());
+      inform("Saved AXIVESTRA pairing session reset. Now choose Connect with QR or generate a new pairing code.");
+    } catch (error) {
+      inform("Could not reset the pairing session: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setBusy(false); }
+  };
+
   const makePayload = () => {
     const due = new Date(date + "T" + time + ":00");
-    if (!target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
+    if (recipientMode === "group" && !selectedGroup) throw new Error("Select a WhatsApp group from your saved group list.");
+    if (recipientMode === "group" && status.connected && !sendableGroupOptions.some(group => group.jid === selectedGroupJid)) throw new Error("This group is not verified for the currently linked WhatsApp account. Sync groups again before scheduling.");
+    if (recipientMode === "contact" && !target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
     if (!message.trim()) throw new Error("Write the message to send.");
     if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
-    if (!consentConfirmed) throw new Error("Confirm that the client expects and has agreed to receive these messages.");
+    if (!consentConfirmed) throw new Error("Confirm that this recipient or group expects and has agreed to receive these messages.");
+    const linkedProperty = properties.find(property => property.id === selectedPropertyId);
     return {
-      phone: target, contactName: contactName.trim(), message: message.trim(),
+      destinationType: recipientMode,
+      groupJid: recipientMode === "group" ? selectedGroup?.jid || "" : "",
+      groupName: recipientMode === "group" ? selectedGroup?.name || "WhatsApp group" : "",
+      phone: recipientMode === "contact" ? target : "",
+      contactId: recipientMode === "contact" ? selectedContactId || "" : "",
+      contactName: recipientMode === "contact" ? contactName.trim() : "",
+      message: message.trim(),
+      propertyId: linkedProperty?.id || "", propertyTitle: linkedProperty?.title || "",
+      taskId: selectedTaskId, taskTitle: selectedTaskTitle,
       scheduledAt: due.toISOString(),
       repeatCount: sendMode === "repeat" ? Number(repeatCount) : 1,
       intervalDays: Number(intervalDays),
@@ -263,7 +495,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       setConsentConfirmed(false);
       inform(immediate
         ? "Message added to the send queue and will be sent shortly if WhatsApp is connected."
-        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. Keep EstateFlow running in the Windows system tray.");
+        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. The Windows sender starts hidden at login and continues from the system tray. Keep the PC awake, online and WhatsApp linked; do not choose Exit AXIVESTRA.");
     } catch (error) {
       inform("Could not schedule message: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
@@ -302,8 +534,8 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
 
   return <section className="data-panel whatsapp-workspace">
     <div className="section-heading">
-      <div><span className="section-kicker">DIRECT LINKED DEVICE</span><h2>WhatsApp automation</h2>
-        <p>Link your own WhatsApp account, select a contact, and schedule one message or a follow-up sequence.</p>
+      <div><span className="section-kicker">AXIVESTRA COMMUNICATIONS</span><h2>Message command centre</h2>
+        <p>Link your account, import your directory, choose an individual or group, then automate consent-based conversations linked to your portfolio records.</p>
       </div>
       <MessageCircle size={22}/>
     </div>
@@ -315,13 +547,18 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
         <p>{status.connected
           ? "Connected account: " + (status.senderNumber ? "+" + status.senderNumber : status.displayName || "Linked WhatsApp account")
           : supported ? "Choose QR scan or phone-number pairing code to link your WhatsApp account."
-          : "This Android/browser build is a companion interface. The Windows EstateFlow app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
-        <small>{status.connected ? "Session saved locally on this Windows user profile." : "WhatsApp linking does not use Supabase. The linked session stays on the Windows PC."}</small>
+          : "This Android/browser build is a companion interface. The Windows AXIVESTRA app runs the direct linked-device connection and scheduled sender; it must be running on the same computer/network to deliver messages."}</p>
+        <small>{status.platform.startsWith("gateway-") ? "The linked WhatsApp session and message queue live on the hub server." : status.connected ? "Session saved locally on this Windows user profile." : "Link the account through the configured sender; the session stays with that sender."}</small>
         {status.error && <small className="wa-connection-error">{status.error}</small>}
+        {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
+        {status.webhook?.configured && <small>Automatic stop-on-reply webhook registered with {status.webhook.provider || "the WhatsApp gateway"}.</small>}
       </div>
       {supported && (status.connected
         ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
-        : <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>)}
+        : <div className="form-actions">
+            <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>
+            {Boolean(status.error) && <button className="secondary-button" disabled={busy} onClick={() => void resetPairingSession()}><RotateCcw size={15}/>Reset saved link</button>}
+          </div>)}
     </section>
 
     {supported && !status.connected && <div className="wa-link-options">
@@ -341,26 +578,72 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
       </div>
     </div>}
 
-    {!localApi && <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">WINDOWS PC COMPANION</span><h2>Connect to your Windows sender</h2><p>The Windows PC hosts the WhatsApp linked-device session and schedule. Your Android app controls it over the same Wi-Fi.</p></div><Smartphone size={22}/></div>
-      <label>Windows PC address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47821" autoCapitalize="none" autoCorrect="off"/></label>
-      <label>EstateFlow companion code<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Paste the code shown on Windows" autoCapitalize="none" autoCorrect="off"/></label>
-      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save and connect to Windows</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Windows PC connection removed from this phone."); }}><Unplug size={15}/>Forget PC</button>}</div>
-      <p className="wa-local-storage-note"><Info size={14}/>Both devices must be on the same trusted Wi-Fi. Keep the Windows PC on with EstateFlow in the tray. Do not expose this connection to the public internet or share the companion code.</p>
-    </section>}
+    <section className="data-panel wa-companion-setup">
+      <div className="section-heading"><div><span className="section-kicker">GATEWAY CONTROL</span><h2>Connect your messaging gateway</h2><p>Use one hub that connects AXIVESTRA to the configured WhatsApp gateway. Leave these fields empty on Windows to use the built-in sender.</p></div><Smartphone size={22}/></div>
+      <label>Hub address<input value={hostInput} onChange={event => setHostInput(event.target.value)} placeholder="http://192.168.1.10:47822 or https://your-domain" autoCapitalize="none" autoCorrect="off"/></label>
+      <label>AXIVESTRA hub token<input value={tokenInput} onChange={event => setTokenInput(event.target.value)} placeholder="Private token from hub configuration" autoCapitalize="none" autoCorrect="off"/></label>
+      <div className="form-actions"><button className="primary-button" onClick={saveCompanionSettings}><CheckCircle2 size={15}/>Save hub connection</button>{companionHost && <button className="secondary-button" onClick={() => { try { localStorage.removeItem("estateflow.whatsapp.host"); localStorage.removeItem("estateflow.whatsapp.token"); } catch {} setCompanionHost(""); setCompanionToken(""); setHostInput(""); setTokenInput(""); inform("Saved hub connection removed. AXIVESTRA will use its built-in Windows sender when available."); }}><Unplug size={15}/>Forget hub</button>}</div>
+      <p className="wa-local-storage-note"><Info size={14}/>Use HTTP only on a trusted private LAN. For remote access use HTTPS. Keep the hub token private; the WhatsApp gateway API key stays on the hub server.</p>
+    </section>
 
-    {localApi && bridgeInfo && <section className="data-panel wa-companion-setup">
-      <div className="section-heading"><div><span className="section-kicker">CONNECT YOUR ANDROID APP</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in EstateFlow on your Android phone.</p></div><Smartphone size={22}/></div>
+        {localApi && bridgeInfo && !(companionHost.trim() && companionToken.trim()) && <section className="data-panel wa-companion-setup">
+      <div className="section-heading"><div><span className="section-kicker">PHONE COMPANION</span><h2>Windows companion details</h2><p>Enter one of these PC addresses and the companion code in AXIVESTRA on your Android phone.</p></div><Smartphone size={22}/></div>
       <label>Windows PC address<input readOnly value={bridgeInfo.urls[0] || ("http://your-pc-ip:" + bridgeInfo.port)} onFocus={event => event.currentTarget.select()}/></label>
       {bridgeInfo.urls.length > 1 && <label>Other available PC addresses<input readOnly value={bridgeInfo.urls.join("    ")} onFocus={event => event.currentTarget.select()}/></label>}
-      <label>EstateFlow companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
+      <label>AXIVESTRA companion code<input readOnly value={bridgeInfo.token} onFocus={event => event.currentTarget.select()}/></label>
       <div className="form-actions"><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.urls[0] || "", "Windows PC address")}><CheckCircle2 size={15}/>Copy address</button><button className="secondary-button" onClick={() => void copyValue(bridgeInfo.token, "Companion code")}><CheckCircle2 size={15}/>Copy code</button></div>
-      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own EstateFlow phone on a trusted network. Do not forward it or set up router port forwarding.</p>
+      <p className="wa-local-storage-note"><Info size={14}/>Share this code only with your own AXIVESTRA phone on a trusted network. Do not forward it or set up router port forwarding.</p>
     </section>}
+
+    <section className="data-panel wa-address-book">
+      <div className="section-heading">
+        <div><span className="section-kicker">DIRECTORY INTELLIGENCE</span><h2>People & groups directory</h2>
+          <p>Import the names and phone numbers exposed by your linked WhatsApp session. Saved records stay in AXIVESTRA when WhatsApp is disconnected or unlinked.</p>
+        </div>
+        <Users size={22}/>
+      </div>
+      <div className="wa-address-book-stats">
+        <div><span>WhatsApp contacts cached</span><strong>{addressBook.contacts.length}</strong></div>
+        <div><span>WhatsApp groups cached</span><strong>{groupOptions.length}</strong></div>
+        <div><span>AXIVESTRA contacts</span><strong>{contacts.length}</strong></div>
+      </div>
+      <div className="form-actions wa-address-book-actions">
+        <button className="primary-button" disabled={!supported || syncBusy || !status.connected} onClick={() => void syncWhatsAppAddressBook()}><RefreshCw size={15}/>{syncBusy ? "Syncing…" : "Sync WhatsApp now"}</button>
+        <button className="secondary-button" disabled={!supported || importBusy} onClick={() => void importSavedAddressBook()}><Users size={15}/>{importBusy ? "Loading saved cache…" : "Import saved contacts & groups"}</button>
+      </div>
+      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send.</p>
+      {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
+      {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
+      <div className="wa-address-book-columns">
+        <section>
+          <h3>Saved WhatsApp contacts</h3>
+          <div className="wa-scroll-list">
+            <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={directoryContactSearch} onChange={event => setDirectoryContactSearch(event.target.value)} placeholder="Search synced contacts by name or number…" aria-label="Search synced WhatsApp directory"/>{directoryContactSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setDirectoryContactSearch("")} aria-label="Clear directory contact search">×</button>}</div>
+            {addressBook.contacts.length === 0
+              ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
+              : filteredDirectoryContacts.length === 0
+                ? <p className="wa-muted">No contacts match that search.</p>
+                : filteredDirectoryContacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to AXIVESTRA"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
+          </div>
+        </section>
+        <section>
+          <h3>Saved WhatsApp groups</h3>
+          <div className="wa-scroll-list">
+            <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={directoryGroupSearch} onChange={event => setDirectoryGroupSearch(event.target.value)} placeholder="Search synced groups by name…" aria-label="Search synced WhatsApp groups"/>{directoryGroupSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setDirectoryGroupSearch("")} aria-label="Clear directory group search">×</button>}</div>
+            {groupOptions.length === 0
+              ? <p className="wa-muted">No cached WhatsApp groups yet. Sync while WhatsApp is connected.</p>
+              : filteredDirectoryGroups.length === 0
+                ? <p className="wa-muted">No groups match that search.</p>
+                : filteredDirectoryGroups.slice(0,1000).map(group=><div className="wa-address-row" key={group.jid}><div><strong>{group.name}</strong><small>{group.size ? group.size + " members · " : ""}{group.jid}</small></div><button className="secondary-button" onClick={() => onImportGroups?.([group])}>Save group</button></div>)}
+          </div>
+        </section>
+      </div>
+      <p className="wa-local-storage-note">AXIVESTRA does not create or delete WhatsApp groups. Create or manage groups in WhatsApp, then sync them here. Previously synced group names remain saved even when the WhatsApp account is offline.</p>
+    </section>
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
-        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based client follow-ups; do not send unsolicited bulk messages. Session data is stored locally on this PC, not in Supabase.</p>
+        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured AXIVESTRA database.</p>
       </div>
     </div>
 
@@ -370,19 +653,46 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     </div>
 
     <div className="form-card wa-form">
-      <label>Select saved contact
-        <span>Contacts come from your EstateFlow Contacts section. You can also type a number below.</span>
-        <select value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
-          <option value="">Choose a contact (optional)</option>
-          {contacts.filter(contact => contact.phone.trim()).map(contact =>
-            <option key={contact.id} value={contact.id}>{contact.name} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
-          )}
+      <div className="wa-mode-switch" role="tablist" aria-label="Message destination">
+        <button className={recipientMode === "contact" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("contact"); setSelectedGroupJid(""); }} role="tab" aria-selected={recipientMode === "contact"}>Individual contact</button>
+        <button className={recipientMode === "group" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("group"); setSelectedContactId(""); setTarget(""); }} role="tab" aria-selected={recipientMode === "group"}>WhatsApp group</button>
+      </div>
+      {recipientMode === "contact" ? <>
+        <label className="searchable-contact-picker">Select saved contact
+          <span>Search by contact name, WhatsApp name, phone number or role. Synced contacts remain saved when disconnected.</span>
+          <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={recipientSearch} onChange={event => setRecipientSearch(event.target.value)} placeholder="Type a contact name or number…" aria-label="Search saved WhatsApp contacts"/>{recipientSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setRecipientSearch("")} aria-label="Clear contact search">×</button>}</div>
+          <select className="searchable-contact-picker__select" size={Math.min(Math.max(filteredRecipientContacts.length, 3), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
+            <option value="">Choose a contact ({filteredRecipientContacts.length})</option>
+            {filteredRecipientContacts.map(contact =>
+              <option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
+            )}
+          </select>
+          {filteredRecipientContacts.length === 0 && <small className="wa-muted">No matching contacts. Try a shorter name or enter the WhatsApp number manually below.</small>}
+        </label>
+        <div className="form-two">
+          <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
+          <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
+        </div>
+      </> : <div className="wa-group-target">
+        <label className="searchable-contact-picker">Select saved WhatsApp group
+          <span>Search by group name. Saved groups remain cached even when WhatsApp is disconnected.</span>
+          <div className="wa-search-field searchable-contact-picker__search"><Search size={16}/><input type="search" value={recipientGroupSearch} onChange={event => setRecipientGroupSearch(event.target.value)} placeholder="Type a group name…" aria-label="Search saved WhatsApp groups"/>{recipientGroupSearch && <button type="button" className="searchable-contact-picker__clear" onClick={() => setRecipientGroupSearch("")} aria-label="Clear group search">×</button>}</div>
+          <select className="searchable-contact-picker__select" size={Math.min(Math.max(filteredRecipientGroups.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
+            <option value="">Choose a WhatsApp group ({filteredRecipientGroups.length})</option>
+            {filteredRecipientGroups.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
+          </select>
+          {filteredRecipientGroups.length === 0 && <small className="wa-muted">No matching groups. Sync the group list while WhatsApp is connected.</small>}
+        </label>
+        {selectedGroup && <div className="notice"><Users size={16}/><div><strong>{selectedGroup.name}</strong><p>{selectedGroup.size ? selectedGroup.size + " members · " : ""}WhatsApp group will be used as the message destination.</p></div></div>}
+        {(status.connected ? sendableGroupOptions.length === 0 : groupOptions.length === 0) && <div className="notice notice-warn">{status.connected ? "No groups are verified for this currently linked WhatsApp account. Sync contacts & groups above." : "No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above."}</div>}
+      </div>}
+      <label>Link to property (optional)
+        <select value={selectedPropertyId} onChange={event => setSelectedPropertyId(event.target.value)}>
+          <option value="">No property selected</option>
+          {properties.map(property => <option key={property.id} value={property.id}>{property.title}</option>)}
         </select>
       </label>
-      <div className="form-two">
-        <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
-        <label>WhatsApp number<input value={target} onChange={event => { setTarget(event.target.value); setSelectedContactId(""); }} placeholder="+91 9876543210" inputMode="tel"/></label>
-      </div>
+      {selectedTaskId && <div className="notice"><CalendarClock size={16}/> Linked to task: {selectedTaskTitle || selectedTaskId}</div>}
       <label>Message to send<textarea rows={4} maxLength={4000} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write a client follow-up message…"/></label>
       <div className="form-two">
         <label>First send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label>
@@ -392,13 +702,13 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
         <label>Total sends, including first<input type="number" min="2" max="20" value={repeatCount} onChange={event => setRepeatCount(event.target.value)}/><span>Maximum 20 scheduled sends in one sequence.</span></label>
         <label>Repeat every (days)<input type="number" min="1" max="365" value={intervalDays} onChange={event => setIntervalDays(event.target.value)}/><span>For example, 3 sends every 3 days.</span></label>
       </div>}
-      <label className="consent-check"><input type="checkbox" checked={consentConfirmed} onChange={event => setConsentConfirmed(event.target.checked)}/> I confirm this recipient expects and has agreed to receive these follow-up messages.</label>
-      <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop all pending follow-ups automatically when this contact replies.</label>
+      <label className="consent-check"><input type="checkbox" checked={consentConfirmed} onChange={event => setConsentConfirmed(event.target.checked)}/> I confirm this {recipientMode === "group" ? "WhatsApp group" : "recipient"} expects and has agreed to receive these follow-up messages.</label>
+      <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop pending follow-ups when {recipientMode === "group" ? "a new message appears in this WhatsApp group" : "this contact replies"}.</label>
       <div className="form-actions wa-schedule-actions">
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
-        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || !target.trim() || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
+        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
-      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Messages are saved to local storage on this Windows PC. Keep EstateFlow running in the tray, and leave the PC connected to the internet, for delivery at the scheduled time.</p>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> The Windows sender starts hidden at login and keeps running when you close the window to the system tray. Scheduled delivery still requires Windows to stay powered on, awake and online, with WhatsApp linked. Choosing Exit AXIVESTRA or putting the PC to sleep stops/delays delivery.</p>
     </div>
 
     {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
@@ -411,7 +721,7 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
     </div>
 
     <div className="section-heading wa-queue-heading">
-      <div><span className="section-kicker">LOCAL SCHEDULE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
+      <div><span className="section-kicker">MESSAGE QUEUE</span><h2>Scheduled messages</h2><p>Delivery state and follow-up history for this Windows profile.</p></div>
       {supported && <button className="secondary-button" onClick={() => { if (api) void api.getQueue().then(setQueue); }}><RefreshCw size={15}/>Refresh</button>}
     </div>
     {queue.length === 0 ? <div className="empty-state"><CalendarClock size={24}/><strong>No scheduled messages yet</strong><p>Choose a contact and schedule your first follow-up above.</p></div> :
@@ -419,8 +729,9 @@ export default function WhatsAppScheduler({ contacts = [], onNotice }: Props) {
         {queue.map(row => <article className="record-card wa-queue-row" key={row.id}>
           <div className="record-symbol"><MessageCircle size={19}/></div>
           <div className="record-main">
-            <h3>{row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
-            <p>{row.phone} · {prettyDate(row.scheduledAt)}</p>
+            <h3>{row.destinationType === "group" ? row.groupName || "WhatsApp group" : row.contactName || row.phone}{row.sequence && row.repeatCount && row.repeatCount > 1 ? " · " + row.sequence + "/" + row.repeatCount : ""}</h3>
+            <p>{row.destinationType === "group" ? row.groupJid : row.phone} · {prettyDate(row.scheduledAt)}</p>
+            {row.propertyTitle && <small>Property: {row.propertyTitle}</small>}
             <small>{row.message}</small>
             <span className={"wa-status wa-status-" + row.status}>{row.status}</span>
             {row.lastError && <small className="wa-queue-error">{row.lastError}</small>}
