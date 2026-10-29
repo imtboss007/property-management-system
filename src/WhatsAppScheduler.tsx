@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./lib/supabase";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
   Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users, Search
@@ -91,7 +92,54 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
+
+function createCloudApi(companyId: string): WhatsAppApi {
+  const client = supabase;
+  if (!client) throw new Error("Cloud sign-in is not configured for AXIVESTRA.");
+  const call = async (action: string, payload: Record<string, unknown> = {}): Promise<CompanionResponse> => {
+    const { data, error } = await client.functions.invoke("whatsapp-cloud-proxy", {
+      body: { companyId, action, payload }
+    });
+    if (error) throw new Error(error.message || "The hosted WhatsApp sender request failed.");
+    const result = data as CompanionResponse | null;
+    if (!result || result.ok === false) throw new Error(result?.error || "The hosted WhatsApp sender returned no response.");
+    return result;
+  };
+  const emptyStatus = (): DirectStatus => ({
+    supported: true, platform: "cloud-whatsapp-sender", connected: false, connecting: false,
+    senderNumber: "", displayName: "", qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
+  });
+  return {
+    getStatus: async () => (await call("status")).status || emptyStatus(),
+    getQueue: async () => (await call("queue")).queue || [],
+    getAddressBook: async () => {
+      const data = await call("address-book");
+      return data.addressBook || {
+        contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "",
+        connected: Boolean(data.connected), accountNumber: data.accountNumber || "",
+        activeGroupJids: data.activeGroupJids || [], counts: data.counts
+      };
+    },
+    syncAddressBook: async () => {
+      const data = await call("sync-address-book");
+      return data.addressBook || {
+        contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "",
+        connected: Boolean(data.connected), accountNumber: data.accountNumber || "",
+        activeGroupJids: data.activeGroupJids || [], counts: data.counts, warnings: data.warnings, note: data.note
+      };
+    },
+    connect: async () => { const data = await call("connect"); return { ok: Boolean(data.ok) }; },
+    requestPairingCode: async phone => { const data = await call("pairing-code", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
+    disconnect: async () => { const data = await call("disconnect"); return { ok: Boolean(data.ok) }; },
+    schedule: async payload => { const data = await call("schedule", payload); return { ok: Boolean(data.ok), rows: data.rows || [] }; },
+    sendNow: async payload => { const data = await call("send-now", payload); return { ok: Boolean(data.ok), rows: data.rows || [] }; },
+    cancel: async id => { const data = await call("cancel", { id }); return { ok: Boolean(data.ok), message: data.message }; },
+    retry: async id => { const data = await call("retry", { id }); return { ok: Boolean(data.ok), message: data.message }; },
+    onUpdate: () => () => {}
+  };
+}
+
+type Props = { companyId?: string; contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -178,17 +226,19 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
   };
 }
 
-export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
+export default function WhatsAppScheduler({ companyId = "", contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
+  const cloudEnabled = import.meta.env.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED === "true";
   const api = useMemo<WhatsAppApi | undefined>(() => {
-    // A saved hub is the selected transport; otherwise keep the built-in Windows fallback.
-    // A single queue row is never sent through both transports.
+    // A cloud build uses the authenticated server proxy, never an embedded hub token.
+    // Otherwise use a saved remote hub or the built-in Windows sender, but never both.
+    if (cloudEnabled) return supabase && companyId ? createCloudApi(companyId) : undefined;
     if (companionHost.trim() && companionToken.trim()) return createRemoteApi(companionHost, companionToken);
     if (localApi) return localApi;
     return undefined;
-  }, [localApi, companionHost, companionToken]);
+  }, [localApi, companionHost, companionToken, cloudEnabled, companyId]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
     supported, platform: supported ? "windows-desktop" : "android-or-browser",
