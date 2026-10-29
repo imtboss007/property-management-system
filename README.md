@@ -13,6 +13,9 @@ A connected asset intelligence platform for property, finance, investments, lega
 - Sixteen connected workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC.
 - Property records with module, location, value, status, contact, and notes.
 - Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
+- Master contact intelligence: multiple simultaneous standard/custom roles, profession, employer, designation, business type, associated company, optional income sources, email/address and referral context; role and professional fields appear in contact search/cards.
+- Supabase migration `supabase/migrations/202610290001_contact_intelligence_profile.sql` adds cloud columns for the expanded profile and backfills each existing primary role into the roles array. Apply this migration to the configured Supabase project before deploying this code with cloud mode enabled.
+- Phone-match duplicate warning before creating a new contact; it does not silently merge records.
 - One-time task records with date, time, type, linked property, notes, completion, and delete.
 - WhatsApp click-to-chat helper that opens a prefilled message.
 - Local data persistence in the app's browser/device storage and JSON backup/restore.
