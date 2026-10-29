@@ -1136,3 +1136,8 @@ h2,h3{color:#e5f2fc}
 .audit-deleted{color:#ff9eae;border-color:rgba(255,105,135,.28);background:rgba(190,52,80,.1)}
 @media(max-width:640px){.audit-event-row{padding:10px;gap:8px}.audit-event-action{min-width:54px;font-size:9px}}
 
+
+/* AXIVESTRA PC / Android local sync */
+.sync-status{margin:12px 0 0;padding:11px 13px;border:1px solid rgba(74,190,218,.22);border-radius:10px;background:rgba(21,107,139,.1);color:var(--text-primary,#dceef8);font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+.settings-card input{min-width:0}
+@media(max-width:640px){.settings-card .form-two{grid-template-columns:minmax(0,1fr)}.settings-card .settings-actions{display:flex;flex-wrap:wrap;gap:8px}.settings-card .settings-actions button{max-width:100%;white-space:normal}}
