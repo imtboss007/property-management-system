@@ -25,6 +25,28 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      - name: Require all automated checks to pass for this exact commit
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: \${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            RUNS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "AXIVESTRA WhatsApp Hub Checks" --commit "$SOURCE_SHA" --limit 10 --json databaseId,status,conclusion)"
+            if printf '%s' "$RUNS" | jq -e '[.[] | select(.status == "completed" and .conclusion == "success")] | length > 0' >/dev/null; then
+              echo "Automated checks passed for $SOURCE_SHA."
+              exit 0
+            fi
+            if printf '%s' "$RUNS" | jq -e '[.[] | select(.status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled"))] | length > 0' >/dev/null; then
+              echo "Automated checks failed for $SOURCE_SHA; refusing to publish."
+              exit 1
+            fi
+            echo "Waiting for automated checks for $SOURCE_SHA (attempt $attempt/36)."
+            sleep 10
+          done
+          echo "Automated checks did not finish in time; refusing to publish."
+          exit 1
+
       - name: Download Windows installer artifact
         uses: actions/download-artifact@v8
         with:

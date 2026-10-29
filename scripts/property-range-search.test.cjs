@@ -62,4 +62,4 @@ assert.equal(propertyMatchesRange(acreageRecord, combined[1]), false);
 assert.equal(parsePropertyRangeQuery("400 to 800"), null, "unit-free ambiguous ranges must not trigger numeric range mode");
 assert.equal(parsePropertyRangeQueries("1cr to 5cr and 1 crore to 5 crore").length, 1, "duplicate semantic ranges should be de-duplicated");
 
-process.stdout.write("Property range search: all 18 assertions passed.\n");
+process.stdout.write("Property range search regression suite passed.\n");

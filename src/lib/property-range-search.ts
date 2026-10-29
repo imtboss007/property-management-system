@@ -11,7 +11,7 @@ type PropertySearchRecord = {
   moduleData?: Record<string, unknown>;
 };
 
-const RANGE_PATTERN = /([\d,]+(?:\.\d+)?)\s*(cr(?:ore)?s?|lakh(?:s)?|lac(?:s)?|sq\.?\s*ft\.?|sqft|square\s*feet|square\s*foot|sq\.?\s*yd\.?|sqyd|square\s*yards?|sq\.?\s*m(?:eter|etre|tr)?s?|sqm|mtr|meters?|metres?|acres?|acer|guntas?|guntez|cents?|hectares?|ha)?\s*(?:to|through|until|[-–—])\s*([\d,]+(?:\.\d+)?)\s*(cr(?:ore)?s?|lakh(?:s)?|lac(?:s)?|sq\.?\s*ft\.?|sqft|square\s*feet|square\s*foot|sq\.?\s*yd\.?|sqyd|square\s*yards?|sq\.?\s*m(?:eter|etre|tr)?s?|sqm|mtr|meters?|metres?|acres?|acer|guntas?|guntez|cents?|hectares?|ha)?/i;
+const RANGE_PATTERN = /(?:₹\s*)?([\d,]+(?:\.\d+)?)\s*(cr(?:ore)?s?|lakh(?:s)?|lac(?:s)?|sq\.?\s*ft\.?|sqft|square\s*feet|square\s*foot|sq\.?\s*yd\.?|sqyd|square\s*yards?|sq\.?\s*m(?:eter|etre|tr)?s?|sqm|mtr|meters?|metres?|acres?|acer|guntas?|guntez|cents?|hectares?|ha)?\s*(?:to|through|until|[-–—])\s*(?:₹\s*)?([\d,]+(?:\.\d+)?)\s*(cr(?:ore)?s?|lakh(?:s)?|lac(?:s)?|sq\.?\s*ft\.?|sqft|square\s*feet|square\s*foot|sq\.?\s*yd\.?|sqyd|square\s*yards?|sq\.?\s*m(?:eter|etre|tr)?s?|sqm|mtr|meters?|metres?|acres?|acer|guntas?|guntez|cents?|hectares?|ha)?/i;
 
 function cleanUnit(unit: string): string {
   return unit.toLocaleLowerCase().replace(/\./g, "").replace(/\s+/g, "").trim();
