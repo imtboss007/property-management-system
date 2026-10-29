@@ -104,6 +104,20 @@ export function createBaileysProvider(config) {
       socket.ev.on("creds.update", () => { void auth.saveCreds().catch(error => { lastError = "Could not persist WhatsApp session credentials: " + String(error?.message || error); }); });
       socket.ev.on("contacts.upsert", rows => { for (const row of rows || []) publishContact(row); });
       socket.ev.on("contacts.update", rows => { for (const row of rows || []) publishContact(row); });
+      socket.ev.on("messaging-history.set", history => {
+        // Some linked-device versions provide a partial history/contact snapshot even when
+        // full message-history sync is deliberately disabled for privacy and startup cost.
+        for (const row of history?.contacts || []) publishContact(row);
+      });
+      socket.ev.on("chats.upsert", rows => {
+        // Cache known direct chats so they remain searchable if the account goes offline.
+        for (const row of rows || []) {
+          const jid = String(row?.id || "");
+          if (jid.endsWith("@s.whatsapp.net") || jid.endsWith("@c.us")) {
+            publishContact({ id: jid, name: row.name || row.subject || "" });
+          }
+        }
+      });
       socket.ev.on("messages.upsert", event => {
         // Only real-time notifications are replies; ignore historical/append sync events.
         if (event?.type !== "notify") return;
