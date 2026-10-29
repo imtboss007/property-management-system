@@ -45,7 +45,6 @@ jobs:
         with:
           name: AXIVESTRA-Windows
           path: release-dist/*.exe
-          archive: false
           if-no-files-found: error
 
   android:
@@ -107,5 +106,4 @@ jobs:
         with:
           name: AXIVESTRA-Android
           path: android/app/build/outputs/apk/debug/app-debug.apk
-          archive: false
           if-no-files-found: error

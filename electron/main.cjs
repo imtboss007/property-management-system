@@ -55,8 +55,21 @@ async function createTray() {
     tray.setToolTip("AXIVESTRA — Asset Intelligence running");
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: "Open AXIVESTRA", click: () => createWindow() },
+      { label: "Background sender is running", enabled: false },
       { type: "separator" },
-      { label: "Exit AXIVESTRA", click: () => { isQuitting = true; if (whatsappService) whatsappService.stop(); app.quit(); } }
+      { label: "Exit AXIVESTRA (stops scheduled sending)", click: () => {
+        const { dialog } = require("electron");
+        const choice = dialog.showMessageBoxSync({
+          type: "warning",
+          buttons: ["Keep running in background", "Exit anyway"],
+          defaultId: 0,
+          cancelId: 0,
+          title: "Stop scheduled WhatsApp messages?",
+          message: "Exiting AXIVESTRA stops scheduled delivery on this PC.",
+          detail: "To keep messages sending, leave AXIVESTRA in the system tray. Windows must be powered on, awake and online, with WhatsApp still linked."
+        });
+        if (choice === 1) { isQuitting = true; if (whatsappService) whatsappService.stop(); app.quit(); }
+      } }
     ]));
     tray.on("double-click", () => createWindow());
   } catch (_) {}
