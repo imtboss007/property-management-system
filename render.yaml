@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: axivestra-whatsapp-cloud-sender
+    runtime: docker
+    plan: starter
+    region: singapore
+    dockerContext: ./services/estateflow-whatsapp-hub
+    dockerfilePath: ./services/estateflow-whatsapp-hub/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: axivestra-whatsapp-state
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 47822
+      - key: ESTATEFLOW_DATA_DIR
+        value: /app/data
+      - key: ESTATEFLOW_GATEWAY_PROVIDER
+        value: baileys
+      - key: ESTATEFLOW_BRIDGE_TOKEN
+        generateValue: true
+      - key: ESTATEFLOW_WEBHOOK_TOKEN
+        generateValue: true
+      - key: MAX_DAILY_SENDS
+        value: 60
+      - key: SEND_COOLDOWN_MS
+        value: 12000
+      - key: REQUEST_TIMEOUT_MS
+        value: 10000
