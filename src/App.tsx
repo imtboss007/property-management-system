@@ -358,6 +358,25 @@ const load = <T,>(key: string, fallback: T): T => {
   catch { return fallback; }
 };
 
+type SyncSnapshot = {
+  properties: Array<{ id: string; [key: string]: unknown }>;
+  contacts: Array<{ id: string; [key: string]: unknown }>;
+  whatsappGroups: Array<{ id: string; [key: string]: unknown }>;
+  tasks: Array<{ id: string; [key: string]: unknown }>;
+  financials: Array<{ id: string; [key: string]: unknown }>;
+  riskRecords: Array<{ id: string; [key: string]: unknown }>;
+  approvalRequests: Array<{ id: string; [key: string]: unknown }>;
+  auditEvents: Array<{ id: string; [key: string]: unknown }>;
+};
+
+function mergeById<T extends { id: string }>(localRows: T[], remoteRows: T[]): T[] {
+  const merged = new Map<string, T>();
+  for (const row of localRows) if (row && typeof row.id === "string" && row.id) merged.set(row.id, row);
+  for (const row of remoteRows) if (row && typeof row.id === "string" && row.id && !merged.has(row.id)) merged.set(row.id, row);
+  return Array.from(merged.values());
+}
+
+
 export default function App() {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -391,6 +410,11 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(() => load("estateflow.auditEvents", []));
   const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string }>> | null>(null);
+  const [syncHost, setSyncHost] = useState(() => load("axivestra.syncHost", ""));
+  const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("");
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -486,6 +510,82 @@ export default function App() {
     }
     if (changes.length) setAuditEvents(current => [...changes.reverse(), ...current].slice(0, 1000));
   }, [properties, contacts, tasks, financials, riskRecords, approvalRequests]);
+
+  const currentSyncSnapshot = (): SyncSnapshot => ({
+    properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents
+  });
+
+  const mergeSyncSnapshot = (remote: Partial<SyncSnapshot>) => {
+    const merged = {
+      properties: mergeById(properties, Array.isArray(remote.properties) ? remote.properties : []),
+      contacts: mergeById(contacts, Array.isArray(remote.contacts) ? remote.contacts : []),
+      whatsappGroups: mergeById(savedWhatsAppGroups, Array.isArray(remote.whatsappGroups) ? remote.whatsappGroups : []),
+      tasks: mergeById(tasks, Array.isArray(remote.tasks) ? remote.tasks : []),
+      financials: mergeById(financials, Array.isArray(remote.financials) ? remote.financials : []),
+      riskRecords: mergeById(riskRecords, Array.isArray(remote.riskRecords) ? remote.riskRecords : []),
+      approvalRequests: mergeById(approvalRequests, Array.isArray(remote.approvalRequests) ? remote.approvalRequests : []),
+      auditEvents: mergeById(auditEvents, Array.isArray(remote.auditEvents) ? remote.auditEvents : [])
+    };
+    setProperties(merged.properties as PropertyRecord[]);
+    setContacts(merged.contacts as ContactRecord[]);
+    setSavedWhatsAppGroups(merged.whatsappGroups as SavedWhatsAppGroup[]);
+    setTasks(merged.tasks as TaskRecord[]);
+    setFinancials(merged.financials as FinancialRecord[]);
+    setRiskRecords(merged.riskRecords as RiskRecord[]);
+    setApprovalRequests(merged.approvalRequests as ApprovalRequest[]);
+    setAuditEvents(merged.auditEvents as AuditEvent[]);
+    return merged as SyncSnapshot;
+  };
+
+  const syncWithPc = async () => {
+    const host = syncHost.trim().replace(/\\/+$/, "");
+    const token = syncToken.trim();
+    let parsed: URL;
+    try { parsed = new URL(host); } catch { setSyncStatus("Enter the PC companion address shown in WhatsApp Automation."); return; }
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      setSyncStatus("Use the full local PC companion URL without a username, password, query or fragment."); return;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    const isPrivate = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname) || hostname.endsWith(".local")
+      || /^10\\./.test(hostname) || /^192\\.168\\./.test(hostname) || /^172\\.(1[6-9]|2\\d|3[01])\\./.test(hostname);
+    if (parsed.protocol === "http:" && !isPrivate) { setSyncStatus("Use HTTPS outside your trusted local network."); return; }
+    if (!token) { setSyncStatus("Enter the companion token from the Windows PC."); return; }
+    if (!window.confirm("Sync business records with the selected PC? Records are merged by ID; this device's version wins when the same ID exists on both devices. Remote-only records are retained. Deletions are not propagated. Documents are not included. Export a backup first if these records are important.")) return;
+
+    setSyncBusy(true); setSyncStatus("Connecting to the PC and merging records…");
+    localStorage.setItem("axivestra.syncHost", host);
+    localStorage.setItem("axivestra.syncToken", token);
+    try {
+      const request = async (method: "GET" | "POST", body?: Record<string, unknown>) => {
+        const response = await fetch(host + "/api/data-sync", {
+          method,
+          headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token },
+          body: method === "POST" ? JSON.stringify(body || {}) : undefined
+        });
+        const data = await response.json() as { ok?: boolean; error?: string; revision?: number; updatedAt?: string; snapshot?: Partial<SyncSnapshot> };
+        if (!response.ok || data.ok === false) {
+          const error = new Error(data.error || "PC sync request failed (" + response.status + ").") as Error & { status?: number; data?: typeof data };
+          error.status = response.status; error.data = data; throw error;
+        }
+        return data;
+      };
+      let remote = await request("GET");
+      let merged = mergeSyncSnapshot(remote.snapshot || {});
+      try {
+        const pushed = await request("POST", { expectedRevision: remote.revision ?? 0, snapshot: merged });
+        setSyncStatus("Sync complete. PC revision " + pushed.revision + " saved at " + new Date(String(pushed.updatedAt)).toLocaleString("en-IN") + ". This is an additive sync; verify important changes on both devices.");
+      } catch (error) {
+        const syncError = error as Error & { status?: number };
+        if (syncError.status !== 409) throw error;
+        remote = await request("GET");
+        merged = mergeSyncSnapshot(remote.snapshot || {});
+        const pushed = await request("POST", { expectedRevision: remote.revision ?? 0, snapshot: merged });
+        setSyncStatus("Sync complete after a concurrent update. PC revision " + pushed.revision + " saved. Local versions win for matching record IDs; verify important changes.");
+      }
+    } catch (error) {
+      setSyncStatus("Sync failed: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setSyncBusy(false); }
+  };
 
   const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(p =>
@@ -998,7 +1098,7 @@ export default function App() {
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Business records are stored in this device's browser storage; document files are saved in the local IndexedDB vault. There is no cloud account or automatic device-to-device sync. Export business records as JSON, and download document files separately before changing devices or clearing app data.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>Business records are stored in this device's browser storage; document files are saved in the local IndexedDB vault. There is no cloud account or automatic device-to-device sync. Export business records as JSON, and download document files separately before changing devices or clearing app data.</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div><div className="settings-card"><h3>PC ↔ Android local-network sync</h3><p>Merge business records over your trusted local network using the authenticated Windows companion. No cloud account is used. This sync is additive: matching IDs keep this device's version, PC-only records are retained, and deletions are not propagated. Documents are excluded and must be backed up separately.</p><div className="form-two"><label>Windows PC companion address<input value={syncHost} onChange={event=>setSyncHost(event.target.value)} placeholder="http://192.168.1.10:47822" autoComplete="url"/></label><label>Companion token<input value={syncToken} onChange={event=>setSyncToken(event.target.value)} placeholder="Paste the private PC companion token" autoComplete="off"/></label></div><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={()=>void syncWithPc()}>{syncBusy ? "Syncing…" : "Merge with PC now"}</button></div>{syncStatus&&<p role="status" className="sync-status">{syncStatus}</p>}<p className="ax-form-note">Both devices must be on the same trusted Wi-Fi network, and AXIVESTRA must be running on the Windows PC. In WhatsApp Automation, open the companion setup panel to find the PC address and token. Treat the token like a password; do not share it or save it in GitHub.</p></div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>Local-only mode · Device data is not synced</span></footer>
         </div>
       </section>
