@@ -9,6 +9,7 @@ type Membership = { company_id: string; role: CompanyRole };
 
 export default function AuthGate() {
   const [checked, setChecked] = useState(false);
+  const [localMode, setLocalMode] = useState(false);
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -108,8 +109,7 @@ export default function AuthGate() {
           setInfo("Account created. You can now create a company or accept access from an existing owner.");
         }
       } else {
-        const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), { redirectTo });
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(emailInput.trim());
         if (authError) throw authError;
         setInfo("Password recovery instructions have been sent if the account exists.");
       }
@@ -187,9 +187,11 @@ export default function AuthGate() {
     }
   };
 
-  if (!supabase) {
-    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Asset Intelligence Platform</span></div></div><div className="auth-icon"><Smartphone size={25}/></div><span className="auth-kicker">LOCAL WORKSPACE</span><h1>Use AXIVESTRA on this device</h1><p className="auth-copy">Cloud login is not configured in this build. Your current workspace remains local to this device; it is not protected by cloud company isolation.</p><div className="auth-warning"><ShieldCheck size={18}/><div><strong>Cloud sign-in is not enabled</strong><span>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to the build environment, then apply the Supabase migrations to enable account and company access.</span></div></div><button className="auth-primary" onClick={() => { localStorage.removeItem("axivestra.activeCompanyId"); window.location.reload(); }}>Continue in local mode <ArrowRight size={17}/></button><a className="auth-link" href="https://github.com/imtboss007/property-management-system/blob/feature/estateflow-unified-whatsapp-automation/SUPABASE-AUTH-SETUP.md" target="_blank" rel="noreferrer">Open cloud setup guide</a></div></div>;
+  if (!supabase && !localMode) {
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Asset Intelligence Platform</span></div></div><div className="auth-icon"><Smartphone size={25}/></div><span className="auth-kicker">LOCAL WORKSPACE</span><h1>Use AXIVESTRA on this device</h1><p className="auth-copy">Cloud login is not configured in this build. Your current workspace remains local to this device; it is not protected by cloud company isolation.</p><div className="auth-warning"><ShieldCheck size={18}/><div><strong>Cloud sign-in is not enabled</strong><span>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to the build environment, then apply the Supabase migrations to enable account and company access.</span></div></div><button className="auth-primary" onClick={() => { localStorage.removeItem("axivestra.activeCompanyId"); setLocalMode(true); }}>Continue in local mode <ArrowRight size={17}/></button><a className="auth-link" href="https://github.com/imtboss007/property-management-system/blob/feature/estateflow-unified-whatsapp-automation/SUPABASE-AUTH-SETUP.md" target="_blank" rel="noreferrer">Open cloud setup guide</a></div></div>;
   }
+
+  if (!supabase && localMode) return <App />;
 
   if (!checked) return <div className="auth-shell"><div className="auth-card auth-loading"><LoaderCircle className="auth-spinner" size={28}/><strong>Restoring secure session…</strong></div></div>;
 
@@ -202,7 +204,7 @@ export default function AuthGate() {
   }
 
   if (activeCompany) {
-    return <App company={activeCompany} userId={userId} email={email} onSignOut={signOut} onSwitchCompany={()=>{setActiveCompany(null);localStorage.removeItem("axivestra.activeCompanyId");}}/>;
+    return <App company={activeCompany} userId={userId} onSignOut={signOut} onSwitchCompany={()=>{setActiveCompany(null);localStorage.removeItem("axivestra.activeCompanyId");}}/>;
   }
 
   return <div className="auth-shell auth-company-shell"><div className="auth-card auth-company-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Multi-company command workspace</span></div><button className="auth-signout" onClick={()=>void signOut()} disabled={busy}><LogOut size={15}/> Sign out</button></div><div className="auth-icon"><Building2 size={25}/></div><span className="auth-kicker">CHOOSE YOUR WORKSPACE</span><h1>Your companies.</h1><p className="auth-copy">Signed in as <strong>{email}</strong>. Each company uses a separate local cache and cloud record scope.</p>{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<div className="auth-company-list">{memberships.map(company=><button className="auth-company-row" key={company.id} onClick={()=>chooseCompany(company)} disabled={busy}><span className="auth-company-icon"><Building2 size={19}/></span><span className="auth-company-details"><strong>{company.name}</strong><small>{company.role.replace("_"," ")} · cloud workspace</small></span><ArrowRight size={17}/></button>)}{memberships.length===0&&!busy&&<div className="auth-empty">No company access found. Create a company below or ask an existing owner to add your account.</div>}</div><form className="auth-create-company" onSubmit={createCompany}><label>Create a new company workspace</label><div className="auth-create-row"><input required maxLength={160} value={companyName} onChange={event=>setCompanyName(event.target.value)} placeholder="Company name"/><button className="auth-primary auth-create-button" disabled={busy}><Plus size={17}/> Create company</button></div><small>You'll be assigned as its owner. Other users must be added by an owner or admin.</small></form><button className="auth-link-button" disabled={busy} onClick={()=>void loadMemberships()}>{busy ? "Refreshing…" : "Refresh company access"}</button></div></div>;
