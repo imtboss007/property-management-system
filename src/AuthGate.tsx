@@ -11,6 +11,7 @@ type Membership = { company_id: string; role: CompanyRole };
 export default function AuthGate() {
   const [checked, setChecked] = useState(false);
   const [localMode, setLocalMode] = useState(false);
+  const [recoverySession, setRecoverySession] = useState(false);
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -41,13 +42,15 @@ export default function AuthGate() {
       setEmailInput(current?.email || "");
       setChecked(true);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      if (event === "PASSWORD_RECOVERY") setRecoverySession(true);
       const current = session?.user;
       setUserId(current?.id || "");
       setEmail(current?.email || "");
       setEmailInput(current?.email || "");
       if (!current) {
+        setRecoverySession(false);
         setMemberships([]);
         setActiveCompany(null);
         setMigrationCompany(null);
@@ -114,6 +117,26 @@ export default function AuthGate() {
         if (authError) throw authError;
         setInfo("Password recovery instructions have been sent if the account exists.");
       }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitNewPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    clearMessages();
+    setBusy(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
+      setPassword("");
+      setRecoverySession(false);
+      await supabase.auth.signOut();
+      setMode("signin");
+      setInfo("Password updated. Sign in with your new password.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -208,6 +231,10 @@ export default function AuthGate() {
   if (!supabase && localMode) return <App />;
 
   if (!checked) return <div className="auth-shell"><div className="auth-card auth-loading"><LoaderCircle className="auth-spinner" size={28}/><strong>Restoring secure session…</strong></div></div>;
+
+  if (recoverySession && userId) {
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Secure account recovery</span></div></div><div className="auth-icon"><KeyRound size={25}/></div><span className="auth-kicker">RESET PASSWORD</span><h1>Choose a new password.</h1><p className="auth-copy">Set a new password for {email || "your account"}. You will be signed out after the change and can sign back in.</p><form className="auth-form" onSubmit={submitNewPassword}><label>New password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : <ShieldCheck size={17}/>} {busy ? "Updating password…" : "Update password"}</button></form></div></div>;
+  }
 
   if (!userId) {
     return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark">AX</div><div><strong>AXIVESTRA</strong><span>Secure workspace</span></div></div><div className="auth-icon"><LockKeyhole size={25}/></div><span className="auth-kicker">COMPANY ACCESS</span><h1>{mode === "signin" ? "Welcome back." : mode === "signup" ? "Create your account." : "Recover access."}</h1><p className="auth-copy">Your company workspace is protected by Supabase Auth and database row-level policies when configured by your administrator.</p><form className="auth-form" onSubmit={submitAuth}><label>Email address<div className="auth-input"><Mail size={17}/><input type="email" autoComplete="email" required value={emailInput} onChange={event=>setEmailInput(event.target.value)} placeholder="you@company.com"/></div></label>{mode !== "reset" && <label>Password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>}{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : mode === "signin" ? <LockKeyhole size={17}/> : mode === "signup" ? <UserPlus size={17}/> : <Mail size={17}/>} {busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : mode === "signup" ? "Create account" : "Send recovery email"}</button></form><div className="auth-links">{mode !== "signup" && <button onClick={()=>{setMode("signup");clearMessages();}}>Create an account</button>}{mode !== "signin" && <button onClick={()=>{setMode("signin");clearMessages();}}>Back to sign in</button>}{mode !== "reset" && <button onClick={()=>{setMode("reset");clearMessages();}}>Forgot password?</button>}</div><p className="auth-footnote"><ShieldCheck size={14}/> Never use your WhatsApp pairing code as your account password.</p></div></div>;
