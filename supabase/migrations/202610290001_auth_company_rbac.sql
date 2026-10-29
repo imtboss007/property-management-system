@@ -158,12 +158,7 @@ create policy "members can read audit events"
 on public.company_audit_events for select to authenticated
 using (public.is_company_member(company_id));
 
-create policy "members can append audit events"
-on public.company_audit_events for insert to authenticated
-with check (
-  public.is_company_member(company_id)
-  and actor_user_id = auth.uid()
-);
+drop policy if exists "members can append audit events" on public.company_audit_events;
 
 -- Company creation is safe to expose because it creates a new company and makes the
 -- authenticated caller its first owner in one transaction. It cannot join another company.
@@ -209,7 +204,7 @@ revoke all on table public.company_audit_events from anon, authenticated;
 grant select, update on table public.companies to authenticated;
 grant select, insert, update, delete on table public.company_memberships to authenticated;
 grant select, insert, update, delete on table public.company_records to authenticated;
-grant select, insert on table public.company_audit_events to authenticated;
+grant select on table public.company_audit_events to authenticated;
 
 -- A deleted_at change is governed by the same role tier as a physical delete.
 create or replace function public.guard_company_record_soft_delete()
@@ -234,3 +229,85 @@ drop trigger if exists company_records_soft_delete_guard on public.company_recor
 create trigger company_records_soft_delete_guard
 before update on public.company_records
 for each row execute function public.guard_company_record_soft_delete();
+
+
+-- Prevent cross-company record reassignment, key/type changes, and creator spoofing.
+create or replace function public.guard_company_record_identity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $axivestra$
+begin
+  if old.company_id is distinct from new.company_id
+     or old.record_type is distinct from new.record_type
+     or old.record_key is distinct from new.record_key then
+    raise exception 'Company, record type and record key are immutable. Create a new scoped record instead.';
+  end if;
+  new.created_by := old.created_by;
+  return new;
+end;
+$axivestra$;
+
+drop trigger if exists company_records_identity_guard on public.company_records;
+create trigger company_records_identity_guard
+before update on public.company_records
+for each row execute function public.guard_company_record_identity();
+
+-- Write membership audit events on the server so clients cannot forge governance history.
+create or replace function public.log_company_membership_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $axivestra$
+declare
+  actor_id uuid;
+  target_company_id uuid;
+  target_user_id uuid;
+  action_name text;
+  action_label text;
+begin
+  if tg_op = 'INSERT' then
+    target_company_id := new.company_id;
+    target_user_id := new.user_id;
+    actor_id := coalesce(auth.uid(), new.created_by);
+    action_name := 'member_added';
+    action_label := 'Company membership created with role ' || new.role;
+  elsif tg_op = 'UPDATE' then
+    if old.role is not distinct from new.role then
+      return new;
+    end if;
+    target_company_id := new.company_id;
+    target_user_id := new.user_id;
+    actor_id := coalesce(auth.uid(), new.created_by, old.created_by);
+    action_name := 'member_role_changed';
+    action_label := 'Company membership role changed to ' || new.role;
+  else
+    target_company_id := old.company_id;
+    target_user_id := old.user_id;
+    actor_id := coalesce(auth.uid(), old.created_by);
+    action_name := 'member_removed';
+    action_label := 'Company membership removed';
+  end if;
+
+  if actor_id is not null then
+    insert into public.company_audit_events(
+      company_id, actor_user_id, action, entity_type, entity_key, label
+    ) values (
+      target_company_id, actor_id, action_name, 'membership', target_user_id::text, action_label
+    );
+  end if;
+
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$axivestra$;
+
+drop trigger if exists company_membership_audit on public.company_memberships;
+create trigger company_membership_audit
+after insert or update or delete on public.company_memberships
+for each row execute function public.log_company_membership_change();
+
+revoke all on function public.guard_company_record_identity() from public;
+revoke all on function public.log_company_membership_change() from public;
