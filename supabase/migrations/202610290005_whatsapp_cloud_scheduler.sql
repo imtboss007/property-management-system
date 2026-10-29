@@ -1,6 +1,6 @@
 -- AXIVESTRA cloud WhatsApp scheduler.
--- The queue is stored in Postgres and dispatched by a scheduled server-side function.
--- Provider credentials never belong in client apps or queue rows.
+-- Queue state is cloud-resident; a scheduled server-side dispatcher processes due rows.
+-- Never store provider credentials in client apps or queue records.
 
 create table if not exists public.whatsapp_cloud_messages (
   id uuid primary key default gen_random_uuid(),
@@ -9,7 +9,7 @@ create table if not exists public.whatsapp_cloud_messages (
   series_id uuid,
   sequence integer not null default 1 check (sequence between 1 and 20),
   repeat_count integer not null default 1 check (repeat_count between 1 and 20),
-  to_phone text not null check (to_phone ~ '^[0-9]{8,15}$'),
+  to_phone text not null check (to_phone ~ '^[0-9]+' and to_phone !~ '[^0-9]' and length(to_phone) between 8 and 15),
   contact_id text not null default '' check (length(contact_id) <= 120),
   recipient_name text not null default '' check (length(recipient_name) <= 160),
   message text not null default '' check (length(message) <= 4000),
@@ -34,7 +34,12 @@ create table if not exists public.whatsapp_cloud_messages (
   constraint whatsapp_cloud_message_content check (
     (message_type = 'text' and length(trim(message)) > 0 and template_name is null)
     or
-    (message_type = 'template' and template_name is not null and template_name ~ '^[a-zA-Z0-9_]+$' and length(template_language) between 2 and 20)
+    (message_type = 'template'
+      and template_name is not null
+      and template_name ~ '^[a-zA-Z0-9_]+'
+      and template_name !~ '[^a-zA-Z0-9_]'
+      and length(template_name) between 1 and 128
+      and length(template_language) between 2 and 20)
   ),
   constraint whatsapp_cloud_message_consent check (consent_confirmed = true)
 );
@@ -74,8 +79,7 @@ language plpgsql
 security definer
 set search_path = ''
 as $axivestra$
-declare
-  changed integer;
+declare changed integer;
 begin
   if auth.uid() is null then raise exception 'Authentication required.'; end if;
   if target_company_id is null then raise exception 'Company scope required.'; end if;
@@ -84,10 +88,8 @@ begin
     where m.id = target_message_id
       and m.company_id = target_company_id
       and m.status = 'scheduled'
-      and (
-        m.created_by = auth.uid()
-        or public.has_company_role(m.company_id, array['owner','admin','manager'])
-      );
+      and (m.created_by = auth.uid()
+        or public.has_company_role(m.company_id, array['owner','admin','manager']));
   get diagnostics changed = row_count;
   return changed = 1;
 end;
@@ -99,26 +101,19 @@ language plpgsql
 security definer
 set search_path = ''
 as $axivestra$
-declare
-  changed integer;
+declare changed integer;
 begin
   if auth.uid() is null then raise exception 'Authentication required.'; end if;
   if target_company_id is null then raise exception 'Company scope required.'; end if;
   update public.whatsapp_cloud_messages m
-    set status = 'scheduled',
-        scheduled_at = now() + interval '1 minute',
-        attempt_count = 0,
-        last_error = '',
-        provider_message_id = '',
-        sent_at = null,
-        updated_at = now()
+    set status = 'scheduled', scheduled_at = now() + interval '1 minute',
+        attempt_count = 0, last_error = '', provider_message_id = '',
+        sent_at = null, updated_at = now()
     where m.id = target_message_id
       and m.company_id = target_company_id
       and m.status = 'failed'
-      and (
-        m.created_by = auth.uid()
-        or public.has_company_role(m.company_id, array['owner','admin','manager'])
-      );
+      and (m.created_by = auth.uid()
+        or public.has_company_role(m.company_id, array['owner','admin','manager']));
   get diagnostics changed = row_count;
   return changed = 1;
 end;
@@ -131,12 +126,10 @@ security definer
 set search_path = ''
 as $axivestra$
 begin
-  if coalesce(auth.role(), '') <> 'service_role' then
-    raise exception 'Service role required.';
-  end if;
+  if coalesce(auth.role(), '') <> 'service_role' then raise exception 'Service role required.'; end if;
   if target_company_id is null then raise exception 'Configured company scope required.'; end if;
 
-  -- Do not blindly re-send jobs interrupted during a provider request: the outcome may be uncertain.
+  -- Do not blindly resend jobs interrupted during a provider request; delivery may be uncertain.
   update public.whatsapp_cloud_messages
     set status = 'failed',
         last_error = 'Delivery status is uncertain because the cloud worker stopped while sending. Check the WhatsApp chat before retrying to avoid a duplicate.',
@@ -158,34 +151,25 @@ begin
     )
     update public.whatsapp_cloud_messages m
       set status = 'sending', attempt_count = m.attempt_count + 1, updated_at = now()
-      from due
-      where m.id = due.id
+      from due where m.id = due.id
       returning m.*;
 end;
 $axivestra$;
 
 create or replace function public.finish_whatsapp_cloud_message(
-  target_message_id uuid,
-  target_company_id uuid,
-  final_status text,
-  provider_id text default '',
-  failure_reason text default ''
+  target_message_id uuid, target_company_id uuid, final_status text,
+  provider_id text default '', failure_reason text default ''
 )
 returns boolean
 language plpgsql
 security definer
 set search_path = ''
 as $axivestra$
-declare
-  changed integer;
+declare changed integer;
 begin
-  if coalesce(auth.role(), '') <> 'service_role' then
-    raise exception 'Service role required.';
-  end if;
+  if coalesce(auth.role(), '') <> 'service_role' then raise exception 'Service role required.'; end if;
   if target_company_id is null then raise exception 'Configured company scope required.'; end if;
-  if final_status not in ('sent','failed') then
-    raise exception 'Final status must be sent or failed.';
-  end if;
+  if final_status not in ('sent','failed') then raise exception 'Final status must be sent or failed.'; end if;
   update public.whatsapp_cloud_messages
     set status = final_status,
         provider_message_id = left(coalesce(provider_id, ''), 300),
@@ -206,12 +190,9 @@ language plpgsql
 security definer
 set search_path = ''
 as $axivestra$
-declare
-  changed integer;
+declare changed integer;
 begin
-  if coalesce(auth.role(), '') <> 'service_role' then
-    raise exception 'Service role required.';
-  end if;
+  if coalesce(auth.role(), '') <> 'service_role' then raise exception 'Service role required.'; end if;
   if target_company_id is null then raise exception 'Configured company scope required.'; end if;
   update public.whatsapp_cloud_messages
     set status = 'cancelled',
@@ -232,7 +213,6 @@ revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from publi
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-
 grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
