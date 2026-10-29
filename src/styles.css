@@ -1235,3 +1235,24 @@ h2,h3{color:#e5f2fc}
 .wa-form select{max-width:100%}
 .wa-address-book .wa-search-field{margin:11px 0}
 @media(max-width:560px){.wa-search-field{min-height:44px}.wa-search-field input{height:42px;font-size:14px}}
+
+
+/* Searchable contact selectors — designed for large imported WhatsApp directories. */
+.searchable-contact-picker{display:flex;flex-direction:column;gap:7px;min-width:0;width:100%;color:var(--text-secondary,#9fb7c9);font-size:12px;font-weight:700}
+.searchable-contact-picker__label{display:block;color:var(--text-secondary,#9fb7c9);font-size:12px;font-weight:700;line-height:1.4}
+.searchable-contact-picker__search{display:flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:0 10px;border:1px solid rgba(130,167,194,.25);border-radius:10px;background:rgba(3,12,22,.58);color:#82afc7}
+.searchable-contact-picker__search:focus-within{border-color:#39bfe0;box-shadow:0 0 0 2px rgba(57,191,224,.12)}
+.searchable-contact-picker__search input{width:100%;min-width:0;min-height:38px;padding:0;border:0;outline:0;background:transparent;color:var(--text-primary,#eef8ff);font-size:12px}
+.searchable-contact-picker__search input::placeholder{color:#708ba1}
+.searchable-contact-picker__clear{flex:0 0 auto;border:0;background:transparent;color:#88aabd;font-size:20px;line-height:1;cursor:pointer;padding:3px 5px}
+.searchable-contact-picker__select{width:100%;min-width:0;min-height:40px;padding:9px 10px;border:1px solid rgba(130,167,194,.25);border-radius:10px;background:rgba(3,12,22,.58);color:#eef8ff;font-size:12px}
+.searchable-contact-picker__select option{background:#0b1d2d;color:#eef8ff}
+.searchable-contact-picker__options{display:flex;flex-direction:column;gap:2px;max-height:172px;overflow:auto;padding:5px;border:1px solid rgba(130,167,194,.22);border-radius:10px;background:rgba(3,12,22,.42);overscroll-behavior:contain}
+.searchable-contact-picker__option{display:flex;align-items:flex-start;gap:8px;min-width:0;padding:7px 6px;border-radius:7px;cursor:pointer;color:#d4e5f1;font-weight:500}
+.searchable-contact-picker__option:hover{background:rgba(45,125,157,.16)}
+.searchable-contact-picker__option input{flex:0 0 auto;margin:2px 0 0;accent-color:#2ecbe2}
+.searchable-contact-picker__option span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.searchable-contact-picker__option strong{overflow-wrap:anywhere;font-size:12px;font-weight:650;color:#e5f2fb}
+.searchable-contact-picker__option small{overflow-wrap:anywhere;font-size:10px;line-height:1.35;color:#82a0b6}
+.searchable-contact-picker__empty,.searchable-contact-picker__count,.searchable-contact-picker__help{margin:0;color:#7897ad;font-size:10px;line-height:1.45;font-weight:500}
+@media(max-width:650px){.searchable-contact-picker__search input{font-size:14px}.searchable-contact-picker__select{font-size:14px}.searchable-contact-picker__options{max-height:210px}}
