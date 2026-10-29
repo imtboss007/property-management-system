@@ -8,7 +8,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 ## Implemented in source
 
 - AXIVESTRA branded 16-workspace property/finance/investment/legal/operations interface, responsive layout, search, data entry, activity history and local backup/restore.
-- Single-file document-vault backup/restore with metadata and file bytes, input validation, duplicate-ID overwrite confirmation, and a 100 MB decoded vault cap.
+- Single-file document-vault backup/restore with metadata and file bytes, input validation, duplicate-ID overwrite confirmation, and a 100 MB decoded vault cap. IndexedDB now stores a company ID and the UI filters documents, downloads, deletes and backups to the active company. Legacy file vaults are assigned only after explicit import consent.
 - Windows Electron WhatsApp linked-device service with QR/pairing, contact/group cache, scheduled queue, recurring series, cancel/retry, consent confirmation, stop-on-reply logic, cooldown and daily sending limit.
 - Android/browser companion route to the Windows sender. The Android APK does not run the Windows WhatsApp sender by itself.
 - Optional Supabase email/password sign-in, account registration, session restoration, sign-out, password-recovery request, company selection and company creation.
