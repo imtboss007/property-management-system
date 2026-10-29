@@ -113,8 +113,8 @@ Deno.serve(async request => {
   }
 
   const membershipQuery = existingMembership
-    ? admin.from("company_memberships").update({ role }).eq("company_id", companyId).eq("user_id", invitedUserId)
-    : admin.from("company_memberships").insert({ company_id: companyId, user_id: invitedUserId, role, created_by: caller.id });
+    ? admin.from("company_memberships").update({ role, updated_by: caller.id }).eq("company_id", companyId).eq("user_id", invitedUserId)
+    : admin.from("company_memberships").insert({ company_id: companyId, user_id: invitedUserId, role, created_by: caller.id, updated_by: caller.id });
   const { error: saveMembershipError } = await membershipQuery;
   if (saveMembershipError) {
     console.error("invite-company-member: membership save failed", saveMembershipError.message);
