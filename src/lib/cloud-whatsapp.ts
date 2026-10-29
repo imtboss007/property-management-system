@@ -157,6 +157,9 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
   } else if (!message) {
     throw new Error("Write a message or choose an approved template.");
   }
+  if (!immediate && !templateName) {
+    throw new Error("For cloud scheduled sends, choose an approved Meta template. The recipient's 24-hour customer-service window may expire before delivery.");
+  }
   if (message.length > 4000) throw new Error("Messages must be 4000 characters or fewer.");
   const count = Math.max(1, Math.min(20, Number.parseInt(String(payload.repeatCount || 1), 10) || 1));
   const intervalDays = Math.max(1, Math.min(365, Number.parseInt(String(payload.intervalDays || 1), 10) || 1));
