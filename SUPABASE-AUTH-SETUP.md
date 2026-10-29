@@ -13,7 +13,7 @@
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. In **SQL Editor**, review and apply `supabase/migrations/202610290001_auth_company_rbac.sql`. Confirm every statement succeeds. The migration is committed but has **not** been applied to a live project by this workflow.
+2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, then `supabase/migrations/202610290002_rbac_hardening.sql`. Review the SQL and confirm every statement succeeds. The repository workflows commit the migrations but do **not** apply them to a live project.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
@@ -27,7 +27,7 @@
 8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
 ## Deploy the invitation Edge Function
-The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project as the SQL migration:
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying both SQL migrations:
 
 ```bash
 supabase login
