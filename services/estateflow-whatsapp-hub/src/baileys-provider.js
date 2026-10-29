@@ -26,6 +26,8 @@ function connectionCode(error) {
 }
 
 export function createBaileysProvider(config) {
+  // The linked-device credentials are session secrets; default all new files to owner-only permissions.
+  process.umask(0o077);
   const authDir = path.join(config.dataDir, "baileys-auth");
   let socket = null;
   let connected = false;
@@ -83,7 +85,8 @@ export function createBaileysProvider(config) {
     if (startPromise) return startPromise;
     manualDisconnect = false;
     startPromise = (async () => {
-      await fs.mkdir(authDir, { recursive: true });
+      await fs.mkdir(authDir, { recursive: true, mode: 0o700 });
+      await fs.chmod(authDir, 0o700);
       const auth = await useMultiFileAuthState(authDir);
       connecting = true;
       connectionState = auth.state.creds.registered ? "reconnecting" : "starting";
@@ -98,7 +101,7 @@ export function createBaileysProvider(config) {
         connectTimeoutMs: 30000,
         defaultQueryTimeoutMs: 30000
       });
-      socket.ev.on("creds.update", () => { void auth.saveCreds(); });
+      socket.ev.on("creds.update", () => { void auth.saveCreds().catch(error => { lastError = "Could not persist WhatsApp session credentials: " + String(error?.message || error); }); });
       socket.ev.on("contacts.upsert", rows => { for (const row of rows || []) publishContact(row); });
       socket.ev.on("contacts.update", rows => { for (const row of rows || []) publishContact(row); });
       socket.ev.on("messages.upsert", event => {
