@@ -30,7 +30,10 @@ function createWindow() {
     }
   });
   mainWindow = win;
-  win.once("ready-to-show", () => win.show());
+  // A Windows logon launch starts the sender hidden so schedules can keep running
+  // without opening a visible window; the tray menu can always restore the window.
+  const launchHidden = process.argv.includes("--hidden");
+  win.once("ready-to-show", () => { if (!launchHidden) win.show(); });
   win.on("closed", () => { if (mainWindow === win) mainWindow = null; });
   win.on("close", event => {
     if (!isQuitting && process.platform === "win32") {
@@ -60,6 +63,13 @@ async function createTray() {
 }
 
 app.whenReady().then(() => {
+  // Opt into run-at-login for the packaged Windows app. The background process starts
+  // hidden and is controlled through its tray icon; Exit AXIVESTRA stops scheduling.
+  if (process.platform === "win32" && app.isPackaged) {
+    try {
+      app.setLoginItemSettings({ openAtLogin: true, path: process.execPath, args: ["--hidden"] });
+    } catch (_) {}
+  }
   whatsappService = createWhatsAppService({
     app, ipcMain,
     notify: payload => {
