@@ -138,6 +138,10 @@ check("QR-linked WhatsApp credentials are stored and reused to reconnect after d
   has(whatsappService, /fs\.access\(path\.join\(authDir, "creds\.json"\)\)/i) &&
   has(whatsappService, /await startSocket\(\)/i) &&
   has(electronMain, /app\.setLoginItemSettings\(\{ openAtLogin: true/i));
+check("QR pairing and reconnect automatically refresh the linked account's saved group membership",
+  has(whatsappService, /publish\("connected"\);[\s\S]{0,500}void syncAddressBook\(\)/i) &&
+  has(whatsappService, /addressBookMeta\.activeGroupJids = activeGroupJids/i) &&
+  has(whatsappService, /await saveAddressBook\(\)/i));
 check("closing and reopening the app restores cached WhatsApp contacts and groups automatically",
   has(read("src/App.tsx"), /restoreSavedWhatsAppDirectory/i) &&
   has(read("src/App.tsx"), /localStorage\.getItem\("estateflow\.whatsapp\.host"\)/i) &&
