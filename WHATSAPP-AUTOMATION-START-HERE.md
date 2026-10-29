@@ -48,6 +48,10 @@ Connect WhatsApp through QR, then press **Sync WhatsApp now** in the saved direc
 
 Use a dedicated test account while verifying the setup; unofficial WhatsApp Web gateways can be restricted by WhatsApp.
 
+## PC ↔ Android business-record sync
+
+For an additive local-network sync, start AXIVESTRA on the Windows PC, open WhatsApp Automation and copy a PC companion address and token from the companion setup panel. Keep the Windows app running and connect both devices to the same trusted Wi-Fi network. On either device, open **Settings → PC ↔ Android local-network sync**, enter the PC address and token, and choose **Merge with PC now**. The first sync stores a snapshot on the Windows PC; subsequent syncs merge by stable record IDs. The current device wins for matching IDs, PC-only records are retained, and deletions are not propagated. Export a JSON backup first. Document files are excluded and must be downloaded/restored separately. Do not use plain HTTP on public or untrusted networks, and never publish the companion token.
+
 ## Important boundaries
 
 - This branch has not been merged into main.
