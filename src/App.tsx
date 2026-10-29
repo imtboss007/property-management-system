@@ -398,6 +398,7 @@ export default function App() {
   const [documentExpiry, setDocumentExpiry] = useState("");
   const [documentNotes, setDocumentNotes] = useState("");
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [documentVaultBusy, setDocumentVaultBusy] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -680,6 +681,87 @@ export default function App() {
     } catch (error) {
       setNotice("Document delete failed: " + (error instanceof Error ? error.message : String(error)));
     }
+  };
+
+  const exportDocumentVault = async () => {
+    setDocumentVaultBusy(true);
+    try {
+      const saved = await localDb.documents.toArray();
+      const totalBytes = saved.reduce((sum, record) => sum + (record.file?.size || 0), 0);
+      if (totalBytes > 100 * 1024 * 1024) {
+        setNotice("The document vault exceeds the 100 MB single-file backup limit. Download documents individually or export smaller batches.");
+        return;
+      }
+      const documents = [];
+      for (const record of saved) {
+        if (!record.file) throw new Error("Missing file data for " + record.name);
+        const bytes = new Uint8Array(await record.file.arrayBuffer());
+        let binary = "";
+        for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+        }
+        documents.push({
+          id: record.id, propertyId: record.propertyId, property: record.property, contactId: record.contactId || "",
+          name: record.name, category: record.category, storagePath: record.storagePath, mimeType: record.mimeType,
+          sizeBytes: record.sizeBytes, expiresOn: record.expiresOn, notes: record.notes, createdAt: record.createdAt,
+          fileBase64: btoa(binary)
+        });
+      }
+      const backup = { format: "AXIVESTRA_DOCUMENT_VAULT", schemaVersion: 1, exportedAt: new Date().toISOString(), documents };
+      const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = "axivestra-document-vault-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setNotice("Document-vault backup started for " + documents.length + " files. Store the backup securely; it contains the original documents.");
+    } catch (error) {
+      setNotice("Document-vault export failed: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setDocumentVaultBusy(false); }
+  };
+
+  const importDocumentVault = async (file: File) => {
+    if (file.size > 150 * 1024 * 1024) {
+      setNotice("This backup exceeds the 150 MB import limit. Export smaller document batches."); return;
+    }
+    if (!window.confirm("Import this document-vault backup? Matching document IDs will be replaced by the backup version; other existing documents will be retained. Export a backup of the current vault first.")) return;
+    setDocumentVaultBusy(true);
+    try {
+      const data = JSON.parse(await file.text()) as { format?: string; schemaVersion?: number; documents?: Array<Record<string, unknown>> };
+      if (data.format !== "AXIVESTRA_DOCUMENT_VAULT" || data.schemaVersion !== 1 || !Array.isArray(data.documents) || data.documents.length > 10000) {
+        throw new Error("This is not a supported AXIVESTRA document-vault backup.");
+      }
+      const restored = [];
+      let totalBytes = 0;
+      for (const item of data.documents) {
+        const id = String(item.id || "");
+        const name = String(item.name || "");
+        const encoded = String(item.fileBase64 || "");
+        if (!id || !name || !encoded || encoded.length > 36 * 1024 * 1024) throw new Error("Invalid or oversized document entry.");
+        const binary = atob(encoded);
+        totalBytes += binary.length;
+        if (totalBytes > 100 * 1024 * 1024) throw new Error("Decoded document total exceeds the 100 MB restore limit.");
+        const bytes = new Uint8Array(binary.length);
+        for (let offset = 0; offset < binary.length; offset += 0x8000) {
+          const end = Math.min(offset + 0x8000, binary.length);
+          for (let i = offset; i < end; i++) bytes[i] = binary.charCodeAt(i);
+        }
+        restored.push({
+          id, propertyId: String(item.propertyId || ""), property: String(item.property || ""),
+          contactId: String(item.contactId || ""), name: name.slice(0, 255),
+          category: String(item.category || "Other"), storagePath: String(item.storagePath || id),
+          mimeType: String(item.mimeType || "application/octet-stream"), sizeBytes: bytes.byteLength,
+          expiresOn: String(item.expiresOn || ""), notes: String(item.notes || ""), createdAt: String(item.createdAt || new Date().toISOString()),
+          file: new Blob([bytes], { type: String(item.mimeType || "application/octet-stream") })
+        });
+      }
+      await localDb.documents.bulkPut(restored);
+      const saved = await localDb.documents.orderBy("createdAt").reverse().toArray();
+      setDocuments(saved.map(({ file: _file, ...record }) => record));
+      setNotice("Restored " + restored.length + " document files. Existing documents with different IDs were retained.");
+    } catch (error) {
+      setNotice("Document-vault import failed: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setDocumentVaultBusy(false); }
   };
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
@@ -1058,7 +1140,7 @@ export default function App() {
             onDeleteTask={deleteTask}
           />}
           {active === "Documents" && <section className="data-panel">
-            <div className="section-heading"><div><h2>Local document vault</h2><p>{documents.length} saved documents · files stored on this device</p></div><FileText size={21}/></div>
+            <div className="section-heading"><div><h2>Local document vault</h2><p>{documents.length} saved documents · files stored on this device</p></div><div className="finance-actions"><button className="secondary-button" disabled={documentVaultBusy} onClick={()=>void exportDocumentVault()}>{documentVaultBusy?"Working…":"Export vault backup"}</button><label className={"secondary-button "+(documentVaultBusy?"disabled":"")}>Import vault backup<input type="file" accept=".json,application/json" disabled={documentVaultBusy} hidden onChange={event=>{const file=event.target.files?.[0];if(file)void importDocumentVault(file);event.currentTarget.value="";}}/></label></div></div>
             <div className="notice notice-warn">Documents are saved in this browser/app's local database. They do not sync to your PC or other phone automatically. Download important files separately before changing devices or clearing app data.</div>
             <div className="document-upload-card">
               <div className="form-two">
