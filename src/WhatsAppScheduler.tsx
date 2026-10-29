@@ -107,7 +107,8 @@ function createCloudApi(): WhatsAppApi {
       connected: Boolean(result.ready),
       senderNumber: result.senderNumber || "",
       displayName: result.displayName || "",
-      error: result.ready ? "" : result.error || "Cloud WhatsApp is not ready."
+      error: result.ready ? "" : result.error || "Cloud WhatsApp is not ready.",
+      webhook: { configured: Boolean(result.webhookConfigured), reason: "Meta inbound-message webhook is not verified/configured." }
     };
   };
   const queue = async () => await listCloudWhatsAppMessages() as ScheduleRow[];
@@ -115,7 +116,7 @@ function createCloudApi(): WhatsAppApi {
     getStatus: status,
     getQueue: queue,
     getAddressBook: async () => ({
-      contacts: [], groups: [], lastSyncedAt: "", connected: true,
+      contacts: [], groups: [], lastSyncedAt: "", connected: false,
       accountNumber: "", activeGroupJids: [], counts: { contacts: 0, groups: 0 },
       note: "The official cloud sender uses contacts saved in AXIVESTRA; it cannot read a personal WhatsApp address book."
     }),
