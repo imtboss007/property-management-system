@@ -8,7 +8,7 @@ on:
     paths:
       - "services/estateflow-whatsapp-hub/**"
       - "src/**"
-      - "electron/whatsapp-service.cjs"
+      - "electron/**"
       - "supabase/migrations/**"
       - "supabase/functions/**"
       - "supabase/config.toml"
@@ -19,6 +19,7 @@ on:
       - "tsconfig*.json"
       - ".github/workflows/whatsapp-hub-checks.yml"
       - ".github/workflows/publish-release.yml"
+      - ".github/workflows/main.yml"
   pull_request:
     paths:
       - "services/estateflow-whatsapp-hub/**"
