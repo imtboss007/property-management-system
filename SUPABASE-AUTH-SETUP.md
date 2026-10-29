@@ -73,7 +73,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply the migration to a dedicated Supabase test project and verify it runs without SQL errors.
+- [ ] Apply all three migrations in order to a dedicated Supabase test project and verify they run without SQL errors.
 - [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
 - [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
 - [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.
