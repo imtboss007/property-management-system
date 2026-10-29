@@ -10,6 +10,8 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 - The activity history stores timestamps, entity names, record IDs and display labels only; it deliberately avoids copying private field values into the audit event.
 - Added a Settings view for recent activity and JSON export, and included audit history in business-record backup/restore.
 - Added responsive styling for the audit history.
+- Added authenticated PC companion data-sync endpoints with atomic snapshot storage, bounded payloads, monotonically increasing revisions and optimistic concurrency checks.
+- Added a Settings workflow for PC ↔ Android local-network additive record sync across properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and activity history. It retains remote-only records, prefers this device on duplicate IDs, retries once on a revision conflict, and does not propagate deletions.
 - Kept changes on the feature branch. `main` has not been changed or merged.
 
 ## Verified in source
@@ -28,7 +30,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 
 ## Gaps still open — do not mark these as complete
 
-1. **PC ↔ Android data synchronization and conflict resolution:** not implemented. Local records remain per-device. A deliberate sync protocol with stable IDs, revisions, conflict review and secure pairing is needed.
+1. **PC ↔ Android data synchronization:** a first authenticated local-network additive sync is implemented. It merges by record ID, keeps the current device's version for matching IDs, retains remote-only records, uses revision checks, and does not propagate deletions. It is not a full field-level conflict resolver; users must review duplicate-ID changes and export backups before first sync.
 2. **Login and role-based permissions:** no production authentication or server-enforced RBAC/multi-company isolation is established by this local-first build. The approval screen is a personal decision log, not enforceable four-eyes authorization.
 3. **Tamper-resistant audit:** the new activity history is a local convenience log. It is not cryptographically sealed, centrally retained or protected from someone with device/profile access.
 4. **Document backup integration:** document files are not embedded in the JSON backup. They need a separate bulk export/import flow and restore verification.
@@ -46,7 +48,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 - [ ] Export and restore document files independently and verify file contents.
 - [ ] Test WhatsApp QR/pairing, address-book/group sync, one-time send, recurring schedule, cancel, retry, daily cap and offline behavior.
 - [ ] Verify an inbound reply cancels only the intended contact's pending follow-ups; verify group activity handling separately.
-- [ ] Implement and test secure PC↔Android synchronization and explicit conflict handling.
+- [ ] Test PC↔Android sync on a real Windows PC and Android phone over trusted Wi-Fi, including invalid token, large payload, concurrent updates, repeated sync and duplicate-ID behavior.
 - [ ] Implement authentication, company isolation and role-based permissions if multiple users/companies are required.
 - [ ] Run CI and report actual results. Do not infer a passing runtime test from a successful package build.
 
