@@ -48,6 +48,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 2. Apply both SQL files in order:
    - `supabase/migrations/202610290001_auth_company_rbac.sql`
    - `supabase/migrations/202610290002_rbac_hardening.sql`
+   - `supabase/migrations/202610290003_metadata_audit_hardening.sql`
 3. Configure Supabase Auth email/signup/recovery URLs.
 4. Deploy `supabase/functions/invite-company-member/index.ts` to that project; configure invitation email delivery and the allowed redirect origin.
 5. For fresh builds, set GitHub Actions secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. These are public client settings; never use a service/secret key in a Vite build.
