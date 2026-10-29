@@ -71,9 +71,10 @@ async function getCloudStatus(request: Request, companyId: string) {
 
   const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
   const phoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
+  const schedulerSecret = Deno.env.get("AXIVESTRA_SCHEDULER_SECRET") || "";
   const senderCompanyId = Deno.env.get("AXIVESTRA_WA_COMPANY_ID") || "";
-  if (!accessToken || !phoneNumberId) {
-    return jsonResponse(200, { ok: true, ready: false, configured: false, companyId, error: "Cloud sending is not activated for this AXIVESTRA workspace yet." });
+  if (!accessToken || !phoneNumberId || schedulerSecret.length < 32) {
+    return jsonResponse(200, { ok: true, ready: false, configured: false, webhookConfigured: false, companyId, error: "Cloud sender or scheduler credentials are not fully configured for this AXIVESTRA workspace yet." });
   }
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(senderCompanyId) || senderCompanyId !== companyId) {
     return jsonResponse(200, { ok: true, ready: false, configured: false, companyId, error: "The hosted WhatsApp sender is restricted to its configured AXIVESTRA company workspace." });
@@ -86,16 +87,17 @@ async function getCloudStatus(request: Request, companyId: string) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       console.error("WhatsApp cloud status check failed", response.status, data?.error?.code || "provider-error");
-      return jsonResponse(200, { ok: true, ready: false, configured: true, companyId, error: "The cloud WhatsApp connection could not be verified. Check the server-side WhatsApp account connection." });
+      return jsonResponse(200, { ok: true, ready: false, configured: true, webhookConfigured: Boolean(Deno.env.get("META_APP_SECRET") && Deno.env.get("META_WEBHOOK_VERIFY_TOKEN")), companyId, error: "The cloud WhatsApp connection could not be verified. Check the server-side WhatsApp account connection." });
     }
     return jsonResponse(200, {
       ok: true, ready: true, configured: true, companyId,
       senderNumber: digits(data.display_phone_number),
       displayName: String(data.verified_name || ""),
-      platform: "cloud-whatsapp-business"
+      platform: "cloud-whatsapp-business",
+      webhookConfigured: Boolean(Deno.env.get("META_APP_SECRET") && Deno.env.get("META_WEBHOOK_VERIFY_TOKEN"))
     });
   } catch {
-    return jsonResponse(200, { ok: true, ready: false, configured: true, companyId, error: "Could not reach the WhatsApp cloud service. The queue remains saved." });
+    return jsonResponse(200, { ok: true, ready: false, configured: true, webhookConfigured: Boolean(Deno.env.get("META_APP_SECRET") && Deno.env.get("META_WEBHOOK_VERIFY_TOKEN")), companyId, error: "Could not reach the WhatsApp cloud service. The queue remains saved." });
   }
 }
 async function sendDueMessages() {
