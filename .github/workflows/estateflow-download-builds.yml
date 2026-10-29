@@ -23,6 +23,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Package installer without publishing
         run: npx electron-builder --win nsis --x64 --publish never
@@ -52,6 +55,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build app files
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
       - name: Create Android project
         run: npx cap add android
