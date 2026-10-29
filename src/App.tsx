@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { localDb } from "./lib/local-db";
-import { supabase, syncCompanyWorkspace, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
+import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
@@ -424,6 +424,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [notice, setNotice] = useState("");
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(() => load("estateflow.auditEvents", []));
   const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string }>> | null>(null);
+  const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
   const [syncHost, setSyncHost] = useState(() => load("axivestra.syncHost", ""));
   const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
   const [syncBusy, setSyncBusy] = useState(false);
@@ -487,8 +488,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   }, [auditEvents]);
 
   // In authenticated company mode, sync business records to the company-scoped Supabase table.
-  // Local storage remains an offline cache. Documents' file bytes and WhatsApp session credentials
-  // deliberately remain device-local; the cloud sync is additive and preserves remote-only rows.
+  // Local storage is the offline cache. Document file bytes and WhatsApp session credentials stay local.
+  // Sync is debounced and uses per-record rows protected by database RLS, not one unscoped global snapshot.
   useEffect(() => {
     if (!company || !userId || !supabase || company.role === "read_only") return;
     const timer = window.setTimeout(() => {
@@ -502,8 +503,29 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
         auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
       };
-      void syncCompanyWorkspace(company, userId, collections).catch(error => {
-        setNotice("Cloud sync failed. Your local copy is preserved. " + (error instanceof Error ? error.message : String(error)));
+      const currentKeys: Record<string, Set<string>> = {
+        property: new Set(properties.map(record => record.id)),
+        contact: new Set(contacts.map(record => record.id)),
+        whatsapp_group: new Set(savedWhatsAppGroups.map(record => record.id)),
+        task: new Set(tasks.map(record => record.id)),
+        financial: new Set(financials.map(record => record.id)),
+        risk: new Set(riskRecords.map(record => record.id)),
+        approval: new Set(approvalRequests.map(record => record.id)),
+        audit_event: new Set(auditEvents.map(record => record.id))
+      };
+      const previousKeys = cloudPreviousRef.current;
+      const deleted: Array<{ recordType: string; recordKey: string }> = [];
+      if (previousKeys) {
+        for (const [recordType, ids] of Object.entries(previousKeys)) {
+          for (const id of ids) if (!currentKeys[recordType]?.has(id)) deleted.push({ recordType, recordKey: id });
+        }
+      }
+      void (async () => {
+        if (deleted.length) await softDeleteCompanyRecords(company, userId, deleted);
+        await syncCompanyWorkspace(company, userId, collections);
+        cloudPreviousRef.current = currentKeys;
+      })().catch(error => {
+        setNotice("Cloud sync needs attention. Your local copy remains on this device. " + (error instanceof Error ? error.message : String(error)));
       });
     }, 900);
     return () => window.clearTimeout(timer);
