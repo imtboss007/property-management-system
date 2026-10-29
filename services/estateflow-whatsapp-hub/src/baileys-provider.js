@@ -105,6 +105,8 @@ export function createBaileysProvider(config) {
       socket.ev.on("contacts.upsert", rows => { for (const row of rows || []) publishContact(row); });
       socket.ev.on("contacts.update", rows => { for (const row of rows || []) publishContact(row); });
       socket.ev.on("messages.upsert", event => {
+        // Only real-time notifications are replies; ignore historical/append sync events.
+        if (event?.type !== "notify") return;
         for (const message of event?.messages || []) {
           const key = message?.key || {};
           const remoteJid = String(key.remoteJid || "");
