@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowRight, Building2, CheckCircle2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
+import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
 import App from "./App";
 import { hasLegacyLocalRecords, prepareCompanyWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
 
@@ -21,7 +21,6 @@ export default function AuthGate() {
   const [companyName, setCompanyName] = useState("");
   const [activeCompany, setActiveCompany] = useState<WorkspaceCompany | null>(null);
   const [migrationCompany, setMigrationCompany] = useState<WorkspaceCompany | null>(null);
-  const legacyDetected = useMemo(() => hasLegacyLocalRecords(), [checked, userId, memberships.length]);
 
   const clearMessages = () => { setError(""); setInfo(""); };
 
