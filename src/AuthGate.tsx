@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, Smartphone, UserPlus } from "lucide-react";
 import App from "./App";
+import { assignLegacyVaultToCompany } from "./lib/local-db";
 import { hasLegacyLocalRecords, prepareCompanyWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
 
 type AuthMode = "signin" | "signup" | "reset";
@@ -155,6 +156,16 @@ export default function AuthGate() {
     try {
       localStorage.setItem("axivestra.activeCompanyId", company.id);
       await prepareCompanyWorkspace(company, userId, importLegacy);
+      if (importLegacy && company.role !== "read_only") {
+        // The vault is device-local and intentionally is not uploaded to cloud.
+        // Migrate legacy file metadata and file bytes only after the user explicitly chooses import.
+        const legacyDocumentMetadata = localStorage.getItem("estateflow.documents");
+        const companyDocumentKey = scopedStorageKey(company.id, "estateflow.documents");
+        if (legacyDocumentMetadata && localStorage.getItem(companyDocumentKey) === null) {
+          localStorage.setItem(companyDocumentKey, legacyDocumentMetadata);
+        }
+        await assignLegacyVaultToCompany(company.id);
+      }
       setMigrationCompany(null);
       setActiveCompany(company);
       setInfo("");
