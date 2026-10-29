@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { localDb } from "./lib/local-db";
-import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
+import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
@@ -429,6 +429,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncStatus, setSyncStatus] = useState("");
+  const [memberUserId, setMemberUserId] = useState("");
+  const [memberRole, setMemberRole] = useState<CompanyRole>("staff");
+  const [memberRows, setMemberRows] = useState<Array<{ user_id: string; role: CompanyRole; created_at: string }>>([]);
+  const [memberBusy, setMemberBusy] = useState(false);
+  const [memberStatus, setMemberStatus] = useState("");
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -640,6 +645,69 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } catch (error) {
       setSyncStatus("Sync failed: " + (error instanceof Error ? error.message : String(error)));
     } finally { setSyncBusy(false); }
+  };
+
+  const loadCompanyMembers = useCallback(async () => {
+    if (!company || !userId || !supabase || !["owner", "admin"].includes(company.role)) return;
+    const { data, error } = await supabase.from("company_memberships")
+      .select("user_id,role,created_at").eq("company_id", company.id).order("created_at", { ascending: true });
+    if (error) { setMemberStatus("Could not load members: " + error.message); return; }
+    setMemberRows((data || []) as Array<{ user_id: string; role: CompanyRole; created_at: string }>);
+  }, [company?.id, company?.role, userId]);
+
+  useEffect(() => {
+    if (company && ["owner", "admin"].includes(company.role)) void loadCompanyMembers();
+  }, [company?.id, company?.role, loadCompanyMembers]);
+
+  const addCompanyMember = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!company || !userId || !supabase) return;
+    const targetId = memberUserId.trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(targetId)) {
+      setMemberStatus("Enter a valid Supabase Auth user UUID. Email invitations are not configured yet.");
+      return;
+    }
+    if (memberRows.some(row => row.user_id === targetId && row.role === memberRole)) {
+      setMemberStatus("This user already has this role in the company.");
+      return;
+    }
+    setMemberBusy(true); setMemberStatus("");
+    try {
+      const existing = memberRows.find(row => row.user_id === targetId);
+      if (existing) {
+        if (existing.role === "owner") throw new Error("Owner membership cannot be edited through this screen.");
+        const { error } = await supabase.from("company_memberships")
+          .update({ role: memberRole }).eq("company_id", company.id).eq("user_id", targetId);
+        if (error) throw error;
+        await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_role_changed", entity_type: "membership", entity_key: targetId, label: "Role changed to " + memberRole });
+        setMemberStatus("Company role updated.");
+      } else {
+        const { error } = await supabase.from("company_memberships")
+          .insert({ company_id: company.id, user_id: targetId, role: memberRole, created_by: userId });
+        if (error) throw error;
+        await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_added", entity_type: "membership", entity_key: targetId, label: "Added with role " + memberRole });
+        setMemberStatus("Member added. They can sign in with their own account.");
+      }
+      setMemberUserId("");
+      await loadCompanyMembers();
+    } catch (cause) {
+      setMemberStatus("Member change failed: " + (cause instanceof Error ? cause.message : String(cause)));
+    } finally { setMemberBusy(false); }
+  };
+
+  const removeCompanyMember = async (targetId: string, role: CompanyRole) => {
+    if (!company || !userId || !supabase || role === "owner") return;
+    if (!window.confirm("Remove this user's access to " + company.name + "? This does not delete their account or personal data.")) return;
+    setMemberBusy(true); setMemberStatus("");
+    try {
+      const { error } = await supabase.from("company_memberships").delete().eq("company_id", company.id).eq("user_id", targetId);
+      if (error) throw error;
+      await supabase.from("company_audit_events").insert({ company_id: company.id, actor_user_id: userId, action: "member_removed", entity_type: "membership", entity_key: targetId, label: "Company membership removed" });
+      setMemberStatus("Member access removed.");
+      await loadCompanyMembers();
+    } catch (cause) {
+      setMemberStatus("Could not remove member: " + (cause instanceof Error ? cause.message : String(cause)));
+    } finally { setMemberBusy(false); }
   };
 
   const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
@@ -1265,7 +1333,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records are cached under this company's local namespace and synced to its company-scoped cloud records when online. Document file bytes remain in this device's IndexedDB vault and need a separate vault backup." : "Business records are stored in this device's browser storage; document files are saved in the local IndexedDB vault. There is no cloud account or automatic device-to-device sync. Export business records as JSON, and download document files separately before changing devices or clearing app data."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company ? <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync by company ID through Supabase row-level security. Updates are debounced, and cloud-only records are retained during initial merge. The Windows WhatsApp companion is separate from this business-record cloud sync.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div> : <div className="settings-card"><h3>PC ↔ Android local-network sync</h3><p>Merge business records over your trusted local network using the authenticated Windows companion. This local-only sync is additive. Documents are excluded and must be backed up separately.</p><div className="form-two"><label>Windows PC companion address<input value={syncHost} onChange={event=>setSyncHost(event.target.value)} placeholder="http://192.168.1.10:47822" autoComplete="url"/></label><label>Companion token<input value={syncToken} onChange={event=>setSyncToken(event.target.value)} placeholder="Paste the private PC companion token" autoComplete="off"/></label></div><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={()=>void syncWithPc()}>{syncBusy ? "Syncing…" : "Merge with PC now"}</button></div>{syncStatus&&<p role="status" className="sync-status">{syncStatus}</p>}<p className="ax-form-note">Both devices must be on the same trusted Wi-Fi network, and AXIVESTRA must be running on the Windows PC. In WhatsApp Automation, open the companion setup panel to find the PC address and token. Treat the token like a password; do not share it or save it in GitHub.</p></div>}<div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records are cached under this company's local namespace and synced to its company-scoped cloud records when online. Document file bytes remain in this device's IndexedDB vault and need a separate vault backup." : "Business records are stored in this device's browser storage; document files are saved in the local IndexedDB vault. There is no cloud account or automatic device-to-device sync. Export business records as JSON, and download document files separately before changing devices or clearing app data."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Add or change access for an existing Supabase Auth user. Use the user's UUID from the Supabase dashboard; password/email invitations are not enabled in this build. The owner role cannot be granted, changed or removed here.</p><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Company role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update member"}</button></form>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div></div>}{company ? <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync by company ID through Supabase row-level security. Updates are debounced, and cloud-only records are retained during initial merge. The Windows WhatsApp companion is separate from this business-record cloud sync.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div> : <div className="settings-card"><h3>PC ↔ Android local-network sync</h3><p>Merge business records over your trusted local network using the authenticated Windows companion. This local-only sync is additive. Documents are excluded and must be backed up separately.</p><div className="form-two"><label>Windows PC companion address<input value={syncHost} onChange={event=>setSyncHost(event.target.value)} placeholder="http://192.168.1.10:47822" autoComplete="url"/></label><label>Companion token<input value={syncToken} onChange={event=>setSyncToken(event.target.value)} placeholder="Paste the private PC companion token" autoComplete="off"/></label></div><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={()=>void syncWithPc()}>{syncBusy ? "Syncing…" : "Merge with PC now"}</button></div>{syncStatus&&<p role="status" className="sync-status">{syncStatus}</p>}<p className="ax-form-note">Both devices must be on the same trusted Wi-Fi network, and AXIVESTRA must be running on the Windows PC. In WhatsApp Automation, open the companion setup panel to find the PC address and token. Treat the token like a password; do not share it or save it in GitHub.</p></div>}<div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
