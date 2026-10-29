@@ -66,7 +66,7 @@ with check (
   and sent_at is null
 );
 
-create or replace function public.cancel_whatsapp_cloud_message(target_message_id uuid)
+create or replace function public.cancel_whatsapp_cloud_message(target_message_id uuid, target_company_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -79,6 +79,7 @@ begin
   update public.whatsapp_cloud_messages m
     set status = 'cancelled', updated_at = now()
     where m.id = target_message_id
+      and m.company_id = target_company_id
       and m.status = 'scheduled'
       and (
         m.created_by = auth.uid()
@@ -89,7 +90,7 @@ begin
 end;
 $axivestra$;
 
-create or replace function public.retry_whatsapp_cloud_message(target_message_id uuid)
+create or replace function public.retry_whatsapp_cloud_message(target_message_id uuid, target_company_id uuid)
 returns boolean
 language plpgsql
 security definer
@@ -108,6 +109,7 @@ begin
         sent_at = null,
         updated_at = now()
     where m.id = target_message_id
+      and m.company_id = target_company_id
       and m.status = 'failed'
       and (
         m.created_by = auth.uid()
@@ -216,13 +218,13 @@ begin
 end;
 $axivestra$;
 
-revoke all on function public.cancel_whatsapp_cloud_message(uuid) from public, anon;
-revoke all on function public.retry_whatsapp_cloud_message(uuid) from public, anon;
+revoke all on function public.cancel_whatsapp_cloud_message(uuid,uuid) from public, anon;
+revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from public, anon;
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-grant execute on function public.cancel_whatsapp_cloud_message(uuid) to authenticated;
-grant execute on function public.retry_whatsapp_cloud_message(uuid) to authenticated;
+grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
+grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
 grant execute on function public.finish_whatsapp_cloud_message(uuid,text,text,text) to service_role;
 grant execute on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) to service_role;
@@ -430,13 +432,13 @@ begin
 end;
 $axivestra$;
 
-revoke all on function public.cancel_whatsapp_cloud_message(uuid) from public, anon;
-revoke all on function public.retry_whatsapp_cloud_message(uuid) from public, anon;
+revoke all on function public.cancel_whatsapp_cloud_message(uuid,uuid) from public, anon;
+revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from public, anon;
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-grant execute on function public.cancel_whatsapp_cloud_message(uuid) to authenticated;
-grant execute on function public.retry_whatsapp_cloud_message(uuid) to authenticated;
+grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
+grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
 grant execute on function public.finish_whatsapp_cloud_message(uuid,text,text,text) to service_role;
 grant execute on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) to service_role;
@@ -619,13 +621,13 @@ begin
 end;
 $axivestra$;
 
-revoke all on function public.cancel_whatsapp_cloud_message(uuid) from public, anon;
-revoke all on function public.retry_whatsapp_cloud_message(uuid) from public, anon;
+revoke all on function public.cancel_whatsapp_cloud_message(uuid,uuid) from public, anon;
+revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from public, anon;
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-grant execute on function public.cancel_whatsapp_cloud_message(uuid) to authenticated;
-grant execute on function public.retry_whatsapp_cloud_message(uuid) to authenticated;
+grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
+grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
 grant execute on function public.finish_whatsapp_cloud_message(uuid,text,text,text) to service_role;
 grant execute on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) to service_role;
@@ -833,13 +835,13 @@ begin
 end;
 $axivestra$;
 
-revoke all on function public.cancel_whatsapp_cloud_message(uuid) from public, anon;
-revoke all on function public.retry_whatsapp_cloud_message(uuid) from public, anon;
+revoke all on function public.cancel_whatsapp_cloud_message(uuid,uuid) from public, anon;
+revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from public, anon;
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-grant execute on function public.cancel_whatsapp_cloud_message(uuid) to authenticated;
-grant execute on function public.retry_whatsapp_cloud_message(uuid) to authenticated;
+grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
+grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
 grant execute on function public.finish_whatsapp_cloud_message(uuid,text,text,text) to service_role;
 grant execute on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) to service_role;
@@ -1022,13 +1024,13 @@ begin
 end;
 $axivestra$;
 
-revoke all on function public.cancel_whatsapp_cloud_message(uuid) from public, anon;
-revoke all on function public.retry_whatsapp_cloud_message(uuid) from public, anon;
+revoke all on function public.cancel_whatsapp_cloud_message(uuid,uuid) from public, anon;
+revoke all on function public.retry_whatsapp_cloud_message(uuid,uuid) from public, anon;
 revoke all on function public.claim_due_whatsapp_messages(integer,uuid) from public, anon, authenticated;
 revoke all on function public.finish_whatsapp_cloud_message(uuid,text,text,text) from public, anon, authenticated;
 revoke all on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) from public, anon, authenticated;
-grant execute on function public.cancel_whatsapp_cloud_message(uuid) to authenticated;
-grant execute on function public.retry_whatsapp_cloud_message(uuid) to authenticated;
+grant execute on function public.cancel_whatsapp_cloud_message(uuid,uuid) to authenticated;
+grant execute on function public.retry_whatsapp_cloud_message(uuid,uuid) to authenticated;
 grant execute on function public.claim_due_whatsapp_messages(integer,uuid) to service_role;
 grant execute on function public.finish_whatsapp_cloud_message(uuid,text,text,text) to service_role;
 grant execute on function public.cancel_whatsapp_cloud_followups_for_reply(text,uuid) to service_role;
