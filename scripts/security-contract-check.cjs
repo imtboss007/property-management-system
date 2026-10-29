@@ -100,7 +100,7 @@ check("WhatsApp contact sync only upserts the persistent cache and does not clea
   has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /function mergeAddressBookCache/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /const merged = mergeAddressBookCache\(addressBook, book\)/i) &&
-  has(read("src/App.tsx"), /They remain in AXIVESTRA when WhatsApp is disconnected/i));
+  has(read("src/App.tsx"), /Saved contacts remain available when WhatsApp is disconnected/i));
 check("one-time and repeated messages support individual contacts and groups",
   has(read("src/WhatsAppScheduler.tsx"), /sendMode === "repeat"/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /destinationType: recipientMode/i) &&
