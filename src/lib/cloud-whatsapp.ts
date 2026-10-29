@@ -8,6 +8,7 @@ export type CloudWhatsAppStatus = {
   displayName?: string;
   platform?: string;
   error?: string;
+  webhookConfigured?: boolean;
 };
 export type CloudSchedulePayload = {
   destinationType?: "contact" | "group";
@@ -71,7 +72,8 @@ export async function getCloudWhatsAppStatus(): Promise<CloudWhatsAppStatus> {
       senderNumber: String(data?.senderNumber || ""),
       displayName: String(data?.displayName || ""),
       platform: "cloud-whatsapp-business",
-      error: String(data?.error || "")
+      error: String(data?.error || ""),
+      webhookConfigured: Boolean(data?.webhookConfigured)
     };
   } catch (error) {
     return {
