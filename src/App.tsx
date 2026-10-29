@@ -531,7 +531,7 @@ export default function App() {
     (async () => {
       const [propertyResult, contactResult, taskResult, documentResult, financialResult, riskResult, approvalResult, whatsappGroupResult] = await Promise.all([
         supabase.from("property_records").select("id,title,module,location,value,status,contact,primary_contact_id,target_deadline,next_follow_up_date,next_action,notes,survey_number,ownership_details,area_value,area_unit,dimensions,rate_per_unit,module_data,created_at").order("created_at", { ascending: false }),
-        supabase.from("contacts").select("id,name,phone,role,notes,whatsapp_name,whatsapp_jid").order("created_at", { ascending: false }),
+        supabase.from("contacts").select("id,name,phone,role,notes,whatsapp_name,whatsapp_jid,roles,custom_roles,email,address,profession,employer,designation,business_type,income_sources,associated_company,relationship_notes").order("created_at", { ascending: false }),
         supabase.from("tasks").select("id,title,due_date,due_time,task_type,property_id,contact_id,property_label,notes,is_done").order("due_date", { ascending: true }).order("due_time", { ascending: true }),
         supabase.from("documents").select("id,property_id,contact_id,property_label,name,category,storage_path,mime_type,size_bytes,expires_on,notes,created_at").order("created_at", { ascending: false }),
         supabase.from("financial_transactions").select("id,property_id,contact_id,property_label,transaction_type,amount,transaction_date,party,reference_number,notes").order("transaction_date", { ascending: false }),
@@ -569,6 +569,17 @@ export default function App() {
         name: row.name,
         phone: row.phone ?? "",
         role: row.role ?? "Other",
+        roles: Array.isArray(row.roles) ? row.roles : (row.role ? [row.role] : ["Other"]),
+        customRoles: row.custom_roles ?? "",
+        email: row.email ?? "",
+        address: row.address ?? "",
+        profession: row.profession ?? "",
+        employer: row.employer ?? "",
+        designation: row.designation ?? "",
+        businessType: row.business_type ?? "",
+        incomeSources: row.income_sources ?? "",
+        associatedCompany: row.associated_company ?? "",
+        relationshipNotes: row.relationship_notes ?? "",
         notes: row.notes ?? "",
         whatsappName: row.whatsapp_name ?? "",
         whatsappJid: row.whatsapp_jid ?? ""
@@ -771,7 +782,7 @@ export default function App() {
     setContacts(prev => editingContact
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
-    remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes, whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || "" });
+    remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, roles: record.roles ?? [record.role], custom_roles: record.customRoles || "", email: record.email || "", address: record.address || "", profession: record.profession || "", employer: record.employer || "", designation: record.designation || "", business_type: record.businessType || "", income_sources: record.incomeSources || "", associated_company: record.associatedCompany || "", relationship_notes: record.relationshipNotes || "", notes: record.notes, whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || "" });
     closeContactForm();
     setNotice(backendConfigured && session
       ? "Contact saved and synced with your shared workspace."
