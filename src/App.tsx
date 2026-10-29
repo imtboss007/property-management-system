@@ -31,6 +31,49 @@ type ApprovalRequest = { id: string; title: string; area: string; entity: string
 type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
 
+type SearchableContactPickerProps = {
+  label: string;
+  contacts: ContactRecord[];
+  value: string | string[];
+  onChange: (value: string | string[]) => void;
+  multiple?: boolean;
+  placeholder?: string;
+  help?: string;
+};
+
+function SearchableContactPicker({ label, contacts, value, onChange, multiple = false, placeholder, help }: SearchableContactPickerProps) {
+  const [query, setQuery] = useState("");
+  const selectedIds = Array.isArray(value) ? value : value ? [value] : [];
+  const selected = contacts.filter(contact => selectedIds.includes(contact.id));
+  const filtered = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase();
+    return contacts
+      .filter(contact => !search || `${contact.name} ${contact.whatsappName || ""} ${contact.phone || ""} ${contact.role || ""} ${contact.email || ""} ${contact.company || ""}`.toLocaleLowerCase().includes(search))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts, query]);
+  const labelFor = (contact: ContactRecord) => `${contact.name}${contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · ${contact.role}${contact.phone ? " · " + contact.phone : ""}`;
+  const toggle = (id: string, checked: boolean) => {
+    const next = checked ? Array.from(new Set([...selectedIds, id])) : selectedIds.filter(item => item !== id);
+    onChange(next);
+  };
+
+  return <div className="searchable-contact-picker">
+    <span className="searchable-contact-picker__label">{label}</span>
+    <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
+    {multiple
+      ? <div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
+          {filtered.length === 0 ? <p className="searchable-contact-picker__empty">No matching contacts.</p> : filtered.map(contact => <label className="searchable-contact-picker__option" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={event => toggle(contact.id, event.target.checked)}/><span><strong>{contact.name}</strong><small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{contact.role}{contact.phone ? " · " + contact.phone : ""}</small></span></label>)}
+        </div>
+      : <select className="searchable-contact-picker__select" size={1} value={Array.isArray(value) ? "" : value} onChange={event => onChange(event.target.value)}>
+          <option value="">{placeholder || "No contact linked"}</option>
+          {selected.filter(contact => !filtered.some(item => item.id === contact.id)).map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
+          {filtered.map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
+        </select>}
+    {multiple && <small className="searchable-contact-picker__count">{selectedIds.length} selected · {filtered.length} matching contacts</small>}
+    {help && <small className="searchable-contact-picker__help">{help}</small>}
+  </div>;
+}
+
 const modules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
@@ -1584,10 +1627,10 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<input type="number" min="0" step="0.01" value={form.value} onChange={event=>update("value",event.target.value)} placeholder="Enter amount"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><label>Primary contact<select size={Math.min(Math.max(contacts.length,3),5)} value={form.primaryContactId} onChange={event=>{const id=event.target.value;setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}><option value="">No contact linked</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select></label></div>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
-    <label>Other linked stakeholders (select multiple)<select multiple size={Math.min(Math.max(contacts.length,3),6)} value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} onChange={event=>{const ids=Array.from(event.target.selectedOptions,option=>option.value);setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:ids.join(",")}}));}}><option value="" disabled>Select stakeholders below</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select><small>Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal.</small></label>
-    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><label key={field.key}>{field.label}<select value={form.moduleData[field.key] ?? ""} size={Math.min(Math.max(contacts.length,3),5)} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))}><option value="">Not linked</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.role}{contact.phone ? ` · ${contact.phone}` : ""}</option>)}</select></label>)}</div></div>}
+    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
       <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
