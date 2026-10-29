@@ -543,7 +543,7 @@ export default function App() {
     }
     const hostname = parsed.hostname.toLowerCase();
     const isPrivate = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname) || hostname.endsWith(".local")
-      || /^10\\./.test(hostname) || /^192\\.168\\./.test(hostname) || /^172\\.(1[6-9]|2\\d|3[01])\\./.test(hostname);
+      || /^10\./.test(hostname) || /^192\.168\./.test(hostname) || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
     if (parsed.protocol === "http:" && !isPrivate) { setSyncStatus("Use HTTPS outside your trusted local network."); return; }
     if (!token) { setSyncStatus("Enter the companion token from the Windows PC."); return; }
     if (!window.confirm("Sync business records with the selected PC? Records are merged by ID; this device's version wins when the same ID exists on both devices. Remote-only records are retained. Deletions are not propagated. Documents are not included. Export a backup first if these records are important.")) return;
