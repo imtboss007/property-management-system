@@ -3,6 +3,10 @@ import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
   Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users, Search
 } from "lucide-react";
+import {
+  cancelCloudWhatsAppMessage, getCloudWhatsAppStatus, listCloudWhatsAppMessages,
+  retryCloudWhatsAppMessage, scheduleCloudWhatsAppMessages
+} from "./lib/cloud-whatsapp";
 
 type ContactOption = { id: string; name: string; phone: string; role?: string; whatsappName?: string; whatsappJid?: string };
 type PropertyOption = { id: string; title: string };
@@ -87,6 +91,44 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
     sendNow: async payload => { const data = await request("/api/send-now", "POST", payload); return { ok: Boolean(data.ok), rows: data.rows || [] }; },
     cancel: async id => { const data = await request("/api/cancel", "POST", { id }); return { ok: Boolean(data.ok), message: data.message }; },
     retry: async id => { const data = await request("/api/retry", "POST", { id }); return { ok: Boolean(data.ok), message: data.message }; },
+    onUpdate: () => () => {}
+  };
+}
+
+function createCloudApi(): WhatsAppApi {
+  const fallbackStatus = (): DirectStatus => ({
+    supported: true, platform: "cloud-whatsapp-business", connected: false, connecting: false,
+    senderNumber: "", displayName: "", qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
+  });
+  const status = async (): Promise<DirectStatus> => {
+    const result = await getCloudWhatsAppStatus();
+    return {
+      ...fallbackStatus(),
+      connected: Boolean(result.ready),
+      senderNumber: result.senderNumber || "",
+      displayName: result.displayName || "",
+      error: result.ready ? "" : result.error || "Cloud WhatsApp is not ready."
+    };
+  };
+  const queue = async () => await listCloudWhatsAppMessages() as ScheduleRow[];
+  return {
+    getStatus: status,
+    getQueue: queue,
+    getAddressBook: async () => ({
+      contacts: [], groups: [], lastSyncedAt: "", connected: true,
+      accountNumber: "", activeGroupJids: [], counts: { contacts: 0, groups: 0 },
+      note: "The official cloud sender uses contacts saved in AXIVESTRA; it cannot read a personal WhatsApp address book."
+    }),
+    syncAddressBook: async () => {
+      throw new Error("The official cloud sender cannot import a personal WhatsApp address book. Save contacts in AXIVESTRA; they sync with your company cloud.");
+    },
+    connect: async () => { throw new Error("Cloud WhatsApp connection is managed securely by the workspace administrator."); },
+    requestPairingCode: async () => { throw new Error("The official cloud sender uses WhatsApp Business Platform onboarding, not a linked-device pairing code."); },
+    disconnect: async () => { throw new Error("Manage the business sender connection in the workspace's Meta/WhatsApp settings."); },
+    schedule: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, false) as ScheduleRow[] }),
+    sendNow: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, true) as ScheduleRow[] }),
+    cancel: async id => { await cancelCloudWhatsAppMessage(id); return { ok: true }; },
+    retry: async id => { await retryCloudWhatsAppMessage(id); return { ok: true }; },
     onUpdate: () => () => {}
   };
 }
@@ -180,15 +222,16 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
 
 export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
+  const [cloudMode, setCloudMode] = useState(false);
   const [companionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
   const api = useMemo<WhatsAppApi | undefined>(() => {
-    // A saved hub is the selected transport; otherwise keep the built-in Windows fallback.
-    // A single queue row is never sent through both transports.
+    // Use the hosted sender when configured; otherwise retain the existing local/companion path.
+    if (cloudMode) return createCloudApi();
     if (companionHost.trim() && companionToken.trim()) return createRemoteApi(companionHost, companionToken);
     if (localApi) return localApi;
     return undefined;
-  }, [localApi, companionHost, companionToken]);
+  }, [cloudMode, localApi, companionHost, companionToken]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
     supported, platform: supported ? "windows-desktop" : "android-or-browser",
@@ -219,6 +262,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   const [intervalDays, setIntervalDays] = useState("3");
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [stopOnReply, setStopOnReply] = useState(true);
+  const [templateName, setTemplateName] = useState("");
+  const [templateLanguage, setTemplateLanguage] = useState("en_US");
+  const [templateBodyParameters, setTemplateBodyParameters] = useState("");
   const [pairPhone, setPairPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [localNotice, setLocalNotice] = useState("");
@@ -259,6 +305,14 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     const query = directoryGroupSearch.trim().toLocaleLowerCase();
     return groupOptions.filter(group => !query || `${group.name} ${group.jid}`.toLocaleLowerCase().includes(query));
   }, [groupOptions, directoryGroupSearch]);
+
+  useEffect(() => {
+    let active = true;
+    void getCloudWhatsAppStatus().then(result => {
+      if (active && result.configured) setCloudMode(true);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -417,7 +471,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     if (recipientMode === "group" && !selectedGroup) throw new Error("Select a WhatsApp group from your saved group list.");
     if (recipientMode === "group" && status.connected && !sendableGroupOptions.some(group => group.jid === selectedGroupJid)) throw new Error("This group is not verified for the currently linked WhatsApp account. Sync groups again before scheduling.");
     if (recipientMode === "contact" && !target.trim()) throw new Error("Select a saved contact or enter the recipient's phone number.");
-    if (!message.trim()) throw new Error("Write the message to send.");
+    if (!message.trim() && !(cloudMode && templateName.trim())) throw new Error("Write a message or choose an approved WhatsApp template.");
     if (!Number.isFinite(due.getTime())) throw new Error("Choose a valid date and time.");
     if (!consentConfirmed) throw new Error("Confirm that this recipient or group expects and has agreed to receive these messages.");
     const linkedProperty = properties.find(property => property.id === selectedPropertyId);
@@ -434,6 +488,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       scheduledAt: due.toISOString(),
       repeatCount: sendMode === "repeat" ? Number(repeatCount) : 1,
       intervalDays: Number(intervalDays),
+      templateName: cloudMode ? templateName.trim() : "",
+      templateLanguage: cloudMode ? templateLanguage.trim() : "en_US",
+      templateParameters: cloudMode ? templateBodyParameters.split("\n").map(value => value.trim()).filter(Boolean) : [],
       consentConfirmed, stopOnReply
     };
   };
@@ -453,8 +510,8 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       setQueue(await api.getQueue());
       setConsentConfirmed(false);
       inform(immediate
-        ? "Message added to the send queue and will be sent shortly if WhatsApp is connected."
-        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. The Windows sender starts hidden at login and continues from the system tray. Keep the PC awake, online and WhatsApp linked; do not choose Exit AXIVESTRA.");
+        ? cloudMode ? "Message saved to the cloud queue. A configured cloud worker can send it even when both devices are off." : "Message added to the send queue and will be sent shortly if WhatsApp is connected."
+        : cloudMode ? "Scheduled " + result.rows.length + " cloud message" + (result.rows.length === 1 ? "" : "s") + ". Cloud delivery requires the scheduled worker to be deployed and active." : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. The Windows sender starts hidden at login and continues from the system tray. Keep the PC awake, online and WhatsApp linked; do not choose Exit AXIVESTRA.");
     } catch (error) {
       inform("Could not schedule message: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
@@ -512,7 +569,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
         {status.webhook?.configured && <small>Automatic stop-on-reply webhook registered with {status.webhook.provider || "the WhatsApp gateway"}.</small>}
       </div>
-      {supported && (status.connected
+      {supported && !cloudMode && (status.connected
         ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
         : <div className="form-actions">
             <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>
@@ -520,7 +577,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
           </div>)}
     </section>
 
-    {supported && !status.connected && <div className="wa-link-options">
+    {supported && !cloudMode && !status.connected && <div className="wa-link-options">
       <div className="wa-qr-panel">
         <div className="wa-qr-heading"><QrCode size={17}/><strong>Option 1 · Scan QR code</strong></div>
         {status.qrDataUrl
@@ -553,7 +610,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <button className="primary-button" disabled={!supported || syncBusy || !status.connected} onClick={() => void syncWhatsAppAddressBook()}><RefreshCw size={15}/>{syncBusy ? "Syncing…" : "Sync WhatsApp now"}</button>
         <button className="secondary-button" disabled={!supported || importBusy} onClick={() => void importSavedAddressBook()}><Users size={15}/>{importBusy ? "Loading saved cache…" : "Import saved contacts & groups"}</button>
       </div>
-      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send.</p>
+      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}{cloudMode ? "Cloud mode uses contacts and properties saved in AXIVESTRA. The personal WhatsApp address book is not available through the official cloud API." : "Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send."}</p>
       {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
       {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
       <div className="wa-address-book-columns">
@@ -585,7 +642,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
-        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured AXIVESTRA database.</p>
+        <p>{cloudMode ? "Cloud sending uses Meta’s official WhatsApp Business Platform. After cloud deployment, queue setup and scheduler activation, messages can be processed with both devices switched off. Free-form text is generally allowed only inside the 24-hour customer-service window; otherwise use an approved template. A sent status means Meta accepted the request, not that it was read." : "This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured AXIVESTRA database."}</p>
       </div>
     </div>
 
@@ -597,7 +654,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     <div className="form-card wa-form">
       <div className="wa-mode-switch" role="tablist" aria-label="Message destination">
         <button className={recipientMode === "contact" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("contact"); setSelectedGroupJid(""); }} role="tab" aria-selected={recipientMode === "contact"}>Individual contact</button>
-        <button className={recipientMode === "group" ? "wa-mode-active" : ""} onClick={() => { setRecipientMode("group"); setSelectedContactId(""); setTarget(""); }} role="tab" aria-selected={recipientMode === "group"}>WhatsApp group</button>
+        <button className={recipientMode === "group" ? "wa-mode-active" : ""} disabled={cloudMode} title={cloudMode ? "The official cloud sender supports individual contacts only." : ""} onClick={() => { setRecipientMode("group"); setSelectedContactId(""); setTarget(""); }} role="tab" aria-selected={recipientMode === "group"}>WhatsApp group</button>
       </div>
       {recipientMode === "contact" ? <>
         <label className="searchable-contact-picker">Select saved contact
@@ -636,6 +693,13 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       </label>
       {selectedTaskId && <div className="notice"><CalendarClock size={16}/> Linked to task: {selectedTaskTitle || selectedTaskId}</div>}
       <label>Message to send<textarea rows={4} maxLength={4000} value={message} onChange={event => setMessage(event.target.value)} placeholder="Write a client follow-up message…"/></label>
+      {cloudMode && <div className="wa-template-fields">
+        <div className="form-two">
+          <label>Approved WhatsApp template name (optional)<input value={templateName} onChange={event => setTemplateName(event.target.value)} placeholder="e.g. property_follow_up"/><span>Required outside the 24-hour customer-service window.</span></label>
+          <label>Template language code<input value={templateLanguage} onChange={event => setTemplateLanguage(event.target.value)} placeholder="en_US"/></label>
+        </div>
+        {templateName.trim() && <label>Template body variables, one value per line<textarea rows={3} value={templateBodyParameters} onChange={event => setTemplateBodyParameters(event.target.value)} placeholder={"Client name\nProperty reference"}/><span>Variables must match the approved template body order.</span></label>}
+      </div>}
       <div className="form-two">
         <label>First send date<input type="date" min={localDate()} value={date} onChange={event => setDate(event.target.value)}/></label>
         <label>First send time<input type="time" value={time} onChange={event => setTime(event.target.value)}/></label>
@@ -648,9 +712,9 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       <label className="consent-check"><input type="checkbox" checked={stopOnReply} onChange={event => setStopOnReply(event.target.checked)}/> Stop pending follow-ups when {recipientMode === "group" ? "a new message appears in this WhatsApp group" : "this contact replies"}.</label>
       <div className="form-actions wa-schedule-actions">
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
-        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
+        <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || (!message.trim() && !(cloudMode && templateName.trim()))} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
-      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> The Windows sender starts hidden at login and keeps running when you close the window to the system tray. Scheduled delivery still requires Windows to stay powered on, awake and online, with WhatsApp linked. Choosing Exit AXIVESTRA or putting the PC to sleep stops/delays delivery.</p>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> {cloudMode ? "Cloud queued messages do not depend on either app being open, but delivery requires the hosted worker, scheduled invocation and Meta WhatsApp credentials to stay valid." : "The Windows sender starts hidden at login and keeps running when you close the window to the system tray. Scheduled delivery still requires Windows to stay powered on, awake and online, with WhatsApp linked. Choosing Exit AXIVESTRA or putting the PC to sleep stops/delays delivery."}</p>
     </div>
 
     {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
