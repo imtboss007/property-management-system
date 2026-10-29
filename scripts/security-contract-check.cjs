@@ -96,6 +96,12 @@ check("WhatsApp contact sync only upserts the persistent cache and does not clea
   has(read("electron/whatsapp-service.cjs"), /async function upsertWhatsAppContacts/i) &&
   has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
   has(read("src/App.tsx"), /They remain in AXIVESTRA when WhatsApp is disconnected/i));
+check("one-time and repeated messages support individual contacts and groups",
+  has(read("src/WhatsAppScheduler.tsx"), /sendMode === "repeat"/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /destinationType: recipientMode/i) &&
+  has(read("electron/whatsapp-service.cjs"), /const repeatCount = Math\.max\(1, Math\.min\(MAX_REPEAT_COUNT/i) &&
+  has(read("electron/whatsapp-service.cjs"), /rows\.push\(\.\.\.rows\)/i));
+
 check("invitation function verifies the caller's JWT and owner/admin membership",
   has(invite, /auth\.getUser\(token\)/i) &&
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
