@@ -113,6 +113,26 @@ check("property, multi-stakeholder and role-specific contact selectors are searc
   has(read("src/App.tsx"), /label="Primary contact"/i) &&
   has(read("src/App.tsx"), /moduleContactFields\[form\.module\][\s\S]{0,220}SearchableContactPicker/i) &&
   has(read("src/styles.css"), /searchable-contact-picker__options/i));
+check("all related-contact fields use a searchable picker and search across extended contact details",
+  (read("src/App.tsx").match(/<SearchableContactPicker label="Related contact"/g) || []).length === 5 &&
+  has(read("src/App.tsx"), /contact\.customRoles/) &&
+  has(read("src/App.tsx"), /contact\.whatsappJid/) &&
+  has(read("src/App.tsx"), /label="Primary contact"/i) &&
+  has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i));
+check("WhatsApp phone normalisation and deduplication remove punctuation consistently",
+  has(whatsappService, /function normalizeDigits\(raw\)/i) &&
+  whatsappService.includes('return String(raw || "").replace(/\\D/g, "");') &&
+  has(whatsappService, /normalizeDigits\(raw\.phoneNumber \|\| raw\.phone\)/i) &&
+  has(whatsappService, /normalizeDigits\(rawJid\.split\("@")[0\]\.split\(":")[0\]\)/i) &&
+  has(whatsappService, /normalizeDigits\(item\.phone\) === normalizeDigits\(incoming\.phone\)/i));
+check("interrupted in-flight WhatsApp sends are surfaced as uncertain instead of resent",
+  has(whatsappService, /row\.status !== "sending"/i) &&
+  has(whatsappService, /Delivery is uncertain; check the WhatsApp chat before retrying/i) &&
+  has(whatsappService, /publish\("queue-recovered"\)/i));
+check("phone normalisation has an executable regression test wired into the app CI job",
+  has(read("scripts/whatsapp-contact-normalization.test.cjs"), /\+91 \(98765\) 43210/i) &&
+  has(read(".github/workflows/whatsapp-hub-checks.yml"), /node scripts\/whatsapp-contact-normalization\.test\.cjs/i));
+
 check("WhatsApp directory sync is persistent and does not prune previously synced entries",
   has(whatsappService, /whatsapp-address-book\.json/i) &&
   has(whatsappService, /async function upsertWhatsAppContacts/i) &&
