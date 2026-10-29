@@ -1,0 +1,73 @@
+name: AXIVESTRA Publish Release
+
+on:
+  workflow_run:
+    workflows:
+      - AXIVESTRA Windows and Android builds
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-release:
+    name: Publish tested Windows and Android installers
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact source that produced the packages
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download packages from the successful build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/downloaded dist/release
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir dist/downloaded
+
+          WINDOWS_EXE="$(find dist/downloaded -type f -name 'AXIVESTRA-Setup-*-x64.exe' -print -quit)"
+          ANDROID_APK="$(find dist/downloaded -type f -name 'app-debug.apk' -print -quit)"
+          test -n "$WINDOWS_EXE" || { echo "Windows installer artifact is missing."; exit 1; }
+          test -n "$ANDROID_APK" || { echo "Android APK artifact is missing."; exit 1; }
+          test -s "$WINDOWS_EXE"
+          test -s "$ANDROID_APK"
+
+          cp "$WINDOWS_EXE" dist/release/
+          cp "$ANDROID_APK" dist/release/AXIVESTRA-Android.apk
+          echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
+          echo "WINDOWS_FILE=$(find dist/release -maxdepth 1 -type f -name '*.exe' -print -quit)" >> "$GITHUB_ENV"
+
+      - name: Publish a versioned GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v$VERSION"
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving published assets unchanged."
+            echo "Bump package.json version to publish a new release."
+            exit 0
+          fi
+
+          ANDROID_FILE="dist/release/AXIVESTRA-Android.apk"
+          WINDOWS_FILE="$(find dist/release -maxdepth 1 -type f -name '*.exe' -print -quit)"
+          test -s "$WINDOWS_FILE"
+          test -s "$ANDROID_FILE"
+
+          gh release create "$TAG" "$WINDOWS_FILE" "$ANDROID_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "AXIVESTRA $TAG" \
+            --generate-notes
