@@ -345,6 +345,19 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     } finally { setBusy(false); }
   };
 
+  const resetPairingSession = async () => {
+    if (!api) return;
+    if (!window.confirm("Reset the saved WhatsApp link on the sender and start fresh? This removes only AXIVESTRA's local linked-device session, not your WhatsApp account or saved message queue. You will need to link the device again.")) return;
+    setBusy(true);
+    try {
+      await api.disconnect();
+      setStatus(await api.getStatus());
+      inform("Saved AXIVESTRA pairing session reset. Now choose Connect with QR or generate a new pairing code.");
+    } catch (error) {
+      inform("Could not reset the pairing session: " + (error instanceof Error ? error.message : String(error)));
+    } finally { setBusy(false); }
+  };
+
   const makePayload = () => {
     const due = new Date(date + "T" + time + ":00");
     if (recipientMode === "group" && !selectedGroup) throw new Error("Select a WhatsApp group from your saved group list.");
@@ -447,7 +460,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       </div>
       {supported && (status.connected
         ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
-        : <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>)}
+        : <div className="form-actions">
+            <button className="secondary-button" disabled={busy || status.connecting} onClick={() => void connectQr()}><QrCode size={15}/>{busy ? "Starting…" : "Connect with QR"}</button>
+            {Boolean(status.error) && <button className="secondary-button" disabled={busy} onClick={() => void resetPairingSession()}><RotateCcw size={15}/>Reset saved link</button>}
+          </div>)}
     </section>
 
     {supported && !status.connected && <div className="wa-link-options">
