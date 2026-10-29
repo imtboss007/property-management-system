@@ -1,2 +1,6 @@
 [functions.invite-company-member]
 verify_jwt = true
+
+[functions.whatsapp-cloud-scheduler]
+# The handler validates user JWTs, scheduled-worker secrets, and Meta webhook signatures itself.
+verify_jwt = false
