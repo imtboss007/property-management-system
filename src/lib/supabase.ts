@@ -52,9 +52,10 @@ export function scopedStorageKey(companyId: string, key: string) {
 
 export function hasLegacyLocalRecords() {
   if (typeof localStorage === "undefined") return false;
-  return collectionKeys.some(item => {
+  const keys = [...collectionKeys.map(item => item.storageKey), "estateflow.documents"];
+  return keys.some(key => {
     try {
-      const value = localStorage.getItem(item.storageKey);
+      const value = localStorage.getItem(key);
       if (!value) return false;
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) && parsed.length > 0;
