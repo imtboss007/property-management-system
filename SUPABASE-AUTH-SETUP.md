@@ -13,7 +13,7 @@
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, `supabase/migrations/202610290002_rbac_hardening.sql`, then `supabase/migrations/202610290003_metadata_audit_hardening.sql`. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames. The repository workflows commit the migrations but do **not** apply them to a live project.
+2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, `supabase/migrations/202610290002_rbac_hardening.sql`, then `supabase/migrations/202610290003_metadata_audit_hardening.sql`, then `supabase/migrations/202610290004_approval_permissions.sql`. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles. The repository workflows commit the migrations but do **not** apply them to a live project.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
@@ -27,7 +27,7 @@
 8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
 ## Deploy the invitation Edge Function
-The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all three SQL migrations:
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all four SQL migrations:
 
 ```bash
 supabase login
@@ -56,8 +56,8 @@ The UI updates company membership through RLS policies; member changes are writt
 ## Roles and enforcement
 - `owner`: all company workspace and governance.
 - `admin`: company settings and member administration; cannot grant/remove owner membership.
-- `manager`: create/update/delete operational records.
-- `staff`: create/update records; cannot delete shared company records.
+- `manager`: create/update/delete operational records and decide approval requests.
+- `staff`: create/update records; may submit pending approval requests but cannot approve/reject them or delete shared company records.
 - `read_only`: cloud reads only. Interface guards are for usability; database RLS is the authorization boundary.
 
 Database row-level security (RLS), least-privilege grants and immutable record identity are the security boundary for cloud records. Every business record is scoped by company ID and checked against the signed-in user's membership.
@@ -73,11 +73,11 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply all three migrations in order to a dedicated Supabase test project and verify they run without SQL errors.
+- [ ] Apply all four migrations in order to a dedicated Supabase test project and verify they run without SQL errors.
 - [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
 - [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
 - [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.
-- [ ] Verify Read-only cannot write and Staff cannot delete through direct API requests.
+- [ ] Verify Read-only cannot write, Staff cannot delete or decide approvals, and staff cannot create an already-approved/rejected request through direct API requests.
 - [ ] Test company create, logout/login, company switching and cache isolation.
 - [ ] Create/update/delete a record on Windows and confirm a second device receives changes; test offline changes and deletion tombstones.
 - [ ] Test simultaneous edits of a record and manually review the chosen conflict result.
