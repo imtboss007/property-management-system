@@ -65,8 +65,10 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: npm run check
+      - name: Build the hosted sender Docker image
+        run: docker build --tag axivestra-whatsapp-hub:ci .
       - name: Check Electron WhatsApp service syntax
-        run: node --check electron/main.cjs && node --check electron/whatsapp-service.cjs && node --check electron/preload.cjs
+        run: node --check services/estateflow-whatsapp-hub/src/baileys-provider.js && node --check electron/main.cjs && node --check electron/whatsapp-service.cjs && node --check electron/preload.cjs
         working-directory: .
   supabase-edge-function-check:
     name: Check Supabase invitation function
@@ -81,8 +83,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check company invitation function
-        run: deno check supabase/functions/invite-company-member/index.ts
+      - name: Type-check Supabase Edge Functions
+        run: deno check supabase/functions/invite-company-member/index.ts && deno check supabase/functions/whatsapp-cloud-proxy/index.ts
 
   estateflow-app-build:
     runs-on: ubuntu-latest

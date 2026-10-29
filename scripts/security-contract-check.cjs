@@ -30,6 +30,10 @@ const approvals = read("supabase/migrations/202610290004_approval_permissions.sq
 const authGate = read("src/AuthGate.tsx");
 const cloud = read("src/lib/supabase.ts");
 const invite = read("supabase/functions/invite-company-member/index.ts");
+const whatsappProxy = read("supabase/functions/whatsapp-cloud-proxy/index.ts");
+const hostedProvider = read("services/estateflow-whatsapp-hub/src/baileys-provider.js");
+const hostedConfig = read("services/estateflow-whatsapp-hub/src/config.js");
+const renderBlueprint = read("render.yaml");
 const envExample = read(".env.example");
 const desktopWorkflow = read(".github/workflows/main.yml");
 const downloadWorkflow = read(".github/workflows/estateflow-download-builds.yml");
@@ -84,6 +88,31 @@ check("cloud sync is company scoped and enforces role-aware deletion",
 check("overlapping cloud sync runs queue the newest snapshot instead of dropping changes",
   has(read("src/App.tsx"), /cloudSyncPendingRef/i) &&
   has(read("src/App.tsx"), /Coalesce edits that occur while a previous cloud sync is in flight/i));
+check("hosted WhatsApp QR sender persists credentials, auto-reconnects and captures replies for stop-on-reply",
+  has(hostedProvider, /useMultiFileAuthState\(authDir\)/i) &&
+  has(hostedProvider, /creds\.update/i) &&
+  has(hostedProvider, /groupFetchAllParticipating/i) &&
+  has(hostedProvider, /setIncomingHandler/i) &&
+  has(hostedConfig, /requestedProvider === "baileys"/i));
+check("hosted sender deployment uses an always-on plan, persistent disk and generated secrets",
+  has(renderBlueprint, /plan: starter/i) &&
+  has(renderBlueprint, /mountPath: \/app\/data/i) &&
+  has(renderBlueprint, /ESTATEFLOW_GATEWAY_PROVIDER[\s\S]{0,40}value: baileys/i) &&
+  has(renderBlueprint, /ESTATEFLOW_BRIDGE_TOKEN[\s\S]{0,40}generateValue: true/i) &&
+  has(renderBlueprint, /ESTATEFLOW_WEBHOOK_TOKEN[\s\S]{0,40}generateValue: true/i));
+check("cloud WhatsApp proxy verifies Supabase JWT and company membership before forwarding to a fixed HTTPS sender",
+  has(whatsappProxy, /auth\.getUser\(token\)/i) &&
+  has(whatsappProxy, /\.eq\("company_id", companyId\)/i) &&
+  has(whatsappProxy, /\.eq\("user_id", authData\.user\.id\)/i) &&
+  has(whatsappProxy, /AXIVESTRA_WHATSAPP_COMPANY_ID/i) &&
+  has(whatsappProxy, /X-EstateFlow-Token/i) &&
+  has(whatsappProxy, /route\.path/i) &&
+  has(whatsappProxy, /route\.write && membership\.role === "read_only"/i) &&
+  !has(whatsappProxy, /VITE_AXIVESTRA_WHATSAPP_HUB_TOKEN/i));
+check("cloud WhatsApp UI uses the authenticated Edge Function instead of embedding the hub token",
+  has(whatsappUi, /functions\.invoke\("whatsapp-cloud-proxy"/i) &&
+  has(whatsappUi, /VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED/i) &&
+  has(whatsappUi, /companyId = ""/i));
 check("WhatsApp contact and group selectors support text search",
   has(read("src/WhatsAppScheduler.tsx"), /recipientSearch/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /recipientGroupSearch/i) &&
@@ -196,11 +225,13 @@ const viteAssignments = envExample.split(/\r?\n/)
   .filter(line => /^VITE_[A-Z0-9_]+\s*=/.test(line))
   .map(line => line.split("=")[0]);
 check("sample environment exposes only public Supabase client settings",
-  viteAssignments.length === 2 &&
+  viteAssignments.length === 3 &&
   viteAssignments.includes("VITE_SUPABASE_URL") &&
   viteAssignments.includes("VITE_SUPABASE_PUBLISHABLE_KEY") &&
+  viteAssignments.includes("VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED") &&
   !viteAssignments.some(name => /SERVICE_ROLE|SECRET_KEY|DATABASE_PASSWORD/i.test(name)));
-check("Windows/Android workflows pass only public Supabase build values",
+check("Windows/Android workflows pass public cloud-mode switch without embedding sender credentials",
+  has(desktopWorkflow, /VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED:/i) &&
   has(desktopWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   !has(desktopWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i) &&

@@ -38,6 +38,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
         run: npm run build && npx electron-builder --win nsis --x64 --publish never
 
       - name: Upload Windows installer
@@ -76,6 +77,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
         run: npm run build
 
       - name: Create Android project

@@ -43,8 +43,8 @@ export function loadConfig(env = process.env) {
   const waAkgConfigured = Boolean(waAkgBase && hasValue(env.WA_AKG_API_KEY));
   const requestedProvider = String(env.ESTATEFLOW_GATEWAY_PROVIDER || "auto").trim().toLowerCase();
 
-  if (!["auto", "openwa", "wa-akg"].includes(requestedProvider)) {
-    throw new Error("ESTATEFLOW_GATEWAY_PROVIDER must be auto, openwa, or wa-akg.");
+  if (!["auto", "openwa", "wa-akg", "baileys"].includes(requestedProvider)) {
+    throw new Error("ESTATEFLOW_GATEWAY_PROVIDER must be auto, openwa, wa-akg, or baileys.");
   }
   if (requestedProvider === "openwa" && !openwaConfigured) {
     throw new Error("OpenWA was selected but OPENWA_BASE_URL or OPENWA_API_KEY is missing.");
@@ -55,7 +55,9 @@ export function loadConfig(env = process.env) {
 
   // A single transport is active per hub. If both are present under auto mode, OpenWA wins
   // deterministically; messages are never duplicated across the two providers.
-  const provider = requestedProvider === "openwa"
+  const provider = requestedProvider === "baileys"
+    ? "baileys"
+    : requestedProvider === "openwa"
     ? "openwa"
     : requestedProvider === "wa-akg"
       ? "wa-akg"
@@ -89,7 +91,9 @@ export function loadConfig(env = process.env) {
     provider,
     providerReason: requestedProvider === "auto" && openwaConfigured && waAkgConfigured
       ? "Both gateways are configured; OpenWA is the active transport and WA-AKG is not used for sends."
-      : provider
+      : provider === "baileys"
+        ? "Active transport: hosted Baileys session; keep the persistent data disk attached and protect the bridge token."
+        : provider
         ? "Active transport: " + provider
         : "No gateway is configured yet. Add credentials for OpenWA or WA-AKG.",
     dataDir: path.resolve(env.ESTATEFLOW_DATA_DIR || "./data"),

@@ -1,3 +1,4 @@
+import { createBaileysProvider } from "./baileys-provider.js";
 import QRCode from "qrcode";
 import { randomUUID } from "node:crypto";
 
@@ -50,6 +51,7 @@ function pickQr(data) {
 }
 
 export function createProvider(config, sessionState) {
+  if (config.provider === "baileys") return createBaileysProvider(config);
   const providerName = config.provider;
   if (!providerName) {
     return {
