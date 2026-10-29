@@ -1,35 +1,77 @@
-# AXIVESTRA hosted authentication/RBAC setup
+# AXIVESTRA hosted sign-in, company isolation and cloud sync
 
-## Current state
-The SQL migration in `supabase/migrations/202610290001_auth_company_rbac.sql` establishes database-level company membership and row-level access policies. It is a backend foundation, **not a complete login integration**. The current app remains local-first until the Supabase client, sign-in screens, company context, and migration flow are implemented and tested.
+## Implemented in source
+- Supabase email/password sign-in, account registration, session restoration, sign-out and password-recovery request.
+- Company selector and owner-created company workspace using `create_company_with_owner`.
+- Membership roles: `owner`, `admin`, `manager`, `staff`, and `read_only`.
+- A separate local cache namespace per selected company. Legacy `estateflow.*` records are not auto-assigned; first-time entry asks before importing them.
+- Per-record cloud sync for properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and local audit events. Remote-only rows are retained; local rows win where IDs collide.
+- RLS, explicit table grants, owner-safe membership policies, and role-checked cloud record deletion in SQL.
+- Windows and Android build workflows accept the public client configuration from Actions secrets. Without them, builds remain in local-only mode.
 
-## Setup requirements
-1. Create a dedicated Supabase project for AXIVESTRA (do not use a production database for experiments).
-2. Review and apply the SQL migration in the Supabase SQL editor or via Supabase CLI.
-3. Configure email/password or another supported sign-in method, recovery, redirect URLs, and rate limits in Supabase Auth.
-4. Store only the project URL and public/anon key in client build configuration. Never put the service-role key in the browser, Android APK, Windows renderer, or public repository.
-5. Bootstrap the first company and owner membership using a trusted administrative operation. The client is intentionally not allowed to self-assign the owner role.
-6. Implement the app integration and tests before migrating any real local records.
+## Configure Supabase (required to enable account access)
+1. Create a dedicated Supabase project for AXIVESTRA.
+2. In **SQL Editor**, review and apply `supabase/migrations/202610290001_auth_company_rbac.sql`. Confirm all statements succeed. This workflow commits the migration but does not apply it to a live project.
+3. In Supabase **Authentication → Providers**, enable Email/password and choose email-confirmation settings.
+4. Under Authentication URL configuration, set the actual deployed web origin as Site URL and add approved redirect URLs. Test password recovery from that origin.
+5. For local development, copy `.env.example` to `.env.local` and set:
+   - `VITE_SUPABASE_URL` — the project URL.
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` — the public publishable key (or legacy anon key).
+6. For GitHub builds, add repository Actions secrets under **Settings → Secrets and variables → Actions**:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   These are public client values embedded at build time. Never use a `service_role` key, database password, WhatsApp token or signing key in Vite variables.
+7. Rebuild both the Windows installer and Android APK after adding the secrets. Old installers/APKs do not gain the configuration later.
+8. Open AXIVESTRA, create an account, confirm email if enabled, sign in, and create a company. The authenticated user becomes the first owner.
 
-## Roles
-- `owner`: company governance and all operational records.
-- `admin`: company administration and operational records, but client policies prevent assigning/removing owner membership.
-- `manager`: operational create/read/update/delete and review workflows.
-- `staff`: operational create/read/update; no record deletion.
-- `read_only`: read-only company access.
+## Add a member to an existing company
+A member-management screen is not implemented yet. Until then, an owner/admin must add a membership in Supabase SQL Editor after verifying the user's identity and company. Replace every placeholder:
 
-## Important security limits
-- Never treat hidden UI controls or localStorage as authorization.
-- Every cloud record must be stored with its company_id and accessed through RLS.
-- Company creation, ownership transfer, owner removal, invitation acceptance, and account recovery need trusted flows and audit logging.
-- Document bytes and WhatsApp linked-device credentials are not included in `company_records`; design separate protected storage/secret handling.
-- The first migration deliberately has no public or client policy to create a company or assign an owner.
-- Review policies against your required business rules before production. Apply migrations first to a test project and run cross-company isolation tests.
+```sql
+insert into public.company_memberships (company_id, user_id, role, created_by)
+values (
+  'COMPANY_UUID'::uuid,
+  'AUTH_USER_UUID'::uuid,
+  'staff',
+  'OWNER_AUTH_USER_UUID'::uuid
+);
+```
 
-## Next implementation steps
-1. Add Supabase client dependency and environment variable validation.
-2. Build login, logout, recovery and session refresh screens.
-3. Add company selection and membership/role context.
-4. Migrate local records with backup, preview, explicit company assignment and rollback.
-5. Add integration tests proving one company cannot read or modify another company's records.
-6. Only then enable cloud sync for real business data.
+Client membership policies prevent ordinary callers from assigning or removing an owner. Ownership transfer and removal require a dedicated audited procedure and are not exposed in the app.
+
+## Roles and enforcement
+- `owner`: full company workspace and governance.
+- `admin`: company administration and business records; cannot grant/remove owner membership.
+- `manager`: business create/update/delete.
+- `staff`: business create/update; cannot delete shared cloud records.
+- `read_only`: cloud reads only; app mutation guards are UX controls, not the security boundary.
+
+Database row-level security (RLS) is the authorization boundary for cloud records. Each record is stored with a company ID and read/written under the signed-in Supabase identity.
+
+## Existing local data migration
+On first company access from a device, if unscoped legacy records exist, AXIVESTRA asks whether to import and merge them into that company or use cloud data. Back up first. On ID collisions, the device's local version wins; cloud-only records are kept. Do not import the same legacy records into multiple companies unless intentional.
+
+## Important limits before production
+- The migration is committed but is not applied to a live project by this workflow. Use a test project first.
+- Document file bytes remain in the local IndexedDB vault; only listed business-record collections sync. Export/restore document-vault backups separately per device.
+- WhatsApp linked-device credentials, QR and pairing codes remain on the Windows sender and are not uploaded.
+- Company membership management UI, invite acceptance, ownership transfer, field-level conflict resolution and production Android signing are not complete.
+- Device-local caches are not encrypted against someone who can access the OS profile. Use device encryption, screen locks and encrypted backups.
+- Routine sync refuses to revive soft-deleted cloud records. Restoration of a deleted ID needs an owner-controlled recovery procedure.
+- Real-account tests for RLS, recovery, cross-company isolation, multi-device sync and WhatsApp behaviour are still required.
+
+## Release acceptance checklist
+- [ ] Apply the migration to a dedicated Supabase test project and confirm it runs without errors.
+- [ ] Create User A / Company A and User B / Company B; verify neither user can read or modify the other's records, including direct API requests.
+- [ ] Verify read-only cannot write and staff cannot delete via the Data API.
+- [ ] Test create company, logout/login, company switching and record isolation.
+- [ ] Import local records once and verify sync from Windows to Android and back.
+- [ ] Test record create/update/delete on two devices, including stale-cache deletion recovery.
+- [ ] Test email confirmation, password recovery, session expiry and membership revocation.
+- [ ] Test document backup/restore, including actual file bytes.
+- [ ] Test WhatsApp pairing, contacts/groups, delivery, stop-on-reply and offline recovery with consenting test accounts.
+- [ ] Install on a clean Windows profile and a real Android device; produce a separately signed Android release before public distribution.
+- [ ] Run all CI checks and retain build artifacts.
+
+## Security
+Never commit auth tokens, WhatsApp session files, QR/pairing codes, private hub tokens, database passwords, signing keys or a Supabase service-role key. Keep network companion endpoints on trusted private networks and review RLS grants before production.
