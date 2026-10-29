@@ -96,3 +96,31 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 
 ## Security rules
 Never commit auth tokens, WhatsApp session files, QR/pairing codes, private hub tokens, database passwords, signing keys or Supabase secret/service-role keys. Keep the Windows companion on a trusted private network.
+
+## Always-on WhatsApp sender (optional)
+
+To send scheduled messages while both the Windows and Android apps are closed or powered off, deploy the dedicated hosted sender from the repository Blueprint. The sender must be continuously running and keep its persistent disk. This is separate from database sync.
+
+1. Create the Render Blueprint from the repository's render.yaml. Select the configured paid always-on service and persistent disk. Render generates ESTATEFLOW_BRIDGE_TOKEN and ESTATEFLOW_WEBHOOK_TOKEN server-side.
+2. In the Render service, confirm ESTATEFLOW_GATEWAY_PROVIDER is set to baileys and /health responds over HTTPS. Protect the service's environment and disk. Do not put the generated bridge token into any VITE_* variable, application source or APK/installer.
+3. Create or select your AXIVESTRA company and record its UUID. The proxy is deliberately tenant-bound to one company and rejects a different company ID.
+4. Set these secrets in the linked Supabase project:
+   
+   ```sh
+   supabase secrets set AXIVESTRA_WHATSAPP_HUB_URL=https://YOUR-RENDER-SERVICE.onrender.com
+   supabase secrets set AXIVESTRA_WHATSAPP_HUB_TOKEN=YOUR_RENDER_ESTATEFLOW_BRIDGE_TOKEN
+   supabase secrets set AXIVESTRA_WHATSAPP_COMPANY_ID=YOUR_AXIVESTRA_COMPANY_UUID
+   supabase functions deploy whatsapp-cloud-proxy
+   ```
+
+   Substitute actual values in your private terminal; do not post the token into chat, GitHub, a screenshot, or source code. The Supabase proxy verifies the signed-in user and their membership before forwarding a whitelisted action. Read-only members may inspect the queue and address book but cannot change the sender or queue messages.
+5. Add the public GitHub Actions repository variable VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED and set it to true. Keep the existing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY Actions secrets configured. Rebuild Windows and Android after changing these values. The feature switch is not a secret; the hub token remains only in Render/Supabase server-side settings.
+6. Sign in to the same company on both devices, open WhatsApp Automation, and connect the WhatsApp account to the hosted sender using its QR code. After connection, scheduled messages are processed by the hosted server even with both app windows closed. WhatsApp may still log out the linked device, and host/network outages can interrupt sending.
+
+### WhatsApp transport caveat
+
+The QR-linked hosted sender uses Baileys, an unofficial WhatsApp Web protocol. WhatsApp can change the protocol or restrict an account. Use a dedicated test number first. For critical production messaging, the supported long-term choice is Meta's official WhatsApp Business Platform, which needs Meta onboarding and server-side API credentials instead of a linked-device QR.
+
+### Sync coverage
+
+After the existing Supabase migrations are applied and both devices sign in to the same company, properties, contacts, groups, tasks, financials, risks, approvals and audit records sync through the current company-scoped sync engine. Imported WhatsApp contacts need to be imported into the AXIVESTRA contact register to become standard company contacts. The hub stores the WhatsApp address book for reuse across devices. Documents' file bytes are not uploaded to Supabase Storage by the hosted WhatsApp feature and continue using the existing local vault/companion sync.
