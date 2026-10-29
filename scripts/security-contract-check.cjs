@@ -33,6 +33,9 @@ const invite = read("supabase/functions/invite-company-member/index.ts");
 const envExample = read(".env.example");
 const desktopWorkflow = read(".github/workflows/main.yml");
 const downloadWorkflow = read(".github/workflows/estateflow-download-builds.yml");
+const whatsappUi = read("src/WhatsAppScheduler.tsx");
+const whatsappService = read("electron/whatsapp-service.cjs");
+const electronMain = read("electron/main.cjs");
 
 check("company, membership, records and governance-audit tables have RLS enabled",
   ["companies", "company_memberships", "company_records", "company_audit_events"]
@@ -104,6 +107,28 @@ check("one-time and repeated messages support individual contacts and groups",
   has(read("electron/whatsapp-service.cjs"), /const repeatCount = Math\.max\(1, Math\.min\(MAX_REPEAT_COUNT/i) &&
   has(read("electron/whatsapp-service.cjs"), /queue\.push\(\.\.\.rows\)/i));
 
+check("property, multi-stakeholder and role-specific contact selectors are searchable",
+  has(read("src/App.tsx"), /function SearchableContactPicker/i) &&
+  has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i) &&
+  has(read("src/App.tsx"), /label="Primary contact"/i) &&
+  has(read("src/App.tsx"), /moduleContactFields\[form\.module\][\s\S]{0,220}SearchableContactPicker/i) &&
+  has(read("src/styles.css"), /searchable-contact-picker__options/i));
+check("WhatsApp directory sync is persistent and does not prune previously synced entries",
+  has(whatsappService, /whatsapp-address-book\.json/i) &&
+  has(whatsappService, /async function upsertWhatsAppContacts/i) &&
+  has(whatsappService, /async function upsertWhatsAppGroups/i) &&
+  has(whatsappService, /await saveAddressBook\(\)/i));
+check("repeat schedules support individual/group targets, consent, stop-on-reply and persistence",
+  has(whatsappService, /MAX_REPEAT_COUNT/i) &&
+  has(whatsappService, /destinationType === "group"/i) &&
+  has(whatsappService, /consentConfirmed !== true/i) &&
+  has(whatsappService, /stopOnReply/i) &&
+  has(whatsappService, /whatsapp-scheduled-messages\.json/i));
+check("Windows background sender starts at login and remains active while window is hidden",
+  has(electronMain, /app\.setLoginItemSettings\(\{ openAtLogin: true/i) &&
+  has(electronMain, /args: \["--hidden"\]/i) &&
+  has(electronMain, /event\.preventDefault\(\);\s*win\.hide\(\)/i) &&
+  has(whatsappService, /setInterval\(\(\) => \{ void schedulerTick/i));
 check("invitation function verifies the caller's JWT and owner/admin membership",
   has(invite, /auth\.getUser\(token\)/i) &&
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
