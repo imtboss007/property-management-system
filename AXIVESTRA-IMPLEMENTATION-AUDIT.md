@@ -1,58 +1,73 @@
 # AXIVESTRA implementation audit
 
 Audit date: 2026-10-29  
-Audited ref: `feature/estateflow-unified-whatsapp-automation`  
-Scope: repository source and workflow configuration. This is a code/documentation audit, not a live WhatsApp or installed-device test.
+Audited branch: `feature/estateflow-unified-whatsapp-automation`  
+Main branch: unchanged; no merge performed.  
+Scope: source, database migrations, Edge Function, workflow configuration and the CI results linked below. This is not a live Supabase deployment, live WhatsApp test report or real-device acceptance certificate.
 
-## Work completed in this audit pass
+## Implemented in source
 
-- Added a local-first activity history to the application for create, update and delete changes across properties, contacts, tasks, financial transactions, risks and approval requests.
-- The activity history stores timestamps, entity names, record IDs and display labels only; it deliberately avoids copying private field values into the audit event.
-- Added a Settings view for recent activity and JSON export, and included audit history in business-record backup/restore.
-- Added responsive styling for the audit history.
-- Added a single-file document-vault backup/restore flow with metadata and file bytes preserved, validation, explicit overwrite confirmation for matching document IDs, and 100 MB decoded vault cap.
-- Added authenticated PC companion data-sync endpoints with atomic snapshot storage, bounded payloads, monotonically increasing revisions and optimistic concurrency checks.
-- Added a Settings workflow for PC ↔ Android local-network additive record sync across properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and activity history. It retains remote-only records, prefers this device on duplicate IDs, retries once on a revision conflict, and does not propagate deletions.
-- Kept changes on the feature branch. `main` has not been changed or merged.
+- AXIVESTRA branded 16-workspace property/finance/investment/legal/operations interface, responsive layout, search, data entry, activity history and local backup/restore.
+- Single-file document-vault backup/restore with metadata and file bytes, input validation, duplicate-ID overwrite confirmation, and a 100 MB decoded vault cap.
+- Windows Electron WhatsApp linked-device service with QR/pairing, contact/group cache, scheduled queue, recurring series, cancel/retry, consent confirmation, stop-on-reply logic, cooldown and daily sending limit.
+- Android/browser companion route to the Windows sender. The Android APK does not run the Windows WhatsApp sender by itself.
+- Optional Supabase email/password sign-in, account registration, session restoration, sign-out, password-recovery request, company selection and company creation.
+- Company membership roles: owner, admin, manager, staff and read-only; Settings UI to list members, invite a new email, add/change an existing account by UUID, and remove non-owner memberships.
+- Company-scoped local cache namespaces and per-record cloud sync with a persisted baseline, periodic refresh, local/remote change reconciliation, safe deletion tombstones and a deterministic conflict rule (latest local audit timestamp vs cloud update timestamp; ties favour the cloud record). This is not field-level merge.
+- Ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion and server-generated membership governance events.
+- Supabase Edge Function `invite-company-member` that requires a signed-in JWT and checks company owner/admin membership before inviting a new email and assigning a non-owner role.
+- CI step to type-check the Deno Edge Function.
+- Windows and Android build workflows with optional public Supabase client configuration. Without project URL/key, the build explicitly remains local-only.
+- Changes remain on the feature branch. No code was merged into `main`.
 
-## Verified in source
+## CI validation
 
-| Area | Finding |
-|---|---|
-| Product name and UI | AXIVESTRA branding, navy/cyan visual system, responsive styling and keyboard search are present in the feature branch. Visual quality still needs a real screen-by-screen review on Windows and Android. |
-| Business workspaces | Sixteen workspaces are declared: Property Sale, Property Loans, JV/JDA/JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC. |
-| Local-first records | Business records use browser/device local storage; documents use IndexedDB. Core app source does not require a hosted database. |
-| Backup/restore | Business records and audit history export/import as JSON. The Documents screen now supports a separate single-file document-vault JSON backup/restore (100 MB total decoded file cap). Business JSON and document-vault backup are separate files. |
-| WhatsApp desktop | Windows Electron code includes a Baileys linked-device session, QR/pairing flow, saved contact/group cache, scheduled queue, recurring message series, cancel/retry and rate limits. |
-| WhatsApp companion | Android/browser can connect to a separately running desktop companion or configured gateway; the APK does not itself run the Windows companion service. |
-| Consent and stop-on-reply | The UI and queue require recipient-consent confirmation. Stop-on-reply depends on the direct linked-device incoming-message path or a correctly configured/authenticated gateway webhook. This requires real account testing. |
-| Scheduled task reminders | The task screen explicitly describes these as stored reminders, not guaranteed background alarms. |
-| Build pipeline | GitHub Actions workflows are configured for Windows installer and Android debug APK builds. Successful compilation does not prove all user flows work. |
+- Previous failure found: the membership UI omitted a React hook import; corrected.
+- Previous function-check failure found: Deno's npm resolver needed repository dependencies installed; corrected workflow.
+- The `AXIVESTRA WhatsApp Hub Checks` run for the latest app-code revision reported passing app build, existing tests/checks, Electron syntax check and Deno type-check for the invitation Edge Function: [workflow details](https://github.com/imtboss007/property-management-system/actions).
+- Windows installer and Android APK packaging are run via GitHub Actions. Check the latest successful run on the feature branch before distributing; artifacts are debug/test builds unless a separate production signing setup is configured.
 
-## Gaps still open — do not mark these as complete
+## Implementation status and hard blockers
 
-1. **PC ↔ Android data synchronization:** a first authenticated local-network additive sync is implemented. It merges by record ID, keeps the current device's version for matching IDs, retains remote-only records, uses revision checks, and does not propagate deletions. It is not a full field-level conflict resolver; users must review duplicate-ID changes and export backups before first sync.
-2. **Login and role-based permissions:** no production authentication or server-enforced RBAC/multi-company isolation is established by this local-first build. The approval screen is a personal decision log, not enforceable four-eyes authorization.
-3. **Tamper-resistant audit:** the new activity history is a local convenience log. It is not cryptographically sealed, centrally retained or protected from someone with device/profile access.
-4. **Document backup verification:** a separate bulk export/import flow is implemented for up to 100 MB decoded total. It still needs real-browser verification, including large files, corrupt backups, and duplicate IDs.
-5. **Real WhatsApp validation:** QR pairing, contact/group sync, actual delivery, inbound-reply cancellation, Android-to-PC reachability, offline recovery, duplicate prevention and stop-on-reply must be tested with a dedicated consenting test account and real devices.
-6. **Release signing and distribution:** the current Android artifact is a debug APK, not a signed production release. Windows and Android installation/upgrade/uninstall behavior still need device testing.
-7. **Security hardening review:** review local companion network exposure, token storage, CORS/origin handling, secret rotation and dependency supply chain before treating this as production-ready.
+| Area | Status | Remaining work |
+|---|---|---|
+| Core UI and 16 workspaces | Implemented in repository | Real screen-by-screen Windows/mobile usability review and business acceptance tests |
+| Local storage / backup | Implemented in source | Verify real browser/device backup restore, corrupted backups, large documents and ID collisions |
+| WhatsApp | User reported QR, pairing and PC/mobile use working in this chat | Preserve the working build; regression-test delivery, reply cancellation, offline recovery and rate limits on real consenting test accounts |
+| Authentication UI | Implemented in source | Configure real Supabase project, Auth email provider and site/recovery URLs |
+| Multi-company/RBAC | SQL and client integration implemented in source | Apply both migrations; test cross-company isolation and direct API attempts against a real Supabase test project |
+| Email invitations | Edge Function and UI implemented in source | Deploy function; configure email/SMTP; test an actual invite and account acceptance |
+| Cloud sync | Baseline-aware reconciliation implemented in source | Test two real devices, offline edits, simultaneous edits, deletion tombstones and review conflict outcomes |
+| Membership audit | Database trigger source implemented | Validate trigger behaviour and audit visibility against the hosted database |
+| Android packaging | Debug APK workflow | A signed production APK and secure signing-key setup are still required for public distribution |
+| Production readiness | Not certified | Security, privacy, data recovery, performance, account lifecycle and real-device tests remain |
 
-## Acceptance tests required before calling AXIVESTRA complete
+## Required one-time hosted setup
 
-- [ ] Build and launch the Windows installer on a clean Windows profile.
-- [ ] Install and launch the Android APK on a real Android device.
-- [ ] Verify all 16 workspaces, navigation, charts, search, forms, edits and deletions at desktop and mobile widths.
-- [ ] Create/edit/delete a sample record and verify the local activity log and audit export.
-- [ ] Export a backup, reset only test data, restore it, and verify records and linked IDs.
-- [ ] Export and restore the document-vault backup and verify file contents, metadata, large files and duplicate-ID handling.
-- [ ] Test WhatsApp QR/pairing, address-book/group sync, one-time send, recurring schedule, cancel, retry, daily cap and offline behavior.
-- [ ] Verify an inbound reply cancels only the intended contact's pending follow-ups; verify group activity handling separately.
-- [ ] Test PC↔Android sync on a real Windows PC and Android phone over trusted Wi-Fi, including invalid token, large payload, concurrent updates, repeated sync and duplicate-ID behavior.
-- [ ] Implement authentication, company isolation and role-based permissions if multiple users/companies are required.
-- [ ] Run CI and report actual results. Do not infer a passing runtime test from a successful package build.
+1. Create a dedicated Supabase project.
+2. Apply both SQL files in order:
+   - `supabase/migrations/202610290001_auth_company_rbac.sql`
+   - `supabase/migrations/202610290002_rbac_hardening.sql`
+3. Configure Supabase Auth email/signup/recovery URLs.
+4. Deploy `supabase/functions/invite-company-member/index.ts` to that project; configure invitation email delivery and the allowed redirect origin.
+5. For fresh builds, set GitHub Actions secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. These are public client settings; never use a service/secret key in a Vite build.
+6. Install fresh Windows and Android builds made after the settings are added.
 
-## Safety and continuity
+This cannot be completed against a real Supabase project by repository-only changes: the project has not been linked, migrations have not been applied to a live database, the Edge Function has not been deployed, and no service keys or project credentials were supplied. No credentials should be committed to this public repository.
 
-This audit does not merge the feature branch into `main`. Do not put WhatsApp session files, QR codes, pairing codes, API keys, bridge tokens or signing keys into this public repository.
+## Acceptance tests required before production
+
+- [ ] Apply both SQL migrations to a dedicated test project with zero SQL errors.
+- [ ] Create two test users and two companies; verify neither user can read, insert, update or delete the other company's rows using both UI and direct Data API requests.
+- [ ] Verify read-only is denied writes; staff is denied deletion; non-owner members cannot grant, edit or remove an owner.
+- [ ] Create a company, sign out/in, switch companies and verify data does not bleed across local caches.
+- [ ] Send an invitation email, accept the invite and verify the user receives only the chosen company's chosen role.
+- [ ] Test baseline sync on Windows and Android: add/edit/delete; offline changes; same-record conflict; remote-only record; tombstone prevents resurrection.
+- [ ] Test document backup restore with real file bytes and large/corrupt backups.
+- [ ] Test QR/pairing, contact/group sync, delivery, consent checks, recurring sends, stop-on-reply, daily cap, network loss/recovery with consenting test accounts.
+- [ ] Install on a clean Windows profile and a real Android device; test upgrade/uninstall and preserve local data safely.
+- [ ] Build and sign a production Android package before public release.
+
+## Security and continuity
+
+Never commit passwords, Supabase service/secret keys, WhatsApp session files, QR/pairing codes, private PC companion tokens or app-signing keys. Keep the companion on a trusted private network. This audit distinguishes source/CI checks from live deployment and hardware testing; passing builds do not certify the latter.
