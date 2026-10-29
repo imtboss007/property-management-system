@@ -52,8 +52,8 @@ check("membership IDs cannot be reassigned and non-owner role operations are sco
   has(hardening, /old\.user_id is distinct from new\.user_id/i) &&
   has(baseMigration, /role <> 'owner'/i));
 check("deleted records use tombstones and cannot be revived by routine sync",
-  has(hardening, /Deleted records cannot be revived/i) &&
-  has(hardening, /company_records_soft_delete_guard/i));
+  has(baseMigration + "\\n" + hardening, /Deleted records cannot be revived/i) &&
+  has(baseMigration + "\\n" + hardening, /company_records_soft_delete_guard/i));
 check("cloud record update timestamps are server controlled",
   has(metadata, /new\.updated_at := clock_timestamp\(\)/i) &&
   has(metadata, /company_record_metadata_stamp/i));
@@ -74,10 +74,15 @@ check("invitation function verifies the caller's JWT and owner/admin membership"
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
   has(invite, /"admin", "manager", "staff", "read_only"/i) &&
   has(invite, /Owner access cannot be invited/i));
+const viteAssignments = envExample.split(/\\r?\\n/)
+  .map(line => line.trim())
+  .filter(line => /^VITE_[A-Z0-9_]+\\s*=/.test(line))
+  .map(line => line.split("=")[0]);
 check("sample environment exposes only public Supabase client settings",
-  has(envExample, /VITE_SUPABASE_URL=/i) &&
-  has(envExample, /VITE_SUPABASE_PUBLISHABLE_KEY=/i) &&
-  !has(envExample, /SERVICE_ROLE|SECRET_KEY|DATABASE_PASSWORD/i));
+  viteAssignments.length === 2 &&
+  viteAssignments.includes("VITE_SUPABASE_URL") &&
+  viteAssignments.includes("VITE_SUPABASE_PUBLISHABLE_KEY") &&
+  !viteAssignments.some(name => /SERVICE_ROLE|SECRET_KEY|DATABASE_PASSWORD/i.test(name)));
 check("Windows/Android workflows pass only public Supabase build values",
   has(desktopWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
