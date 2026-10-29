@@ -135,7 +135,7 @@ export async function prepareCompanyWorkspace(
     const key = scopedStorageKey(company.id, item.storageKey);
     let localRows: Array<Record<string, unknown> & { id: string }> = [];
     const scopedText = localStorage.getItem(key);
-    if (scopedText !== null) {
+    if (scopedText !== null && company.role !== "read_only") {
       try {
         const value = JSON.parse(scopedText);
         if (!Array.isArray(value)) throw new Error("Expected a JSON array.");
@@ -342,14 +342,15 @@ export async function syncCompanyWorkspace(
         continue;
       }
       if (localPayload && !remoteRow) {
+        // A read-only user must not see stale device-only rows that do not exist in the
+        // authorized cloud workspace (for example, from a role change or old local cache).
+        if (company.role === "read_only") continue;
         result.push(localPayload);
         nextBaseline[item.recordType][id] = localText;
-        if (company.role !== "read_only") {
-          toUpsert.push({
-            company_id: company.id, record_type: item.recordType, record_key: id,
-            payload: localPayload, created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
-          });
-        }
+        toUpsert.push({
+          company_id: company.id, record_type: item.recordType, record_key: id,
+          payload: localPayload, created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
+        });
         continue;
       }
       if (!localPayload || !remoteRow) continue;
