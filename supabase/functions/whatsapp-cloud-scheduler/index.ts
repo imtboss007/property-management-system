@@ -71,8 +71,12 @@ async function getCloudStatus(request: Request, companyId: string) {
 
   const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
   const phoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
+  const senderCompanyId = Deno.env.get("AXIVESTRA_WA_COMPANY_ID") || "";
   if (!accessToken || !phoneNumberId) {
     return jsonResponse(200, { ok: true, ready: false, configured: false, companyId, error: "Cloud sending is not activated for this AXIVESTRA workspace yet." });
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(senderCompanyId) || senderCompanyId !== companyId) {
+    return jsonResponse(200, { ok: true, ready: false, configured: false, companyId, error: "The hosted WhatsApp sender is restricted to its configured AXIVESTRA company workspace." });
   }
   try {
     const response = await fetch("https://graph.facebook.com/" + graphVersion() + "/" + encodeURIComponent(phoneNumberId) + "?fields=id,display_phone_number,verified_name", {
@@ -98,12 +102,13 @@ async function sendDueMessages() {
   const schedulerSecret = Deno.env.get("AXIVESTRA_SCHEDULER_SECRET") || "";
   const accessToken = Deno.env.get("META_ACCESS_TOKEN") || "";
   const phoneNumberId = Deno.env.get("META_PHONE_NUMBER_ID") || "";
-  if (schedulerSecret.length < 32 || !accessToken || !phoneNumberId) {
+  const senderCompanyId = Deno.env.get("AXIVESTRA_WA_COMPANY_ID") || "";
+  if (schedulerSecret.length < 32 || !accessToken || !phoneNumberId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(senderCompanyId)) {
     console.error("WhatsApp cloud worker is not configured; no messages claimed.");
     return jsonResponse(503, { ok: false, error: "Cloud worker configuration is incomplete.", processed: 0 });
   }
   const admin = getAdminClient();
-  const { data: rows, error } = await admin.rpc("claim_due_whatsapp_messages", { batch_size: 10 });
+  const { data: rows, error } = await admin.rpc("claim_due_whatsapp_messages", { batch_size: 10, target_company_id: senderCompanyId });
   if (error) {
     console.error("WhatsApp cloud claim failed", error.message);
     return jsonResponse(500, { ok: false, error: "Could not claim scheduled messages.", processed: 0 });
@@ -207,8 +212,12 @@ async function handleWebhook(request: Request, rawBody: string) {
   if (senders.size) {
     try {
       const admin = getAdminClient();
+      const senderCompanyId = Deno.env.get("AXIVESTRA_WA_COMPANY_ID") || "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(senderCompanyId)) {
+        return jsonResponse(503, { ok: false, error: "Reply-stop handling is not configured for the sender workspace." });
+      }
       for (const phone of senders) {
-        const { error } = await admin.rpc("cancel_whatsapp_cloud_followups_for_reply", { target_phone: phone });
+        const { error } = await admin.rpc("cancel_whatsapp_cloud_followups_for_reply", { target_phone: phone, target_company_id: senderCompanyId });
         if (error) console.error("Reply-stop queue update failed", error.message);
       }
     } catch (error) {
