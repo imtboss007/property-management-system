@@ -152,7 +152,7 @@ async function sendDueMessages() {
       if (!response.ok) {
         const providerError = String(result?.error?.message || ("WhatsApp returned HTTP " + response.status)).slice(0, 1400);
         await admin.rpc("finish_whatsapp_cloud_message", {
-          target_message_id: id, final_status: "failed", provider_id: "", failure_reason: providerError
+          target_message_id: id, target_company_id: senderCompanyId, final_status: "failed", provider_id: "", failure_reason: providerError
         });
         failed++;
         continue;
@@ -160,13 +160,13 @@ async function sendDueMessages() {
       const providerMessageId = String(result?.messages?.[0]?.id || "");
       if (!providerMessageId) {
         await admin.rpc("finish_whatsapp_cloud_message", {
-          target_message_id: id, final_status: "failed", provider_id: "", failure_reason: "WhatsApp accepted the request without returning a message ID; delivery is uncertain. Check the recipient chat before retrying."
+          target_message_id: id, target_company_id: senderCompanyId, final_status: "failed", provider_id: "", failure_reason: "WhatsApp accepted the request without returning a message ID; delivery is uncertain. Check the recipient chat before retrying."
         });
         failed++;
         continue;
       }
       const { error: finishError } = await admin.rpc("finish_whatsapp_cloud_message", {
-        target_message_id: id, final_status: "sent", provider_id: providerMessageId, failure_reason: ""
+        target_message_id: id, target_company_id: senderCompanyId, final_status: "sent", provider_id: providerMessageId, failure_reason: ""
       });
       if (finishError) {
         // Do not resend. WhatsApp has already accepted this message and its status must be reconciled manually.
@@ -180,7 +180,7 @@ async function sendDueMessages() {
         ? "Send request failed; delivery may be uncertain. Check the WhatsApp chat before retrying. " + error.message
         : "Send request failed; delivery may be uncertain. Check the WhatsApp chat before retrying.";
       const { error: finishError } = await admin.rpc("finish_whatsapp_cloud_message", {
-        target_message_id: id, final_status: "failed", provider_id: "", failure_reason: reason.slice(0, 1450)
+        target_message_id: id, target_company_id: senderCompanyId, final_status: "failed", provider_id: "", failure_reason: reason.slice(0, 1450)
       });
       if (finishError) console.error("WhatsApp uncertain-send status update failed", id, finishError.message);
       failed++;
