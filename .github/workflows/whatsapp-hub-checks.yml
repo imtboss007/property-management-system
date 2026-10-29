@@ -81,8 +81,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Type-check company invitation function
-        run: deno check supabase/functions/invite-company-member/index.ts
+      - name: Type-check Supabase Edge Functions
+        run: deno check supabase/functions/invite-company-member/index.ts && deno check supabase/functions/whatsapp-cloud-proxy/index.ts
 
   estateflow-app-build:
     runs-on: ubuntu-latest
