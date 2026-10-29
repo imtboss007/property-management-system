@@ -160,6 +160,16 @@ const provider = createProvider(config, sessionState);
 const queue = createQueueStore({ dataDir: config.dataDir });
 await queue.ensureLoaded();
 
+// Direct Baileys mode receives replies locally without needing a separate webhook provider.
+provider.setIncomingHandler?.(({ remoteJid, phone }) => {
+  const destination = String(remoteJid || "");
+  if (destination.endsWith("@g.us")) {
+    void queue.recordReply(destination).catch(error => process.stderr.write("[estateflow-whatsapp-hub] reply handling failed: " + String(error?.message || error) + "\\n"));
+  } else if (phone) {
+    void queue.recordReply(phone).catch(error => process.stderr.write("[estateflow-whatsapp-hub] reply handling failed: " + String(error?.message || error) + "\\n"));
+  }
+});
+
 function timingSafeMatch(provided, expected) {
   if (!provided || !expected) return false;
   const a = Buffer.from(String(provided));
