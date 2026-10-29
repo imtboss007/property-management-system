@@ -24,7 +24,8 @@
     "react-dom": "^18.3.1",
     "@whiskeysockets/baileys": "6.7.24",
     "qrcode": "^1.5.4",
-    "dexie": "^4.0.8"
+    "dexie": "^4.0.8",
+    "@supabase/supabase-js": "^2.118.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
