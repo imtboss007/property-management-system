@@ -10,6 +10,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 - The activity history stores timestamps, entity names, record IDs and display labels only; it deliberately avoids copying private field values into the audit event.
 - Added a Settings view for recent activity and JSON export, and included audit history in business-record backup/restore.
 - Added responsive styling for the audit history.
+- Added a single-file document-vault backup/restore flow with metadata and file bytes preserved, validation, explicit overwrite confirmation for matching document IDs, and 100 MB decoded vault cap.
 - Added authenticated PC companion data-sync endpoints with atomic snapshot storage, bounded payloads, monotonically increasing revisions and optimistic concurrency checks.
 - Added a Settings workflow for PC ↔ Android local-network additive record sync across properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and activity history. It retains remote-only records, prefers this device on duplicate IDs, retries once on a revision conflict, and does not propagate deletions.
 - Kept changes on the feature branch. `main` has not been changed or merged.
@@ -21,7 +22,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 | Product name and UI | AXIVESTRA branding, navy/cyan visual system, responsive styling and keyboard search are present in the feature branch. Visual quality still needs a real screen-by-screen review on Windows and Android. |
 | Business workspaces | Sixteen workspaces are declared: Property Sale, Property Loans, JV/JDA/JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC. |
 | Local-first records | Business records use browser/device local storage; documents use IndexedDB. Core app source does not require a hosted database. |
-| Backup/restore | JSON backup/restore covers business records and now the local audit history. Document files are stored separately in IndexedDB and must still be downloaded/restored separately. |
+| Backup/restore | Business records and audit history export/import as JSON. The Documents screen now supports a separate single-file document-vault JSON backup/restore (100 MB total decoded file cap). Business JSON and document-vault backup are separate files. |
 | WhatsApp desktop | Windows Electron code includes a Baileys linked-device session, QR/pairing flow, saved contact/group cache, scheduled queue, recurring message series, cancel/retry and rate limits. |
 | WhatsApp companion | Android/browser can connect to a separately running desktop companion or configured gateway; the APK does not itself run the Windows companion service. |
 | Consent and stop-on-reply | The UI and queue require recipient-consent confirmation. Stop-on-reply depends on the direct linked-device incoming-message path or a correctly configured/authenticated gateway webhook. This requires real account testing. |
@@ -33,7 +34,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 1. **PC ↔ Android data synchronization:** a first authenticated local-network additive sync is implemented. It merges by record ID, keeps the current device's version for matching IDs, retains remote-only records, uses revision checks, and does not propagate deletions. It is not a full field-level conflict resolver; users must review duplicate-ID changes and export backups before first sync.
 2. **Login and role-based permissions:** no production authentication or server-enforced RBAC/multi-company isolation is established by this local-first build. The approval screen is a personal decision log, not enforceable four-eyes authorization.
 3. **Tamper-resistant audit:** the new activity history is a local convenience log. It is not cryptographically sealed, centrally retained or protected from someone with device/profile access.
-4. **Document backup integration:** document files are not embedded in the JSON backup. They need a separate bulk export/import flow and restore verification.
+4. **Document backup verification:** a separate bulk export/import flow is implemented for up to 100 MB decoded total. It still needs real-browser verification, including large files, corrupt backups, and duplicate IDs.
 5. **Real WhatsApp validation:** QR pairing, contact/group sync, actual delivery, inbound-reply cancellation, Android-to-PC reachability, offline recovery, duplicate prevention and stop-on-reply must be tested with a dedicated consenting test account and real devices.
 6. **Release signing and distribution:** the current Android artifact is a debug APK, not a signed production release. Windows and Android installation/upgrade/uninstall behavior still need device testing.
 7. **Security hardening review:** review local companion network exposure, token storage, CORS/origin handling, secret rotation and dependency supply chain before treating this as production-ready.
@@ -45,7 +46,7 @@ Scope: repository source and workflow configuration. This is a code/documentatio
 - [ ] Verify all 16 workspaces, navigation, charts, search, forms, edits and deletions at desktop and mobile widths.
 - [ ] Create/edit/delete a sample record and verify the local activity log and audit export.
 - [ ] Export a backup, reset only test data, restore it, and verify records and linked IDs.
-- [ ] Export and restore document files independently and verify file contents.
+- [ ] Export and restore the document-vault backup and verify file contents, metadata, large files and duplicate-ID handling.
 - [ ] Test WhatsApp QR/pairing, address-book/group sync, one-time send, recurring schedule, cancel, retry, daily cap and offline behavior.
 - [ ] Verify an inbound reply cancels only the intended contact's pending follow-ups; verify group activity handling separately.
 - [ ] Test PC↔Android sync on a real Windows PC and Android phone over trusted Wi-Fi, including invalid token, large payload, concurrent updates, repeated sync and duplicate-ID behavior.
