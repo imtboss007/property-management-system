@@ -149,6 +149,29 @@ export async function prepareCompanyWorkspace(
   return { counts, uploaded };
 }
 
+export type DeletedCompanyRecord = { recordType: string; recordKey: string };
+
+export async function softDeleteCompanyRecords(
+  company: WorkspaceCompany,
+  userId: string,
+  deleted: DeletedCompanyRecord[]
+): Promise<void> {
+  if (!supabase || !deleted.length) return;
+  if (!["owner", "admin", "manager"].includes(company.role)) {
+    throw new Error("Your company role cannot delete shared records. Ask a manager or owner.");
+  }
+  const stamp = new Date().toISOString();
+  for (const item of deleted) {
+    const { error } = await supabase.from("company_records")
+      .update({ deleted_at: stamp, updated_by: userId, updated_at: stamp })
+      .eq("company_id", company.id)
+      .eq("record_type", item.recordType)
+      .eq("record_key", item.recordKey)
+      .is("deleted_at", null);
+    if (error) throw new Error(error.message);
+  }
+}
+
 export async function syncCompanyWorkspace(
   company: WorkspaceCompany,
   userId: string,
