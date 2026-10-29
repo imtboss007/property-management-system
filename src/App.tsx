@@ -489,6 +489,7 @@ async function requestPcUnpair(host: string, token: string): Promise<void> {
 
 type CompanionApiReply = {
   ok?: boolean; error?: string; documents?: Array<Record<string, unknown>>;
+  id?: string; companyId?: string; deletedAt?: string;
   record?: Record<string, unknown>; base64?: string; sha256?: string; updatedAt?: string;
 };
 
@@ -798,7 +799,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     });
     const refreshCode = window.setInterval(() => {
       if (!active) return;
-      void desktopApi.getBridgeInfo().then(async info => {
+      void desktopApi.getBridgeInfo?.().then(async info => {
+        if (!info) return;
         const urls = (info.urls || []).map(normalizeTrustedPcHost).filter((value): value is string => Boolean(value));
         if (!urls.length || !info.pairCode || !active) return;
         const qrText = JSON.stringify({ app: "AXIVESTRA", type: "device-sync", version: 1, urls, pairCode: info.pairCode, expiresAt: info.pairExpiresAt });
