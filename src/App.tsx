@@ -1187,6 +1187,76 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     if (changed.length) setNotice(`WhatsApp groups restored: ${changed.length} added or refreshed. Saved group names remain available when WhatsApp is disconnected.`);
   };
 
+  // Rehydrate the master contact/group lists from the saved Windows WhatsApp cache on app open,
+  // when the app returns to the foreground, and periodically while open. This is additive: existing
+  // user-edited contact names and records are preserved by the import merge functions above.
+  useEffect(() => {
+    if (company?.role === "read_only") return;
+    let cancelled = false;
+    let inFlight = false;
+    const restoreSavedWhatsAppDirectory = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        type CachedDirectory = {
+          contacts?: SyncedWhatsAppContact[];
+          groups?: SavedWhatsAppGroup[];
+          addressBook?: { contacts?: SyncedWhatsAppContact[]; groups?: SavedWhatsAppGroup[] };
+          ok?: boolean;
+        };
+        let data: CachedDirectory | null = null;
+        const nativeApi = (window as Window & {
+          estateflowWhatsApp?: { getAddressBook: () => Promise<{ contacts?: SyncedWhatsAppContact[]; groups?: SavedWhatsAppGroup[] }> };
+        }).estateflowWhatsApp;
+        if (nativeApi?.getAddressBook) {
+          data = await nativeApi.getAddressBook();
+        } else {
+          let host = "";
+          let token = "";
+          try {
+            host = localStorage.getItem("estateflow.whatsapp.host") || "";
+            token = localStorage.getItem("estateflow.whatsapp.token") || "";
+          } catch {}
+          if (!host.trim() || !token.trim()) return;
+          const base = host.trim().replace(/\\/+$/, "");
+          let parsed: URL;
+          try { parsed = new URL(base); } catch { return; }
+          if (!["http:", "https:"].includes(parsed.protocol)) return;
+          const hostname = parsed.hostname.toLowerCase();
+          const privateHost = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)
+            || hostname.endsWith(".local") || /^10\\./.test(hostname)
+            || /^192\\.168\\./.test(hostname) || /^172\\.(1[6-9]|2\\d|3[01])\\./.test(hostname);
+          if (parsed.protocol === "http:" && !privateHost) return;
+          const response = await fetch(base + "/api/address-book", {
+            headers: { "X-EstateFlow-Token": token, "Cache-Control": "no-store" }
+          });
+          if (!response.ok) return;
+          data = await response.json() as CachedDirectory;
+          if (data?.ok === false) return;
+        }
+        if (cancelled || !data) return;
+        const book = data.addressBook || data;
+        const contacts = Array.isArray(book.contacts) ? book.contacts : [];
+        const groups = Array.isArray(book.groups) ? book.groups : [];
+        if (contacts.length) importWhatsAppContacts(contacts);
+        if (groups.length) importWhatsAppGroups(groups);
+      } catch {
+        // A disconnected PC, expired token, or offline phone must not clear local records.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onFocus = () => { void restoreSavedWhatsAppDirectory(); };
+    void restoreSavedWhatsAppDirectory();
+    window.addEventListener("focus", onFocus);
+    const refresh = window.setInterval(() => { void restoreSavedWhatsAppDirectory(); }, 60000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(refresh);
+    };
+  }, [company?.id, company?.role]);
+
   const saveTask = (data: Omit<TaskRecord, "id" | "done">) => {
     const record: TaskRecord = editingTask
       ? { ...editingTask, ...data }
