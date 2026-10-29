@@ -603,7 +603,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
         <button className="primary-button" disabled={!supported || syncBusy || !status.connected} onClick={() => void syncWhatsAppAddressBook()}><RefreshCw size={15}/>{syncBusy ? "Syncing…" : "Sync WhatsApp now"}</button>
         <button className="secondary-button" disabled={!supported || importBusy} onClick={() => void importSavedAddressBook()}><Users size={15}/>{importBusy ? "Loading saved cache…" : "Import saved contacts & groups"}</button>
       </div>
-      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send.</p>
+      <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}{cloudEnabled ? "The hosted sender keeps this WhatsApp directory and scheduled-message queue available while both apps are closed. Imported business contacts and property records sync through your shared AXIVESTRA company workspace." : "Your synced directory is cached on this Windows device and the group list is also saved in AXIVESTRA. For scheduled delivery, keep the Windows sender running, awake and online."}</p>
       {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
       {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
       <div className="wa-address-book-columns">
@@ -635,7 +635,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
 
     <div className="notice notice-warn">
       <ShieldCheck size={18}/><div><strong>Account and consent notice</strong>
-        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. The linked-device session and its local cache remain on the Windows PC, while imported contacts and saved group details can also be synced to your configured AXIVESTRA database.</p>
+        <p>This connection uses an unofficial WhatsApp Web-compatible library, not Meta’s official Business Platform. WhatsApp may disconnect or restrict accounts using unofficial clients. Use it only for expected, consent-based follow-ups. The first contact sync can take longer because WhatsApp may send a history-sync payload; AXIVESTRA caches contact and group metadata, not prior chat content. In cloud mode, the linked-device session and message queue are stored on the persistent hosted sender, while imported contacts and property records sync through the configured AXIVESTRA company workspace. In local Windows mode, the sender must keep running on that PC.</p>
       </div>
     </div>
 
