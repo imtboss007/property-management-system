@@ -559,7 +559,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     <section className={"wa-connection-card " + (status.connected ? "wa-connected" : "wa-disconnected")}>
       <div className="wa-connection-icon"><MessageCircle size={23}/></div>
       <div className="wa-connection-copy">
-        <strong>{status.connected ? "WhatsApp linked and connected" : status.connecting ? "Connecting to WhatsApp…" : supported ? "WhatsApp device not connected" : "Windows linked-device service required"}</strong>
+        <strong>{status.platform === "cloud-whatsapp-business" ? status.connected ? "Cloud WhatsApp sender connected" : "Cloud WhatsApp sender not ready" : status.connected ? "WhatsApp linked and connected" : status.connecting ? "Connecting to WhatsApp…" : supported ? "WhatsApp device not connected" : "Windows linked-device service required"}</strong>
         <p>{status.connected
           ? "Connected account: " + (status.senderNumber ? "+" + status.senderNumber : status.displayName || "Linked WhatsApp account")
           : cloudMode ? "Cloud sender is selected. Check its connection status and deployment settings below."
