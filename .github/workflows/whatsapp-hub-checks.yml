@@ -9,6 +9,11 @@ on:
       - "services/estateflow-whatsapp-hub/**"
       - "src/**"
       - "electron/whatsapp-service.cjs"
+      - "supabase/migrations/**"
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - "scripts/**"
+      - ".env.example"
       - "package.json"
       - "vite.config.ts"
       - "tsconfig*.json"
@@ -24,6 +29,8 @@ on:
       - "supabase/migrations/**"
       - "supabase/functions/**"
       - "supabase/config.toml"
+      - "scripts/**"
+      - ".env.example"
       - ".github/workflows/whatsapp-hub-checks.yml"
   workflow_dispatch:
 
@@ -31,6 +38,17 @@ permissions:
   contents: read
 
 jobs:
+  security-contract-check:
+    name: Check cloud security contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check company isolation, RBAC and secret-handling contracts
+        run: node scripts/security-contract-check.cjs
+
   test:
     runs-on: ubuntu-latest
     defaults:
