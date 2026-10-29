@@ -376,6 +376,14 @@ function createWhatsAppService({ app, ipcMain, notify }) {
             status.displayName = String(nextSocket.user && nextSocket.user.name || "");
             pairingRequested = false;
             publish("connected");
+            // Re-verify the linked account's current group list after QR pairing or reconnect.
+            // This refreshes group eligibility automatically while the existing contact cache is
+            // kept additive; users do not need to re-enter saved groups after an app restart.
+            void syncAddressBook().catch(error => {
+              status.error = "WhatsApp is linked, but automatic group refresh could not be saved. Saved contacts and scheduled messages are unchanged. " +
+                (error instanceof Error ? error.message : String(error));
+              publish("address-book-sync-error");
+            });
           }
           if (update.connection === "close") {
             const disconnectError = update.lastDisconnect && update.lastDisconnect.error;
