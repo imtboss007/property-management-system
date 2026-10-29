@@ -222,7 +222,7 @@ export async function syncCompanyWorkspace(
   userId: string,
   collections: WorkspaceCollections
 ): Promise<WorkspaceCollections> {
-  if (!supabase || company.role === "read_only") return collections;
+  if (!supabase) return collections;
 
   const { data: remoteRows, error: readError } = await supabase
     .from("company_records")
@@ -329,16 +329,20 @@ export async function syncCompanyWorkspace(
       if (localPayload && !remoteRow) {
         result.push(localPayload);
         nextBaseline[item.recordType][id] = localText;
-        toUpsert.push({
-          company_id: company.id, record_type: item.recordType, record_key: id,
-          payload: localPayload, created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
-        });
+        if (company.role !== "read_only") {
+          toUpsert.push({
+            company_id: company.id, record_type: item.recordType, record_key: id,
+            payload: localPayload, created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
+          });
+        }
         continue;
       }
       if (!localPayload || !remoteRow) continue;
 
       let selected: SyncRow;
-      if (localText === remoteText) {
+      if (company.role === "read_only") {
+        selected = remoteRow.payload;
+      } else if (localText === remoteText) {
         selected = localPayload;
       } else if (!baseText) {
         // No history exists for this ID (e.g. concurrent first sync); prefer the remote
@@ -365,7 +369,7 @@ export async function syncCompanyWorkspace(
       const selectedText = JSON.stringify(selected);
       result.push(selected);
       nextBaseline[item.recordType][id] = selectedText;
-      if (selectedText !== remoteText) {
+      if (selectedText !== remoteText && company.role !== "read_only") {
         toUpsert.push({
           company_id: company.id, record_type: item.recordType, record_key: id,
           payload: selected, created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
@@ -378,7 +382,7 @@ export async function syncCompanyWorkspace(
     localStorage.setItem(localKey, JSON.stringify(result));
   }
 
-  if (toDelete.length) await softDeleteCompanyRecords(company, userId, toDelete);
+  if (toDelete.length && company.role !== "read_only") await softDeleteCompanyRecords(company, userId, toDelete);
   for (let i = 0; i < toUpsert.length; i += 250) {
     const { error } = await supabase.from("company_records")
       .upsert(toUpsert.slice(i, i + 250), { onConflict: "company_id,record_type,record_key" });
