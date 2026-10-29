@@ -5,6 +5,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import { parsePropertyRangeQuery, propertyMatchesRange, getPropertyPriceForRangeSearch } from "./lib/property-range-search";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -837,10 +838,21 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setMemberBusy(false); }
   };
 
-  const filteredModules = modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
-  const filteredProperties = useMemo(() => properties.filter(p =>
-    `${p.title} ${p.module} ${p.location} ${p.contact} ${p.status} ${p.surveyNumber} ${Object.values(p.moduleData ?? {}).join(" ")}`.toLowerCase().includes(search.toLowerCase())
-  ), [properties, search]);
+  const rangeSearch = useMemo(() => parsePropertyRangeQuery(search), [search]);
+  const filteredModules = rangeSearch ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredProperties = useMemo(() => properties.filter(property => {
+    if (rangeSearch) return propertyMatchesRange(property, rangeSearch);
+    const searchableText = [
+      property.title, property.module, property.location, property.contact, property.status,
+      property.surveyNumber, property.areaValue, property.areaUnit, property.dimensions,
+      property.ownershipDetails, property.notes, ...Object.values(property.moduleData ?? {})
+    ].join(" ").toLowerCase();
+    return searchableText.includes(search.toLowerCase());
+  }), [properties, search, rangeSearch]);
+  const formatRangePrice = (property: PropertyRecord) => {
+    const value = getPropertyPriceForRangeSearch(property);
+    return value === null ? "Value not entered" : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  };
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const today = new Date().toISOString().slice(0,10);
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
@@ -1422,7 +1434,36 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
-          {active === "Overview" && <>
+          {rangeSearch && <section className="ax-property-range-results" aria-live="polite">
+            <div className="ax-property-range-results__head">
+              <div>
+                <span className="section-kicker">{rangeSearch.kind === "price" ? "PRICE RANGE" : "LAND / AREA RANGE"} · SMART PROPERTY SEARCH</span>
+                <h2>{rangeSearch.kind === "price" ? "Properties by value" : "Properties by area"}</h2>
+                <p>Query: <strong>{search}</strong> · {filteredProperties.length} matching record{filteredProperties.length === 1 ? "" : "s"}</p>
+              </div>
+              <button type="button" className="secondary-button" onClick={() => setSearch("")}>Clear search</button>
+            </div>
+            {filteredProperties.length > 0
+              ? <div className="ax-property-range-results__list">
+                  {filteredProperties.map(property => <button type="button" className="ax-property-range-result" key={property.id} onClick={() => go(property.module)}>
+                    <span className="ax-property-range-result__main">
+                      <strong>{property.title || "Untitled property record"}</strong>
+                      <small>{property.module}{property.location ? " · " + property.location : " · Location not entered"}</small>
+                      <small>{property.status || "Status not specified"}{property.surveyNumber ? " · Survey / ID: " + property.surveyNumber : ""}</small>
+                    </span>
+                    <span className="ax-property-range-result__metrics">
+                      <strong>{formatRangePrice(property)}</strong>
+                      <small>{property.areaValue && Number(property.areaValue) > 0 ? property.areaValue + " " + (property.areaUnit || "") : "Area not entered"}</small>
+                    </span>
+                    <ArrowUpRight size={17} aria-hidden="true"/>
+                  </button>)}
+                </div>
+              : <div className="ax-property-range-results__empty">
+                  <Search size={21}/>
+                  <div><strong>No saved records match this range.</strong><small>Check the value and area fields on the property record. Records with missing area or price data are not guessed into the results.</small></div>
+                </div>}
+          </section>}
+          {active === "Overview" && !rangeSearch && <>
             <section className="institutional-banner">
               <div className="institutional-copy">
                 <span className="institutional-label"><span className="live-dot"/> AXIVESTRA COMMAND MATRIX</span>

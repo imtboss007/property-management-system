@@ -1256,3 +1256,108 @@ h2,h3{color:#e5f2fc}
 .searchable-contact-picker__option small{overflow-wrap:anywhere;font-size:10px;line-height:1.35;color:#82a0b6}
 .searchable-contact-picker__empty,.searchable-contact-picker__count,.searchable-contact-picker__help{margin:0;color:#7897ad;font-size:10px;line-height:1.45;font-weight:500}
 @media(max-width:650px){.searchable-contact-picker__search input{font-size:14px}.searchable-contact-picker__select{font-size:14px}.searchable-contact-picker__options{max-height:210px}}
+
+
+/* Global price/land-area range search results */
+.ax-property-range-results {
+  margin: 0 0 24px;
+  padding: clamp(16px, 2.3vw, 26px);
+  border: 1px solid rgba(49, 207, 235, .25);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(10, 36, 56, .98), rgba(7, 22, 37, .98));
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .17), inset 0 1px rgba(255, 255, 255, .035);
+}
+.ax-property-range-results__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+.ax-property-range-results__head h2 {
+  margin: 7px 0 5px;
+  color: #f2fbff;
+  font-size: clamp(19px, 2vw, 25px);
+  letter-spacing: -.035em;
+}
+.ax-property-range-results__head p {
+  margin: 0;
+  color: #91adbf;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ax-property-range-results__head p strong { color: #d9f8ff; }
+.ax-property-range-results__list {
+  display: grid;
+  gap: 8px;
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 3px;
+}
+.ax-property-range-result {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(125px, 190px) 20px;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 16px;
+  border: 1px solid rgba(124, 164, 190, .15);
+  border-radius: 13px;
+  color: #eefaff;
+  text-align: left;
+  background: rgba(16, 44, 65, .66);
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+.ax-property-range-result:hover,
+.ax-property-range-result:focus-visible {
+  border-color: rgba(46, 219, 241, .65);
+  background: rgba(22, 61, 84, .92);
+  outline: none;
+  transform: translateY(-1px);
+}
+.ax-property-range-result__main,
+.ax-property-range-result__metrics {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ax-property-range-result__main strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 750;
+}
+.ax-property-range-result__main small,
+.ax-property-range-result__metrics small {
+  color: #91adbf;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ax-property-range-result__metrics { text-align: right; }
+.ax-property-range-result__metrics strong {
+  color: #78edfa;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ax-property-range-result > svg { color: #76ddeb; }
+.ax-property-range-results__empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px dashed rgba(124, 164, 190, .26);
+  border-radius: 13px;
+  color: #85e8f4;
+}
+.ax-property-range-results__empty div { display: grid; gap: 5px; }
+.ax-property-range-results__empty strong { color: #e6f8ff; font-size: 14px; }
+.ax-property-range-results__empty small { color: #91adbf; line-height: 1.55; }
+@media (max-width: 640px) {
+  .ax-property-range-results__head { flex-direction: column; align-items: stretch; }
+  .ax-property-range-results__head .secondary-button { align-self: flex-start; }
+  .ax-property-range-result { grid-template-columns: minmax(0, 1fr) 18px; gap: 12px; padding: 13px; }
+  .ax-property-range-result__metrics { grid-column: 1; grid-row: 2; text-align: left; flex-direction: row; flex-wrap: wrap; gap: 9px; }
+  .ax-property-range-result__metrics strong { font-size: 13px; }
+  .ax-property-range-result > svg { grid-column: 2; grid-row: 1 / span 2; }
+}
