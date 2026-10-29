@@ -20,6 +20,14 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 - Windows and Android build workflows with optional public Supabase client configuration. Without project URL/key, the build explicitly remains local-only.
 - Changes remain on the feature branch. No code was merged into `main`.
 
+## Latest feature-branch changes
+
+- Added searchable contact fields to the document, task, financial transaction, risk and approval forms. Search covers names, WhatsApp names, phone numbers, current/custom roles, email, address, profession, employer, designation, business type, associated company and WhatsApp identifier.
+- Normalized WhatsApp contact phone values through one shared digits-only helper so punctuation is removed consistently before contact deduplication.
+- Added restart recovery for queue rows left in an in-flight `sending` state. These rows become `failed` with an explicit delivery-uncertain warning; they are not automatically retried because the preceding send may already have reached WhatsApp.
+- Added executable phone-normalisation regression cases and extended static contract checks for searchable contact surfaces, phone deduplication and interrupted-send recovery. These checks will be exercised by the updated GitHub Actions workflow.
+- These are repository changes only. Successful CI does not verify a real WhatsApp account's contact sync or message delivery, and live Supabase/RLS acceptance still requires a configured test project.
+
 ## CI validation
 
 - Previous failure found: the membership UI omitted a React hook import; corrected.
