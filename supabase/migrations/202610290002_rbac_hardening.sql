@@ -46,6 +46,46 @@ create trigger company_records_identity_guard
 before insert or update on public.company_records
 for each row execute function public.guard_company_record_identity();
 
+-- Membership identity is immutable: a role administrator cannot silently
+-- transfer an existing membership to another user or company.
+create or replace function public.guard_company_membership_identity()
+returns trigger
+language plpgsql
+set search_path = ''
+as $axivestra$
+begin
+  if old.company_id is distinct from new.company_id
+     or old.user_id is distinct from new.user_id then
+    raise exception 'Company and user IDs on an existing membership are immutable.';
+  end if;
+  return new;
+end;
+$axivestra$;
+
+drop trigger if exists company_membership_identity_guard on public.company_memberships;
+create trigger company_membership_identity_guard
+before update on public.company_memberships
+for each row execute function public.guard_company_membership_identity();
+
+-- A company can be renamed by an owner/admin, but its ID and creator cannot be rewritten.
+create or replace function public.guard_company_identity()
+returns trigger
+language plpgsql
+set search_path = ''
+as $axivestra$
+begin
+  if old.id is distinct from new.id or old.created_by is distinct from new.created_by then
+    raise exception 'Company ID and creator are immutable.';
+  end if;
+  return new;
+end;
+$axivestra$;
+
+drop trigger if exists company_identity_guard on public.companies;
+create trigger company_identity_guard
+before update on public.companies
+for each row execute function public.guard_company_identity();
+
 create or replace function public.guard_company_membership_actor()
 returns trigger
 language plpgsql
@@ -124,6 +164,8 @@ after insert or update or delete on public.company_memberships
 for each row execute function public.log_company_membership_change();
 
 revoke all on function public.guard_company_record_identity() from public;
+revoke all on function public.guard_company_membership_identity() from public;
+revoke all on function public.guard_company_identity() from public;
 revoke all on function public.guard_company_membership_actor() from public;
 revoke all on function public.guard_company_record_soft_delete() from public;
 revoke all on function public.log_company_membership_change() from public;
