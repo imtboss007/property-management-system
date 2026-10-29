@@ -137,7 +137,7 @@ begin
     set status = 'failed',
         last_error = 'Delivery status is uncertain because the cloud worker stopped while sending. Check the WhatsApp chat before retrying to avoid a duplicate.',
         updated_at = now()
-    where status = 'sending' and updated_at < now() - interval '10 minutes';
+    where status = 'sending' and company_id = target_company_id and updated_at < now() - interval '10 minutes';
 
   return query
     with due as (
