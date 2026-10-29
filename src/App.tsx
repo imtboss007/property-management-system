@@ -457,13 +457,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
 
   useEffect(() => {
     let cancelled = false;
+    const activeCompanyId = company?.id || "";
     void localDb.documents.orderBy("createdAt").reverse().toArray().then(saved => {
-      if (!cancelled) setDocuments(saved.map(({ file: _file, ...record }) => record));
+      const scoped = saved.filter(record => (record.companyId || "") === activeCompanyId);
+      if (!cancelled) setDocuments(scoped.map(({ file: _file, ...record }) => record));
     }).catch(error => {
       if (!cancelled) setNotice("Local document vault could not be opened: " + (error instanceof Error ? error.message : String(error)));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [company?.id]);
 
   useEffect(() => {
     saveLocal("estateflow.properties", properties);
@@ -822,7 +824,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       notes: documentNotes, createdAt: new Date().toISOString()
     };
     try {
-      await localDb.documents.put({ ...record, file });
+      await localDb.documents.put({ ...record, companyId: company?.id || "", file });
       setDocuments(previous => [record, ...previous.filter(item => item.id !== id)]);
       setDocumentNotes("");
       setDocumentExpiry("");
@@ -838,7 +840,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const downloadDocument = async (record: DocumentRecord) => {
     try {
       const saved = await localDb.documents.get(record.id);
-      if (!saved?.file) {
+      if (!saved || (saved.companyId || "") !== (company?.id || "")) {
+        setNotice("This document is not available in the active company vault.");
+        return;
+      }
+      if (!saved.file) {
         setNotice("The document file is missing from this device. Restore it from your own document backup.");
         return;
       }
@@ -860,6 +866,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const deleteDocument = async (record: DocumentRecord) => {
     if (!window.confirm("Permanently delete the local file '" + record.name + "'?")) return;
     try {
+      const saved = await localDb.documents.get(record.id);
+      if (!saved || (saved.companyId || "") !== (company?.id || "")) {
+        setNotice("This document is not available in the active company vault.");
+        return;
+      }
       await localDb.documents.delete(record.id);
       setDocuments(previous => previous.filter(item => item.id !== record.id));
       setNotice("Document and local file deleted.");
@@ -871,7 +882,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const exportDocumentVault = async () => {
     setDocumentVaultBusy(true);
     try {
-      const saved = await localDb.documents.toArray();
+      const activeCompanyId = company?.id || "";
+      const allDocuments = await localDb.documents.toArray();
+      const saved = allDocuments.filter(record => (record.companyId || "") === activeCompanyId);
       const totalBytes = saved.reduce((sum, record) => sum + (record.file?.size || 0), 0);
       if (totalBytes > 100 * 1024 * 1024) {
         setNotice("The document vault exceeds the 100 MB single-file backup limit. Download documents individually or export smaller batches.");
@@ -892,7 +905,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           fileBase64: btoa(binary)
         });
       }
-      const backup = { format: "AXIVESTRA_DOCUMENT_VAULT", schemaVersion: 1, exportedAt: new Date().toISOString(), documents };
+      const backup = { format: "AXIVESTRA_DOCUMENT_VAULT", schemaVersion: 2, companyId: activeCompanyId, exportedAt: new Date().toISOString(), documents };
       const blob = new Blob([JSON.stringify(backup)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -912,9 +925,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     if (!window.confirm("Import this document-vault backup? Matching document IDs will be replaced by the backup version; other existing documents will be retained. Export a backup of the current vault first.")) return;
     setDocumentVaultBusy(true);
     try {
-      const data = JSON.parse(await file.text()) as { format?: string; schemaVersion?: number; documents?: Array<Record<string, unknown>> };
-      if (data.format !== "AXIVESTRA_DOCUMENT_VAULT" || data.schemaVersion !== 1 || !Array.isArray(data.documents) || data.documents.length > 10000) {
+      const data = JSON.parse(await file.text()) as { format?: string; schemaVersion?: number; companyId?: string; documents?: Array<Record<string, unknown>> };
+      if (data.format !== "AXIVESTRA_DOCUMENT_VAULT" || ![1, 2].includes(data.schemaVersion || 0) || !Array.isArray(data.documents) || data.documents.length > 10000) {
         throw new Error("This is not a supported AXIVESTRA document-vault backup.");
+      }
+      const activeCompanyId = company?.id || "";
+      const sourceCompanyId = String(data.companyId || "");
+      if (data.schemaVersion === 2 && sourceCompanyId && sourceCompanyId !== activeCompanyId) {
+        throw new Error("This backup belongs to a different company. Switch to the source company before restoring it.");
       }
       const restored = [];
       let totalBytes = 0;
@@ -932,7 +950,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           for (let i = offset; i < end; i++) bytes[i] = binary.charCodeAt(i);
         }
         restored.push({
-          id, propertyId: String(item.propertyId || ""), property: String(item.property || ""),
+          id, companyId: activeCompanyId, propertyId: String(item.propertyId || ""), property: String(item.property || ""),
           contactId: String(item.contactId || ""), name: name.slice(0, 255),
           category: String(item.category || "Other"), storagePath: String(item.storagePath || id),
           mimeType: String(item.mimeType || "application/octet-stream"), sizeBytes: bytes.byteLength,
@@ -942,7 +960,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       }
       await localDb.documents.bulkPut(restored);
       const saved = await localDb.documents.orderBy("createdAt").reverse().toArray();
-      setDocuments(saved.map(({ file: _file, ...record }) => record));
+      setDocuments(saved.filter(record => (record.companyId || "") === activeCompanyId).map(({ file: _file, ...record }) => record));
       setNotice("Restored " + restored.length + " document files. Existing documents with different IDs were retained.");
     } catch (error) {
       setNotice("Document-vault import failed: " + (error instanceof Error ? error.message : String(error)));
