@@ -1222,3 +1222,16 @@ h2,h3{color:#e5f2fc}
 .member-existing-access{margin:12px 0 4px;padding:11px 12px;border:1px solid rgba(125,165,195,.18);border-radius:10px;background:rgba(8,23,38,.28)}
 .member-existing-access summary{cursor:pointer;color:#8ccfdf;font-size:12px;font-weight:700}
 .member-existing-access .member-access-form{margin-top:13px}
+
+
+/* Searchable WhatsApp directory and recipients */
+.wa-search-field{display:flex;align-items:center;gap:9px;width:100%;min-width:0;margin:7px 0 9px;padding:0 11px;min-height:42px;border:1px solid rgba(101,194,219,.28);border-radius:10px;background:rgba(4,17,29,.72);color:#83d9e8;box-sizing:border-box}
+.wa-search-field:focus-within{border-color:rgba(78,213,236,.8);box-shadow:0 0 0 3px rgba(46,190,220,.1)}
+.wa-search-field svg{flex:0 0 auto;opacity:.9}
+.wa-search-field input{flex:1;min-width:0;width:100%;height:40px;border:0!important;outline:0;background:transparent!important;box-shadow:none!important;color:var(--text-primary,#eaf7ff)!important;font:inherit;font-size:13px}
+.wa-search-field input::placeholder{color:#7193a8;opacity:1}
+.wa-search-field input::-webkit-search-cancel-button{cursor:pointer}
+.wa-form label>.wa-search-field{margin-top:9px}
+.wa-form select{max-width:100%}
+.wa-address-book .wa-search-field{margin:11px 0}
+@media(max-width:560px){.wa-search-field{min-height:44px}.wa-search-field input{height:42px;font-size:14px}}
