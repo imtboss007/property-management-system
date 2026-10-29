@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
@@ -228,6 +228,9 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
 
 export default function WhatsAppScheduler({ companyId = "", contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
+  const importContactsRef = useRef(onImportContacts);
+  const importGroupsRef = useRef(onImportGroups);
+  useEffect(() => { importContactsRef.current = onImportContacts; importGroupsRef.current = onImportGroups; }, [onImportContacts, onImportGroups]);
   const [companionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
   const cloudEnabled = import.meta.env.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED === "true";
@@ -321,7 +324,13 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
         setQueue(nextQueue);
         try {
           const nextAddressBook = await api.getAddressBook();
-          if (active) setAddressBook(previous => mergeAddressBookCache(previous, nextAddressBook));
+          if (active) {
+            setAddressBook(previous => mergeAddressBookCache(previous, nextAddressBook));
+            // Hydrate the normal AXIVESTRA contact/group registers from the saved sender cache.
+            // The callbacks are refs so the 8-second status poll does not depend on render identity.
+            if (nextAddressBook.contacts.length) importContactsRef.current?.(nextAddressBook.contacts);
+            if (nextAddressBook.groups.length) importGroupsRef.current?.(nextAddressBook.groups);
+          }
         } catch { /* Some remote senders do not expose address-book sync; keep the saved cache visible. */ }
       } catch (error) {
         if (active) setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) }));
