@@ -277,7 +277,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       makeWASocket,
       useMultiFileAuthState: module.useMultiFileAuthState,
       Browsers: module.Browsers || {},
-      DisconnectReason: module.DisconnectReason || {}
+      DisconnectReason: module.DisconnectReason || {},
+      fetchLatestBaileysVersion: module.fetchLatestBaileysVersion
     };
     return baileys;
   }
@@ -294,8 +295,21 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         const lib = await loadBaileys();
         const auth = await lib.useMultiFileAuthState(authDir);
         authState = auth.state;
+        // Negotiate the current WhatsApp Web protocol version when online. Older
+        // bundled defaults can be rejected before a QR is delivered. Keep a safe
+        // fallback so temporary version-endpoint failures do not block connection.
+        let webVersion;
+        if (typeof lib.fetchLatestBaileysVersion === "function") {
+          try {
+            const latest = await lib.fetchLatestBaileysVersion();
+            if (latest && Array.isArray(latest.version) && latest.version.length === 3) {
+              webVersion = latest.version;
+            }
+          } catch (_) {}
+        }
         const nextSocket = lib.makeWASocket({
           auth: auth.state,
+          ...(webVersion ? { version: webVersion } : {}),
           // This sender runs as a Windows desktop app. Prefer a matching desktop fingerprint
           // rather than advertising itself as macOS; keep fallbacks for older Baileys builds.
           browser: typeof lib.Browsers.windows === "function"
@@ -305,7 +319,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
               : undefined,
           printQRInTerminal: false,
           markOnlineOnConnect: false,
-          syncFullHistory: true,
+          // Avoid forcing a full history download during first-time device linking.
+          // Contacts/groups are still synced from events and the explicit sync action.
+          syncFullHistory: false,
           generateHighQualityLinkPreview: false
         });
         socket = nextSocket;
