@@ -67,7 +67,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 
 ## Data boundaries
 - Business records sync through the company-scoped Supabase table.
-- Document file bytes stay in the local IndexedDB vault and need separate backup/restore per device.
+- Document file bytes stay in the local IndexedDB vault, are scoped to the active company in the UI, and need separate backup/restore per device. A schema migration adds the company index; old unassigned documents are assigned only when the user explicitly imports legacy data into a company.
 - WhatsApp linked-device credentials, QR/pairing codes and the private PC companion token stay on the Windows sender and are never uploaded as business records.
 - Local browser/device caches are not encrypted against someone who can access the OS profile. Use device encryption, screen locks and encrypted backups.
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
@@ -82,7 +82,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - [ ] Create/update/delete a record on Windows and confirm a second device receives changes; test offline changes and deletion tombstones.
 - [ ] Test simultaneous edits of a record and manually review the chosen conflict result.
 - [ ] Test session expiry, email confirmation, password recovery, revoked membership and attempted owner escalation.
-- [ ] Back up/restore documents and verify actual file bytes.
+- [ ] Back up/restore documents and verify actual file bytes, company-vault separation and legacy assignment.
 - [ ] Test WhatsApp QR/pairing, contacts/groups, delivery, stop-on-reply and offline recovery with consenting real test accounts.
 - [ ] Install on a clean Windows profile and real Android device. The current APK workflow produces a debug APK; configure a separate signed release before public distribution.
 - [ ] Run all CI checks. Keep `main` unchanged until you explicitly approve merging the feature branch.
