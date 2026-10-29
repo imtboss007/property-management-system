@@ -65,6 +65,13 @@ Database row-level security (RLS), least-privilege grants and immutable record i
 ## Existing local data migration
 On first access to a company on a device, AXIVESTRA detects unscoped legacy records and asks whether to import them into the selected company or use cloud data. Back up first. For the first import only, local rows win matching ID conflicts and cloud-only rows are preserved. After that, a per-company baseline reconciles local and remote edits; overlapping edits use the latest local audit time versus the server's last update time, with ties preferring the remote value. Cloud tombstones prevent stale devices from resurrecting deleted rows. This is pragmatic conflict handling, not field-level merging; review important financial/legal changes after conflict notices.
 
+## WhatsApp search and background scheduling
+
+- Contact and group recipient selectors support text search by name, number or group name; the directory has separate search fields.
+- A successful WhatsApp sync imports the available contact and group cache into AXIVESTRA's saved records. A later disconnect or smaller sync response does not clear previously saved contacts/groups; sync is additive/upsert-based. User-deleted app records are a separate manual action.
+- The packaged Windows app is configured to start hidden at Windows login and keeps its scheduler running in the system tray when the window is closed. Open AXIVESTRA from the tray to manage messages. Selecting **Exit AXIVESTRA** intentionally stops the sender.
+- Scheduled messages still require the Windows PC to be powered on, awake, online, and linked to WhatsApp at the due time. Sleep, shutdown, internet loss, WhatsApp logout or an upstream protocol change can interrupt delivery. The Android APK is a companion UI; it does not itself host the Windows sender.
+
 ## Data boundaries
 - Business records sync through the company-scoped Supabase table.
 - Document file bytes stay in the local IndexedDB vault, are scoped to the active company in the UI, and need separate backup/restore per device. A schema migration adds the company index; old unassigned documents are assigned only when the user explicitly imports legacy data into a company.
@@ -83,7 +90,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - [ ] Test simultaneous edits of a record and manually review the chosen conflict result.
 - [ ] Test session expiry, email confirmation, password recovery, revoked membership and attempted owner escalation.
 - [ ] Back up/restore documents and verify actual file bytes, company-vault separation and legacy assignment.
-- [ ] Test WhatsApp QR/pairing, contacts/groups, delivery, stop-on-reply and offline recovery with consenting real test accounts.
+- [ ] Test WhatsApp QR/pairing, search by contact/group name, cache persistence after disconnect/restart, individual/group one-time messages, repeat sequences, stop-on-reply and offline recovery with consenting real test accounts.
 - [ ] Install on a clean Windows profile and real Android device. The current APK workflow produces a debug APK; configure a separate signed release before public distribution.
 - [ ] Run all CI checks. Keep `main` unchanged until you explicitly approve merging the feature branch.
 
