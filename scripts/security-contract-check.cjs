@@ -110,8 +110,7 @@ check("document files sync both directions through the authenticated companion a
   has(read("src/App.tsx"), /\/api\/documents\/upload/i) &&
   has(read("src/App.tsx"), /axivestra\.documentTombstones/i) &&
   has(read("electron/preload.cjs"), /getLocalSyncConnection/ ) &&
-  (has(read("src/App.tsx"), /Document file syncs with your linked PC/i) ||
-   has(read("src/App.tsx"), /files sync with your linked PC/i)));
+  has(read("src/App.tsx"), /documents sync with your linked PC/i));
 check("WhatsApp contact sync only upserts the persistent cache and does not clear it on disconnect",
   has(read("electron/whatsapp-service.cjs"), /async function upsertWhatsAppContacts/i) &&
   has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
