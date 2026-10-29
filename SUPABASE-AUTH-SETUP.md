@@ -27,7 +27,7 @@
 8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
 ## Deploy the invitation Edge Function
-The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying both SQL migrations:
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all three SQL migrations:
 
 ```bash
 supabase login
