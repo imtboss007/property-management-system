@@ -104,6 +104,77 @@ const prettyDate = (value: string) => {
   return Number.isFinite(time.getTime()) ? time.toLocaleString() : value;
 };
 
+// Treat imported WhatsApp metadata as an additive cache: a transient empty/partial
+// response must never erase contacts or group names already saved on this device.
+// Verified group membership is deliberately NOT unioned across refreshes/accounts.
+function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsAppAddressBook): WhatsAppAddressBook {
+  const contacts: SyncedWhatsAppContact[] = [];
+  for (const contact of [...previous.contacts, ...incoming.contacts]) {
+    const digits = String(contact.phone || "").replace(/\D/g, "");
+    const key = String(contact.jid || contact.id || "");
+    const index = contacts.findIndex(saved => {
+      const savedDigits = String(saved.phone || "").replace(/\D/g, "");
+      const savedKey = String(saved.jid || saved.id || "");
+      return Boolean((digits && savedDigits && digits === savedDigits) || (key && savedKey && key === savedKey));
+    });
+    if (index < 0) {
+      contacts.push(contact);
+    } else {
+      const saved = contacts[index];
+      contacts[index] = {
+        ...saved,
+        ...contact,
+        id: contact.id || saved.id,
+        jid: contact.jid || saved.jid,
+        phone: contact.phone || saved.phone,
+        name: contact.name || saved.name,
+        whatsappName: contact.whatsappName || saved.whatsappName,
+        notify: contact.notify || saved.notify,
+        verifiedName: contact.verifiedName || saved.verifiedName,
+        lastSyncedAt: contact.lastSyncedAt || saved.lastSyncedAt
+      };
+    }
+  }
+
+  const groups: WhatsAppGroupOption[] = [];
+  for (const group of [...previous.groups, ...incoming.groups]) {
+    const jid = String(group.jid || group.id || "");
+    if (!jid.endsWith("@g.us")) continue;
+    const index = groups.findIndex(saved => String(saved.jid || saved.id || "") === jid);
+    if (index < 0) {
+      groups.push({ ...group, jid });
+    } else {
+      const saved = groups[index];
+      groups[index] = {
+        ...saved,
+        ...group,
+        id: group.id || saved.id || jid,
+        jid,
+        name: group.name || group.subject || saved.name || saved.subject || "WhatsApp group",
+        subject: group.subject || saved.subject || group.name || saved.name,
+        description: group.description || saved.description,
+        size: Number.isFinite(group.size) && Number(group.size) > 0 ? group.size : saved.size,
+        lastSyncedAt: group.lastSyncedAt || saved.lastSyncedAt
+      };
+    }
+  }
+  contacts.sort((a, b) => String(a.whatsappName || a.name).localeCompare(String(b.whatsappName || b.name)));
+  groups.sort((a, b) => a.name.localeCompare(b.name));
+
+  const sameAccount = !previous.accountNumber || !incoming.accountNumber || previous.accountNumber === incoming.accountNumber;
+  return {
+    contacts,
+    groups,
+    lastSyncedAt: incoming.lastSyncedAt || previous.lastSyncedAt,
+    connected: incoming.connected,
+    accountNumber: incoming.accountNumber || previous.accountNumber || "",
+    activeGroupJids: Array.isArray(incoming.activeGroupJids) ? incoming.activeGroupJids : (sameAccount ? previous.activeGroupJids || [] : []),
+    counts: { contacts: contacts.length, groups: groups.length },
+    warnings: incoming.warnings?.length ? incoming.warnings : previous.warnings,
+    note: incoming.note || previous.note
+  };
+}
+
 export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [companionHost, setCompanionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
@@ -200,7 +271,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         setQueue(nextQueue);
         try {
           const nextAddressBook = await api.getAddressBook();
-          if (active) setAddressBook(nextAddressBook);
+          if (active) setAddressBook(previous => mergeAddressBookCache(previous, nextAddressBook));
         } catch { /* Some remote senders do not expose address-book sync; keep the saved cache visible. */ }
       } catch (error) {
         if (active) setStatus(previous => ({ ...previous, error: error instanceof Error ? error.message : String(error) }));
@@ -279,9 +350,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   };
 
   const applyAddressBook = (book: WhatsAppAddressBook) => {
-    setAddressBook(book);
-    if (book.contacts.length) onImportContacts?.(book.contacts);
-    if (book.groups.length) onImportGroups?.(book.groups);
+    const merged = mergeAddressBookCache(addressBook, book);
+    setAddressBook(merged);
+    if (merged.contacts.length) onImportContacts?.(merged.contacts);
+    if (merged.groups.length) onImportGroups?.(merged.groups);
   };
 
   const importSavedAddressBook = async () => {
@@ -315,7 +387,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     } catch (error) {
       try {
         const cached = await api.getAddressBook();
-        setAddressBook(cached);
+        setAddressBook(previous => mergeAddressBookCache(previous, cached));
       } catch {}
       inform("Live sync did not complete. Your previously saved contacts/groups have not been deleted. " + (error instanceof Error ? error.message : String(error)));
     } finally {
