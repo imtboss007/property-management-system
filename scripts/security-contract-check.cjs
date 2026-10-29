@@ -74,9 +74,9 @@ check("invitation function verifies the caller's JWT and owner/admin membership"
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
   has(invite, /"admin", "manager", "staff", "read_only"/i) &&
   has(invite, /Owner access cannot be invited/i));
-const viteAssignments = envExample.split(/\\r?\\n/)
+const viteAssignments = envExample.split(/\r?\n/)
   .map(line => line.trim())
-  .filter(line => /^VITE_[A-Z0-9_]+\\s*=/.test(line))
+  .filter(line => /^VITE_[A-Z0-9_]+\s*=/.test(line))
   .map(line => line.split("=")[0]);
 check("sample environment exposes only public Supabase client settings",
   viteAssignments.length === 2 &&
