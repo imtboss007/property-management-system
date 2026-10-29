@@ -62,11 +62,11 @@ check("company rename is written to governance audit history by database trigger
   has(metadata, /company_settings_changed/i) &&
   has(metadata, /company_name_change_audit/i));
 check("staff can submit pending approvals but cannot update or decide approval records",
-  has(approvals, /as restrictive[\\s\\S]{0,100}for update/i) &&
-  has(approvals, /record_type <> 'approval'[\\s\\S]{0,120}has_company_role\\(company_id, array\\['owner','admin','manager'\\]\\)/i) &&
-  has(approvals, /coalesce\\(nullif\\(payload ->> 'status', ''\\), 'pending'\\) = 'pending'/i));
+  has(approvals, /as restrictive[\s\S]{0,100}for update/i) &&
+  has(approvals, /record_type <> 'approval'[\s\S]{0,120}has_company_role\(company_id, array\['owner','admin','manager'\]\)/i) &&
+  has(approvals, /coalesce\(nullif\(payload ->> 'status', ''\), 'pending'\) = 'pending'/i));
 check("approval decision buttons are blocked for staff and read-only UI roles",
-  has(read("src/App.tsx"), /button\\.classList\\.contains\\("decision-button"\\)/i) &&
+  has(read("src/App.tsx"), /button\.classList\.contains\("decision-button"\)/i) &&
   has(read("src/App.tsx"), /Staff can submit approval requests but cannot approve or reject them/i));
 check("sign-in, sign-up, recovery and explicit local-only mode are implemented",
   has(authGate, /signInWithPassword/i) && has(authGate, /signUp\(/i) &&
