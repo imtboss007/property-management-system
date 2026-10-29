@@ -72,13 +72,19 @@ export async function prepareCompanyWorkspace(
   if (!supabase) throw new Error("Cloud authentication is not configured.");
   const { data: rows, error } = await supabase
     .from("company_records")
-    .select("record_type,record_key,payload")
-    .eq("company_id", company.id)
-    .is("deleted_at", null);
+    .select("record_type,record_key,payload,deleted_at")
+    .eq("company_id", company.id);
   if (error) throw new Error("Could not load this company's cloud records. Confirm the SQL migration is applied: " + error.message);
 
   const remoteByType = new Map<string, Array<Record<string, unknown> & { id: string }>>();
+  const deletedByType = new Map<string, Set<string>>();
   for (const row of rows || []) {
+    if (row.deleted_at) {
+      const deleted = deletedByType.get(row.record_type) || new Set<string>();
+      deleted.add(String(row.record_key));
+      deletedByType.set(row.record_type, deleted);
+      continue;
+    }
     const payload = row.payload as (Record<string, unknown> & { id?: string }) | null;
     if (!payload || typeof payload.id !== "string") continue;
     const bucket = remoteByType.get(row.record_type) || [];
@@ -112,9 +118,11 @@ export async function prepareCompanyWorkspace(
     }
 
     const merged = new Map<string, Record<string, unknown> & { id: string }>();
+    const tombstones = deletedByType.get(item.recordType) || new Set<string>();
     for (const row of remoteByType.get(item.recordType) || []) merged.set(row.id, row);
     // Preserve the currently selected device's version for an ID collision; keep cloud-only records.
-    for (const row of localRows) merged.set(row.id, row);
+    // A server-side tombstone wins over a stale copy on any device and prevents resurrection.
+    for (const row of localRows) if (!tombstones.has(row.id)) merged.set(row.id, row);
     const result = Array.from(merged.values());
     localStorage.setItem(key, JSON.stringify(result));
     counts[item.storageKey] = result.length;
