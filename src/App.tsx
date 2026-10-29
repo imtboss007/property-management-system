@@ -1235,11 +1235,19 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           button.classList.contains("primary-button") ||
           button.classList.contains("edit-button") ||
           button.classList.contains("delete-button") ||
+          button.classList.contains("decision-button") ||
+          button.classList.contains("task-check") ||
           button.type === "submit"
         )) {
           event.preventDefault();
           event.stopPropagation();
           setNotice("This account has read-only company access. Ask an owner to change your role if you need to edit records.");
+          return;
+        }
+        if (company.role === "staff" && button.classList.contains("decision-button")) {
+          event.preventDefault();
+          event.stopPropagation();
+          setNotice("Staff can submit approval requests but cannot approve or reject them. Ask a manager, admin or owner to decide.");
           return;
         }
         if (company.role === "staff" && button.classList.contains("delete-button")) {
