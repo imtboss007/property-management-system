@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, CalendarClock, CheckCircle2, QrCode, RefreshCw, Smartphone,
-  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users
+  Ban, RotateCcw, Send, Unplug, ShieldCheck, Info, Users, Search
 } from "lucide-react";
 
 type ContactOption = { id: string; name: string; phone: string; role?: string; whatsappName?: string; whatsappJid?: string };
@@ -131,6 +131,10 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
   const [recipientMode, setRecipientMode] = useState<"contact" | "group">("contact");
   const [selectedGroupJid, setSelectedGroupJid] = useState("");
   const [selectedContactId, setSelectedContactId] = useState("");
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientGroupSearch, setRecipientGroupSearch] = useState("");
+  const [directoryContactSearch, setDirectoryContactSearch] = useState("");
+  const [directoryGroupSearch, setDirectoryGroupSearch] = useState("");
   const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState("");
   const [selectedTaskTitle, setSelectedTaskTitle] = useState("");
@@ -165,6 +169,25 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
     ? groupOptions.filter(group => (addressBook.activeGroupJids || []).includes(group.jid) && (!addressBook.accountNumber || addressBook.accountNumber === status.senderNumber))
     : groupOptions, [groupOptions, status.connected, status.senderNumber, addressBook.activeGroupJids, addressBook.accountNumber]);
   const selectedGroup = useMemo(() => groupOptions.find(group => group.jid === selectedGroupJid), [groupOptions, selectedGroupJid]);
+  const filteredRecipientContacts = useMemo(() => {
+    const query = recipientSearch.trim().toLocaleLowerCase();
+    return contacts
+      .filter(contact => contact.phone.trim())
+      .filter(contact => !query || `${contact.name} ${contact.whatsappName || ""} ${contact.phone} ${contact.role || ""}`.toLocaleLowerCase().includes(query))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contacts, recipientSearch]);
+  const filteredRecipientGroups = useMemo(() => {
+    const query = recipientGroupSearch.trim().toLocaleLowerCase();
+    return sendableGroupOptions.filter(group => !query || `${group.name} ${group.jid}`.toLocaleLowerCase().includes(query));
+  }, [sendableGroupOptions, recipientGroupSearch]);
+  const filteredDirectoryContacts = useMemo(() => {
+    const query = directoryContactSearch.trim().toLocaleLowerCase();
+    return addressBook.contacts.filter(contact => !query || `${contact.whatsappName || ""} ${contact.name} ${contact.phone}`.toLocaleLowerCase().includes(query));
+  }, [addressBook.contacts, directoryContactSearch]);
+  const filteredDirectoryGroups = useMemo(() => {
+    const query = directoryGroupSearch.trim().toLocaleLowerCase();
+    return groupOptions.filter(group => !query || `${group.name} ${group.jid}`.toLocaleLowerCase().includes(query));
+  }, [groupOptions, directoryGroupSearch]);
 
   useEffect(() => {
     if (!api) return;
@@ -523,17 +546,23 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <section>
           <h3>Saved WhatsApp contacts</h3>
           <div className="wa-scroll-list">
+            <div className="wa-search-field"><Search size={16}/><input type="search" value={directoryContactSearch} onChange={event => setDirectoryContactSearch(event.target.value)} placeholder="Search synced contacts by name or number…" aria-label="Search synced WhatsApp directory"/></div>
             {addressBook.contacts.length === 0
               ? <p className="wa-muted">No cached WhatsApp contacts yet. Connect the account and sync.</p>
-              : addressBook.contacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to AXIVESTRA"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
+              : filteredDirectoryContacts.length === 0
+                ? <p className="wa-muted">No contacts match that search.</p>
+                : filteredDirectoryContacts.slice(0,1000).map(contact=><div className="wa-address-row" key={contact.jid || contact.id}><div><strong>{contact.whatsappName || contact.name}</strong><small>{contact.phone}</small></div><button className="secondary-button" disabled={!contact.phone.trim()} title={!contact.phone.trim() ? "WhatsApp did not provide a phone number for this ID. No fake number will be saved." : "Save this WhatsApp contact to AXIVESTRA"} onClick={() => onImportContacts?.([contact])}>{contact.phone.trim() ? "Save contact" : "No phone number"}</button></div>)}
           </div>
         </section>
         <section>
           <h3>Saved WhatsApp groups</h3>
           <div className="wa-scroll-list">
+            <div className="wa-search-field"><Search size={16}/><input type="search" value={directoryGroupSearch} onChange={event => setDirectoryGroupSearch(event.target.value)} placeholder="Search synced groups by name…" aria-label="Search synced WhatsApp groups"/></div>
             {groupOptions.length === 0
               ? <p className="wa-muted">No cached WhatsApp groups yet. Sync while WhatsApp is connected.</p>
-              : groupOptions.slice(0,1000).map(group=><div className="wa-address-row" key={group.jid}><div><strong>{group.name}</strong><small>{group.size ? group.size + " members · " : ""}{group.jid}</small></div><button className="secondary-button" onClick={() => onImportGroups?.([group])}>Save group</button></div>)}
+              : filteredDirectoryGroups.length === 0
+                ? <p className="wa-muted">No groups match that search.</p>
+                : filteredDirectoryGroups.slice(0,1000).map(group=><div className="wa-address-row" key={group.jid}><div><strong>{group.name}</strong><small>{group.size ? group.size + " members · " : ""}{group.jid}</small></div><button className="secondary-button" onClick={() => onImportGroups?.([group])}>Save group</button></div>)}
           </div>
         </section>
       </div>
@@ -558,13 +587,15 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       </div>
       {recipientMode === "contact" ? <>
         <label>Select saved contact
-          <span>Imported WhatsApp names and numbers are now available in AXIVESTRA Contacts.</span>
-          <select size={Math.min(Math.max(contacts.filter(contact => contact.phone.trim()).length, 4), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
-            <option value="">Choose a contact</option>
-            {contacts.filter(contact => contact.phone.trim()).map(contact =>
+          <span>Search by contact name, WhatsApp name, phone number or role. Synced contacts remain saved when disconnected.</span>
+          <div className="wa-search-field"><Search size={16}/><input type="search" value={recipientSearch} onChange={event => setRecipientSearch(event.target.value)} placeholder="Type a contact name or number…" aria-label="Search saved WhatsApp contacts"/></div>
+          <select size={Math.min(Math.max(filteredRecipientContacts.length, 3), 7)} value={selectedContactId} onChange={event => setSelectedContactId(event.target.value)}>
+            <option value="">Choose a contact ({filteredRecipientContacts.length})</option>
+            {filteredRecipientContacts.map(contact =>
               <option key={contact.id} value={contact.id}>{contact.name}{contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · {contact.phone}{contact.role ? " · " + contact.role : ""}</option>
             )}
           </select>
+          {filteredRecipientContacts.length === 0 && <small className="wa-muted">No matching contacts. Try a shorter name or enter the WhatsApp number manually below.</small>}
         </label>
         <div className="form-two">
           <label>Client / contact name<input value={contactName} onChange={event => setContactName(event.target.value)} placeholder="Client name"/></label>
@@ -572,11 +603,13 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         </div>
       </> : <div className="wa-group-target">
         <label>Select saved WhatsApp group
-          <span>Groups are cached in AXIVESTRA and remain visible when WhatsApp is disconnected. Sending requires the linked account to be connected.</span>
-          <select size={Math.min(Math.max(sendableGroupOptions.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
-            <option value="">Choose a WhatsApp group</option>
-            {sendableGroupOptions.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
+          <span>Search by group name. Saved groups remain cached even when WhatsApp is disconnected.</span>
+          <div className="wa-search-field"><Search size={16}/><input type="search" value={recipientGroupSearch} onChange={event => setRecipientGroupSearch(event.target.value)} placeholder="Type a group name…" aria-label="Search saved WhatsApp groups"/></div>
+          <select size={Math.min(Math.max(filteredRecipientGroups.length, 3), 7)} value={selectedGroupJid} onChange={event => setSelectedGroupJid(event.target.value)}>
+            <option value="">Choose a WhatsApp group ({filteredRecipientGroups.length})</option>
+            {filteredRecipientGroups.map(group => <option key={group.jid} value={group.jid}>{group.name}{group.size ? " · " + group.size + " members" : ""}</option>)}
           </select>
+          {filteredRecipientGroups.length === 0 && <small className="wa-muted">No matching groups. Sync the group list while WhatsApp is connected.</small>}
         </label>
         {selectedGroup && <div className="notice"><Users size={16}/><div><strong>{selectedGroup.name}</strong><p>{selectedGroup.size ? selectedGroup.size + " members · " : ""}WhatsApp group will be used as the message destination.</p></div></div>}
         {(status.connected ? sendableGroupOptions.length === 0 : groupOptions.length === 0) && <div className="notice notice-warn">{status.connected ? "No groups are verified for this currently linked WhatsApp account. Sync contacts & groups above." : "No synced groups saved yet. Connect WhatsApp and use “Sync WhatsApp contacts & groups” above."}</div>}
