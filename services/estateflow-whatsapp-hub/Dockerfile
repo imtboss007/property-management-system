@@ -2,7 +2,9 @@ FROM node:22-alpine
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json ./
-RUN npm install --omit=dev --ignore-scripts
+RUN apk add --no-cache git \
+    && npm install --omit=dev --ignore-scripts \
+    && apk del git
 COPY src ./src
 RUN mkdir -p /app/data && chown -R node:node /app
 USER node
