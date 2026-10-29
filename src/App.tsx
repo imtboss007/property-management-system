@@ -434,6 +434,7 @@ type DeviceSyncReply = {
   conflict?: boolean;
   status?: number;
   error?: string;
+  token?: string;
   revision?: number;
   updatedAt?: string;
   snapshot?: Partial<DeviceSyncSnapshot>;
@@ -451,6 +452,88 @@ function normalizeTrustedPcHost(value: string): string | null {
     if (!privateIp && !localName) return null;
     return parsed.origin;
   } catch { return null; }
+}
+
+async function requestPcPair(host: string, pairCode: string): Promise<{ ok?: boolean; token?: string; error?: string }> {
+  const url = host.replace(/\/+$/, "") + "/api/pair";
+  if (Capacitor.getPlatform() === "android") {
+    const response = await CapacitorHttp.post({ url, headers: { "Content-Type": "application/json" }, data: { pairCode } });
+    let data: { ok?: boolean; token?: string; error?: string } = {};
+    if (response.data && typeof response.data === "object") data = response.data as typeof data;
+    else if (typeof response.data === "string") { try { data = JSON.parse(response.data) as typeof data; } catch {} }
+    if (response.status < 200 || response.status >= 300 || data.ok !== true || !data.token) {
+      throw new Error(data.error || "Could not pair with the Windows PC.");
+    }
+    return data;
+  }
+  const response = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pairCode })
+  });
+  let data: { ok?: boolean; token?: string; error?: string } = {};
+  try { data = await response.json() as typeof data; } catch {}
+  if (!response.ok || data.ok !== true || !data.token) throw new Error(data.error || "Could not pair with the Windows PC.");
+  return data;
+}
+
+async function requestPcUnpair(host: string, token: string): Promise<void> {
+  const url = host.replace(/\/+$/, "") + "/api/unpair";
+  if (Capacitor.getPlatform() === "android") {
+    const response = await CapacitorHttp.post({ url, headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token }, data: {} });
+    if (response.status < 200 || response.status >= 300) throw new Error("The PC did not confirm unlinking.");
+    return;
+  }
+  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-EstateFlow-Token": token }, body: "{}" });
+  if (!response.ok) throw new Error("The PC did not confirm unlinking.");
+}
+
+type CompanionApiReply = {
+  ok?: boolean; error?: string; documents?: Array<Record<string, unknown>>;
+  record?: Record<string, unknown>; base64?: string; sha256?: string; updatedAt?: string;
+};
+
+async function requestPcCompanionApi(
+  host: string, token: string, route: string, method: "GET" | "POST",
+  body?: Record<string, unknown>
+): Promise<CompanionApiReply> {
+  const url = host.replace(/\/+$/, "") + route;
+  const headers = { "Content-Type": "application/json", "X-EstateFlow-Token": token };
+  if (Capacitor.getPlatform() === "android") {
+    const response = method === "GET"
+      ? await CapacitorHttp.get({ url, headers })
+      : await CapacitorHttp.post({ url, headers, data: body || {} });
+    let data: CompanionApiReply = {};
+    if (response.data && typeof response.data === "object") data = response.data as CompanionApiReply;
+    else if (typeof response.data === "string") { try { data = JSON.parse(response.data) as CompanionApiReply; } catch {} }
+    if (response.status < 200 || response.status >= 300 || data.ok === false) {
+      throw new Error(data.error || "The Windows companion request failed.");
+    }
+    return data;
+  }
+  const response = await fetch(url, {
+    method, headers, body: method === "POST" ? JSON.stringify(body || {}) : undefined
+  });
+  let data: CompanionApiReply = {};
+  try { data = await response.json() as CompanionApiReply; } catch {}
+  if (!response.ok || data.ok === false) throw new Error(data.error || "The Windows companion request failed.");
+  return data;
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let start = 0; start < bytes.length; start += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(start, Math.min(start + chunkSize, bytes.length)));
+  }
+  return btoa(binary);
+}
+
+function base64ToBlob(base64: string, mimeType: string): Blob {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mimeType || "application/octet-stream" });
 }
 
 async function requestPcSync(host: string, token: string, method: "GET" | "POST", body?: Record<string, unknown>): Promise<DeviceSyncReply> {
@@ -530,6 +613,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const cloudSyncSequenceRef = useRef(0);
   const cloudSyncInFlightRef = useRef(false);
   const cloudSyncPendingRef = useRef<(() => void) | null>(null);
+  const documentSyncInFlightRef = useRef(false);
+  const documentSyncRunRef = useRef<(() => Promise<void>) | null>(null);
   const [syncHost, setSyncHost] = useState(() => load("axivestra.syncHost", ""));
   const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
   const [syncBusy, setSyncBusy] = useState(false);
@@ -696,23 +781,32 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   // Windows publishes a local pairing QR. The Android app scans it once, then both
   // clients keep this shared snapshot synchronized automatically while they are connected.
   useEffect(() => {
-    if (company) return;
     const desktopApi = window.estateflowWhatsApp;
     if (!desktopApi?.getBridgeInfo) return;
     let active = true;
     void desktopApi.getBridgeInfo().then(async info => {
       const urls = (info.urls || []).map(normalizeTrustedPcHost).filter((value): value is string => Boolean(value));
-      if (!urls.length || !info.token) {
+      if (!urls.length || !info.pairCode) {
         if (active) setSyncStatus("Connect the Windows PC and phone to the same Wi-Fi to link them.");
         return;
       }
-      const qrText = JSON.stringify({ app: "AXIVESTRA", type: "device-sync", version: 1, urls, token: info.token });
+      const qrText = JSON.stringify({ app: "AXIVESTRA", type: "device-sync", version: 1, urls, pairCode: info.pairCode, expiresAt: info.pairExpiresAt });
       const dataUrl = await QRCode.toDataURL(qrText, { width: 260, margin: 2, errorCorrectionLevel: "M" });
       if (active) setDeviceSyncQr(dataUrl);
     }).catch(error => {
       if (active) setSyncStatus("Phone sync is unavailable: " + (error instanceof Error ? error.message : String(error)));
     });
-    return () => { active = false; };
+    const refreshCode = window.setInterval(() => {
+      if (!active) return;
+      void desktopApi.getBridgeInfo().then(async info => {
+        const urls = (info.urls || []).map(normalizeTrustedPcHost).filter((value): value is string => Boolean(value));
+        if (!urls.length || !info.pairCode || !active) return;
+        const qrText = JSON.stringify({ app: "AXIVESTRA", type: "device-sync", version: 1, urls, pairCode: info.pairCode, expiresAt: info.pairExpiresAt });
+        const dataUrl = await QRCode.toDataURL(qrText, { width: 260, margin: 2, errorCorrectionLevel: "M" });
+        if (active) setDeviceSyncQr(dataUrl);
+      }).catch(() => {});
+    }, 60000);
+    return () => { active = false; window.clearInterval(refreshCode); };
   }, [company?.id]);
 
   useEffect(() => {
@@ -811,6 +905,141 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
 
   useEffect(() => {
+    let disposed = false;
+    const getConnection = async (): Promise<{ host: string; token: string } | null> => {
+      const desktopApi = window.estateflowWhatsApp;
+      if (desktopApi?.getLocalSyncConnection) {
+        const connection = await desktopApi.getLocalSyncConnection();
+        return connection?.host && connection?.token ? connection : null;
+      }
+      return syncHost.trim() && syncToken.trim()
+        ? { host: syncHost.trim(), token: syncToken.trim() } : null;
+    };
+
+    const runDocumentSync = async () => {
+      if (disposed || documentSyncInFlightRef.current) return;
+      documentSyncInFlightRef.current = true;
+      try {
+        const connection = await getConnection();
+        if (!connection || disposed) return;
+        const companyId = company?.id || "";
+        const tombstoneKey = "axivestra.documentTombstones";
+        let tombstones: Record<string, { companyId: string; deletedAt: string }> = {};
+        try {
+          const parsed = JSON.parse(localStorage.getItem(tombstoneKey) || "{}");
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) tombstones = parsed;
+        } catch {}
+        let remote = await requestPcCompanionApi(
+          connection.host, connection.token, "/api/documents?companyId=" + encodeURIComponent(companyId), "GET"
+        );
+        let remoteRecords = Array.isArray(remote.documents) ? remote.documents : [];
+        const remoteById = new Map(remoteRecords
+          .filter(row => String(row.companyId || "") === companyId && typeof row.id === "string")
+          .map(row => [String(row.id), row]));
+        const localRecords = (await localDb.documents.toArray())
+          .filter(record => String(record.companyId || "") === companyId);
+
+        // Apply server tombstones first. A deleted file is never resurrected by an offline cache.
+        for (const [id, row] of remoteById) {
+          if (!row.deletedAt) continue;
+          const local = localRecords.find(record => record.id === id);
+          if (local) await localDb.documents.delete(id);
+          delete tombstones[id];
+        }
+
+        // Send device-side deletions to the PC, creating a tombstone even if the upload never completed.
+        for (const [id, tombstone] of Object.entries(tombstones)) {
+          if (String(tombstone.companyId || "") !== companyId) continue;
+          const remoteRow = remoteById.get(id);
+          if (!remoteRow || !remoteRow.deletedAt) {
+            const deleted = await requestPcCompanionApi(connection.host, connection.token, "/api/documents/delete", "POST", {
+              id, companyId
+            });
+            remoteById.set(id, { id, companyId, deletedAt: String(deleted.deletedAt || tombstone.deletedAt), updatedAt: String(deleted.deletedAt || tombstone.deletedAt) });
+          }
+        }
+
+        // Upload new files, and repair a metadata/file-size mismatch without repeating unchanged transfers.
+        for (const local of localRecords) {
+          if (disposed) return;
+          if (tombstones[local.id] || remoteById.get(local.id)?.deletedAt) continue;
+          const remoteRow = remoteById.get(local.id);
+          if (remoteRow && Number((remoteRow.record as Record<string, unknown> | undefined)?.sizeBytes) === local.sizeBytes) continue;
+          if (!local.file || local.file.size !== local.sizeBytes) {
+            throw new Error("Document file missing or damaged: " + local.name);
+          }
+          const base64 = await blobToBase64(local.file);
+          await requestPcCompanionApi(connection.host, connection.token, "/api/documents/upload", "POST", {
+            record: {
+              id: local.id, companyId, propertyId: local.propertyId, property: local.property,
+              contactId: local.contactId || "", name: local.name, category: local.category,
+              storagePath: local.storagePath, mimeType: local.mimeType, sizeBytes: local.sizeBytes,
+              expiresOn: local.expiresOn, notes: local.notes, createdAt: local.createdAt
+            },
+            base64
+          });
+        }
+
+        // Download files that exist only on the PC, including their full bytes and metadata.
+        remote = await requestPcCompanionApi(connection.host, connection.token, "/api/documents?companyId=" + encodeURIComponent(companyId), "GET");
+        remoteRecords = Array.isArray(remote.documents) ? remote.documents : [];
+        const latestRemoteById = new Map(remoteRecords
+          .filter(row => String(row.companyId || "") === companyId && typeof row.id === "string")
+          .map(row => [String(row.id), row]));
+        const currentLocal = (await localDb.documents.toArray())
+          .filter(record => String(record.companyId || "") === companyId);
+        for (const [id, row] of latestRemoteById) {
+          if (disposed) return;
+          if (row.deletedAt) {
+            if (currentLocal.some(record => record.id === id)) await localDb.documents.delete(id);
+            delete tombstones[id];
+            continue;
+          }
+          const metadata = row.record as DocumentRecord | null;
+          if (!metadata || typeof metadata.id !== "string") continue;
+          const current = currentLocal.find(record => record.id === id);
+          if (current && current.sizeBytes === metadata.sizeBytes) continue;
+          const fetched = await requestPcCompanionApi(
+            connection.host, connection.token,
+            "/api/documents/file?id=" + encodeURIComponent(id) + "&companyId=" + encodeURIComponent(companyId),
+            "GET"
+          );
+          if (!fetched.base64 || !fetched.record) continue;
+          const record = fetched.record as DocumentRecord;
+          const file = base64ToBlob(fetched.base64, record.mimeType);
+          if (file.size !== record.sizeBytes) throw new Error("Downloaded file failed its size check: " + record.name);
+          await localDb.documents.put({ ...record, companyId, file });
+        }
+
+        // Remove a tombstone from the local outbox once the server has confirmed it.
+        for (const [id, row] of latestRemoteById) if (row.deletedAt) delete tombstones[id];
+        localStorage.setItem(tombstoneKey, JSON.stringify(tombstones));
+        const refreshed = (await localDb.documents.orderBy("createdAt").reverse().toArray())
+          .filter(record => String(record.companyId || "") === companyId)
+          .map(({ file: _file, ...record }) => record);
+        if (!disposed) {
+          setDocuments(previous => JSON.stringify(previous) === JSON.stringify(refreshed) ? previous : refreshed);
+        }
+      } catch (error) {
+        if (!disposed && (error instanceof Error) && !/Could not connect|Failed to fetch|Network request failed/i.test(error.message)) {
+          setNotice("Document sync needs attention: " + error.message);
+        }
+      } finally {
+        documentSyncInFlightRef.current = false;
+      }
+    };
+    documentSyncRunRef.current = runDocumentSync;
+    const first = window.setTimeout(() => { void runDocumentSync(); }, 1400);
+    const interval = window.setInterval(() => { void runDocumentSync(); }, 15000);
+    return () => {
+      disposed = true;
+      window.clearTimeout(first);
+      window.clearInterval(interval);
+      if (documentSyncRunRef.current === runDocumentSync) documentSyncRunRef.current = null;
+    };
+  }, [company?.id, syncHost, syncToken, documents.length]);
+
+  useEffect(() => {
     const collections: Record<string, unknown[]> = {
       Property: properties,
       Contact: contacts,
@@ -852,10 +1081,20 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const syncWithPc = async () => {
     const run = deviceSyncRunRef.current;
     if (run) await run(true);
-    else setSyncStatus("Link this phone to the Windows PC first.");
+    else if (documentSyncRunRef.current) {
+      setSyncBusy(true);
+      try { await documentSyncRunRef.current(); setSyncStatus("Shared records and documents refreshed."); }
+      finally { setSyncBusy(false); }
+    } else setSyncStatus("Link this phone to the Windows PC first.");
   };
 
-  const unlinkPc = () => {
+  const unlinkPc = async () => {
+    const host = normalizeTrustedPcHost(syncHost);
+    const token = syncToken.trim();
+    if (host && token) {
+      try { await requestPcUnpair(host, token); }
+      catch { setSyncStatus("Could not reach the PC to revoke this phone link. Keep the PC and phone on the same Wi-Fi, then try Unlink again."); return; }
+    }
     localStorage.removeItem("axivestra.syncHost");
     localStorage.removeItem("axivestra.syncToken");
     localStorage.removeItem("estateflow.whatsapp.host");
@@ -883,39 +1122,42 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       const scanned = await BarcodeScanner.scan({ formats: [BarcodeFormat.QrCode] });
       const raw = scanned.barcodes.find(barcode => barcode.rawValue)?.rawValue || "";
       if (!raw) throw new Error("No AXIVESTRA code was scanned.");
-      let payload: { app?: string; type?: string; version?: number; urls?: string[]; token?: string };
+      let payload: { app?: string; type?: string; version?: number; urls?: string[]; pairCode?: string; expiresAt?: number };
       try { payload = JSON.parse(raw) as typeof payload; }
       catch { throw new Error("This is not an AXIVESTRA device-link code."); }
       if (payload.app !== "AXIVESTRA" || payload.type !== "device-sync" || payload.version !== 1
-        || !Array.isArray(payload.urls) || !payload.token || payload.token.length < 32) {
-        throw new Error("This QR code cannot link AXIVESTRA devices.");
+        || !Array.isArray(payload.urls) || !payload.pairCode || payload.pairCode.length < 32
+        || !Number.isFinite(payload.expiresAt) || Number(payload.expiresAt) <= Date.now()) {
+        throw new Error("This AXIVESTRA link code has expired. Refresh the code on Windows and scan again.");
       }
       let connectedHost = "";
+      let connectedToken = "";
       let lastFailure: unknown;
       for (const candidate of payload.urls) {
         const host = normalizeTrustedPcHost(String(candidate || ""));
         if (!host) continue;
         try {
-          const result = await requestPcSync(host, payload.token, "GET");
-          if (result.ok && Number.isSafeInteger(result.revision) && result.snapshot) {
+          const paired = await requestPcPair(host, payload.pairCode);
+          if (paired.ok && paired.token && paired.token.length >= 32) {
             connectedHost = host;
+            connectedToken = paired.token;
             break;
           }
         } catch (error) { lastFailure = error; }
       }
-      if (!connectedHost) {
+      if (!connectedHost || !connectedToken) {
         throw new Error(lastFailure instanceof Error
           ? lastFailure.message
-          : "The PC could not be reached. Keep both devices on the same Wi-Fi and AXIVESTRA open on Windows.");
+          : "The PC could not be reached. Keep both devices on the same Wi-Fi and AXIVESTRA running in the Windows tray.");
       }
-      // One scan links business-data sync and the WhatsApp PC companion together.
+      // A one-time QR exchanges for a device-only token; the Windows master token is never in the QR.
       localStorage.setItem("axivestra.syncHost", connectedHost);
-      localStorage.setItem("axivestra.syncToken", payload.token);
+      localStorage.setItem("axivestra.syncToken", connectedToken);
       localStorage.setItem("estateflow.whatsapp.host", connectedHost);
-      localStorage.setItem("estateflow.whatsapp.token", payload.token);
+      localStorage.setItem("estateflow.whatsapp.token", connectedToken);
       localStorage.removeItem("axivestra.deviceSyncBaseline");
       setSyncHost(connectedHost);
-      setSyncToken(payload.token);
+      setSyncToken(connectedToken);
       setSyncStatus("Phone linked. Syncing your shared records…");
     } catch (error) {
       setSyncStatus(error instanceof Error ? error.message : String(error));
@@ -1096,7 +1338,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       setDocumentNotes("");
       setDocumentExpiry("");
       setDocumentContact("");
-      setNotice("Document saved in AXIVESTRA's local vault on this device.");
+      setNotice("Document saved. It will sync with your linked device automatically.");
     } catch (error) {
       setNotice("Local document save failed: " + (error instanceof Error ? error.message : String(error)));
     } finally {
@@ -1142,9 +1384,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         setNotice("This document is not available in the active company vault.");
         return;
       }
+      const tombstoneKey = "axivestra.documentTombstones";
+      let tombstones: Record<string, { companyId: string; deletedAt: string }> = {};
+      try {
+        const parsed = JSON.parse(localStorage.getItem(tombstoneKey) || "{}");
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) tombstones = parsed;
+      } catch {}
+      tombstones[record.id] = { companyId: company?.id || "", deletedAt: new Date().toISOString() };
+      localStorage.setItem(tombstoneKey, JSON.stringify(tombstones));
       await localDb.documents.delete(record.id);
       setDocuments(previous => previous.filter(item => item.id !== record.id));
-      setNotice("Document and local file deleted.");
+      setNotice("Document deleted. The deletion will sync to your linked device.");
     } catch (error) {
       setNotice("Document delete failed: " + (error instanceof Error ? error.message : String(error)));
     }
@@ -1764,7 +2014,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onDeleteTask={deleteTask}
           />}
           {active === "Documents" && <section className="data-panel">
-            <div className="section-heading"><div><h2>Local document vault</h2><p>{documents.length} saved documents · files stored on this device</p></div><div className="finance-actions"><button className="secondary-button" disabled={documentVaultBusy} onClick={()=>void exportDocumentVault()}>{documentVaultBusy?"Working…":"Export vault backup"}</button><label className={"secondary-button "+(documentVaultBusy?"disabled":"")}>Import vault backup<input type="file" accept=".json,application/json" disabled={documentVaultBusy} hidden onChange={event=>{const file=event.target.files?.[0];if(file)void importDocumentVault(file);event.currentTarget.value="";}}/></label></div></div>
+            <div className="section-heading"><div><h2>Document vault</h2><p>{documents.length} saved documents · documents sync with your linked PC</p></div><div className="finance-actions"><button className="secondary-button" disabled={documentVaultBusy} onClick={()=>void exportDocumentVault()}>{documentVaultBusy?"Working…":"Export vault backup"}</button><label className={"secondary-button "+(documentVaultBusy?"disabled":"")}>Import vault backup<input type="file" accept=".json,application/json" disabled={documentVaultBusy} hidden onChange={event=>{const file=event.target.files?.[0];if(file)void importDocumentVault(file);event.currentTarget.value="";}}/></label></div></div>
             <div className="notice notice-warn">Documents are saved in this browser/app's local database. They do not sync to your PC or other phone automatically. Download important files separately before changing devices or clearing app data.</div>
             <div className="document-upload-card">
               <div className="form-two">
@@ -1800,7 +2050,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records are cached under this company's local namespace and synced to its company-scoped cloud records when online. Document file bytes remain in this device's IndexedDB vault and need a separate vault backup." : "Records automatically sync with your linked Windows PC while both devices are connected. Document file bytes remain on this device and must be backed up separately."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{company ? <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync by company ID through Supabase row-level security. Updates are debounced, and cloud-only records are retained during initial merge. The Windows WhatsApp companion is separate from this business-record cloud sync.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div> : <div className="settings-card"><h3>Link phone and PC</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>Scan this code in AXIVESTRA on your Android phone.</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p></div> : Capacitor.getPlatform() === "android" ? <div><p>{syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Link once to share the same records and WhatsApp directory."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Link to PC"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to get the phone link code.</p>}</div>}<div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : "Your business records and document files automatically sync with your linked Windows PC while both devices are connected."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{company && <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync automatically through your AXIVESTRA account. The phone link also shares the Windows WhatsApp session and document files.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div>}<div className="settings-card"><h3>Sync WhatsApp + data</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>Open AXIVESTRA on your Android phone and scan this code once.</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p></div> : Capacitor.getPlatform() === "android" ? <div><p>{syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Scan the PC code once to share records, documents and its linked WhatsApp number."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Scan PC code"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to display the link code.</p>}</div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>

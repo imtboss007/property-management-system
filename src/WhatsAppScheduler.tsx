@@ -25,11 +25,12 @@ type DirectStatus = {
   webhook?: { configured: boolean; reason?: string; error?: string; provider?: string };
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
-type BridgeInfo = { port: number; urls: string[]; token: string };
+type BridgeInfo = { port: number; urls: string[]; pairCode: string; pairExpiresAt: number };
 type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
+  getLocalSyncConnection?: () => Promise<{ host: string; token: string }>;
   getDataSync?: () => Promise<{ ok: boolean; revision: number; updatedAt: string; snapshot: Partial<import("./lib/device-sync").DeviceSyncSnapshot> }>;
   saveDataSync?: (expectedRevision: number, snapshot: import("./lib/device-sync").DeviceSyncSnapshot) => Promise<{ ok: boolean; conflict?: boolean; revision: number; updatedAt: string; snapshot: Partial<import("./lib/device-sync").DeviceSyncSnapshot> }>;
   getQueue: () => Promise<ScheduleRow[]>;

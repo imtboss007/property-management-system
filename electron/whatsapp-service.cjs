@@ -30,10 +30,18 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const queuePath = path.join(userData, "whatsapp-scheduled-messages.json");
   const addressBookPath = path.join(userData, "whatsapp-address-book.json");
   const dataSyncPath = path.join(userData, "axivestra-data-sync.json");
+  const documentIndexPath = path.join(userData, "axivestra-document-vault.json");
+  const documentFilesDir = path.join(userData, "axivestra-document-vault");
   let dataSyncWrite = Promise.resolve();
   let dataSyncTransaction = Promise.resolve();
+  let documentIndexWrite = Promise.resolve();
+  let documentIndexTransaction = Promise.resolve();
   const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
+  const deviceTokenPath = path.join(userData, "axivestra-device-companion-token.txt");
   let bridgeToken = "";
+  let deviceToken = "";
+  let devicePairingCode = "";
+  let devicePairingExpiresAt = 0;
   let bridgeServer = null;
   let bridgePort = 47821;
   let socket = null;
@@ -761,7 +769,169 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     return bridgeToken;
   }
 
-    async function readDataSyncStore() {
+  async function ensureDeviceToken() {
+    if (deviceToken) return deviceToken;
+    try { deviceToken = (await fs.readFile(deviceTokenPath, "utf8")).trim(); } catch (_) {}
+    if (!deviceToken) await rotateDeviceToken();
+    return deviceToken;
+  }
+
+  async function rotateDeviceToken() {
+    deviceToken = crypto.randomBytes(32).toString("hex");
+    await fs.writeFile(deviceTokenPath, deviceToken, { encoding: "utf8", mode: 0o600 });
+    return deviceToken;
+  }
+
+  function getDevicePairingCode() {
+    if (!devicePairingCode || Date.now() >= devicePairingExpiresAt) {
+      devicePairingCode = crypto.randomBytes(32).toString("hex");
+      devicePairingExpiresAt = Date.now() + 5 * 60 * 1000;
+    }
+    return { pairCode: devicePairingCode, pairExpiresAt: devicePairingExpiresAt };
+  }
+
+  function timingSafeTokenMatch(provided, expected) {
+    const a = Buffer.from(String(provided || ""));
+    const b = Buffer.from(String(expected || ""));
+    return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+  }
+
+    async function readDocumentIndex() {
+    await fs.mkdir(documentFilesDir, { recursive: true });
+    try {
+      const saved = JSON.parse(await fs.readFile(documentIndexPath, "utf8"));
+      return {
+        version: 1,
+        records: saved && saved.records && typeof saved.records === "object" && !Array.isArray(saved.records)
+          ? saved.records : {}
+      };
+    } catch (error) {
+      if (error && error.code !== "ENOENT") throw new Error("Could not read the saved AXIVESTRA document index: " + error.message);
+      return { version: 1, records: {} };
+    }
+  }
+
+  async function saveDocumentIndex(index) {
+    documentIndexWrite = documentIndexWrite.catch(() => {}).then(async () => {
+      const tempPath = documentIndexPath + ".tmp";
+      await fs.writeFile(tempPath, JSON.stringify(index, null, 2), { encoding: "utf8", mode: 0o600 });
+      await fs.rename(tempPath, documentIndexPath);
+    });
+    await documentIndexWrite;
+  }
+
+  async function withDocumentIndex(operation) {
+    const previous = documentIndexTransaction;
+    let release;
+    documentIndexTransaction = new Promise(resolve => { release = resolve; });
+    await previous.catch(() => {});
+    try {
+      const index = await readDocumentIndex();
+      const result = await operation(index);
+      await saveDocumentIndex(index);
+      return result;
+    } finally {
+      release();
+    }
+  }
+
+  function sanitizeDocumentRecord(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("A valid document record is required.");
+    const id = String(value.id || "");
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error("Invalid document ID.");
+    const sizeBytes = Number(value.sizeBytes);
+    if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 25 * 1024 * 1024) {
+      throw new Error("Documents must be no larger than 25 MB.");
+    }
+    const companyId = String(value.companyId || "");
+    return {
+      id, companyId: companyId.slice(0, 128),
+      propertyId: String(value.propertyId || "").slice(0, 128),
+      property: String(value.property || "").slice(0, 500),
+      contactId: String(value.contactId || "").slice(0, 128),
+      name: String(value.name || "Document").slice(0, 255),
+      category: String(value.category || "Other").slice(0, 120),
+      storagePath: id,
+      mimeType: String(value.mimeType || "application/octet-stream").slice(0, 160),
+      sizeBytes,
+      expiresOn: String(value.expiresOn || "").slice(0, 40),
+      notes: String(value.notes || "").slice(0, 5000),
+      createdAt: String(value.createdAt || new Date().toISOString()).slice(0, 60)
+    };
+  }
+
+  async function listSyncedDocuments(companyIdInput = "") {
+    const index = await readDocumentIndex();
+    const companyId = String(companyIdInput || "");
+    return Object.values(index.records).filter(item => String(item.companyId || "") === companyId).map(item => ({
+      id: item.id, companyId: item.companyId || "",
+      record: item.record || null, sha256: item.sha256 || "",
+      updatedAt: item.updatedAt || "", deletedAt: item.deletedAt || ""
+    }));
+  }
+
+  async function uploadSyncedDocument(body) {
+    const record = sanitizeDocumentRecord(body.record);
+    const base64 = String(body.base64 || "");
+    if (!base64 || base64.length > 36 * 1024 * 1024 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
+      throw new Error("Invalid document file data.");
+    }
+    const bytes = Buffer.from(base64, "base64");
+    if (bytes.length !== record.sizeBytes || bytes.length > 25 * 1024 * 1024) {
+      throw new Error("The document file size does not match its metadata or exceeds 25 MB.");
+    }
+    const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+    return await withDocumentIndex(async index => {
+      const previous = index.records[record.id];
+      if (previous?.deletedAt) throw new Error("This document was deleted from the shared vault and cannot be restored by routine sync.");
+      if (previous && String(previous.companyId || "") !== record.companyId) {
+        throw new Error("This document ID already belongs to a different company workspace.");
+      }
+      const filePath = path.join(documentFilesDir, record.id + ".bin");
+      const tempPath = filePath + ".tmp";
+      await fs.writeFile(tempPath, bytes, { mode: 0o600 });
+      await fs.rename(tempPath, filePath);
+      const entry = { id: record.id, companyId: record.companyId, record, sha256,
+        updatedAt: new Date().toISOString(), deletedAt: "" };
+      index.records[record.id] = entry;
+      return { id: record.id, companyId: record.companyId, sha256, updatedAt: entry.updatedAt };
+    });
+  }
+
+  async function getSyncedDocumentFile(idInput, companyIdInput) {
+    const id = String(idInput || "");
+    const companyId = String(companyIdInput || "");
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error("Invalid document ID.");
+    const index = await readDocumentIndex();
+    const item = index.records[id];
+    if (!item || item.deletedAt || !item.record) throw new Error("This shared document is not available.");
+    if (String(item.companyId || "") !== companyId) throw new Error("This document belongs to a different company workspace.");
+    const bytes = await fs.readFile(path.join(documentFilesDir, id + ".bin"));
+    return { id, record: item.record, sha256: item.sha256, updatedAt: item.updatedAt, base64: bytes.toString("base64") };
+  }
+
+  async function deleteSyncedDocument(body) {
+    const id = String(body.id || "");
+    const companyId = String(body.companyId || "");
+    if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error("Invalid document ID.");
+    return await withDocumentIndex(async index => {
+      const now = new Date().toISOString();
+      const previous = index.records[id];
+      if (previous && String(previous.companyId || "") !== companyId) {
+        throw new Error("This document belongs to a different company workspace.");
+      }
+      index.records[id] = {
+        id, companyId,
+        record: previous?.record || null,
+        sha256: previous?.sha256 || "",
+        updatedAt: now, deletedAt: previous?.deletedAt || now
+      };
+      try { await fs.rm(path.join(documentFilesDir, id + ".bin"), { force: true }); } catch (_) {}
+      return { id, companyId, deletedAt: index.records[id].deletedAt };
+    });
+  }
+
+  async function readDataSyncStore() {
     try {
       const value = JSON.parse(await fs.readFile(dataSyncPath, "utf8"));
       return {
@@ -813,7 +983,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         addresses.push("http://" + item.address + ":" + bridgePort);
       }
     }
-    return { port: bridgePort, urls: Array.from(new Set(addresses)), token: bridgeToken };
+    return { port: bridgePort, urls: Array.from(new Set(addresses)), ...getDevicePairingCode() };
   }
 
   function bridgeReply(response, code, value) {
@@ -837,11 +1007,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     return raw.trim() ? JSON.parse(raw) : {};
   }
 
+  function suppliedBridgeToken(request, url) {
+    return String(request.headers["x-estateflow-token"] || url.searchParams.get("token") || "");
+  }
+
   function bridgeTokenValid(request, url) {
-    const value = String(request.headers["x-estateflow-token"] || url.searchParams.get("token") || "");
-    const a = Buffer.from(value);
-    const b = Buffer.from(bridgeToken);
-    return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+    const value = suppliedBridgeToken(request, url);
+    return timingSafeTokenMatch(value, bridgeToken) || timingSafeTokenMatch(value, deviceToken);
   }
 
   async function handleBridgeRequest(request, response) {
@@ -854,18 +1026,58 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       bridgeReply(response, 404, { ok: false, error: "Not found." });
       return;
     }
+    // QR codes contain only a short-lived, single-use pairing ticket, never a live API token.
+    if (request.method === "POST" && url.pathname === "/api/pair") {
+      try {
+        const body = await readBridgeBody(request, 64 * 1024);
+        const supplied = String(body.pairCode || "");
+        if (!devicePairingCode || Date.now() >= devicePairingExpiresAt
+          || !timingSafeTokenMatch(supplied, devicePairingCode)) {
+          bridgeReply(response, 401, { ok: false, error: "This link code expired or was already used. Refresh the code on the Windows PC." });
+          return;
+        }
+        devicePairingCode = "";
+        devicePairingExpiresAt = 0;
+        bridgeReply(response, 200, { ok: true, token: deviceToken });
+      } catch (error) {
+        bridgeReply(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+      return;
+    }
+    if (request.method === "POST" && url.pathname === "/api/unpair" && bridgeTokenValid(request, url)) {
+      if (!timingSafeTokenMatch(suppliedBridgeToken(request, url), deviceToken)) {
+        bridgeReply(response, 403, { ok: false, error: "Only the linked phone can revoke its device token." });
+        return;
+      }
+      try {
+        await rotateDeviceToken();
+        bridgeReply(response, 200, { ok: true });
+      } catch (error) {
+        bridgeReply(response, 500, { ok: false, error: "Could not revoke the phone link." });
+      }
+      return;
+    }
     if (!bridgeTokenValid(request, url)) {
       bridgeReply(response, 401, { ok: false, error: "Invalid EstateFlow desktop companion code." });
       return;
     }
     try {
       const route = url.pathname;
-      const body = request.method === "POST"
-        ? await readBridgeBody(request, route === "/api/data-sync" ? 25 * 1024 * 1024 : 1024 * 1024)
-        : {};
+      const bodyLimit = route === "/api/data-sync" ? 25 * 1024 * 1024
+        : route === "/api/documents/upload" ? 36 * 1024 * 1024 : 1024 * 1024;
+      const body = request.method === "POST" ? await readBridgeBody(request, bodyLimit) : {};
       if (request.method === "GET" && route === "/api/data-sync") {
         const store = await readDataSyncStore();
         bridgeReply(response, 200, { ok: true, schemaVersion: store.schemaVersion, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot });
+        return;
+      }
+      if (request.method === "GET" && route === "/api/documents") {
+        bridgeReply(response, 200, { ok: true, documents: await listSyncedDocuments(url.searchParams.get("companyId") || "") });
+        return;
+      }
+      if (request.method === "GET" && route === "/api/documents/file") {
+        const file = await getSyncedDocumentFile(url.searchParams.get("id"), url.searchParams.get("companyId"));
+        bridgeReply(response, 200, { ok: true, ...file });
         return;
       }
       if (request.method === "POST" && route === "/api/data-sync") {
@@ -905,7 +1117,11 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         return;
       }
       let result;
-      if (route === "/api/sync-address-book") {
+      if (route === "/api/documents/upload") {
+        result = await uploadSyncedDocument(body);
+      } else if (route === "/api/documents/delete") {
+        result = await deleteSyncedDocument(body);
+      } else if (route === "/api/sync-address-book") {
         result = await syncAddressBook();
       } else if (route === "/api/connect") {
         pairingRequested = false;
@@ -935,6 +1151,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function startBridge() {
     await ensureBridgeToken();
+    await ensureDeviceToken();
     if (bridgeServer) return;
     const server = http.createServer((request, response) => {
       void handleBridgeRequest(request, response).catch(error => {
@@ -965,6 +1182,10 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   ipcMain.handle("estateflow:wa:get-address-book", getAddressBook);
   ipcMain.handle("estateflow:wa:sync-address-book", syncAddressBook);
   ipcMain.handle("estateflow:wa:get-bridge-info", async () => { await startBridge(); return bridgeInfo(); });
+  ipcMain.handle("estateflow:wa:get-local-sync-connection", async () => {
+    await startBridge();
+    return { host: "http://127.0.0.1:" + bridgePort, token: deviceToken };
+  });
   ipcMain.handle("estateflow:wa:get-data-sync", async () => {
     const store = await readDataSyncStore();
     return { ok: true, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot };

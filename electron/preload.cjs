@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("estateflowWhatsApp", {
   getAddressBook: () => ipcRenderer.invoke("estateflow:wa:get-address-book"),
   syncAddressBook: () => ipcRenderer.invoke("estateflow:wa:sync-address-book"),
   getBridgeInfo: () => ipcRenderer.invoke("estateflow:wa:get-bridge-info"),
+  getLocalSyncConnection: () => ipcRenderer.invoke("estateflow:wa:get-local-sync-connection"),
   getDataSync: () => ipcRenderer.invoke("estateflow:wa:get-data-sync"),
   saveDataSync: (expectedRevision, snapshot) => ipcRenderer.invoke("estateflow:wa:save-data-sync", { expectedRevision, snapshot }),
   connect: () => ipcRenderer.invoke("estateflow:wa:connect"),

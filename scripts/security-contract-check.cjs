@@ -96,6 +96,22 @@ check("Windows message queue runs in tray and starts hidden at user login",
   has(read("electron/main.cjs"), /win\.hide\(\)/i) &&
   has(read("electron/whatsapp-service.cjs"), /tick = setInterval\(\(\) => \{ void schedulerTick/i) &&
   has(read("electron/whatsapp-service.cjs"), /whatsapp-scheduled-messages\.json/i));
+check("Android pairing QR uses a short-lived one-time code, not the Windows master token",
+  has(read("electron/whatsapp-service.cjs"), /devicePairingExpiresAt/) &&
+  has(read("electron/whatsapp-service.cjs"), /url\.pathname === "\/api\/pair"/) &&
+  has(read("electron/whatsapp-service.cjs"), /url\.pathname === "\/api\/unpair"/) &&
+  has(read("src/App.tsx"), /pairCode: info\.pairCode/) &&
+  has(read("src/App.tsx"), /requestPcPair\(host, payload\.pairCode\)/) &&
+  !has(read("src/App.tsx"), /urls, token: info\.token/));
+check("document files sync both directions through the authenticated companion and deletions use tombstones",
+  has(read("electron/whatsapp-service.cjs"), /async function uploadSyncedDocument/i) &&
+  has(read("electron/whatsapp-service.cjs"), /async function getSyncedDocumentFile/i) &&
+  has(read("electron/whatsapp-service.cjs"), /async function deleteSyncedDocument/i) &&
+  has(read("src/App.tsx"), /\/api\/documents\/upload/i) &&
+  has(read("src/App.tsx"), /axivestra\.documentTombstones/i) &&
+  has(read("electron/preload.cjs"), /getLocalSyncConnection/ ) &&
+  (has(read("src/App.tsx"), /Document file syncs with your linked PC/i) ||
+   has(read("src/App.tsx"), /files sync with your linked PC/i)));
 check("WhatsApp contact sync only upserts the persistent cache and does not clear it on disconnect",
   has(read("electron/whatsapp-service.cjs"), /async function upsertWhatsAppContacts/i) &&
   has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
