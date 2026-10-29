@@ -123,7 +123,7 @@ check("WhatsApp phone normalisation and deduplication remove punctuation consist
   has(whatsappService, /function normalizeDigits\(raw\)/i) &&
   whatsappService.includes('return String(raw || "").replace(/\\D/g, "");') &&
   has(whatsappService, /normalizeDigits\(raw\.phoneNumber \|\| raw\.phone\)/i) &&
-  has(whatsappService, /normalizeDigits\(rawJid\.split\("@")[0\]\.split\(":")[0\]\)/i) &&
+  whatsappService.includes('normalizeDigits(rawJid.split("@")[0].split(":")[0])') &&
   has(whatsappService, /normalizeDigits\(item\.phone\) === normalizeDigits\(incoming\.phone\)/i));
 check("interrupted in-flight WhatsApp sends are surfaced as uncertain instead of resent",
   has(whatsappService, /row\.status !== "sending"/i) &&
