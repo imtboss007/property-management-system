@@ -1071,7 +1071,38 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   return (
-    <main className="app-shell">
+    <main
+      className={company?.role === "read_only" ? "app-shell workspace-readonly" : "app-shell"}
+      onClickCapture={event => {
+        if (!company) return;
+        const target = event.target instanceof Element ? event.target : null;
+        const button = target?.closest("button");
+        if (!button) return;
+        if (company.role === "read_only" && (
+          button.classList.contains("primary-button") ||
+          button.classList.contains("edit-button") ||
+          button.classList.contains("delete-button") ||
+          button.type === "submit"
+        )) {
+          event.preventDefault();
+          event.stopPropagation();
+          setNotice("This account has read-only company access. Ask an owner to change your role if you need to edit records.");
+          return;
+        }
+        if (company.role === "staff" && button.classList.contains("delete-button")) {
+          event.preventDefault();
+          event.stopPropagation();
+          setNotice("Staff cannot delete shared company records. Ask a manager or owner.");
+        }
+      }}
+      onSubmitCapture={event => {
+        if (company?.role === "read_only") {
+          event.preventDefault();
+          event.stopPropagation();
+          setNotice("This account has read-only company access.");
+        }
+      }}
+    >
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
         <div className="brand"><div className="brand-mark ax-brand-mark"><img src="./axivestra-mark.svg" alt="" /></div><div><strong>AXIVESTRA</strong><span>ASSET INTELLIGENCE</span></div>
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
