@@ -25,27 +25,33 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Download packages from the successful build
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: AXIVESTRA-Setup-1.0.0-x64.exe
+          path: dist/release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Download Android APK artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: app-debug.apk
+          path: dist/release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Validate and prepare release files
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          mkdir -p dist/downloaded dist/release
-          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir dist/downloaded
-
-          WINDOWS_EXE="$(find dist/downloaded -type f -name 'AXIVESTRA-Setup-*-x64.exe' -print -quit)"
-          ANDROID_APK="$(find dist/downloaded -type f -name 'app-debug.apk' -print -quit)"
-          test -n "$WINDOWS_EXE" || { echo "Windows installer artifact is missing."; exit 1; }
-          test -n "$ANDROID_APK" || { echo "Android APK artifact is missing."; exit 1; }
-          test -s "$WINDOWS_EXE"
-          test -s "$ANDROID_APK"
-
-          cp "$WINDOWS_EXE" dist/release/
-          cp "$ANDROID_APK" dist/release/AXIVESTRA-Android.apk
+          test -s dist/release/AXIVESTRA-Setup-1.0.0-x64.exe || { echo "Windows installer is missing."; exit 1; }
+          test -s dist/release/app-debug.apk || { echo "Android APK is missing."; exit 1; }
+          mv dist/release/app-debug.apk dist/release/AXIVESTRA-Android.apk
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
-          echo "WINDOWS_FILE=$(find dist/release -maxdepth 1 -type f -name '*.exe' -print -quit)" >> "$GITHUB_ENV"
 
       - name: Publish a versioned GitHub Release
         env:
@@ -61,12 +67,11 @@ jobs:
             exit 0
           fi
 
-          ANDROID_FILE="dist/release/AXIVESTRA-Android.apk"
-          WINDOWS_FILE="$(find dist/release -maxdepth 1 -type f -name '*.exe' -print -quit)"
-          test -s "$WINDOWS_FILE"
-          test -s "$ANDROID_FILE"
-
-          gh release create "$TAG" "$WINDOWS_FILE" "$ANDROID_FILE" \
+          test -s dist/release/AXIVESTRA-Setup-1.0.0-x64.exe
+          test -s dist/release/AXIVESTRA-Android.apk
+          gh release create "$TAG" \
+            dist/release/AXIVESTRA-Setup-1.0.0-x64.exe \
+            dist/release/AXIVESTRA-Android.apk \
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" \
             --title "AXIVESTRA $TAG" \
