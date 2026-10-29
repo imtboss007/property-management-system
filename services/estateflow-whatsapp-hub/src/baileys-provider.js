@@ -81,7 +81,9 @@ export function createBaileysProvider(config) {
   }
 
   async function startSocket() {
-    if (connected && socket) return socket;
+    // Once the socket has been created, do not open a second WhatsApp connection while
+    // the first one is still waiting for QR confirmation or the connected event.
+    if (socket && (connected || connecting)) return socket;
     if (startPromise) return startPromise;
     manualDisconnect = false;
     startPromise = (async () => {
