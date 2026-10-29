@@ -1,13 +1,15 @@
-
-name: EstateFlow PC and Android builds
-# Local-first build; no hosted database credentials required.
+name: AXIVESTRA Windows and Android builds
+# Local-first build; no Supabase or hosted database credentials required.
 
 concurrency:
-  group: estateflow-builds-${{ github.ref }}
+  group: axivestra-builds-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
   workflow_dispatch:
@@ -35,10 +37,10 @@ jobs:
       - name: Build Windows EXE
         run: npm run build && npx electron-builder --win nsis --x64 --publish never
 
-      - name: Upload Windows installer (direct file, no ZIP wrapper)
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v7
         with:
-          name: EstateFlow-Windows
+          name: AXIVESTRA-Windows
           path: release-dist/*.exe
           archive: false
           if-no-files-found: error
@@ -69,9 +71,6 @@ jobs:
         run: npm install
 
       - name: Build web app
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
       - name: Create Android project
@@ -97,10 +96,10 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload Android APK (direct file, no ZIP wrapper)
+      - name: Upload Android APK
         uses: actions/upload-artifact@v7
         with:
-          name: EstateFlow-Android
+          name: AXIVESTRA-Android
           path: android/app/build/outputs/apk/debug/app-debug.apk
           archive: false
           if-no-files-found: error
