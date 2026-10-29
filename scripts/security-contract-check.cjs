@@ -100,7 +100,7 @@ check("one-time and repeated messages support individual contacts and groups",
   has(read("src/WhatsAppScheduler.tsx"), /sendMode === "repeat"/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /destinationType: recipientMode/i) &&
   has(read("electron/whatsapp-service.cjs"), /const repeatCount = Math\.max\(1, Math\.min\(MAX_REPEAT_COUNT/i) &&
-  has(read("electron/whatsapp-service.cjs"), /queue\\.push\\(\\.\\.\\.rows\\)/i));
+  has(read("electron/whatsapp-service.cjs"), /queue\.push\(\.\.\.rows\)/i));
 
 check("invitation function verifies the caller's JWT and owner/admin membership",
   has(invite, /auth\.getUser\(token\)/i) &&
