@@ -17,8 +17,6 @@ services:
         value: production
       - key: HOST
         value: 0.0.0.0
-      - key: PORT
-        value: 47822
       - key: ESTATEFLOW_DATA_DIR
         value: /app/data
       - key: ESTATEFLOW_GATEWAY_PROVIDER
