@@ -192,15 +192,15 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
 }
 export async function cancelCloudWhatsAppMessage(id: string): Promise<void> {
   if (!supabase) throw new Error("Cloud storage is not configured.");
-  await currentIdentity();
-  const { data, error } = await supabase.rpc("cancel_whatsapp_cloud_message", { target_message_id: id });
+  const { companyId } = await currentIdentity();
+  const { data, error } = await supabase.rpc("cancel_whatsapp_cloud_message", { target_message_id: id, target_company_id: companyId });
   if (error) throw new Error(error.message);
   if (data !== true) throw new Error("This message is already being sent or can no longer be cancelled.");
 }
 export async function retryCloudWhatsAppMessage(id: string): Promise<void> {
   if (!supabase) throw new Error("Cloud storage is not configured.");
-  await currentIdentity();
-  const { data, error } = await supabase.rpc("retry_whatsapp_cloud_message", { target_message_id: id });
+  const { companyId } = await currentIdentity();
+  const { data, error } = await supabase.rpc("retry_whatsapp_cloud_message", { target_message_id: id, target_company_id: companyId });
   if (error) throw new Error(error.message);
   if (data !== true) throw new Error("This message cannot be retried.");
 }
