@@ -66,7 +66,7 @@ This cannot be completed against a real Supabase project by repository-only chan
 - [ ] Send an invitation email, accept the invite and verify the user receives only the chosen company's chosen role.
 - [ ] Test baseline sync on Windows and Android: add/edit/delete; offline changes; same-record conflict; remote-only record; tombstone prevents resurrection.
 - [ ] Test document backup restore with real file bytes and large/corrupt backups.
-- [ ] Test QR/pairing, contact/group sync, delivery, consent checks, recurring sends, stop-on-reply, daily cap, network loss/recovery with consenting test accounts.
+- [ ] Test QR/pairing, searchable contact/group selection, persistent address book after disconnect/restart, individual/group one-time sends, repeat sequences, delivery, consent checks, stop-on-reply, daily cap, Windows startup/tray behavior, sleep and network-loss recovery with consenting test accounts.
 - [ ] Install on a clean Windows profile and a real Android device; test upgrade/uninstall and preserve local data safely.
 - [ ] Build and sign a production Android package before public release.
 
