@@ -205,7 +205,9 @@ export default function AuthGate() {
 
   const chooseCompany = (company: WorkspaceCompany) => {
     const initialized = localStorage.getItem(scopedStorageKey(company.id, "estateflow.initialized")) === "1";
-    if (!initialized && hasLegacyLocalRecords()) {
+    // Read-only memberships must never be offered an import action that can change local
+    // records. Open only their authorized company cloud snapshot and leave legacy data untouched.
+    if (company.role !== "read_only" && !initialized && hasLegacyLocalRecords()) {
       setMigrationCompany(company);
       clearMessages();
       return;
