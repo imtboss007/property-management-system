@@ -26,6 +26,7 @@ function has(source, regex) { return regex.test(source); }
 const baseMigration = read("supabase/migrations/202610290001_auth_company_rbac.sql");
 const hardening = read("supabase/migrations/202610290002_rbac_hardening.sql");
 const metadata = read("supabase/migrations/202610290003_metadata_audit_hardening.sql");
+const approvals = read("supabase/migrations/202610290004_approval_permissions.sql");
 const authGate = read("src/AuthGate.tsx");
 const cloud = read("src/lib/supabase.ts");
 const invite = read("supabase/functions/invite-company-member/index.ts");
@@ -60,6 +61,13 @@ check("cloud record update timestamps are server controlled",
 check("company rename is written to governance audit history by database trigger",
   has(metadata, /company_settings_changed/i) &&
   has(metadata, /company_name_change_audit/i));
+check("staff can submit pending approvals but cannot update or decide approval records",
+  has(approvals, /as restrictive[\\s\\S]{0,100}for update/i) &&
+  has(approvals, /record_type <> 'approval'[\\s\\S]{0,120}has_company_role\\(company_id, array\\['owner','admin','manager'\\]\\)/i) &&
+  has(approvals, /coalesce\\(nullif\\(payload ->> 'status', ''\\), 'pending'\\) = 'pending'/i));
+check("approval decision buttons are blocked for staff and read-only UI roles",
+  has(read("src/App.tsx"), /button\\.classList\\.contains\\("decision-button"\\)/i) &&
+  has(read("src/App.tsx"), /Staff can submit approval requests but cannot approve or reject them/i));
 check("sign-in, sign-up, recovery and explicit local-only mode are implemented",
   has(authGate, /signInWithPassword/i) && has(authGate, /signUp\(/i) &&
   has(authGate, /resetPasswordForEmail/i) && has(authGate, /LOCAL WORKSPACE/i));
