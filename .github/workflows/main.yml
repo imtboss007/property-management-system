@@ -1,5 +1,5 @@
 name: AXIVESTRA Windows and Android builds
-# Local-first build; no Supabase or hosted database credentials required.
+# Cloud auth is optional. Only public client configuration is embedded; never pass service-role keys.
 
 concurrency:
   group: axivestra-builds-${{ github.ref }}
@@ -35,6 +35,9 @@ jobs:
         run: npm install
 
       - name: Build Windows EXE
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build && npx electron-builder --win nsis --x64 --publish never
 
       - name: Upload Windows installer
@@ -71,6 +74,9 @@ jobs:
         run: npm install
 
       - name: Build web app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
       - name: Create Android project
