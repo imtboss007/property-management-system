@@ -498,7 +498,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   // A debounced write follows edits; a 30-second pull also discovers changes from other devices.
   // Documents and WhatsApp linked-device credentials remain device-local.
   useEffect(() => {
-    if (!company || !userId || !supabase || company.role === "read_only") return;
+    if (!company || !userId || !supabase) return;
     let disposed = false;
 
     const runSync = async () => {
