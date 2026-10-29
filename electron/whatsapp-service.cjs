@@ -27,6 +27,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const addressBookPath = path.join(userData, "whatsapp-address-book.json");
   const dataSyncPath = path.join(userData, "axivestra-data-sync.json");
   let dataSyncWrite = Promise.resolve();
+  let dataSyncTransaction = Promise.resolve();
   const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
   let bridgeToken = "";
   let bridgeServer = null;
@@ -691,6 +692,22 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     await dataSyncWrite;
   }
 
+  async function commitDataSync(expectedRevision, snapshot) {
+    const previous = dataSyncTransaction;
+    let release;
+    dataSyncTransaction = new Promise(resolve => { release = resolve; });
+    await previous.catch(() => {});
+    try {
+      const current = await readDataSyncStore();
+      if (current.revision !== expectedRevision) return { conflict: true, current };
+      const next = { schemaVersion: 1, revision: current.revision + 1, updatedAt: new Date().toISOString(), snapshot };
+      await saveDataSyncStore(next);
+      return { conflict: false, next };
+    } finally {
+      release();
+    }
+  }
+
   function bridgeInfo() {
     const interfaces = os.networkInterfaces();
     const addresses = [];
@@ -763,13 +780,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
           if (snapshot[key] !== undefined && !Array.isArray(snapshot[key])) throw new Error("Invalid data collection: " + key);
           if (Array.isArray(snapshot[key]) && snapshot[key].length > 50000) throw new Error("Collection exceeds the 50,000-record safety limit: " + key);
         }
-        const current = await readDataSyncStore();
-        if (current.revision !== expectedRevision) {
+        const committed = await commitDataSync(expectedRevision, snapshot);
+        if (committed.conflict) {
+          const current = committed.current;
           bridgeReply(response, 409, { ok: false, error: "The PC sync store changed since it was read. Sync again to merge the latest version.", revision: current.revision, updatedAt: current.updatedAt, snapshot: current.snapshot });
           return;
         }
-        const next = { schemaVersion: 1, revision: current.revision + 1, updatedAt: new Date().toISOString(), snapshot };
-        await saveDataSyncStore(next);
+        const next = committed.next;
         bridgeReply(response, 200, { ok: true, schemaVersion: next.schemaVersion, revision: next.revision, updatedAt: next.updatedAt });
         return;
       }
