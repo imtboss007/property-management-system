@@ -80,6 +80,22 @@ check("cloud sync is company scoped and enforces role-aware deletion",
 check("overlapping cloud sync runs queue the newest snapshot instead of dropping changes",
   has(read("src/App.tsx"), /cloudSyncPendingRef/i) &&
   has(read("src/App.tsx"), /Coalesce edits that occur while a previous cloud sync is in flight/i));
+check("WhatsApp contact and group selectors support text search",
+  has(read("src/WhatsAppScheduler.tsx"), /recipientSearch/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /recipientGroupSearch/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /directoryContactSearch/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /directoryGroupSearch/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /type="search"/i));
+check("Windows message queue runs in tray and starts hidden at user login",
+  has(read("electron/main.cjs"), /app\.setLoginItemSettings\(\{ openAtLogin: true/i) &&
+  has(read("electron/main.cjs"), /process\.argv\.includes\("--hidden"\)/i) &&
+  has(read("electron/main.cjs"), /win\.hide\(\)/i) &&
+  has(read("electron/whatsapp-service.cjs"), /tick = setInterval\(\(\) => \{ void schedulerTick/i) &&
+  has(read("electron/whatsapp-service.cjs"), /whatsapp-scheduled-messages\.json/i));
+check("WhatsApp contact sync only upserts the persistent cache and does not clear it on disconnect",
+  has(read("electron/whatsapp-service.cjs"), /async function upsertWhatsAppContacts/i) &&
+  has(read("electron/whatsapp-service.cjs"), /await saveAddressBook\(\)/i) &&
+  has(read("src/App.tsx"), /They remain in AXIVESTRA when WhatsApp is disconnected/i));
 check("invitation function verifies the caller's JWT and owner/admin membership",
   has(invite, /auth\.getUser\(token\)/i) &&
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
