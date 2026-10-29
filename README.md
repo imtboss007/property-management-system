@@ -25,12 +25,12 @@ Cloud sync covers properties, contacts, WhatsApp groups, tasks, financials, risk
 To enable cloud mode:
 1. Copy `.env.example` to `.env.local` for local development and set the Supabase Project URL and public publishable/anon key.
 2. Apply the SQL migration to the same project and configure Supabase Auth email settings and approved redirect URLs.
-3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**.
+3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**. For hosted WhatsApp mode, also add the public repository variable `VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED=true` after deploying and configuring the Edge Function.
 4. Build fresh Windows and Android artifacts after adding those values. Existing installers do not gain them retroactively.
 
 See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for Supabase setup, Edge Function deployment, role limits, data migration and release acceptance tests. This is an implementation stage, not a claim of production certification; test row-level security with separate users/companies before real sensitive data is used.
 
-WhatsApp uses a separate Windows linked-device sender and local-network companion. Keep it on a trusted network, protect its companion token, and send automated follow-ups only to recipients who expect and consent to receive them. Live WhatsApp behaviour must be validated on the actual account/devices; a passing build is not a substitute for that test.
+WhatsApp has two modes: a Windows-linked-device sender that requires the PC to remain on, and an optional persistent hosted sender that can continue scheduled messages while both client apps are off. The hosted mode uses the repository Render Blueprint and an authenticated Supabase Edge Function proxy; it is not automatically deployed by a GitHub build. See [CLOUD-WHATSAPP-AND-DATA-SYNC.md](CLOUD-WHATSAPP-AND-DATA-SYNC.md) and [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) before enabling it. The QR-linked hosted sender uses the unofficial Baileys protocol and carries account-restriction risk; prefer Meta WhatsApp Business Platform for critical production messaging.
 
 ## Build Windows + Android
 
