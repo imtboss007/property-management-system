@@ -172,7 +172,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $axivestra$
 declare
   new_company_id uuid;
   clean_name text := trim(company_name);
@@ -194,7 +194,7 @@ begin
 
   return new_company_id;
 end;
-$;
+$axivestra$;
 
 revoke all on function public.create_company_with_owner(text) from public;
 grant execute on function public.create_company_with_owner(text) to authenticated;
@@ -217,15 +217,18 @@ returns trigger
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $axivestra$
 begin
+  if old.deleted_at is not null and new.deleted_at is null then
+    raise exception 'Deleted records cannot be revived by routine sync. Use an owner-approved restore process.';
+  end if;
   if old.deleted_at is null and new.deleted_at is not null
      and not public.has_company_role(old.company_id, array['owner','admin','manager']) then
     raise exception 'Only owners, admins and managers can delete company records.';
   end if;
   return new;
 end;
-$;
+$axivestra$;
 
 drop trigger if exists company_records_soft_delete_guard on public.company_records;
 create trigger company_records_soft_delete_guard
