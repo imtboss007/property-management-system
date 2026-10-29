@@ -495,7 +495,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
       setConsentConfirmed(false);
       inform(immediate
         ? "Message added to the send queue and will be sent shortly if WhatsApp is connected."
-        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. Keep AXIVESTRA running in the Windows system tray.");
+        : "Scheduled " + result.rows.length + " message" + (result.rows.length === 1 ? "" : "s") + " on this PC. The Windows sender starts hidden at login and continues from the system tray. Keep the PC awake, online and WhatsApp linked; do not choose Exit AXIVESTRA.");
     } catch (error) {
       inform("Could not schedule message: " + (error instanceof Error ? error.message : String(error)));
     } finally { setBusy(false); }
@@ -708,7 +708,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <button className="secondary-button" disabled={busy || !supported} onClick={() => void scheduleMessage(true)}><Send size={16}/>Send now</button>
         <button className="primary-button" disabled={busy || !supported || !consentConfirmed || (recipientMode === "contact" ? !target.trim() : !selectedGroupJid) || !message.trim()} onClick={() => void scheduleMessage(false)}><CalendarClock size={16}/>{busy ? "Saving…" : sendMode === "once" ? "Schedule one message" : "Schedule follow-up sequence"}</button>
       </div>
-      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> Delivery runs through the active sender: the built-in Windows sender or the configured AXIVESTRA hub. Keep that sender/server running, connected, and online at the scheduled time.</p>
+      <p className="wa-local-storage-note"><CheckCircle2 size={14}/> The Windows sender starts hidden at login and keeps running when you close the window to the system tray. Scheduled delivery still requires Windows to stay powered on, awake and online, with WhatsApp linked. Choosing Exit AXIVESTRA or putting the PC to sleep stops/delays delivery.</p>
     </div>
 
     {localNotice && <div className="notice"><Info size={16}/>{localNotice}</div>}
