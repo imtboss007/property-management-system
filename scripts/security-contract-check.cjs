@@ -77,6 +77,9 @@ check("cloud sync is company scoped and enforces role-aware deletion",
   has(cloud, /\.eq\("company_id", company\.id\)/i) &&
   has(cloud, /company\.role === "read_only"/i) &&
   has(cloud, /softDeleteCompanyRecords/i));
+check("overlapping cloud sync runs queue the newest snapshot instead of dropping changes",
+  has(read("src/App.tsx"), /cloudSyncPendingRef/i) &&
+  has(read("src/App.tsx"), /Coalesce edits that occur while a previous cloud sync is in flight/i));
 check("invitation function verifies the caller's JWT and owner/admin membership",
   has(invite, /auth\.getUser\(token\)/i) &&
   has(invite, /\["owner", "admin"\]\.includes\(callerMembership\.role\)/i) &&
