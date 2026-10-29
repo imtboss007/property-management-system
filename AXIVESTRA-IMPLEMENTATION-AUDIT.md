@@ -35,7 +35,7 @@ Scope: source, database migrations, Edge Function, workflow configuration and th
 | Local storage / backup | Implemented in source | Verify real browser/device backup restore, corrupted backups, large documents and ID collisions |
 | WhatsApp | User reported QR, pairing and PC/mobile use working in this chat | Preserve the working build; regression-test delivery, reply cancellation, offline recovery and rate limits on real consenting test accounts |
 | Authentication UI | Implemented in source | Configure real Supabase project, Auth email provider and site/recovery URLs |
-| Multi-company/RBAC | SQL and client integration implemented in source | Apply both migrations; test cross-company isolation and direct API attempts against a real Supabase test project |
+| Multi-company/RBAC | SQL and client integration implemented in source | Apply all three migrations; test cross-company isolation and direct API attempts against a real Supabase test project |
 | Email invitations | Edge Function and UI implemented in source | Deploy function; configure email/SMTP; test an actual invite and account acceptance |
 | Cloud sync | Baseline-aware reconciliation implemented in source | Test two real devices, offline edits, simultaneous edits, deletion tombstones and review conflict outcomes |
 | Membership audit | Database trigger source implemented | Validate trigger behaviour and audit visibility against the hosted database |
