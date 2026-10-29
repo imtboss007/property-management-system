@@ -425,6 +425,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(() => load("estateflow.auditEvents", []));
   const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string }>> | null>(null);
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
+  const cloudSyncSequenceRef = useRef(0);
+  const cloudSyncInFlightRef = useRef(false);
   const [syncHost, setSyncHost] = useState(() => load("axivestra.syncHost", ""));
   const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
   const [syncBusy, setSyncBusy] = useState(false);
@@ -492,13 +494,18 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     saveLocal("estateflow.auditEvents", auditEvents);
   }, [auditEvents]);
 
-  // In authenticated company mode, sync business records to the company-scoped Supabase table.
-  // Local storage is the offline cache. Document file bytes and WhatsApp session credentials stay local.
-  // Sync is debounced and uses per-record rows protected by database RLS, not one unscoped global snapshot.
+  // In authenticated company mode, reconcile this device with the company-scoped cloud records.
+  // A debounced write follows edits; a 30-second pull also discovers changes from other devices.
+  // Documents and WhatsApp linked-device credentials remain device-local.
   useEffect(() => {
     if (!company || !userId || !supabase || company.role === "read_only") return;
-    const timer = window.setTimeout(() => {
-      const collections = {
+    let disposed = false;
+
+    const runSync = async () => {
+      if (disposed || cloudSyncInFlightRef.current) return;
+      const sequence = ++cloudSyncSequenceRef.current;
+      cloudSyncInFlightRef.current = true;
+      const collections: WorkspaceCollections = {
         properties: properties as WorkspaceCollections["properties"],
         contacts: contacts as WorkspaceCollections["contacts"],
         whatsappGroups: savedWhatsAppGroups as WorkspaceCollections["whatsappGroups"],
@@ -518,22 +525,53 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         approval: new Set(approvalRequests.map(record => record.id)),
         audit_event: new Set(auditEvents.map(record => record.id))
       };
-      const previousKeys = cloudPreviousRef.current;
-      const deleted: Array<{ recordType: string; recordKey: string }> = [];
-      if (previousKeys) {
-        for (const [recordType, ids] of Object.entries(previousKeys)) {
-          for (const id of ids) if (!currentKeys[recordType]?.has(id)) deleted.push({ recordType, recordKey: id });
+      try {
+        const previousKeys = cloudPreviousRef.current;
+        const deleted: Array<{ recordType: string; recordKey: string }> = [];
+        if (previousKeys) {
+          for (const [recordType, ids] of Object.entries(previousKeys)) {
+            for (const id of ids) if (!currentKeys[recordType]?.has(id)) deleted.push({ recordType, recordKey: id });
+          }
         }
-      }
-      void (async () => {
         if (deleted.length) await softDeleteCompanyRecords(company, userId, deleted);
-        await syncCompanyWorkspace(company, userId, collections);
-        cloudPreviousRef.current = currentKeys;
-      })().catch(error => {
-        setNotice("Cloud sync needs attention. Your local copy remains on this device. " + (error instanceof Error ? error.message : String(error)));
-      });
-    }, 900);
-    return () => window.clearTimeout(timer);
+        const synced = await syncCompanyWorkspace(company, userId, collections);
+        if (disposed || cloudSyncSequenceRef.current !== sequence) return;
+
+        if (JSON.stringify(collections.properties) !== JSON.stringify(synced.properties)) setProperties(synced.properties as PropertyRecord[]);
+        if (JSON.stringify(collections.contacts) !== JSON.stringify(synced.contacts)) setContacts(synced.contacts as ContactRecord[]);
+        if (JSON.stringify(collections.whatsappGroups) !== JSON.stringify(synced.whatsappGroups)) setSavedWhatsAppGroups(synced.whatsappGroups as SavedWhatsAppGroup[]);
+        if (JSON.stringify(collections.tasks) !== JSON.stringify(synced.tasks)) setTasks(synced.tasks as TaskRecord[]);
+        if (JSON.stringify(collections.financials) !== JSON.stringify(synced.financials)) setFinancials(synced.financials as FinancialRecord[]);
+        if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
+        if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
+        if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
+        cloudPreviousRef.current = {
+          property: new Set(synced.properties.map(record => record.id)),
+          contact: new Set(synced.contacts.map(record => record.id)),
+          whatsapp_group: new Set(synced.whatsappGroups.map(record => record.id)),
+          task: new Set(synced.tasks.map(record => record.id)),
+          financial: new Set(synced.financials.map(record => record.id)),
+          risk: new Set(synced.riskRecords.map(record => record.id)),
+          approval: new Set(synced.approvalRequests.map(record => record.id)),
+          audit_event: new Set(synced.auditEvents.map(record => record.id))
+        };
+      } catch (error) {
+        if (!disposed && cloudSyncSequenceRef.current === sequence) {
+          setNotice("Cloud sync needs attention. Your local copy remains on this device. " + (error instanceof Error ? error.message : String(error)));
+        }
+      } finally {
+        cloudSyncInFlightRef.current = false;
+      }
+    };
+
+    const debounce = window.setTimeout(() => { void runSync(); }, 900);
+    const interval = window.setInterval(() => { void runSync(); }, 30000);
+    return () => {
+      disposed = true;
+      cloudSyncSequenceRef.current += 1;
+      window.clearTimeout(debounce);
+      window.clearInterval(interval);
+    };
   }, [company?.id, company?.role, userId, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
 
   useEffect(() => {
