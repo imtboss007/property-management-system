@@ -630,18 +630,38 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function requestPairingCode(rawPhone) {
     const phone = normalizePhone(rawPhone);
+    if (status.connected) throw new Error("WhatsApp is already connected. Disconnect the linked device before pairing a different number.");
     pairingRequested = true;
     status.qrDataUrl = "";
     status.pairingCode = "";
-    await startSocket();
-    if (!socket || status.connected) throw new Error("A pairing code is only needed when WhatsApp is not already connected.");
-    if (authState && authState.creds && authState.creds.registered) throw new Error("This WhatsApp account is already registered in EstateFlow. Disconnect it first before pairing another number.");
-    const code = await socket.requestPairingCode(phone);
-    status.pairingCode = String(code || "");
-    status.qrDataUrl = "";
     status.error = "";
-    publish("pairing-code");
-    return { ok: true, code: status.pairingCode };
+    publish("pairing-requested");
+    try {
+      await startSocket();
+      if (!socket || status.connected) throw new Error("WhatsApp connected before a pairing code was needed. Refresh the status and try again.");
+      if (authState && authState.creds && authState.creds.registered) {
+        throw new Error("This WhatsApp account already has a saved linked-device session. Choose Disconnect first, then pair the intended number.");
+      }
+      // Baileys needs a live socket before requesting a phone-number pairing code.
+      const activeSocket = socket;
+      const code = await activeSocket.requestPairingCode(phone);
+      if (socket !== activeSocket) throw new Error("The WhatsApp connection changed while generating the pairing code. Reconnect and try again.");
+      const normalizedCode = String(code || "").replace(/\s+/g, "");
+      if (!normalizedCode) throw new Error("WhatsApp did not return a pairing code. Try QR linking instead.");
+      status.pairingCode = normalizedCode;
+      status.qrDataUrl = "";
+      status.error = "";
+      publish("pairing-code");
+      return { ok: true, code: status.pairingCode };
+    } catch (error) {
+      // Critical: never leave QR generation suppressed after a failed pairing-code request.
+      pairingRequested = false;
+      status.pairingCode = "";
+      status.qrDataUrl = "";
+      status.error = error instanceof Error ? error.message : String(error);
+      publish("pairing-error");
+      throw error;
+    }
   }
 
   async function getQueue() {
