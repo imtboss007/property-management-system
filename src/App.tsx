@@ -427,6 +427,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
   const cloudSyncSequenceRef = useRef(0);
   const cloudSyncInFlightRef = useRef(false);
+  const cloudSyncPendingRef = useRef<(() => void) | null>(null);
   const [syncHost, setSyncHost] = useState(() => load("axivestra.syncHost", ""));
   const [syncToken, setSyncToken] = useState(() => load("axivestra.syncToken", ""));
   const [syncBusy, setSyncBusy] = useState(false);
@@ -505,7 +506,13 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     let disposed = false;
 
     const runSync = async () => {
-      if (disposed || cloudSyncInFlightRef.current) return;
+      if (disposed) return;
+      // Coalesce edits that occur while a previous cloud sync is in flight. Keep the
+      // newest effect's callback so a stale snapshot cannot suppress the latest sync.
+      if (cloudSyncInFlightRef.current) {
+        cloudSyncPendingRef.current = () => { if (!disposed) void runSync(); };
+        return;
+      }
       const sequence = ++cloudSyncSequenceRef.current;
       cloudSyncInFlightRef.current = true;
       const collections: WorkspaceCollections = {
@@ -564,6 +571,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         }
       } finally {
         cloudSyncInFlightRef.current = false;
+        const pendingSync = cloudSyncPendingRef.current;
+        cloudSyncPendingRef.current = null;
+        if (pendingSync) window.setTimeout(pendingSync, 0);
       }
     };
 
