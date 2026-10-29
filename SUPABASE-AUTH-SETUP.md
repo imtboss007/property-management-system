@@ -13,7 +13,7 @@
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, then `supabase/migrations/202610290002_rbac_hardening.sql`. Review the SQL and confirm every statement succeeds. The repository workflows commit the migrations but do **not** apply them to a live project.
+2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, `supabase/migrations/202610290002_rbac_hardening.sql`, then `supabase/migrations/202610290003_metadata_audit_hardening.sql`. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames. The repository workflows commit the migrations but do **not** apply them to a live project.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
