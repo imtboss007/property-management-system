@@ -59,7 +59,7 @@ jobs:
       - name: Download Android APK artifact
         uses: actions/download-artifact@v8
         with:
-          name: AXIVESTRA-Android
+          name: AXIVESTRA-Android-SIGNED
           path: dist/release
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
@@ -73,8 +73,8 @@ jobs:
           WINDOWS_FILE="$(find dist/release -maxdepth 1 -type f -name 'AXIVESTRA-Setup-*-x64.exe' -print -quit)"
           test -n "$WINDOWS_FILE" || { echo "Windows installer is missing."; exit 1; }
           test -s "$WINDOWS_FILE" || { echo "Windows installer is empty."; exit 1; }
-          test -s dist/release/app-debug.apk || { echo "Android APK is missing."; exit 1; }
-          mv dist/release/app-debug.apk dist/release/AXIVESTRA-Android.apk
+          test -s dist/release/app-release.apk || { echo "Stable-signed Android APK is missing. Configure the Android signing repository secrets before publishing."; exit 1; }
+          mv dist/release/app-release.apk dist/release/AXIVESTRA-Android.apk
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
           echo "WINDOWS_FILE=$WINDOWS_FILE" >> "$GITHUB_ENV"
 
