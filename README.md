@@ -53,7 +53,7 @@ The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows inst
 
 The user-installable Android package is produced from the tested Android build and re-signed with AXIVESTRA's persistent private release key before delivery. The signing key is maintained in the owner's private AXIVESTRA Library folder, not in GitHub, source control or public workflow artifacts. No GitHub secret setup is required from the owner.
 
-The Android package ID is `com.axivestra.assetintelligence`, separate from the legacy `com.estateflow.propertymanagement` app. This permits installing the replacement alongside the existing app. Keep the old app until the new app has been paired with Windows and all expected records are confirmed on the phone.
+The Android package ID is `com.axivestra.mobile2026`, separate from the legacy `com.estateflow.propertymanagement` app. This permits installing the replacement alongside the existing app. Keep the old app until the new app has been paired with Windows and all expected records are confirmed on the phone.
 
 The Windows installer is published by the release workflow. Android APKs are signed and delivered separately; future Android builds must always use the same private release key to remain update-compatible.
   
