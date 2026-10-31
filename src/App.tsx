@@ -1542,34 +1542,50 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const sameContactPhone = (left: string, right: string) => {
     const a = normalizedContactPhone(left);
     const b = normalizedContactPhone(right);
-    return a === b || (a.length === 10 && b.length === 12 && b.startsWith("91") && b.endsWith(a)) || (b.length === 10 && a.length === 12 && a.startsWith("91") && a.endsWith(b));
+    if (!a || !b) return false;
+    if (a === b) return true;
+    // Treat an Indian 10-digit national number and its +91 form as the same identity.
+    return (a.length === 10 && b.length === 12 && b.startsWith("91") && b.endsWith(a))
+      || (b.length === 10 && a.length === 12 && a.startsWith("91") && a.endsWith(b));
   };
 
   const importWhatsAppContacts = (incoming: SyncedWhatsAppContact[]) => {
     const next = [...contactsRef.current];
-    const changed: ContactRecord[] = [];
+    const changedById = new Map<string, ContactRecord>();
+    const seenIncoming = new Set<string>();
     let added = 0;
     let refreshed = 0;
     for (const item of incoming) {
       const phone = String(item.phone || "").trim();
       const digits = normalizedContactPhone(phone);
       if (digits.length < 8 || digits.length > 15) continue;
+      const jid = String(item.jid || item.id || "").trim();
       const waName = String(item.whatsappName || item.name || item.notify || "").trim();
       if (!waName) continue;
-      const currentIndex = next.findIndex(contact => sameContactPhone(contact.phone, phone));
+
+      // Collapse duplicates inside the same WhatsApp response before touching master records.
+      const incomingKey = jid || digits;
+      if (seenIncoming.has(incomingKey)) continue;
+      seenIncoming.add(incomingKey);
+
+      // Prefer the stable WhatsApp JID; fall back to canonical phone matching for legacy records.
+      let currentIndex = jid
+        ? next.findIndex(contact => String(contact.whatsappJid || "").trim() === jid)
+        : -1;
+      if (currentIndex < 0) currentIndex = next.findIndex(contact => sameContactPhone(contact.phone, phone));
       if (currentIndex >= 0) {
         const previous = next[currentIndex];
-        // Keep the verified or user-edited master name intact on WhatsApp re-sync.
+        // Preserve master identity, user-entered details and all existing relationship links.
         const merged: ContactRecord = {
           ...previous,
-          name: previous.name, // WhatsApp display names must never overwrite the saved master name.
+          name: previous.name,
           phone: previous.phone || phone,
           whatsappName: waName,
-          whatsappJid: item.jid || item.id || previous.whatsappJid || ""
+          whatsappJid: jid || previous.whatsappJid || ""
         };
-        if (merged.name !== previous.name || merged.whatsappName !== previous.whatsappName || merged.whatsappJid !== previous.whatsappJid || merged.phone !== previous.phone) {
+        if (merged.whatsappName !== previous.whatsappName || merged.whatsappJid !== previous.whatsappJid || merged.phone !== previous.phone) {
           next[currentIndex] = merged;
-          changed.push(merged);
+          changedById.set(merged.id, merged);
           refreshed++;
         }
       } else {
@@ -1580,22 +1596,22 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           role: "Other",
           notes: "Imported from the linked WhatsApp address book.",
           whatsappName: waName,
-          whatsappJid: item.jid || item.id || ""
+          whatsappJid: jid
         };
         next.unshift(record);
-        changed.push(record);
+        changedById.set(record.id, record);
         added++;
       }
     }
-    if (changed.length) {
+    if (changedById.size) {
       contactsRef.current = next;
       setContacts(next);
-      changed.forEach(record => remoteUpsert("contacts", {
+      changedById.forEach(record => remoteUpsert("contacts", {
         id: record.id, name: record.name, phone: record.phone, role: record.role, notes: record.notes,
         whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || ""
       }));
     }
-    if (added || refreshed) setNotice(`WhatsApp contacts restored: ${added} new, ${refreshed} refreshed. Saved contacts remain available when WhatsApp is disconnected.`);
+    if (added || refreshed) setNotice(`WhatsApp directory sync: ${added} new, ${refreshed} updated. Existing master records and links were preserved.`);
   };
 
   const importWhatsAppGroups = (incoming: SavedWhatsAppGroup[]) => {
