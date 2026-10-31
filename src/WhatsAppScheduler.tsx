@@ -309,11 +309,12 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
 
   useEffect(() => {
     let active = true;
+    setCloudMode(false);
     void getCloudWhatsAppStatus(companyId).then(result => {
-      if (active && result.configured) setCloudMode(true);
+      if (active) setCloudMode(Boolean(result.configured));
     }).catch(() => {});
     return () => { active = false; };
-  }, []);
+  }, [companyId]);
 
   useEffect(() => {
     if (!api) return;
