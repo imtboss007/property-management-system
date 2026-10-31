@@ -95,13 +95,13 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
   };
 }
 
-function createCloudApi(): WhatsAppApi {
+function createCloudApi(companyId: string): WhatsAppApi {
   const fallbackStatus = (): DirectStatus => ({
     supported: true, platform: "cloud-whatsapp-business", connected: false, connecting: false,
     senderNumber: "", displayName: "", qrDataUrl: "", pairingCode: "", error: "", lastConnectedAt: ""
   });
   const status = async (): Promise<DirectStatus> => {
-    const result = await getCloudWhatsAppStatus();
+    const result = await getCloudWhatsAppStatus(companyId);
     return {
       ...fallbackStatus(),
       connected: Boolean(result.ready),
@@ -111,7 +111,7 @@ function createCloudApi(): WhatsAppApi {
       webhook: { configured: Boolean(result.webhookConfigured), reason: "Meta webhook credentials are missing. Configure the callback and verify the WhatsApp messages subscription before relying on stop-on-reply." }
     };
   };
-  const queue = async () => await listCloudWhatsAppMessages() as ScheduleRow[];
+  const queue = async () => await listCloudWhatsAppMessages(companyId) as ScheduleRow[];
   return {
     getStatus: status,
     getQueue: queue,
@@ -126,15 +126,15 @@ function createCloudApi(): WhatsAppApi {
     connect: async () => { throw new Error("Cloud WhatsApp connection is managed securely by the workspace administrator."); },
     requestPairingCode: async () => { throw new Error("The official cloud sender uses WhatsApp Business Platform onboarding, not a linked-device pairing code."); },
     disconnect: async () => { throw new Error("Manage the business sender connection in the workspace's Meta/WhatsApp settings."); },
-    schedule: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, false) as ScheduleRow[] }),
-    sendNow: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, true) as ScheduleRow[] }),
-    cancel: async id => { await cancelCloudWhatsAppMessage(id); return { ok: true }; },
-    retry: async id => { await retryCloudWhatsAppMessage(id); return { ok: true }; },
+    schedule: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, false, companyId) as ScheduleRow[] }),
+    sendNow: async payload => ({ ok: true, rows: await scheduleCloudWhatsAppMessages(payload as never, true, companyId) as ScheduleRow[] }),
+    cancel: async id => { await cancelCloudWhatsAppMessage(id, companyId); return { ok: true }; },
+    retry: async id => { await retryCloudWhatsAppMessage(id, companyId); return { ok: true }; },
     onUpdate: () => () => {}
   };
 }
 
-type Props = { contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
+type Props = { companyId?: string; contacts?: ContactOption[]; properties?: PropertyOption[]; savedGroups?: WhatsAppGroupOption[]; onImportContacts?: (contacts: SyncedWhatsAppContact[]) => void; onImportGroups?: (groups: WhatsAppGroupOption[]) => void; initialContactId?: string; initialPropertyId?: string; initialTaskId?: string; initialTaskTitle?: string; onNotice: (message: string) => void };
 const localDate = () => {
   const date = new Date();
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -221,18 +221,18 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
   };
 }
 
-export default function WhatsAppScheduler({ contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
+export default function WhatsAppScheduler({ companyId = "", contacts = [], properties = [], savedGroups = [], onImportContacts, onImportGroups, initialContactId, initialPropertyId, initialTaskId, initialTaskTitle, onNotice }: Props) {
   const localApi = window.estateflowWhatsApp;
   const [cloudMode, setCloudMode] = useState(false);
   const [companionHost] = useState(() => readSaved("estateflow.whatsapp.host"));
   const [companionToken] = useState(() => readSaved("estateflow.whatsapp.token"));
   const api = useMemo<WhatsAppApi | undefined>(() => {
     // Use the hosted sender when configured; otherwise retain the existing local/companion path.
-    if (cloudMode) return createCloudApi();
+    if (cloudMode) return createCloudApi(companyId);
     if (companionHost.trim() && companionToken.trim()) return createRemoteApi(companionHost, companionToken);
     if (localApi) return localApi;
     return undefined;
-  }, [cloudMode, localApi, companionHost, companionToken]);
+  }, [cloudMode, localApi, companionHost, companionToken, companyId]);
   const supported = Boolean(api);
   const [status, setStatus] = useState<DirectStatus>({
     supported, platform: supported ? "windows-desktop" : "android-or-browser",
@@ -309,7 +309,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
 
   useEffect(() => {
     let active = true;
-    void getCloudWhatsAppStatus().then(result => {
+    void getCloudWhatsAppStatus(companyId).then(result => {
       if (active && result.configured) setCloudMode(true);
     }).catch(() => {});
     return () => { active = false; };
