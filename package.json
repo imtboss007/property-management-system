@@ -14,7 +14,7 @@
     "desktop:dir": "npm run build && electron-builder --dir",
     "android:sync": "npm run build && cap sync android",
     "cap:sync": "cap sync",
-    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/device-sync.test.cjs"
+    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
