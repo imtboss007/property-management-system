@@ -75,7 +75,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
     onChange(next);
   };
 
-  return <div className="searchable-contact-picker">
+  return <div className={"searchable-contact-picker"+(multiple ? " searchable-contact-picker--multiple" : "")}>
     <span className="searchable-contact-picker__label">{label}</span>
     <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
     {multiple
