@@ -169,6 +169,22 @@ check("all related-contact fields use a searchable picker and search across exte
   has(read("src/App.tsx"), /contact\.whatsappJid/) &&
   has(read("src/App.tsx"), /label="Primary contact"/i) &&
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i));
+check("all INR amount fields use an editable text input with Rupees, Thousands, Lakhs and Crores selector",
+  has(read("src/App.tsx"), /type="text"[\\s\\S]{0,500}onChange=\\{event=>writeAmount\\(event\\.target\\.value,activeUnit\\)\\}/i) &&
+  has(read("src/App.tsx"), /aria-label="Amount unit"/i) &&
+  has(read("src/App.tsx"), /option value="thousand"/i) &&
+  has(read("src/App.tsx"), /option value="lakh"/i) &&
+  has(read("src/App.tsx"), /option value="crore"/i) &&
+  has(read("src/App.tsx"), /field\\.type==="number" && field\\.label\\.includes\\("₹"\\) \\? <IndianAmountInput/i) &&
+  !has(read("src/App.tsx"), /onBlur=\\{\\(\\)=>\\{[\\s\\S]{0,200}normalizeIndianAmount\\(value\\)/i));
+check("module INR values are validated and stored as numeric rupees on save",
+  has(read("src/App.tsx"), /normalizeIndianAmount\\(form\\.value\\)/i) &&
+  has(read("src/App.tsx"), /normalizeIndianAmount\\(raw\\)/i) &&
+  has(read("src/App.tsx"), /moduleData:normalizedModuleData/i) &&
+  has(read("src/lib/indian-amount.mjs"), /crore:\\s*10000000/i) &&
+  has(read("src/lib/indian-amount.mjs"), /lakh:\\s*100000/i) &&
+  has(read("src/lib/indian-amount.mjs"), /thousand:\\s*1000/i));
+
 check("WhatsApp phone normalisation and deduplication remove punctuation consistently",
   has(whatsappService, /function normalizeDigits\(raw\)/i) &&
   whatsappService.includes('return String(raw || "").replace(/\\D/g, "");') &&
