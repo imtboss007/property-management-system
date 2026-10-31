@@ -1,4 +1,6 @@
 # AXIVESTRA — Asset Intelligence Platform
+**Live web app:** https://axivestra.pages.dev (Cloudflare Pages Free, production branch `main`). The optional official WhatsApp cloud sender remains disabled until Meta Business Platform setup is complete.
+
 
 AXIVESTRA is a local-first property, finance, investment, legal and operations workspace packaged for Windows desktop, Android and browser use. It includes an animated navy/cyan command centre, interactive charts, module-specific workbenches, data-completeness audits and a 16-module directory.
 
