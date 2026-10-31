@@ -208,7 +208,8 @@ check("existing AXIVESTRA master contacts are consolidated without losing depend
   has(read("src/App.tsx"), /remapWorkspaceContactReferences/i) &&
   has(read("src/App.tsx"), /localDb\.documents\.bulkPut\(updates\)/i) &&
   has(read("src/lib/contact-directory.mjs"), /shared phone alone is not enough to merge two different people/i) &&
-  has(read("scripts/contact-directory-dedup.test.cjs"), /Contact links are remapped/i) &&
+  has(read("scripts/contact-directory-dedup.test.cjs"), /assert\.equal\(rewired\.properties\[0\]\.primaryContactId, "keep"\)/i) &&
+  has(read("scripts/contact-directory-dedup.test.cjs"), /assert\.equal\(rewired\[collection\]\[0\]\.contactId, "keep"/i) &&
   has(read("package.json"), /contact-directory-dedup\.test\.cjs/i));
 check("module editor uses a wide landscape PC modal and a single-column mobile layout",
   has(read("src/App.tsx"), /className="module-record-modal"/i) &&
