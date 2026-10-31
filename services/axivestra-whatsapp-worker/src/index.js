@@ -140,7 +140,9 @@ async function sendDueMessages(env) {
     console.error("WhatsApp cloud worker is not configured; no messages claimed.");
     return { ok: false, processed: 0, error: "Cloud worker configuration is incomplete." };
   }
-  const claimed = await adminRpc(env, "claim_due_whatsapp_messages", { batch_size: 10, target_company_id: companyId });
+  // Keep each free-tier Cron invocation small (10 ms CPU budget).
+  // One message per minute is conservative and prevents a large queue batch from exceeding CPU limits.
+  const claimed = await adminRpc(env, "claim_due_whatsapp_messages", { batch_size: 1, target_company_id: companyId });
   if (claimed.error || !Array.isArray(claimed.data)) {
     console.error("WhatsApp queue claim failed.");
     return { ok: false, processed: 0, error: "Could not claim scheduled messages." };
@@ -210,6 +212,11 @@ async function sendDueMessages(env) {
   }
   return { ok: true, processed: claimed.data.length, sent, failed };
 }
+function isConfiguredSender(value, env) {
+  const eventPhoneNumberId = String(value?.metadata?.phone_number_id || "");
+  const configuredPhoneNumberId = String(env.META_PHONE_NUMBER_ID || "");
+  return Boolean(eventPhoneNumberId && configuredPhoneNumberId && eventPhoneNumberId === configuredPhoneNumberId);
+}
 async function handleWebhook(request, env) {
   const secret = String(env.META_APP_SECRET || "");
   const supplied = request.headers.get("x-hub-signature-256") || "";
@@ -233,6 +240,9 @@ async function handleWebhook(request, env) {
     const changes = Array.isArray(item?.changes) ? item.changes : [];
     for (const change of changes) {
       const value = change?.value && typeof change.value === "object" ? change.value : {};
+      // A Meta app can be subscribed to multiple business numbers. Process only
+      // events whose metadata identifies the exact sender configured for this company.
+      if (!isConfiguredSender(value, env)) continue;
       const messages = Array.isArray(value.messages) ? value.messages : [];
       for (const message of messages) {
         const from = digits(message?.from);
@@ -297,7 +307,7 @@ async function handleFetch(request, env) {
   }
   return jsonResponse(request, env, 404, { ok: false, error: "Not found." });
 }
-export const workerInternals = { digits, equalConstantTime, graphVersion };
+export const workerInternals = { digits, equalConstantTime, graphVersion, isConfiguredSender };
 export const dispatchDueMessages = sendDueMessages;
 export default {
   async fetch(request, env) {
