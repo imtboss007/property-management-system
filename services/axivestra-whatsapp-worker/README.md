@@ -25,7 +25,7 @@ This Worker provides the always-on scheduled dispatcher and Meta webhook endpoin
    - `AXIVESTRA_SCHEDULER_SECRET` (at least 32 random characters)
    - `META_APP_SECRET`
    - `META_WEBHOOK_VERIFY_TOKEN` (at least 32 random characters)
-5. Deploy from this directory using Wrangler. The configured Cron trigger is one minute.
+5. Deploy from this directory using Wrangler. The configured Cron trigger runs once per minute and claims one due message per invocation to stay conservative within the Workers Free CPU budget. Higher throughput would require measured load tests and an explicit plan decision.
 6. Configure the Meta webhook callback as `https://<worker-subdomain>.workers.dev/webhook`, subscribe to WhatsApp `messages`, and use the same verify token in the Meta console.
 
 ## Local checks
@@ -46,6 +46,7 @@ npm test
 
 - No dispatch occurs until all required server secrets are present.
 - A sender is restricted to one configured AXIVESTRA company UUID.
+- Meta webhook events are processed only when their `metadata.phone_number_id` matches the configured sender number.
 - The queue requires explicit consent and only allows permitted company roles to insert rows.
 - Claim and completion functions are service-role-only.
 - A message left in `sending` for more than ten minutes is changed to `failed` with an uncertain-delivery warning. It is never silently resent.
