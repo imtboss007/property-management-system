@@ -1,83 +1,87 @@
 # AXIVESTRA implementation audit
 
-Audit date: 2026-10-29  
-Audited branch: `feature/estateflow-unified-whatsapp-automation`  
-Main branch: unchanged; no merge performed.  
-Scope: source, database migrations, Edge Function, workflow configuration and the CI results linked below. This is not a live Supabase deployment, live WhatsApp test report or real-device acceptance certificate.
+Audit date: 2026-10-31  
+Repository: `imtboss007/property-management-system`  
+Main branch baseline: PR #4 merged; PR #5 is the current Cloudflare Worker implementation branch.  
+Scope: source review, live Supabase migration history and function ACL checks, Cloudflare dashboard inspection, and GitHub Actions CI. This is not a production certification or a real Meta message-delivery acceptance report.
 
-## Implemented in source
+## Current verified state
 
-- AXIVESTRA branded 16-workspace property/finance/investment/legal/operations interface, responsive layout, search, data entry, activity history and local backup/restore.
-- Single-file document-vault backup/restore with metadata and file bytes, input validation, duplicate-ID overwrite confirmation, and a 100 MB decoded vault cap. IndexedDB now stores a company ID and the UI filters documents, downloads, deletes and backups to the active company. Legacy file vaults are assigned only after explicit import consent.
-- Windows Electron WhatsApp linked-device service with QR/pairing, contact/group cache, scheduled queue, recurring series, cancel/retry, consent confirmation, stop-on-reply logic, cooldown and daily sending limit.
-- Android/browser companion route to the Windows sender. The Android APK does not run the Windows WhatsApp sender by itself.
-- Optional Supabase email/password sign-in, account registration, session restoration, sign-out, password-recovery request, company selection and company creation.
-- Company membership roles: owner, admin, manager, staff and read-only; Settings UI to list members, invite a new email, add/change an existing account by UUID, and remove non-owner memberships.
-- Company-scoped local cache namespaces and per-record cloud sync with a persisted baseline, periodic refresh, local/remote change reconciliation, safe deletion tombstones and a deterministic conflict rule (latest local audit timestamp vs cloud update timestamp; ties favour the cloud record). This is not field-level merge.
-- Four ordered SQL migrations for company/membership/record tables, RLS policies, least-privilege grants, owner-safe company creation, company-record identity immutability, role-guarded deletion, server-generated membership governance events, server-stamped cloud timestamps, company-rename audit entries and staff approval restrictions.
-- Supabase Edge Function `invite-company-member` that requires a signed-in JWT and checks company owner/admin membership before inviting a new email and assigning a non-owner role.
-- CI step to type-check the Deno Edge Function.
-- Windows and Android build workflows with optional public Supabase client configuration. Without project URL/key, the build explicitly remains local-only.
-- Changes remain on the feature branch. No code was merged into `main`.
+### Application and data
 
-## Latest feature-branch changes
+- Existing AXIVESTRA local-first Windows Electron and Android Capacitor applications are retained; this work does not replace the application.
+- Existing Supabase company/RBAC and multi-device data-sync architecture remains the source of truth for shared business records.
+- Existing Windows WhatsApp linked-device sender and QR workflow remain available as a fallback; it requires the Windows PC and linked session to be online when the message is due.
+- WhatsApp contact dedup improvement was merged into `main`: stable JID match first, normalized-phone fallback, in-batch duplicate suppression, and preservation of existing master contact names/details/relationships.
+- Existing local records, IndexedDB document bytes, local WhatsApp credentials and linked-device session were not migrated, cleared or deleted.
 
-- Added searchable contact fields to the document, task, financial transaction, risk and approval forms. Search covers names, WhatsApp names, phone numbers, current/custom roles, email, address, profession, employer, designation, business type, associated company and WhatsApp identifier.
-- Normalized WhatsApp contact phone values through one shared digits-only helper so punctuation is removed consistently before contact deduplication.
-- Added restart recovery for queue rows left in an in-flight `sending` state. These rows become `failed` with an explicit delivery-uncertain warning; they are not automatically retried because the preceding send may already have reached WhatsApp.
-- Added executable phone-normalisation regression cases and extended static contract checks for searchable contact surfaces, phone deduplication and interrupted-send recovery. These checks will be exercised by the updated GitHub Actions workflow.
-- These are repository changes only. Successful CI does not verify a real WhatsApp account's contact sync or message delivery, and live Supabase/RLS acceptance still requires a configured test project.
+### Live Supabase project
 
-## CI validation
+- Existing project: `yelabsimnlcwbfstbduj`.
+- Live migration history confirms these five schema migrations are already recorded as applied:
+  - `20261030164420_auth_company_rbac`
+  - `20261030164546_rbac_hardening`
+  - `20261030164550_metadata_audit_hardening`
+  - `20261030164556_approval_permissions`
+  - `20261031054337_security_definer_least_privilege`
+- PR #4 added the least-privilege security migration and it was applied to the live project. ACL verification confirmed `anon` has no direct EXECUTE access to the nine reviewed SECURITY DEFINER functions. Authenticated users can execute only the intended company-creation and RLS membership helper functions; trigger-only routines cannot be called directly by clients.
+- Existing live tables were previously verified RLS-enabled and empty at the last inspection; this does not mean local data on user devices is empty.
+- The WhatsApp cloud queue migration `20261031065632_whatsapp_cloud_scheduler.sql` is applied to the existing Supabase project. Verification confirms RLS enabled, zero queue rows, no `anon` access, authenticated SELECT/INSERT only, and no authenticated UPDATE/DELETE. No existing application rows were modified.
 
-- Previous failure found: the membership UI omitted a React hook import; corrected.
-- Previous function-check failure found: Deno's npm resolver needed repository dependencies installed; corrected workflow.
-- The `AXIVESTRA WhatsApp Hub Checks` run for the latest app-code revision reported passing app build, existing tests/checks, Electron syntax check and Deno type-check for the invitation Edge Function: [workflow details](https://github.com/imtboss007/property-management-system/actions).
-- Windows installer and Android APK packaging are run via GitHub Actions. Check the latest successful run on the feature branch before distributing; artifacts are debug/test builds unless a separate production signing setup is configured.
+### Cloudflare
 
-## Implementation status and hard blockers
+- TinyFish authenticated dashboard inspection confirmed the Cloudflare **Workers Free** plan is active, with no payment method on file.
+- Workers and D1 are available; no Worker projects or D1 databases existed at inspection.
+- The Worker source and one-minute Cron configuration are prepared in PR #5.
+- D1 is deliberately omitted. The durable queue belongs in existing Supabase Postgres so there is one queue source of truth with company scoping, RLS and audit context. A second queue copy in D1 would require unnecessary state reconciliation.
+- Free-tier Cron processing is intentionally limited to one queued message per minute in the current source to keep each invocation small within Cloudflare's 10 ms free CPU allowance for frequent Cron triggers. This is a conservative initial throughput limit, not a tested production throughput guarantee.
 
-| Area | Status | Remaining work |
-|---|---|---|
-| Core UI and 16 workspaces | Implemented in repository | Real screen-by-screen Windows/mobile usability review and business acceptance tests |
-| Local storage / backup | Implemented in source | Verify real browser/device backup restore, corrupted backups, large documents and ID collisions |
-| WhatsApp | User reported QR, pairing and PC/mobile use working in this chat | Searchable recipient/directory lists and Windows startup/tray scheduling are now in source; regression-test persistent cache, one-time/repeated individual/group delivery, reply cancellation, sleep/recovery and rate limits on real consenting test accounts |
-| Authentication UI | Implemented in source | Configure real Supabase project, Auth email provider and site/recovery URLs |
-| Multi-company/RBAC | SQL and client integration implemented in source | Apply all four migrations; test cross-company isolation and direct API attempts against a real Supabase test project |
-| Email invitations | Edge Function and UI implemented in source | Deploy function; configure email/SMTP; test an actual invite and account acceptance |
-| Cloud sync | Baseline-aware reconciliation implemented in source | Test two real devices, offline edits, simultaneous edits, deletion tombstones and review conflict outcomes |
-| Membership audit | Database trigger source implemented | Validate trigger behaviour and audit visibility against the hosted database |
-| Android packaging | Debug APK workflow | A signed production APK and secure signing-key setup are still required for public distribution |
-| Production readiness | Not certified | Security, privacy, data recovery, performance, account lifecycle and real-device tests remain |
+### Official Meta WhatsApp cloud sender
 
-## Required one-time hosted setup
+- PR #5 adds the optional official Meta WhatsApp Business Platform path through Cloudflare Worker Cron.
+- The Worker validates Supabase JWT/company membership for the status endpoint, checks one configured AXIVESTRA company ID, dispatches due messages with server-only credentials, verifies Meta webhook HMAC signatures, scopes webhook events to the configured phone-number ID, stops future follow-ups after inbound replies, and records sent/delivered/read/failed lifecycle status.
+- Cloud sending supports individual recipients only; WhatsApp group messaging and personal WhatsApp address-book discovery remain on the existing linked-device path.
+- Scheduling requires recipient consent; scheduled sends use approved templates. Meta message charges may apply. No messages have been sent and no provider charges have been triggered.
 
-1. Create a dedicated Supabase project.
-2. Apply all four SQL migrations in order:
-   - `supabase/migrations/202610290001_auth_company_rbac.sql`
-   - `supabase/migrations/202610290002_rbac_hardening.sql`
-   - `supabase/migrations/202610290003_metadata_audit_hardening.sql`
-   - `supabase/migrations/202610290004_approval_permissions.sql`
-3. Configure Supabase Auth email/signup/recovery URLs.
-4. Deploy `supabase/functions/invite-company-member/index.ts` to that project; configure invitation email delivery and the allowed redirect origin.
-5. For fresh builds, set GitHub Actions secrets `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. These are public client settings; never use a service/secret key in a Vite build.
-6. Install fresh Windows and Android builds made after the settings are added.
+## Merged changes
 
-This cannot be completed against a real Supabase project by repository-only changes: the project has not been linked, migrations have not been applied to a live database, the Edge Function has not been deployed, and no service keys or project credentials were supplied. No credentials should be committed to this public repository.
+### PR #4 — merged to main
 
-## Acceptance tests required before production
+PR: https://github.com/imtboss007/property-management-system/pull/4
 
-- [ ] Apply all four SQL migrations to a dedicated test project with zero SQL errors.
-- [ ] Create two test users and two companies; verify neither user can read, insert, update or delete the other company's rows using both UI and direct Data API requests.
-- [ ] Verify read-only is denied writes; staff is denied deletion and approval decisions; non-owner members cannot grant, edit or remove an owner.
-- [ ] Create a company, sign out/in, switch companies and verify data does not bleed across local caches.
-- [ ] Send an invitation email, accept the invite and verify the user receives only the chosen company's chosen role.
-- [ ] Test baseline sync on Windows and Android: add/edit/delete; offline changes; same-record conflict; remote-only record; tombstone prevents resurrection.
-- [ ] Test document backup restore with real file bytes and large/corrupt backups.
-- [ ] Test QR/pairing, searchable contact/group selection, persistent address book after disconnect/restart, individual/group one-time sends, repeat sequences, delivery, consent checks, stop-on-reply, daily cap, Windows startup/tray behavior, sleep and network-loss recovery with consenting test accounts.
-- [ ] Install on a clean Windows profile and a real Android device; test upgrade/uninstall and preserve local data safely.
-- [ ] Build and sign a production Android package before public release.
+- Least-privilege Supabase SECURITY DEFINER ACL hardening.
+- Incremental WhatsApp contact JID/phone deduplication and preservation of master-contact identity.
+- Regression security-contract check corrected to assert actual cache behavior.
+- Windows installer, Android APK, WhatsApp checks, existing app tests and Deno function type-check all passed on the merged revision.
 
-## Security and continuity
+## Current implementation branch
 
-Never commit passwords, Supabase service/secret keys, WhatsApp session files, QR/pairing codes, private PC companion tokens or app-signing keys. Keep the companion on a trusted private network. This audit distinguishes source/CI checks from live deployment and hardware testing; passing builds do not certify the latter.
+### PR #5 — open, not merged
+
+PR: https://github.com/imtboss007/property-management-system/pull/5
+
+- Adds the Cloudflare Worker source, Cron configuration, health/status/dispatch routes and Meta webhook handler.
+- Adds new Supabase message queue migration and service-role-only queue functions.
+- Integrates an optional Cloudflare-backed official Meta sender in the existing WhatsApp Automation UI, retaining the Windows linked-device flow as fallback.
+- Adds dedicated Worker unit/security tests and CI workflow.
+- Updates setup documents and aligns already-applied migration filenames to the exact versions found in live Supabase migration history, preventing future CLI migration version drift.
+- CI initially exposed a stale test path; the test was updated to target the new queue migration. The latest CI runs are being checked before merge.
+- PR #5 is source-only until reviewed and merged; no Cloudflare Worker or queue table has been deployed/created yet.
+
+## Remaining blockers for live cloud delivery
+
+1. CI must be green for Worker tests, Windows installer, Android APK and existing security checks on the final PR revision.
+2. Apply the new additive queue migration to the existing Supabase project after confirming the migration SQL and history. Then re-check RLS, grants, function signatures and advisors.
+3. The owner must have an approved Meta WhatsApp Business Platform app/Business Account and a sending phone number, then configure the required server-only access token, phone-number ID, app secret and webhook verify token. These credentials must be entered only in trusted provider secret managers, never in chat, source control or client builds.
+4. Deploy the Worker on the Cloudflare Free plan, set the public Worker URL in the app build environment, and configure the Meta webhook callback and `messages` subscription.
+5. Build fresh Windows/Android packages with the existing Supabase public URL/key and the Worker public URL. Existing installations do not acquire new build-time variables retroactively.
+6. Run a live test only after owner approval, with a dedicated consenting recipient. Verify dispatch with both devices off, templates, reply-stop, delivery states, failure recovery and company isolation. Meta pricing applies to the applicable message categories; no real send will occur without approval.
+
+## Data protection and release gate
+
+- No local business data, property records, documents or contact register has been transferred to a new database in this work.
+- No application records were deleted or rewritten.
+- No Cloudflare paid plan upgrade, billing method, Worker or D1 database has been created.
+- No WhatsApp message has been sent.
+- A green CI run proves automated code/build tests only; it does not prove a live Meta number is approved, delivery occurs or both real devices stay in sync under field conditions.
+- Preserve the existing app's local data and take a verified backup before any future import, device reset or migration.

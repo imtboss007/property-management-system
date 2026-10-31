@@ -523,7 +523,7 @@ h1{font-family:"Manrope",sans-serif;color:#102b42;letter-spacing:-1.25px}
 .wa-status{display:inline-flex;width:max-content;margin-top:7px;padding:4px 8px;border-radius:999px;font-size:10px;font-weight:800;text-transform:capitalize}
 .wa-status-scheduled{background:#e6f1fb;color:#2f6593}
 .wa-status-sending{background:#fff0d8;color:#936516}
-.wa-status-sent{background:#e6f5eb;color:#26724c}
+.wa-status-sent{background:#e6f5eb;color:#26724c}.wa-status-delivered{background:#e2f2f4;color:#26717a}.wa-status-read{background:#e4efff;color:#315ea7}
 .wa-status-failed{background:#fae6e6;color:#9f3939}
 .wa-status-cancelled{background:#f0eff0;color:#69646b}
 .wa-queue-error{color:#a34343!important;white-space:normal;overflow-wrap:anywhere}
@@ -986,7 +986,7 @@ h2,h3{color:#e5f2fc}
 .whatsapp-workspace .wa-queue-row .record-main h3{color:#dff3ff}
 .whatsapp-workspace .wa-queue-row .record-main p,.whatsapp-workspace .wa-queue-row .record-main small{color:#84a4bb}
 .whatsapp-workspace .wa-queue-row .wa-status-scheduled{background:#103c53;color:#87ebf3}
-.whatsapp-workspace .wa-queue-row .wa-status-sent{background:#123c3d;color:#83f2c3}
+.whatsapp-workspace .wa-queue-row .wa-status-sent{background:#123c3d;color:#83f2c3}.whatsapp-workspace .wa-queue-row .wa-status-delivered{background:#173d46;color:#8be4ee}.whatsapp-workspace .wa-queue-row .wa-status-read{background:#1c3152;color:#a9c9ff}
 .whatsapp-workspace .wa-queue-row .wa-status-failed{background:#4a2834;color:#ff9fab}
 .whatsapp-workspace .wa-stats-grid{gap:10px}
 .whatsapp-workspace .wa-queue-heading{border-bottom:1px solid #203e54;padding-bottom:12px}

@@ -23,14 +23,15 @@ function check(name, condition) {
 }
 function has(source, regex) { return regex.test(source); }
 
-const baseMigration = read("supabase/migrations/202610290001_auth_company_rbac.sql");
-const hardening = read("supabase/migrations/202610290002_rbac_hardening.sql");
-const metadata = read("supabase/migrations/202610290003_metadata_audit_hardening.sql");
-const approvals = read("supabase/migrations/202610290004_approval_permissions.sql");
+const baseMigration = read("supabase/migrations/20261030164420_auth_company_rbac.sql");
+const hardening = read("supabase/migrations/20261030164546_rbac_hardening.sql");
+const metadata = read("supabase/migrations/20261030164550_metadata_audit_hardening.sql");
+const approvals = read("supabase/migrations/20261030164556_approval_permissions.sql");
 const authGate = read("src/AuthGate.tsx");
 const cloud = read("src/lib/supabase.ts");
 const invite = read("supabase/functions/invite-company-member/index.ts");
-const whatsappProxy = read("supabase/functions/whatsapp-cloud-proxy/index.ts");
+const whatsappWorker = read("services/axivestra-whatsapp-worker/src/index.js");
+const cloudWhatsAppClient = read("src/lib/cloud-whatsapp.ts");
 const hostedProvider = read("services/estateflow-whatsapp-hub/src/baileys-provider.js");
 const hostedConfig = read("services/estateflow-whatsapp-hub/src/config.js");
 const renderBlueprint = read("render.yaml");
@@ -100,19 +101,21 @@ check("hosted sender deployment uses an always-on plan, persistent disk and gene
   has(renderBlueprint, /ESTATEFLOW_GATEWAY_PROVIDER[\s\S]{0,40}value: baileys/i) &&
   has(renderBlueprint, /ESTATEFLOW_BRIDGE_TOKEN[\s\S]{0,40}generateValue: true/i) &&
   has(renderBlueprint, /ESTATEFLOW_WEBHOOK_TOKEN[\s\S]{0,40}generateValue: true/i));
-check("cloud WhatsApp proxy verifies Supabase JWT and company membership before forwarding to a fixed HTTPS sender",
-  has(whatsappProxy, /auth\.getUser\(token\)/i) &&
-  has(whatsappProxy, /\.eq\("company_id", companyId\)/i) &&
-  has(whatsappProxy, /\.eq\("user_id", authData\.user\.id\)/i) &&
-  has(whatsappProxy, /AXIVESTRA_WHATSAPP_COMPANY_ID/i) &&
-  has(whatsappProxy, /X-EstateFlow-Token/i) &&
-  has(whatsappProxy, /route\.path/i) &&
-  has(whatsappProxy, /route\.write && membership\.role === "read_only"/i) &&
-  !has(whatsappProxy, /VITE_AXIVESTRA_WHATSAPP_HUB_TOKEN/i));
-check("cloud WhatsApp UI uses the authenticated Edge Function instead of embedding the hub token",
-  has(whatsappUi, /functions\.invoke\("whatsapp-cloud-proxy"/i) &&
-  has(whatsappUi, /VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED/i) &&
-  has(whatsappUi, /companyId = ""/i));
+check("Cloudflare WhatsApp Worker authenticates Supabase users, scopes the sender to one company and validates Meta webhooks",
+  has(whatsappWorker, /auth\/v1\/user/i) &&
+  has(whatsappWorker, /company_memberships/i) &&
+  has(whatsappWorker, /AXIVESTRA_WA_COMPANY_ID/i) &&
+  has(whatsappWorker, /AXIVESTRA_SCHEDULER_SECRET/i) &&
+  has(whatsappWorker, /hmacHex\(secret, rawBody\)/i) &&
+  has(whatsappWorker, /isConfiguredSender\(value, env\)/i));
+check("cloud WhatsApp UI calls the authenticated Worker and uses the selected company identity",
+  has(whatsappUi, /getCloudWhatsAppStatus\(companyId\)/i) &&
+  has(whatsappUi, /createCloudApi\(companyId\)/i) &&
+  has(cloudWhatsAppClient, /VITE_AXIVESTRA_WHATSAPP_WORKER_URL/i) &&
+  has(cloudWhatsAppClient, /Bearer \" \+ identity\.accessToken/i) &&
+  has(cloudWhatsAppClient, /company_memberships/i) &&
+  has(cloudWhatsAppClient, /whatsapp_cloud_messages/i) &&
+  !has(cloudWhatsAppClient, /SERVICE_ROLE_KEY|META_ACCESS_TOKEN|AXIVESTRA_SCHEDULER_SECRET/i));
 check("WhatsApp contact and group selectors support text search",
   has(read("src/WhatsAppScheduler.tsx"), /recipientSearch/i) &&
   has(read("src/WhatsAppScheduler.tsx"), /recipientGroupSearch/i) &&
@@ -227,14 +230,17 @@ const viteAssignments = envExample.split(/\r?\n/)
   .filter(line => /^VITE_[A-Z0-9_]+\s*=/.test(line))
   .map(line => line.split("=")[0]);
 check("sample environment exposes only public Supabase client settings",
-  viteAssignments.length === 3 &&
+  viteAssignments.length === 4 &&
   viteAssignments.includes("VITE_SUPABASE_URL") &&
   viteAssignments.includes("VITE_SUPABASE_PUBLISHABLE_KEY") &&
+  viteAssignments.includes("VITE_AXIVESTRA_WHATSAPP_WORKER_URL") &&
   viteAssignments.includes("VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED") &&
   !viteAssignments.some(name => /SERVICE_ROLE|SECRET_KEY|DATABASE_PASSWORD/i.test(name)));
 check("Windows/Android workflows pass public cloud-mode switch without embedding sender credentials",
+  has(desktopWorkflow, /VITE_AXIVESTRA_WHATSAPP_WORKER_URL:/i) &&
   has(desktopWorkflow, /VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED:/i) &&
   has(desktopWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
+  has(downloadWorkflow, /VITE_AXIVESTRA_WHATSAPP_WORKER_URL:/i) &&
   has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   !has(desktopWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i) &&
   !has(downloadWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i));

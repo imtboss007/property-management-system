@@ -13,7 +13,7 @@
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, `supabase/migrations/202610290002_rbac_hardening.sql`, then `supabase/migrations/202610290003_metadata_audit_hardening.sql`, then `supabase/migrations/202610290004_approval_permissions.sql`. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles. The repository workflows commit the migrations but do **not** apply them to a live project.
+2. Apply the ordered SQL migrations in `supabase/migrations/` that are not already present in the target project's migration history. The current sequence is `20261030164420_auth_company_rbac.sql`, `20261030164546_rbac_hardening.sql`, `20261030164550_metadata_audit_hardening.sql`, `20261030164556_approval_permissions.sql`, `20261031054337_security_definer_least_privilege.sql`, and `20261031065632_whatsapp_cloud_scheduler.sql`. The first five are already recorded as applied in the existing AXIVESTRA Supabase project; the last one is now recorded as applied and adds an initially empty WhatsApp cloud queue. Do not reapply a migration already recorded as applied. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles; migration 005 hardens direct execution of security-definer functions.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
@@ -27,7 +27,7 @@
 8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
 ## Deploy the invitation Edge Function
-The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all four SQL migrations:
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all migrations that are not already recorded as applied:
 
 ```bash
 supabase login
@@ -80,7 +80,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply all four migrations in order to a dedicated Supabase test project and verify they run without SQL errors.
+- [ ] Apply the ordered migrations not already recorded as applied to a dedicated Supabase test project and verify they run without SQL errors.
 - [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
 - [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
 - [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.
@@ -97,30 +97,35 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 ## Security rules
 Never commit auth tokens, WhatsApp session files, QR/pairing codes, private hub tokens, database passwords, signing keys or Supabase secret/service-role keys. Keep the Windows companion on a trusted private network.
 
-## Always-on WhatsApp sender (optional)
+## Optional always-on WhatsApp cloud sender
 
-To send scheduled messages while both the Windows and Android apps are closed or powered off, deploy the dedicated hosted sender from the repository Blueprint. The sender must be continuously running and keep its persistent disk. This is separate from database sync.
+AXIVESTRA's preferred no-paid-hosting path for an official always-on sender is the Cloudflare Worker in `services/axivestra-whatsapp-worker`. It uses the existing Supabase Postgres database for the queue; no D1 database is required. This is distinct from the existing Windows QR-linked sender, which continues to need the PC online.
 
-1. Create the Render Blueprint from the repository's render.yaml. Select the configured paid always-on service and persistent disk. Render generates ESTATEFLOW_BRIDGE_TOKEN and ESTATEFLOW_WEBHOOK_TOKEN server-side.
-2. In the Render service, confirm ESTATEFLOW_GATEWAY_PROVIDER is set to baileys and /health responds over HTTPS. Protect the service's environment and disk. Do not put the generated bridge token into any VITE_* variable, application source or APK/installer.
-3. Create or select your AXIVESTRA company and record its UUID. The proxy is deliberately tenant-bound to one company and rejects a different company ID.
-4. Set these secrets in the linked Supabase project:
-   
-   ```sh
-   supabase secrets set AXIVESTRA_WHATSAPP_HUB_URL=https://YOUR-RENDER-SERVICE.onrender.com
-   supabase secrets set AXIVESTRA_WHATSAPP_HUB_TOKEN=YOUR_RENDER_ESTATEFLOW_BRIDGE_TOKEN
-   supabase secrets set AXIVESTRA_WHATSAPP_COMPANY_ID=YOUR_AXIVESTRA_COMPANY_UUID
-   supabase functions deploy whatsapp-cloud-proxy
-   ```
+1. Confirm the ordered migrations in `supabase/migrations/` are applied. The existing project already has the first five recorded in its migration history. The new `20261031065632_whatsapp_cloud_scheduler.sql` migration is the additive queue schema; it must be applied once and verified before the cloud sender is enabled.
+2. Complete Meta WhatsApp Business Platform onboarding for the business and its sending phone number. Keep the personal WhatsApp QR/linked-device number separate unless Meta explicitly allows the number to be migrated and used in the business platform.
+3. Deploy `services/axivestra-whatsapp-worker` to the Cloudflare Workers Free plan. Its Cron trigger runs every minute and intentionally processes one due queue row per invocation as a conservative start within the Free CPU limit.
+4. Add these values only in Cloudflare Worker secrets/settings. Never put them in GitHub source, Vite variables, APKs, Windows installers or chat:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY` (or public publishable key)
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `META_ACCESS_TOKEN`
+   - `META_PHONE_NUMBER_ID`
+   - `AXIVESTRA_WA_COMPANY_ID` (one AXIVESTRA company per Worker configuration)
+   - `AXIVESTRA_SCHEDULER_SECRET` (32+ random characters)
+   - `META_APP_SECRET`
+   - `META_WEBHOOK_VERIFY_TOKEN` (32+ random characters)
+5. Set the Meta webhook callback to the Worker URL ending in `/webhook`, complete Meta's GET verification, and subscribe to the WhatsApp `messages` webhook field. The Worker verifies the Meta HMAC signature and filters events to its configured phone-number ID.
+6. Add the public GitHub Actions repository variables `VITE_AXIVESTRA_WHATSAPP_WORKER_URL` and `VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED=true`. The Worker URL and feature switch are public settings; no server credential is allowed in either value. Rebuild both clients.
+7. Sign in on Windows and Android using the same Supabase user/company. Open WhatsApp Automation. The cloud sender appears only when the feature switch is enabled and the matching company sender is configured. Cloud queueing requires explicit recipient consent; scheduled outbound messages need an approved Meta template. The current official cloud mode supports individual contacts only; group messaging remains in Windows linked-device mode.
 
-   Substitute actual values in your private terminal; do not post the token into chat, GitHub, a screenshot, or source code. The Supabase proxy verifies the signed-in user and their membership before forwarding a whitelisted action. Read-only members may inspect the queue and address book but cannot change the sender or queue messages.
-5. Add the public GitHub Actions repository variable VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED and set it to true. Keep the existing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY Actions secrets configured. Rebuild Windows and Android after changing these values. The feature switch is not a secret; the hub token remains only in Render/Supabase server-side settings.
-6. Sign in to the same company on both devices, open WhatsApp Automation, and connect the WhatsApp account to the hosted sender using its QR code. After connection, scheduled messages are processed by the hosted server even with both app windows closed. WhatsApp may still log out the linked device, and host/network outages can interrupt sending.
+Meta may charge for business messages according to the recipient country and message category. No test message should be sent until the owner approves the recipient, content and any applicable charges. Do not rely on a successful API acceptance as proof of delivery; the UI tracks sent, delivered, read and failed webhook states separately.
 
-### WhatsApp transport caveat
+### Legacy hosted Baileys option
 
-The QR-linked hosted sender uses Baileys, an unofficial WhatsApp Web protocol. WhatsApp can change the protocol or restrict an account. Use a dedicated test number first. For critical production messaging, the supported long-term choice is Meta's official WhatsApp Business Platform, which needs Meta onboarding and server-side API credentials instead of a linked-device QR.
+The repository still contains an older Render/Baileys deployment path for teams who explicitly choose a paid always-on host and accept the unofficial WhatsApp Web protocol risk. It is **not** the default architecture documented for AXIVESTRA's free-tier rollout. Do not create a paid Render service or persistent disk as part of the Cloudflare Worker deployment. The legacy QR-linked Windows sender remains available without any cloud service.
 
-### Sync coverage
+### Cross-device sync and file boundaries
 
-After the existing Supabase migrations are applied and both devices sign in to the same company, properties, contacts, groups, tasks, financials, risks, approvals and audit records sync through the current company-scoped sync engine. Imported WhatsApp contacts need to be imported into the AXIVESTRA contact register to become standard company contacts. The hub stores the WhatsApp address book for reuse across devices. Documents' file bytes are not uploaded to Supabase Storage by the hosted WhatsApp feature and continue using the existing local vault/companion sync.
+Business records continue to use the existing company-scoped Supabase sync. The optional cloud message queue is a separate company-scoped Supabase table, not a D1 replica. WhatsApp contact/group directory discovery continues through the existing linked-device sender; the official Meta Cloud API does not expose a user's personal address book or WhatsApp groups. Document file bytes remain in the existing local IndexedDB/document companion path and are not uploaded by the WhatsApp Worker.
+
+Before production use, validate cross-company isolation, Meta webhook signature rejection, sender-number isolation, template scheduling, inbound reply cancellation, delivery status updates, retries and uncertain-send handling. Then run one explicitly approved message to a consenting test recipient with both client devices powered off. CI and a Worker health response alone do not prove live sending or delivery.
