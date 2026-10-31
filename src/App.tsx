@@ -2268,12 +2268,12 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
         }}
       >
         <option value="rupees">Rupees</option>
-        <option value="thousand">Thousand</option>
-        <option value="lakh">Lakh</option>
-        <option value="crore">Crore</option>
+        <option value="thousand">Thousands (×1,000)</option>
+        <option value="lakh">Lakhs (×1,00,000)</option>
+        <option value="crore">Crores (×1,00,00,000)</option>
       </select>
     </div>
-    <small className="ax-inr-amount-help">Type the amount, then choose Rupees, Thousand, Lakh or Crore. Example: 25 + Lakh = ₹25,00,000.</small>
+    <small className="ax-inr-amount-help">Type the amount, then choose Rupees, Thousands, Lakhs or Crores. Example: 25 + Lakhs = ₹25,00,000.</small>
     {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianAmount(parsed)}</small>}
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
