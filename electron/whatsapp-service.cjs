@@ -340,7 +340,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     const items = Array.isArray(records) ? records : [];
     for (const raw of items) {
       if (!raw || typeof raw !== "object") continue;
-      const jid = String(raw.id || raw.jid || "");
+      const jid = String(raw.id || raw.jid || "").trim().toLowerCase();
       if (!jid.endsWith("@g.us")) continue;
       const previous = whatsappGroups.find(item => item.jid === jid || item.id === jid);
       const subject = String(raw.subject || raw.name || previous?.name || "WhatsApp group").trim();
@@ -401,7 +401,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       try {
         const found = await socket.groupFetchAllParticipating();
         const values = Object.entries(found || {}).map(([jid, group]) => ({ ...group, id: group?.id || jid }));
-        activeGroupJids = values.map(group => String(group.id || "")).filter(jid => jid.endsWith("@g.us"));
+        activeGroupJids = values.map(group => canonicalWhatsAppGroupJid(group)).filter(Boolean);
         await upsertWhatsAppGroups(values);
       } catch (error) {
         warnings.push("Could not refresh WhatsApp groups: " + (error instanceof Error ? error.message : String(error)));
