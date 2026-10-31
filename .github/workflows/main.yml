@@ -119,9 +119,9 @@ jobs:
           test -n "$ANDROID_KEYSTORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/axivestra-release.jks
-          test -s android/app/axivestra-release.jks
-          keytool -list -keystore android/app/axivestra-release.jks -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/axivestra-release.p12
+          test -s android/app/axivestra-release.p12
+          keytool -list -keystore android/app/axivestra-release.p12 -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
           python3 - <<'PY'
           import os
           import re
@@ -134,7 +134,8 @@ jobs:
                   r"""\1
               signingConfigs {
                   release {
-                      storeFile file("axivestra-release.jks")
+                      storeFile file("axivestra-release.p12")
+                      storeType "PKCS12"
                       storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
                       keyAlias System.getenv("ANDROID_KEY_ALIAS")
                       keyPassword System.getenv("ANDROID_KEY_PASSWORD")
