@@ -26,7 +26,7 @@ Scope: source review, live Supabase migration history and function ACL checks, C
   - `20261031054337_security_definer_least_privilege`
 - PR #4 added the least-privilege security migration and it was applied to the live project. ACL verification confirmed `anon` has no direct EXECUTE access to the nine reviewed SECURITY DEFINER functions. Authenticated users can execute only the intended company-creation and RLS membership helper functions; trigger-only routines cannot be called directly by clients.
 - Existing live tables were previously verified RLS-enabled and empty at the last inspection; this does not mean local data on user devices is empty.
-- The new WhatsApp cloud queue migration `20261031054338_whatsapp_cloud_scheduler.sql` is **not yet applied**. It is additive and creates a new, initially empty table and restricted server RPC functions; no existing application rows are modified.
+- The WhatsApp cloud queue migration `20261031065632_whatsapp_cloud_scheduler.sql` is applied to the existing Supabase project. Verification confirms RLS enabled, zero queue rows, no `anon` access, authenticated SELECT/INSERT only, and no authenticated UPDATE/DELETE. No existing application rows were modified.
 
 ### Cloudflare
 
