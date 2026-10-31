@@ -13,7 +13,7 @@
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
-2. Apply all SQL migrations in order: `supabase/migrations/202610290001_auth_company_rbac.sql`, `supabase/migrations/202610290002_rbac_hardening.sql`, then `supabase/migrations/202610290003_metadata_audit_hardening.sql`, then `supabase/migrations/202610290004_approval_permissions.sql`. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles. The repository workflows commit the migrations but do **not** apply them to a live project.
+2. Apply the ordered SQL migrations in `supabase/migrations/` that are not already present in the target project's migration history. The current sequence is `20261030164420_auth_company_rbac.sql`, `20261030164546_rbac_hardening.sql`, `20261030164550_metadata_audit_hardening.sql`, `20261030164556_approval_permissions.sql`, `20261031054337_security_definer_least_privilege.sql`, and `20261031054338_whatsapp_cloud_scheduler.sql`. The first five are already recorded as applied in the existing AXIVESTRA Supabase project; the last one adds a new, initially empty WhatsApp cloud queue. Do not reapply a migration already recorded as applied. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles; migration 005 hardens direct execution of security-definer functions.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
 5. For local development, copy `.env.example` to `.env.local` and set:
@@ -27,7 +27,7 @@
 8. Open AXIVESTRA, create an account, confirm the email if required, sign in, and create a company. The authenticated user becomes that company's first owner.
 
 ## Deploy the invitation Edge Function
-The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all four SQL migrations:
+The repository contains `supabase/functions/invite-company-member/index.ts`. Deploy it to the same project after applying all migrations that are not already recorded as applied:
 
 ```bash
 supabase login
@@ -80,7 +80,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply all four migrations in order to a dedicated Supabase test project and verify they run without SQL errors.
+- [ ] Apply the ordered migrations not already recorded as applied to a dedicated Supabase test project and verify they run without SQL errors.
 - [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
 - [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
 - [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.
