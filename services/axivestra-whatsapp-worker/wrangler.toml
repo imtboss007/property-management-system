@@ -1,0 +1,15 @@
+name = "axivestra-whatsapp-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-31"
+workers_dev = true
+preview_urls = false
+
+[vars]
+META_GRAPH_API_VERSION = "v26.0"
+
+[triggers]
+crons = ["* * * * *"]
+
+# Queue state and tenant isolation remain in the existing Supabase Postgres database.
+# D1 is intentionally not attached: a second queue database would duplicate the source of truth.
+# Add server-only values using "npx wrangler secret put NAME" from this directory.
