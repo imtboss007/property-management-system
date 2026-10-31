@@ -12,7 +12,7 @@ type ContactOption = { id: string; name: string; phone: string; role?: string; w
 type PropertyOption = { id: string; title: string };
 type WhatsAppGroupOption = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string; source?: string; lastSyncedAt?: string };
-type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
+type WhatsAppAddressBook = { contacts: SyncedWhatsAppContact[]; groups: WhatsAppGroupOption[]; lastSyncedAt: string; connected: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; duplicatesRemoved?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type ScheduleRow = {
   id: string; seriesId?: string; sequence?: number; repeatCount?: number;
   destinationType?: "contact" | "group"; groupJid?: string; groupName?: string;
@@ -30,7 +30,7 @@ type DirectStatus = {
 };
 type BridgeUpdate = { reason?: string; status?: DirectStatus; queue?: ScheduleRow[] };
 type BridgeInfo = { port: number; urls: string[]; pairCode: string; pairExpiresAt: number };
-type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
+type CompanionResponse = { ok?: boolean; error?: string; status?: DirectStatus; queue?: ScheduleRow[]; rows?: ScheduleRow[]; code?: string; message?: string; addressBook?: WhatsAppAddressBook; contacts?: SyncedWhatsAppContact[]; groups?: WhatsAppGroupOption[]; lastSyncedAt?: string; connected?: boolean; accountNumber?: string; activeGroupJids?: string[]; counts?: { contacts: number; groups: number }; duplicatesRemoved?: { contacts: number; groups: number }; warnings?: string[]; note?: string };
 type WhatsAppApi = {
   getStatus: () => Promise<DirectStatus>;
   getBridgeInfo?: () => Promise<BridgeInfo>;
@@ -78,11 +78,11 @@ function createRemoteApi(host: string, token: string): WhatsAppApi {
     getQueue: async () => (await request("/api/queue")).queue || [],
     getAddressBook: async () => {
       const data = await request("/api/address-book");
-      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts };
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts, duplicatesRemoved: data.duplicatesRemoved };
     },
     syncAddressBook: async () => {
       const data = await request("/api/sync-address-book", "POST");
-      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts, warnings: data.warnings, note: data.note };
+      return data.addressBook || { contacts: data.contacts || [], groups: data.groups || [], lastSyncedAt: data.lastSyncedAt || "", connected: Boolean(data.connected), accountNumber: data.accountNumber || "", activeGroupJids: data.activeGroupJids || [], counts: data.counts, duplicatesRemoved: data.duplicatesRemoved, warnings: data.warnings, note: data.note };
     },
     connect: async () => { const data = await request("/api/connect", "POST"); return { ok: Boolean(data.ok) }; },
     requestPairingCode: async phone => { const data = await request("/api/pairing-code", "POST", { phone }); return { ok: Boolean(data.ok), code: String(data.code || "") }; },
@@ -184,7 +184,7 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
 
   const groups: WhatsAppGroupOption[] = [];
   for (const group of [...previous.groups, ...incoming.groups]) {
-    const jid = String(group.jid || group.id || "");
+    const jid = String(group.jid || group.id || "").trim().toLowerCase();
     if (!jid.endsWith("@g.us")) continue;
     const index = groups.findIndex(saved => String(saved.jid || saved.id || "") === jid);
     if (index < 0) {
@@ -217,7 +217,8 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
     activeGroupJids: Array.isArray(incoming.activeGroupJids) ? incoming.activeGroupJids : (sameAccount ? previous.activeGroupJids || [] : []),
     counts: { contacts: contacts.length, groups: groups.length },
     warnings: incoming.warnings?.length ? incoming.warnings : previous.warnings,
-    note: incoming.note || previous.note
+    note: incoming.note || previous.note,
+    duplicatesRemoved: incoming.duplicatesRemoved || previous.duplicatesRemoved
   };
 }
 
@@ -277,7 +278,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
   const groupOptions = useMemo(() => {
     const byJid = new Map<string, WhatsAppGroupOption>();
     for (const group of [...savedGroups, ...addressBook.groups]) {
-      const jid = String(group.jid || group.id || "");
+      const jid = String(group.jid || group.id || "").trim().toLowerCase();
       if (!jid.endsWith("@g.us")) continue;
       byJid.set(jid, { ...byJid.get(jid), ...group, id: group.id || jid, jid, name: group.name || group.subject || byJid.get(jid)?.name || "WhatsApp group" });
     }
@@ -549,6 +550,13 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
     failed: queue.filter(row => row.status === "failed").length,
     cancelled: queue.filter(row => row.status === "cancelled").length
   }), [queue]);
+  const duplicateCleanupMessage = useMemo(() => {
+    const removedContacts = Number(addressBook.duplicatesRemoved?.contacts || 0);
+    const removedGroups = Number(addressBook.duplicatesRemoved?.groups || 0);
+    if (!removedContacts && !removedGroups) return "";
+    return "Removed " + removedContacts + " duplicate WhatsApp contact record(s) and " + removedGroups +
+      " duplicate WhatsApp group record(s) from the saved Windows cache. AXIVESTRA master contacts and distinct groups were preserved.";
+  }, [addressBook.duplicatesRemoved]);
 
   return <section className="data-panel whatsapp-workspace">
     <div className="section-heading">
@@ -616,6 +624,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
       <p className="wa-local-storage-note"><Info size={14}/>{addressBook.lastSyncedAt ? "Last sync: " + prettyDate(addressBook.lastSyncedAt) + ". " : ""}{cloudMode ? "Cloud mode uses contacts and properties saved in AXIVESTRA. The personal WhatsApp address book is not available through the official cloud API." : "Your synced directory is cached on the Windows device and the group list is also saved in AXIVESTRA. A disconnected phone cannot deliver messages; connect again to send."}</p>
       {addressBook.note && <div className="notice"><Info size={16}/>{addressBook.note}</div>}
       {addressBook.warnings?.map((warning,index)=><div className="notice notice-warn" key={index}><Info size={16}/>{warning}</div>)}
+      {duplicateCleanupMessage && <div className="notice"><CheckCircle2 size={16}/>{duplicateCleanupMessage}</div>}
       <div className="wa-address-book-columns">
         <section>
           <h3>Saved WhatsApp contacts</h3>
