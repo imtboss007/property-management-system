@@ -198,6 +198,27 @@ check("interrupted in-flight WhatsApp sends are surfaced as uncertain instead of
 check("phone normalisation has an executable regression test wired into the app CI job",
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /\+91 \(98765\) 43210/i) &&
   has(read(".github/workflows/whatsapp-hub-checks.yml"), /node scripts\/whatsapp-contact-normalization\.test\.cjs/i));
+check("Indian local and international WhatsApp numbers share one canonical contact identity",
+  has(whatsappService, /function canonicalWhatsAppPhone\(raw\)/i) &&
+  has(whatsappService, /if \(digits\.length === 10\) digits = "91" \+ digits/i) &&
+  has(whatsappService, /canonicalWhatsAppPhone\(item\.phone\) === canonicalWhatsAppPhone\(incoming\.phone\)/i) &&
+  has(read("src/WhatsAppScheduler.tsx"), /function canonicalWhatsAppDirectoryPhone/i));
+check("existing AXIVESTRA master contacts are consolidated without losing dependent references",
+  has(read("src/App.tsx"), /deduplicateMasterContacts\(contactsRef\.current\)/i) &&
+  has(read("src/App.tsx"), /remapWorkspaceContactReferences/i) &&
+  has(read("src/App.tsx"), /localDb\.documents\.bulkPut\(updates\)/i) &&
+  has(read("src/lib/contact-directory.mjs"), /shared phone alone is not enough to merge two different people/i) &&
+  has(read("scripts/contact-directory-dedup.test.cjs"), /Contact links are remapped/i) &&
+  has(read("package.json"), /contact-directory-dedup\.test\.cjs/i));
+check("module editor uses a wide landscape PC modal and a single-column mobile layout",
+  has(read("src/App.tsx"), /className="module-record-modal"/i) &&
+  has(read("src/App.tsx"), /className="module-record-form"/i) &&
+  has(read("src/styles.css"), /@media \(min-width: 1100px\)[\s\S]{0,400}\.modal\.module-record-modal[\s\S]{0,300}width: min\(1480px, 94vw\)/i) &&
+  has(read("src/styles.css"), /@media \(max-width: 719px\)[\s\S]{0,300}\.modal\.module-record-modal[\s\S]{0,250}width: 100%/i));
+check("selected INR unit remains selected before the user starts typing",
+  has(read("src/App.tsx"), /Keep a unit selected while the input is still empty/i) &&
+  !has(read("src/App.tsx"), /else if\(!raw\.trim\(\)\)setUnit\("rupees"\)/i));
+
 check("pre-existing WhatsApp cache duplicates are removed on load and cleanup counts are shown",
   has(whatsappService, /whatsappContacts = deduplicateWhatsAppContacts\(whatsappContacts\)/i) &&
   has(whatsappService, /whatsappGroups = deduplicateWhatsAppGroups\(whatsappGroups\)/i) &&
