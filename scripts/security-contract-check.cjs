@@ -182,6 +182,13 @@ check("interrupted in-flight WhatsApp sends are surfaced as uncertain instead of
 check("phone normalisation has an executable regression test wired into the app CI job",
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /\+91 \(98765\) 43210/i) &&
   has(read(".github/workflows/whatsapp-hub-checks.yml"), /node scripts\/whatsapp-contact-normalization\.test\.cjs/i));
+check("pre-existing WhatsApp cache duplicates are removed on load and cleanup counts are shown",
+  has(whatsappService, /whatsappContacts = deduplicateWhatsAppContacts\(whatsappContacts\)/i) &&
+  has(whatsappService, /whatsappGroups = deduplicateWhatsAppGroups\(whatsappGroups\)/i) &&
+  has(whatsappService, /addressBookDuplicatesRemoved/i) &&
+  has(whatsappUi, /duplicateCleanupMessage/i) &&
+  has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppContacts/i) &&
+  has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppGroups/i));
 
 check("QR-linked WhatsApp credentials are stored and reused to reconnect after desktop restart",
   has(whatsappService, /useMultiFileAuthState\(authDir\)/i) &&
