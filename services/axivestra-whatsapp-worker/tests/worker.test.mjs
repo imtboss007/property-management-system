@@ -56,6 +56,7 @@ test("database queue enforces company isolation, consent, and service-role dispa
   assert.match(sql, /enable row level security/i);
   assert.match(sql, /public\.has_company_role\(company_id, array\['owner','admin','manager','staff'\]\)/i);
   assert.match(sql, /consent_confirmed = true/i);
+  assert.match(sql, /message_type = 'template' or scheduled_at <= now\(\) \+ interval '1 minute'/i);
   assert.match(sql, /coalesce\(auth\.role\(\), ''\) <> 'service_role'/i);
   assert.match(sql, /apply_whatsapp_cloud_delivery_status/i);
   assert.match(sql, /grant execute on function public\.claim_due_whatsapp_messages\(integer,uuid\) to service_role/i);
