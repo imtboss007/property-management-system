@@ -39,4 +39,4 @@ assert.equal(duplicateGroups.filter(group => group.name === "Family").length, 2,
 assert.equal(duplicateGroups.find(group => group.jid === "120363000000000001@g.us")?.size, 8, "group metadata is merged without losing the newest participant count");
 assert.equal(duplicateGroups.find(group => group.jid === "120363000000000001@g.us")?.description, "Family group", "group descriptions are preserved");
 
-process.stdout.write(`WhatsApp contact normalisation and directory deduplication tests passed (${cases.length} phone cases plus 7 directory assertions).\\n`);
+process.stdout.write(`WhatsApp contact normalisation and directory deduplication tests passed (${cases.length} phone cases plus 7 directory assertions).\n`);
