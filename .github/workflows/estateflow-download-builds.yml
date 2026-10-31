@@ -27,6 +27,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
+          VITE_AXIVESTRA_WHATSAPP_WORKER_URL: ${{ vars.VITE_AXIVESTRA_WHATSAPP_WORKER_URL }}
         run: npm run build
       - name: Package installer without publishing
         run: npx electron-builder --win nsis --x64 --publish never
