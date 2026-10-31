@@ -228,6 +228,19 @@ check("pre-existing WhatsApp cache duplicates are removed on load and cleanup co
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppContacts/i) &&
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppGroups/i));
 
+check("WhatsApp pairing prefers the live WhatsApp Web protocol revision over stale Baileys repository metadata",
+  has(whatsappService, /fetchLatestWaWebVersion: module\.fetchLatestWaWebVersion/i) &&
+  has(whatsappService, /fetchLatestWaWebVersion\(\{ timeout: 10000 \}\)/i) &&
+  has(whatsappService, /const negotiatedVersion = await resolveWhatsAppWebVersion\(lib\)/i) &&
+  has(read("scripts/whatsapp-version-negotiation.test.cjs"), /stale Baileys metadata endpoint is not preferred/i) &&
+  has(read("package.json"), /whatsapp-version-negotiation\.test\.cjs/i));
+check("WhatsApp handshake rejections stop automatic retry loops and transient disconnects use backoff",
+  has(whatsappService, /function isTerminalHandshakeFailure\(code\)/i) &&
+  has(whatsappService, /isTerminalHandshakeFailure\(code\)/i) &&
+  has(whatsappService, /reconnectDelayForAttempt\(\+\+reconnectAttempts\)/i) &&
+  has(whatsappService, /reconnectTimer\.unref\?\.\(\)/i) &&
+  has(read("scripts/whatsapp-version-negotiation.test.cjs"), /\[5000,10000,20000,40000,60000,60000\]/i));
+
 check("QR-linked WhatsApp credentials are stored and reused to reconnect after desktop restart",
   has(whatsappService, /useMultiFileAuthState\(authDir\)/i) &&
   has(whatsappService, /fs\.access\(path\.join\(authDir, "creds\.json"\)\)/i) &&
