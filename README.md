@@ -34,6 +34,19 @@ See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for Supabase setup, Edge Fu
 
 WhatsApp has two modes: the existing Windows-linked-device sender (PC must remain on) and the optional official Meta WhatsApp Business Platform sender dispatched by a Cloudflare Worker Cron. The Worker is designed for the Cloudflare Workers Free tier and uses the existing Supabase Postgres queue; D1 is intentionally not added as a duplicate queue store. It is not live until the Worker, server-only secrets, Meta Business sender and webhook have been configured. See [CLOUD-WHATSAPP-AND-DATA-SYNC.md](CLOUD-WHATSAPP-AND-DATA-SYNC.md) and [services/axivestra-whatsapp-worker/README.md](services/axivestra-whatsapp-worker/README.md). Meta message charges and opt-in/template rules still apply; no messages are sent during deployment.
 
+
+## Indian INR amount entry
+
+All AXIVESTRA fields labelled with ₹ accept either plain numeric amounts or Indian shorthand. Examples:
+
+- `25000` or `25 thousand` → ₹25,000
+- `5 lakh` → ₹5,00,000
+- `2 crore` → ₹2,00,00,000
+- `1 crore 25 lakh` → ₹1,25,00,000
+
+This applies across the module worksheets' rupee fields, common property value/exposure and rate-per-unit fields, and Financials transactions. Percentage, area, quantity, year and tenure fields remain ordinary numeric inputs. Amounts are normalized to a numeric INR value before saving, so existing records, calculations and CSV exports continue using rupees rather than display text.
+
+
 ## Build Windows + Android
 
 The GitHub Actions workflow is `.github/workflows/main.yml`. It runs on pushes to `main`, pull requests targeting `main`, or manual dispatch from the Actions tab. The workflow builds a Windows `.exe` installer and Android debug `.apk`, then uploads each as an Actions artifact. It does not automatically publish a GitHub Release.
