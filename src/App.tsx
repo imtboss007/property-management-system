@@ -1705,6 +1705,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       primaryContactId: current.primaryContactId ? (remap[current.primaryContactId] || current.primaryContactId) : current.primaryContactId,
       moduleData: remapWorkspaceContactReferences({ properties: [current] }, remap).properties[0].moduleData as Record<string, string>
     }) : current);
+    setEditingContact(current => current && remap[current.id]
+      ? (result.contacts.find(contact => contact.id === remap[current.id]) as ContactRecord || current)
+      : current);
     setEditingTask(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
     setEditingFinancial(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
     setDocumentContact(current => remap[current] || current);
