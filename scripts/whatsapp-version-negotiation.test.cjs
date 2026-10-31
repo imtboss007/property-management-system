@@ -8,6 +8,12 @@ const {
 } = require("../electron/whatsapp-service.cjs");
 
 async function run() {
+  const baileys = await import("@whiskeysockets/baileys");
+  assert.equal(typeof baileys.fetchLatestWaWebVersion, "function",
+    "the pinned Baileys version must export the live WhatsApp Web revision helper");
+  assert.equal(typeof baileys.fetchLatestBaileysVersion, "function",
+    "the pinned Baileys version must retain the metadata fallback helper");
+
   let legacyCalls = 0;
   const resolved = await resolveWhatsAppWebVersion({
     fetchLatestWaWebVersion: async options => {
