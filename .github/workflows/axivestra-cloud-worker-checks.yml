@@ -1,0 +1,31 @@
+name: AXIVESTRA Cloud Worker Checks
+
+on:
+  pull_request:
+    paths:
+      - "services/axivestra-whatsapp-worker/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/axivestra-cloud-worker-checks.yml"
+  push:
+    branches:
+      - main
+      - axivestra/cloudflare-whatsapp-worker
+    paths:
+      - "services/axivestra-whatsapp-worker/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/axivestra-cloud-worker-checks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  worker-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test Cloudflare Worker and queue safety contracts
+        working-directory: services/axivestra-whatsapp-worker
+        run: npm test
