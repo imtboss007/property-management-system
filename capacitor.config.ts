@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.estateflow.propertymanagement',
+  appId: 'com.axivestra.assetintelligence',
   appName: 'AXIVESTRA',
   webDir: 'dist',
   bundledWebRuntime: false,
