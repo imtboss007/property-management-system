@@ -562,7 +562,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
     const removedGroups = Number(addressBook.duplicatesRemoved?.groups || 0);
     if (!removedContacts && !removedGroups) return "";
     return "Removed " + removedContacts + " duplicate WhatsApp contact record(s) and " + removedGroups +
-      " duplicate WhatsApp group record(s) from the saved Windows cache. AXIVESTRA master contacts and distinct groups were preserved.";
+      " duplicate WhatsApp group record(s) from the saved Windows cache. AXIVESTRA contact duplicates are also consolidated by WhatsApp identity while preserving contact details and linked records.";
   }, [addressBook.duplicatesRemoved]);
 
   return <section className="data-panel whatsapp-workspace">
