@@ -77,6 +77,8 @@ with check (
   and attempt_count = 0
   and provider_message_id = ''
   and sent_at is null
+  -- Free-form text is only allowed as an immediate send. Future sends require a template.
+  and (message_type = 'template' or scheduled_at <= now() + interval '1 minute')
 );
 
 create or replace function public.cancel_whatsapp_cloud_message(target_message_id uuid, target_company_id uuid)
@@ -153,6 +155,7 @@ begin
       where m.status = 'scheduled'
         and m.scheduled_at <= now()
         and m.company_id = target_company_id
+        and m.consent_confirmed = true
       order by m.scheduled_at, m.created_at
       for update skip locked
       limit greatest(1, least(coalesce(batch_size, 10), 25))
