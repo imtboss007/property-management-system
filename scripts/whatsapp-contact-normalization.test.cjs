@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const {
   normalizeDigits,
+  canonicalWhatsAppPhone,
   deduplicateWhatsAppContacts,
   deduplicateWhatsAppGroups
 } = require("../electron/whatsapp-service.cjs");
@@ -13,16 +14,21 @@ const cases = [
   ["98765-43210", "9876543210"],
   ["No phone number", ""],
   ["+1 202-555-0109", "12025550109"],
-  ["  0044 20 7946 0958  ", "00442079460958"]
+  ["  0044 20 7946 0958  ", "00442079460958"],
+  ["98765 43210", "919876543210"],
+  ["+91 (98765) 43210", "919876543210"]
 ];
 
 for (const [input, expected] of cases) {
   assert.equal(normalizeDigits(input), expected, `normalizeDigits(${JSON.stringify(input)})`);
 }
+assert.equal(canonicalWhatsAppPhone("98765-43210"), "919876543210", "Indian local number is canonicalized");
+assert.equal(canonicalWhatsAppPhone("+91 98765 43210"), "919876543210", "Indian international number has the same canonical identity");
 
 const duplicateContacts = deduplicateWhatsAppContacts([
   { id: "919876543210:1@s.whatsapp.net", jid: "919876543210:1@s.whatsapp.net", phone: "+91 98765 43210", name: "+919876543210", lastSyncedAt: "2026-10-01T00:00:00.000Z" },
   { id: "919876543210@s.whatsapp.net", jid: "919876543210@s.whatsapp.net", phone: "91-98765-43210", name: "Prabhakaran", whatsappName: "Prabhakaran", notify: "Prabhakaran", lastSyncedAt: "2026-10-02T00:00:00.000Z" },
+  { id: "9876543210@s.whatsapp.net", jid: "9876543210@s.whatsapp.net", phone: "98765 43210", name: "Prabhakaran" },
   { id: "12025550109@s.whatsapp.net", jid: "12025550109@s.whatsapp.net", phone: "+1 202-555-0109", name: "Other contact" }
 ]);
 assert.equal(duplicateContacts.length, 2, "same phone in different formats/device JIDs collapses to one contact");
