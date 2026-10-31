@@ -49,14 +49,26 @@ This applies across the module worksheets' rupee fields, common property value/e
 
 ## Build Windows + Android
 
-The GitHub Actions workflow is `.github/workflows/main.yml`. It runs on pushes to `main`, pull requests targeting `main`, or manual dispatch from the Actions tab. The workflow builds a Windows `.exe` installer and Android debug `.apk`, then uploads each as an Actions artifact. It does not automatically publish a GitHub Release.
+The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and runs an Android debug-build smoke test. The APK from that workflow is **debug-signed and is not an upgrade-safe mobile installer**; do not distribute it as a user update.
 
-1. Open the repository's **Actions** tab.
-2. Open the successful **AXIVESTRA Windows and Android builds** run.
-3. Download the `AXIVESTRA-Windows` and/or `AXIVESTRA-Android` artifact.
-4. Install the Windows installer on Windows. On Android, open the APK and approve installation from that source if prompted.
+For a mobile installation, use `.github/workflows/android-signed-release.yml` only. It builds a release APK signed with the persistent AXIVESTRA keystore and uploads the `AXIVESTRA-Android-SIGNED` artifact. Before the first run, configure these GitHub Actions repository secrets:
 
-The Android project is created on the GitHub runner with `npx cap add android`, then synced and built. It is a generated build output and is not required to be committed to this source branch.
+- `ANDROID_KEYSTORE_BASE64`: Base64 text of the private `AXIVESTRA-android-release.jks` file.
+- `ANDROID_KEYSTORE_PASSWORD`: keystore password supplied separately to the repository owner.
+- `ANDROID_KEY_ALIAS`: `axivestra-release`.
+- `ANDROID_KEY_PASSWORD`: private-key password (same as the keystore password for this key).
+
+Run the PowerShell command below on a trusted Windows PC from the folder containing the keystore; copy its output into the `ANDROID_KEYSTORE_BASE64` secret:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\\AXIVESTRA-android-release.jks"))
+```
+
+Then open **GitHub → repository Settings → Secrets and variables → Actions → New repository secret** and add the four values. Keep a secure offline backup of the keystore; future Android updates must use this exact key. Never commit the keystore or passwords to the repository.
+
+To build the signed mobile APK, open **Actions → AXIVESTRA Android Signed Release → Run workflow**. Download the `AXIVESTRA-Android-SIGNED` artifact from the successful run and install the APK. The Android package ID is now `com.axivestra.assetintelligence`, so it installs alongside the legacy `com.estateflow.propertymanagement` app. Keep the old app until the new one is installed, paired to the Windows PC and verified; export/import local record backups before removing the old app if it contains phone-only records.
+
+The Android project is generated on the GitHub runner with `npx cap add android`; generated Android build files are not required to be committed.
 
 ## Run in a browser for development
 
