@@ -89,7 +89,7 @@ export async function getCloudWhatsAppStatus(): Promise<CloudWhatsAppStatus> {
     }
     return {
       ready: Boolean(data?.ready),
-      configured: true,
+      configured: Boolean(data?.configured),
       companyId: identity.companyId,
       senderNumber: String(data?.senderNumber || ""),
       displayName: String(data?.displayName || ""),
@@ -174,6 +174,10 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
     throw new Error("The official cloud sender supports individual contacts only. Choose an individual contact.");
   }
   if (payload.consentConfirmed !== true) throw new Error("Confirm that the recipient expects and has agreed to receive these messages.");
+  const cloudStatus = await getCloudWhatsAppStatus();
+  if (!cloudStatus.configured || !cloudStatus.ready) {
+    throw new Error(cloudStatus.error || "The official WhatsApp cloud sender is not ready yet. No message has been queued.");
+  }
   const { companyId, userId, role } = await currentIdentity();
   if (role === "read_only") throw new Error("Your cloud role cannot schedule messages.");
   if (!supabase) throw new Error("Cloud storage is not configured.");
