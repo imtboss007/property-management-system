@@ -1416,3 +1416,12 @@ h2,h3{color:#e5f2fc}
   .ax-property-range-results__controls label { flex: 1; min-width: 180px; }
   .ax-property-range-results__controls select { width: 100%; max-width: none; }
 }
+
+
+/* Indian INR shorthand input used by shared property and financial forms. */
+.ax-inr-amount-control{display:flex;flex-direction:column;gap:5px;min-width:0;width:100%}
+.ax-inr-amount-help,.ax-inr-amount-preview,.ax-inr-amount-error{font-size:11px;line-height:1.45;font-weight:500}
+.ax-inr-amount-help{color:#7893a8}
+.ax-inr-amount-preview{color:#24c995}
+.ax-inr-amount-error{color:#ff8e8e}
+.ax-inr-amount-control input[aria-invalid="true"]{border-color:#e36f6f;box-shadow:0 0 0 2px rgba(227,111,111,.12)}
