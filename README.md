@@ -53,7 +53,7 @@ The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows inst
 
 For a mobile installation, use only the `AXIVESTRA-Android-SIGNED` artifact produced by `.github/workflows/main.yml`. It is built with the persistent AXIVESTRA keystore. Before the first signed build, configure these GitHub Actions repository secrets:
 
-- `ANDROID_KEYSTORE_BASE64`: Base64 text of the private `AXIVESTRA-android-release.jks` file.
+- `ANDROID_KEYSTORE_BASE64`: Base64 text of the private `AXIVESTRA-android-release.p12` file.
 - `ANDROID_KEYSTORE_PASSWORD`: keystore password supplied separately to the repository owner.
 - `ANDROID_KEY_ALIAS`: `axivestra-release`.
 - `ANDROID_KEY_PASSWORD`: private-key password (same as the keystore password for this key).
@@ -61,7 +61,7 @@ For a mobile installation, use only the `AXIVESTRA-Android-SIGNED` artifact prod
 Run the PowerShell command below on a trusted Windows PC from the folder containing the keystore; copy its output into the `ANDROID_KEYSTORE_BASE64` secret:
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\\AXIVESTRA-android-release.jks"))
+[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\\AXIVESTRA-android-release.p12"))
 ```
 
 Then open **GitHub → repository Settings → Secrets and variables → Actions → New repository secret** and add the four values. Keep a secure offline backup of the keystore; future Android updates must use this exact key. Never commit the keystore or passwords to the repository.
