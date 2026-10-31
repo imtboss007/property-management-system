@@ -89,7 +89,7 @@ export async function getCloudWhatsAppStatus(): Promise<CloudWhatsAppStatus> {
     }
     return {
       ready: Boolean(data?.ready),
-      configured: Boolean(data?.configured),
+      configured: true,
       companyId: identity.companyId,
       senderNumber: String(data?.senderNumber || ""),
       displayName: String(data?.displayName || ""),
@@ -204,7 +204,7 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
     to_phone: toPhone,
     recipient_name: String(payload.contactName || "").trim().slice(0, 160),
     contact_id: String(payload.contactId || ""),
-    message: message || (templateName ? " " : ""),
+    message,
     message_type: templateName ? "template" : "text",
     template_name: templateName || null,
     template_language: String(payload.templateLanguage || "en_US").trim().slice(0, 20) || "en_US",
