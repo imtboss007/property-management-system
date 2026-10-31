@@ -35,7 +35,14 @@ function workerBaseUrl() {
   const enabled = String(import.meta.env.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED || "").toLowerCase() === "true";
   if (!enabled) return "";
   const value = String(import.meta.env.VITE_AXIVESTRA_WHATSAPP_WORKER_URL || "").trim();
-  return value.replace(/\/+$/, "");
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) return "";
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
 }
 function activeCompanyId() {
   try { return localStorage.getItem("axivestra.activeCompanyId") || ""; }
