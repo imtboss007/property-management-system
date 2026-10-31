@@ -156,11 +156,11 @@ const prettyDate = (value: string) => {
 function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsAppAddressBook): WhatsAppAddressBook {
   const contacts: SyncedWhatsAppContact[] = [];
   for (const contact of [...previous.contacts, ...incoming.contacts]) {
-    const digits = String(contact.phone || "").replace(/\D/g, "");
-    const key = String(contact.jid || contact.id || "");
+    const digits = String(contact.phone || "").replace(/\D/g, "").replace(/^00/, "");
+    const key = String(contact.jid || contact.id || "").trim().toLowerCase();
     const index = contacts.findIndex(saved => {
-      const savedDigits = String(saved.phone || "").replace(/\D/g, "");
-      const savedKey = String(saved.jid || saved.id || "");
+      const savedDigits = String(saved.phone || "").replace(/\D/g, "").replace(/^00/, "");
+      const savedKey = String(saved.jid || saved.id || "").trim().toLowerCase();
       return Boolean((digits && savedDigits && digits === savedDigits) || (key && savedKey && key === savedKey));
     });
     if (index < 0) {
@@ -186,7 +186,7 @@ function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsApp
   for (const group of [...previous.groups, ...incoming.groups]) {
     const jid = String(group.jid || group.id || "").trim().toLowerCase();
     if (!jid.endsWith("@g.us")) continue;
-    const index = groups.findIndex(saved => String(saved.jid || saved.id || "") === jid);
+    const index = groups.findIndex(saved => String(saved.jid || saved.id || "").trim().toLowerCase() === jid);
     if (index < 0) {
       groups.push({ ...group, jid });
     } else {
