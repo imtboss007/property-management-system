@@ -15,15 +15,23 @@ function normalizeDigits(raw) {
   return String(raw || "").replace(/\D/g, "");
 }
 
+function canonicalWhatsAppPhone(raw) {
+  let digits = normalizeDigits(raw);
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  // Treat Indian local 10-digit numbers and their +91 form as one contact.
+  if (digits.length === 10) digits = "91" + digits;
+  return digits;
+}
+
 function contactDigits(contact) {
-  let digits = normalizeDigits(contact && (contact.phone || contact.phoneNumber));
+  let digits = canonicalWhatsAppPhone(contact && (contact.phone || contact.phoneNumber));
   if (!digits) {
     const jid = String(contact && (contact.jid || contact.id) || "");
     if (jid.toLowerCase().endsWith("@s.whatsapp.net")) {
-      digits = normalizeDigits(jid.split("@")[0].split(":")[0]);
+      digits = canonicalWhatsAppPhone(jid.split("@")[0].split(":")[0]);
     }
   }
-  return digits.startsWith("00") ? digits.slice(2) : digits;
+  return digits;
 }
 
 function whatsAppContactKeys(contact) {
@@ -34,8 +42,8 @@ function whatsAppContactKeys(contact) {
     const jid = String(value || "").trim().toLowerCase();
     if (!jid) continue;
     if (jid.endsWith("@s.whatsapp.net")) {
-      const jidDigits = normalizeDigits(jid.split("@")[0].split(":")[0]);
-      if (jidDigits) keys.push("phone:" + (jidDigits.startsWith("00") ? jidDigits.slice(2) : jidDigits));
+      const jidDigits = canonicalWhatsAppPhone(jid.split("@")[0].split(":")[0]);
+      if (jidDigits) keys.push("phone:" + jidDigits);
     } else {
       keys.push("jid:" + jid);
     }
@@ -278,9 +286,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     if (!digits && rawJid.endsWith("@s.whatsapp.net")) {
       digits = normalizeDigits(rawJid.split("@")[0].split(":")[0]);
     }
-    if (digits.startsWith("00")) digits = digits.slice(2);
+    digits = canonicalWhatsAppPhone(digits);
     if (digits.length < 8 || digits.length > 15) return null;
-    const jid = rawJid.endsWith("@s.whatsapp.net") ? rawJid : digits + "@s.whatsapp.net";
+    const jid = digits + "@s.whatsapp.net";
     const suppliedName = String(raw.name || raw.verifiedName || raw.notify || raw.pushName || "").trim();
     const displayName = suppliedName || "+" + digits;
     return {
@@ -303,7 +311,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       const incoming = normalizeWaContact(raw);
       if (!incoming) continue;
       const existingIndex = whatsappContacts.findIndex(item => item.id === incoming.id ||
-        normalizeDigits(item.phone) === normalizeDigits(incoming.phone));
+        canonicalWhatsAppPhone(item.phone) === canonicalWhatsAppPhone(incoming.phone));
       if (existingIndex >= 0) {
         const previous = whatsappContacts[existingIndex];
         whatsappContacts[existingIndex] = {
@@ -1370,6 +1378,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 module.exports = {
   createWhatsAppService,
   normalizeDigits,
+  canonicalWhatsAppPhone,
   deduplicateWhatsAppContacts,
   deduplicateWhatsAppGroups
 };
