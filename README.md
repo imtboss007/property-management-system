@@ -25,7 +25,7 @@ Cloud sync covers properties, contacts, WhatsApp groups, tasks, financials, risk
 To enable cloud mode:
 1. Copy `.env.example` to `.env.local` for local development and set the Supabase Project URL and public publishable/anon key.
 2. Apply the SQL migration to the same project and configure Supabase Auth email settings and approved redirect URLs.
-3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**. For the optional official WhatsApp cloud sender, add the public build variable `VITE_AXIVESTRA_WHATSAPP_WORKER_URL` after deploying the Cloudflare Worker.
+3. For GitHub Actions builds, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` under **Settings → Secrets and variables → Actions**. For the optional official WhatsApp cloud sender, add the public repository variables `VITE_AXIVESTRA_WHATSAPP_WORKER_URL` and `VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED=true` after deploying the Cloudflare Worker. The Worker URL must be HTTPS; all sender credentials remain server-side.
 4. Build fresh Windows and Android artifacts after adding those values. Existing installers do not gain them retroactively.
 
 See [SUPABASE-AUTH-SETUP.md](SUPABASE-AUTH-SETUP.md) for Supabase setup, Edge Function deployment, role limits, data migration and release acceptance tests. This is an implementation stage, not a claim of production certification; test row-level security with separate users/companies before real sensitive data is used.
