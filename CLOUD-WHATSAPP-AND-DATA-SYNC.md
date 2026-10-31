@@ -9,7 +9,7 @@ AXIVESTRA keeps its existing Supabase project as the source of truth for company
 - **Meta WhatsApp Business Platform:** official business sender for outbound individual messages and delivery-status callbacks.
 - **D1:** intentionally not used. The queue already belongs in the existing Postgres database. A second copy in D1 would introduce duplicate state and synchronization work without a real benefit.
 
-The Cloudflare account was inspected and is on Workers Free. No Worker, Pages project or D1 database had been provisioned at the time of inspection. The Worker source is prepared in `services/axivestra-whatsapp-worker`; this source is not yet a live deployment.
+The Cloudflare account is on Workers Free / Pages Free. The Pages project `axivestra` is deployed at https://axivestra.pages.dev from GitHub main. The Worker source is merged into `main` at `services/axivestra-whatsapp-worker` but is not yet a live Worker deployment. No D1 database is created.
 
 ## WhatsApp modes
 
@@ -22,7 +22,7 @@ Scheduled cloud messages must use a Meta-approved template because a future send
 
 The Cloudflare Worker is designed for the free Workers plan. The sender cannot be activated until the owner has a Meta Business Platform app, an approved/onboarded sending number and server credentials. Required Worker secrets are listed in `services/axivestra-whatsapp-worker/README.md`; they must be added in Cloudflare's secret manager and must never be placed in source, GitHub variables, APKs, Windows builds, or chat.
 
-The queue migration is additive and creates a new empty queue table and restricted RPC functions. It does not migrate or rewrite existing AXIVESTRA records. Apply it only after the migration filename/order and CI are validated. A Worker Cron must be deployed and the Meta webhook callback must be registered before delivery or stop-on-reply can work.
+The queue migration is additive and is already applied as `20261031065632_whatsapp_cloud_scheduler`; it created an empty queue table and restricted RPC functions. It did not migrate or rewrite existing AXIVESTRA records. A Worker Cron must be deployed and the Meta webhook callback registered before delivery or stop-on-reply can work.
 
 The current implementation restricts one Worker sender configuration to one AXIVESTRA company at a time. Independent sender numbers for multiple companies require separate Worker configurations and secrets.
 
