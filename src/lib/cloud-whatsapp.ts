@@ -32,6 +32,8 @@ export type CloudSchedulePayload = {
 };
 
 function workerBaseUrl() {
+  const enabled = String(import.meta.env.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED || "").toLowerCase() === "true";
+  if (!enabled) return "";
   const value = String(import.meta.env.VITE_AXIVESTRA_WHATSAPP_WORKER_URL || "").trim();
   return value.replace(/\/+$/, "");
 }
@@ -238,7 +240,7 @@ export async function cancelCloudWhatsAppMessage(id: string, companyIdOverride =
 }
 export async function retryCloudWhatsAppMessage(id: string, companyIdOverride = ""): Promise<void> {
   if (!supabase) throw new Error("Cloud storage is not configured.");
-  const { companyId } = await currentIdentity();
+  const { companyId } = await currentIdentity(companyIdOverride);
   const { data, error } = await supabase.rpc("retry_whatsapp_cloud_message", { target_message_id: id, target_company_id: companyId });
   if (error) throw new Error(error.message);
   if (data !== true) throw new Error("This message cannot be retried.");
