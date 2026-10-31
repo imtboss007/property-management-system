@@ -2335,10 +2335,23 @@ function FinancialForm({properties,contacts,initial,onSave,onCancel}:{properties
       amount:initial?.amount ?? "",date:initial?.date ?? new Date().toISOString().slice(0,10),party:initial?.party ?? "",
       reference:initial?.reference ?? "",notes:initial?.notes ?? ""};
   });
+  const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
   const types=["Purchase","Sale","Advance","Loan Disbursal","Loan Repayment","Interest","Instalment","Brokerage","Expense","Receipt","Settlement","Other"];
-  return <form className="form-card" onSubmit={event=>{event.preventDefault();if(form.amount.trim() && Number(form.amount)>=0){const property=properties.find(item=>item.id===form.propertyId);const contact=contacts.find(item=>item.id===form.contactId);onSave({...form,property:property?.title ?? form.property,party:contact?.name ?? form.party});}}}>
-    <div className="form-two"><label>Transaction type<select value={form.type} onChange={event=>update("type",event.target.value)}>{types.map(type=><option key={type}>{type}</option>)}</select></label><label>Amount (₹) *<input required type="number" min="0" step="0.01" value={form.amount} onChange={event=>update("amount",event.target.value)} placeholder="0.00"/></label></div>
+  return <form className="form-card" onSubmit={event=>{
+    event.preventDefault();
+    const normalizedAmount=normalizeIndianAmount(form.amount);
+    if(!form.amount.trim() || normalizedAmount===null){
+      setAmountError("Enter a valid INR amount, such as 25 thousand, 5 lakh or 2 crore.");
+      return;
+    }
+    setAmountError("");
+    const property=properties.find(item=>item.id===form.propertyId);
+    const contact=contacts.find(item=>item.id===form.contactId);
+    onSave({...form,amount:normalizedAmount,property:property?.title ?? form.property,party:contact?.name ?? form.party});
+  }}>
+    <div className="form-two"><label>Transaction type<select value={form.type} onChange={event=>update("type",event.target.value)}>{types.map(type=><option key={type}>{type}</option>)}</select></label><label>Amount (₹) *<IndianAmountInput required value={form.amount} onChange={value=>update("amount",value)} placeholder="e.g. 25 thousand, 5 lakh or 2 crore"/></label></div>
+    {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <div className="form-two"><label>Date *<input required type="date" value={form.date} onChange={event=>update("date",event.target.value)}/></label><label>Related deal / property<select value={form.propertyId} onChange={event=>{const value=event.target.value;update("propertyId",value);update("property",properties.find(item=>item.id===value)?.title ?? "");}}><option value="">No property selected</option>{properties.map(property=><option key={property.id} value={property.id}>{property.title} · {property.module}</option>)}</select></label></div>
     <SearchableContactPicker label="Related contact" contacts={contacts} value={form.contactId} placeholder="Select borrower / lender / counterparty" onChange={value=>{const id=String(value);setForm(previous=>({...previous,contactId:id,party:contacts.find(item=>item.id===id)?.name ?? previous.party}));}}/>
     <div className="form-two"><label>Party / counterparty name<input value={form.party} onChange={event=>update("party",event.target.value)} placeholder="Borrower, lender, buyer or seller"/></label><label>Reference number<input value={form.reference} onChange={event=>update("reference",event.target.value)} placeholder="Receipt / bank reference"/></label></div>
