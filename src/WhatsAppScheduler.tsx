@@ -108,7 +108,7 @@ function createCloudApi(): WhatsAppApi {
       senderNumber: result.senderNumber || "",
       displayName: result.displayName || "",
       error: result.ready ? "" : result.error || "Cloud WhatsApp is not ready.",
-      webhook: { configured: Boolean(result.webhookConfigured), reason: "Meta inbound-message webhook is not verified/configured." }
+      webhook: { configured: Boolean(result.webhookConfigured), reason: "Meta webhook credentials are missing. Configure the callback and verify the WhatsApp messages subscription before relying on stop-on-reply." }
     };
   };
   const queue = async () => await listCloudWhatsAppMessages() as ScheduleRow[];
@@ -569,7 +569,7 @@ export default function WhatsAppScheduler({ contacts = [], properties = [], save
         <small>{status.platform === "cloud-whatsapp-business" ? "Queue is stored in AXIVESTRA cloud; the official Meta sender is server-side." : status.platform.startsWith("gateway-") ? "The linked WhatsApp session and message queue live on the hub server." : status.connected ? "Session saved locally on this Windows user profile." : "Link the account through the configured sender; the session stays with that sender."}</small>
         {status.error && <small className="wa-connection-error">{status.error}</small>}
         {status.webhook && !status.webhook.configured && <small className="wa-connection-error">Automatic stop-on-reply is not active: {status.webhook.error || status.webhook.reason || "Webhook not configured."}</small>}
-        {status.webhook?.configured && <small>Automatic stop-on-reply webhook registered with {status.webhook.provider || "the WhatsApp gateway"}.</small>}
+        {status.webhook?.configured && <small>Meta webhook credentials are set. Verify the Worker callback is subscribed to WhatsApp messages in Meta before relying on stop-on-reply.</small>}
       </div>
       {supported && !cloudMode && (status.connected
         ? <button className="secondary-button" disabled={busy} onClick={() => void disconnect()}><Unplug size={15}/>Disconnect</button>
