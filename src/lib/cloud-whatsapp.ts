@@ -178,6 +178,9 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
   if (!cloudStatus.configured || !cloudStatus.ready) {
     throw new Error(cloudStatus.error || "The official WhatsApp cloud sender is not ready yet. No message has been queued.");
   }
+  if (payload.stopOnReply !== false && !cloudStatus.webhookConfigured) {
+    throw new Error("Meta webhook credentials are not configured. Set up the signed Meta webhook first, or turn off stop-on-reply for this message.");
+  }
   const { companyId, userId, role } = await currentIdentity();
   if (role === "read_only") throw new Error("Your cloud role cannot schedule messages.");
   if (!supabase) throw new Error("Cloud storage is not configured.");
