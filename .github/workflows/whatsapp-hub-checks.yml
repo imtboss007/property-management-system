@@ -96,6 +96,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - name: Run complete AXIVESTRA regression suite
         run: npm test
+      - name: Smoke-test the live WhatsApp Web protocol endpoint
+        run: node scripts/whatsapp-live-version-smoke.mjs
       - name: Test property price/area range search and combined filters
         run: node scripts/property-range-search.test.cjs
       - name: Test WhatsApp phone normalisation and deduplication helper
