@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.axivestra.mobile2026',
+  appId: 'com.axivestra.mobile2027',
   appName: 'AXIVESTRA',
   webDir: 'dist',
   bundledWebRuntime: false,
