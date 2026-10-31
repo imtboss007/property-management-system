@@ -7,7 +7,7 @@ import {
   reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
-import { localDb } from "./lib/local-db";
+import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -861,16 +861,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if (manual) setSyncBusy(true);
       try {
         let remote = await readRemote();
-        const baselineKey = "axivestra.deviceSyncBaseline";
-        let baselineValue: unknown = null;
-        try { baselineValue = JSON.parse(localStorage.getItem(baselineKey) || "null"); } catch {}
+        const baselineValue = await loadDeviceSyncBaseline();
         const baseline = parseDeviceSyncBaseline(baselineValue);
         let completed = false;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (disposed) return;
           const result = reconcileDeviceSync(localSnapshot, remote.snapshot || {}, baseline);
           if (deviceSyncSnapshotsEqual(result.snapshot, remote.snapshot || {})) {
-            localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
+            await saveDeviceSyncBaseline(result.baseline);
             applySnapshot(result.snapshot);
             completed = true;
             break;
@@ -882,7 +880,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           }
           if (saved.ok === false) throw new Error(saved.error || "The PC did not save the shared data.");
           if (disposed) return;
-          localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
+          await saveDeviceSyncBaseline(result.baseline);
           applySnapshot(result.snapshot);
           completed = true;
           break;
