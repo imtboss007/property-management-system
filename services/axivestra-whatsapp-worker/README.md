@@ -12,7 +12,7 @@ This Worker provides the always-on scheduled dispatcher and Meta webhook endpoin
 
 ## Deploy prerequisites
 
-1. Apply the AXIVESTRA migrations in order, including `supabase/migrations/20261031054338_whatsapp_cloud_scheduler.sql`.
+1. Apply the AXIVESTRA migrations in order, including `supabase/migrations/20261031065632_whatsapp_cloud_scheduler.sql`.
 2. Connect an approved Meta WhatsApp Business Platform sender and a phone number ID.
 3. Know the target AXIVESTRA company UUID. The sender is intentionally restricted to one company per Worker deployment.
 4. Configure the following Worker secrets (never put them in Vite variables, client apps, source control or chat):
