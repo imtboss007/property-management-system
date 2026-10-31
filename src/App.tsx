@@ -2229,8 +2229,8 @@ const amountUnitFromSuffix = (suffix:string): IndianAmountUnit => {
 };
 function IndianAmountInput({value,onChange,placeholder,required=false}:{value:string;onChange:(value:string)=>void;placeholder?:string;required?:boolean}) {
   const raw=String(value ?? "");
-  const simpleAmount=/^\\s*₹?\\s*(\\d[\\d,]*(?:\\.\\d{1,2})?)\\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\\s*$/i.exec(raw);
-  const hasCombinedShorthand=!simpleAmount && /\\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\\b/i.test(raw);
+  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
+  const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
   const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):"rupees");
   useEffect(()=>{
     if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
