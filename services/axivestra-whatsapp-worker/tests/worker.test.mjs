@@ -52,7 +52,7 @@ test("Cloudflare Cron is configured for one-minute queue dispatch", async () => 
 });
 
 test("database queue enforces company isolation, consent, and service-role dispatch", async () => {
-  const sql = await readFile(new URL("../../../supabase/migrations/202610310002_whatsapp_cloud_scheduler.sql", import.meta.url), "utf8");
+  const sql = await readFile(new URL("../../../supabase/migrations/20261031054338_whatsapp_cloud_scheduler.sql", import.meta.url), "utf8");
   assert.match(sql, /enable row level security/i);
   assert.match(sql, /public\.has_company_role\(company_id, array\['owner','admin','manager','staff'\]\)/i);
   assert.match(sql, /consent_confirmed = true/i);
