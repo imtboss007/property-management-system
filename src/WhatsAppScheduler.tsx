@@ -153,13 +153,20 @@ const prettyDate = (value: string) => {
 // Treat imported WhatsApp metadata as an additive cache: a transient empty/partial
 // response must never erase contacts or group names already saved on this device.
 // Verified group membership is deliberately NOT unioned across refreshes/accounts.
+function canonicalWhatsAppDirectoryPhone(value:string):string {
+  let digits=String(value || "").replace(/\D/g,"");
+  if(digits.startsWith("00"))digits=digits.slice(2);
+  if(digits.length===10)digits="91"+digits;
+  return digits;
+}
+
 function mergeAddressBookCache(previous: WhatsAppAddressBook, incoming: WhatsAppAddressBook): WhatsAppAddressBook {
   const contacts: SyncedWhatsAppContact[] = [];
   for (const contact of [...previous.contacts, ...incoming.contacts]) {
-    const digits = String(contact.phone || "").replace(/\D/g, "").replace(/^00/, "");
+    const digits = canonicalWhatsAppDirectoryPhone(contact.phone);
     const key = String(contact.jid || contact.id || "").trim().toLowerCase();
     const index = contacts.findIndex(saved => {
-      const savedDigits = String(saved.phone || "").replace(/\D/g, "").replace(/^00/, "");
+      const savedDigits = canonicalWhatsAppDirectoryPhone(saved.phone);
       const savedKey = String(saved.jid || saved.id || "").trim().toLowerCase();
       return Boolean((digits && savedDigits && digits === savedDigits) || (key && savedKey && key === savedKey));
     });
@@ -555,7 +562,7 @@ export default function WhatsAppScheduler({ companyId = "", contacts = [], prope
     const removedGroups = Number(addressBook.duplicatesRemoved?.groups || 0);
     if (!removedContacts && !removedGroups) return "";
     return "Removed " + removedContacts + " duplicate WhatsApp contact record(s) and " + removedGroups +
-      " duplicate WhatsApp group record(s) from the saved Windows cache. AXIVESTRA master contacts and distinct groups were preserved.";
+      " duplicate WhatsApp group record(s) from the saved Windows cache. AXIVESTRA contact duplicates are also consolidated by WhatsApp identity while preserving contact details and linked records.";
   }, [addressBook.duplicatesRemoved]);
 
   return <section className="data-panel whatsapp-workspace">

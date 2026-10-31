@@ -14,6 +14,7 @@ import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
+import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -74,7 +75,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
     onChange(next);
   };
 
-  return <div className="searchable-contact-picker">
+  return <div className={"searchable-contact-picker"+(multiple ? " searchable-contact-picker--multiple" : "")}>
     <span className="searchable-contact-picker__label">{label}</span>
     <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
     {multiple
@@ -582,6 +583,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
   const contactsRef = useRef(contacts);
   contactsRef.current = contacts;
+  const contactIdRemapRef = useRef<Record<string, string>>({});
   const savedWhatsAppGroupsRef = useRef(savedWhatsAppGroups);
   savedWhatsAppGroupsRef.current = savedWhatsAppGroups;
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
@@ -652,9 +654,16 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(() => {
     let cancelled = false;
     const activeCompanyId = company?.id || "";
-    void localDb.documents.orderBy("createdAt").reverse().toArray().then(saved => {
+    void localDb.documents.orderBy("createdAt").reverse().toArray().then(async saved => {
+      const remap = contactIdRemapRef.current;
       const scoped = saved.filter(record => (record.companyId || "") === activeCompanyId);
-      if (!cancelled) setDocuments(scoped.map(({ file: _file, ...record }) => record));
+      const updated = scoped.filter(record => record.contactId && remap[record.contactId]).map(record => ({
+        ...record, contactId: remap[record.contactId!]
+      }));
+      if (updated.length) await localDb.documents.bulkPut(updated);
+      if (!cancelled) setDocuments(scoped.map(({ file: _file, ...record }) => ({
+        ...record, contactId: record.contactId ? (remap[record.contactId] || record.contactId) : record.contactId
+      })));
     }).catch(error => {
       if (!cancelled) setNotice("Local document vault could not be opened: " + (error instanceof Error ? error.message : String(error)));
     });
@@ -1535,11 +1544,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closeContactForm();
     setNotice("Contact saved on this device.");
   };
-  const normalizedContactPhone = (value: string) => {
-    let digits = String(value || "").replace(/\D/g, "");
-    if (digits.startsWith("00")) digits = digits.slice(2);
-    return digits;
-  };
+  const normalizedContactPhone = (value: string) => canonicalContactPhone(value);
   const sameContactPhone = (left: string, right: string) => {
     const a = normalizedContactPhone(left);
     const b = normalizedContactPhone(right);
@@ -1565,7 +1570,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if (!waName) continue;
 
       // Collapse duplicates inside the same WhatsApp response before touching master records.
-      const incomingKey = jid || digits;
+      const incomingKey = digits || jid;
       if (seenIncoming.has(incomingKey)) continue;
       seenIncoming.add(incomingKey);
 
@@ -1669,6 +1674,61 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       setNotice("WhatsApp groups: removed " + duplicatesRemoved + " duplicate saved group record(s); " + changed.length + " new or updated. Different groups with the same name were preserved.");
     }
   };
+
+  // Consolidate pre-existing duplicate WhatsApp contacts in the AXIVESTRA master register.
+  // IDs referenced by properties, role links, tasks, finance, risks, approvals and documents
+  // are re-pointed to the surviving contact before duplicate cloud rows are soft-deleted.
+  useEffect(() => {
+    if (company?.role === "read_only") return;
+    const result = deduplicateMasterContacts(contactsRef.current);
+    if (!result.duplicatesRemoved) return;
+
+    const remap = result.remap;
+    contactIdRemapRef.current = { ...contactIdRemapRef.current, ...remap };
+    const mapped = remapWorkspaceContactReferences({
+      properties, tasks, financials, riskRecords, approvalRequests
+    }, remap);
+
+    contactsRef.current = result.contacts as ContactRecord[];
+    setContacts(result.contacts as ContactRecord[]);
+    setProperties(mapped.properties as PropertyRecord[]);
+    setTasks(mapped.tasks as TaskRecord[]);
+    setFinancials(mapped.financials as FinancialRecord[]);
+    setRiskRecords(mapped.riskRecords as RiskRecord[]);
+    setApprovalRequests(mapped.approvalRequests as ApprovalRequest[]);
+    setDocuments(current => current.map(document => ({
+      ...document,
+      contactId: document.contactId ? (remap[document.contactId] || document.contactId) : document.contactId
+    })));
+    setEditingProperty(current => current ? ({
+      ...current,
+      primaryContactId: current.primaryContactId ? (remap[current.primaryContactId] || current.primaryContactId) : current.primaryContactId,
+      moduleData: remapWorkspaceContactReferences({ properties: [current] }, remap).properties[0].moduleData as Record<string, string>
+    }) : current);
+    setEditingContact(current => current && remap[current.id]
+      ? (result.contacts.find(contact => contact.id === remap[current.id]) as ContactRecord || current)
+      : current);
+    setEditingTask(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setEditingFinancial(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setDocumentContact(current => remap[current] || current);
+    setTaskPrefill(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setWhatsAppPrefill(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+
+    void localDb.documents.toArray().then(async stored => {
+      const updates = stored.filter(document => document.contactId && remap[document.contactId]).map(document => ({
+        ...document, contactId: remap[document.contactId!]
+      }));
+      if (updates.length) await localDb.documents.bulkPut(updates);
+    }).catch(error => setNotice("Contact links were merged, but one or more document links need a local-vault retry: " + (error instanceof Error ? error.message : String(error))));
+
+    if (company && userId) {
+      const deleted = result.removedIds.map(recordKey => ({ recordType: "contact", recordKey }));
+      void softDeleteCompanyRecords(company, userId, deleted).catch(error => {
+        setNotice("Local duplicate contacts were merged. Cloud duplicate cleanup needs attention: " + (error instanceof Error ? error.message : String(error)));
+      });
+    }
+    setNotice("Merged " + result.duplicatesRemoved + " duplicate WhatsApp contact record(s). Contact details were combined and every saved AXIVESTRA contact link was retained.");
+  }, [contacts, properties, tasks, financials, riskRecords, approvalRequests, company?.id, company?.role, userId]);
 
   // Rehydrate the master contact/group lists from the saved Windows WhatsApp cache on app open,
   // when the app returns to the foreground, and periodically while open. This is additive: existing
@@ -2090,7 +2150,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
@@ -2215,7 +2275,14 @@ function Empty({icon,title,text,action,onClick}:{icon:ReactNode;title:string;tex
 function TaskList({tasks,toggle,remove,edit,onWhatsApp}:{tasks:TaskRecord[];toggle:(id:string)=>void;remove:(id:string)=>void;edit?:(task:TaskRecord)=>void;onWhatsApp?:(contactId?:string,propertyId?:string,taskId?:string,taskTitle?:string)=>void}) {
   return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>Deal: {t.property}</small>}{t.contactName&&<small>Contact: {t.contactName}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}{onWhatsApp && t.contactId && <button className="edit-button" onClick={()=>onWhatsApp(t.contactId,t.propertyId,t.id,t.title)} aria-label={`Schedule WhatsApp for ${t.title}`} title="Schedule WhatsApp"><MessageCircle size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
 }
-function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}) { return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} aria-label="Close"><X size={19}/></button></div>{children}</section></div>; }
+function Modal({title,children,onClose,className=""}:{title:string;children:ReactNode;onClose:()=>void;className?:string}) {
+  return <div className={"modal-backdrop"+(className ? " "+className+"-backdrop" : "")} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
+    <section className={"modal"+(className ? " "+className : "")} role="dialog" aria-modal="true" aria-label={title}>
+      <div className="modal-heading"><h2>{title}</h2><button type="button" onClick={onClose} aria-label="Close"><X size={19}/></button></div>
+      {children}
+    </section>
+  </div>;
+}
 type IndianAmountUnit = "rupees" | "thousand" | "lakh" | "crore";
 const AMOUNT_UNIT_SUFFIX: Record<IndianAmountUnit,string> = {
   rupees: "", thousand: "thousand", lakh: "lakh", crore: "crore"
@@ -2232,11 +2299,11 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
   const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
   const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
   const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):"rupees");
+  // Keep a unit selected while the input is still empty. The previous effect
+  // reset it to Rupees whenever a user chose Lakhs/Crores before typing.
   useEffect(()=>{
     if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
-    else if(!raw.trim())setUnit("rupees");
-    else if(simpleAmount)setUnit("rupees");
-  },[raw]);
+  },[simpleAmount?.[2]]);
   const activeUnit=simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):unit;
   const displayValue=simpleAmount?simpleAmount[1]:raw;
   const hasValue=raw.trim().length>0;
@@ -2316,7 +2383,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     setAmountError("");
     onSave({...form,value:normalizedValue ?? "",ratePerUnit:normalizedRate ?? "",moduleData:normalizedModuleData});
   };
-  return <form className="form-card" onSubmit={saveRecord}>
+  return <form className="form-card module-record-form" onSubmit={saveRecord}>
     <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>

@@ -1430,3 +1430,202 @@ h2,h3{color:#e5f2fc}
 .ax-inr-amount-entry select{padding:0 10px;border:1px solid #2a4a62;border-radius:8px;background:#071827;color:#e7f5ff;font:inherit;font-size:12px}
 .ax-inr-amount-entry select:disabled{opacity:.7;cursor:not-allowed}
 @media(max-width:480px){.ax-inr-amount-entry{grid-template-columns:minmax(0,1fr) 112px;gap:6px}.ax-inr-amount-entry select{padding:0 7px;font-size:11px}}
+
+
+/* Desktop-first landscape layout for the shared business-module editor. */
+@media (min-width: 1100px) {
+  .modal-backdrop.module-record-modal-backdrop {
+    padding: 2vh 3vw;
+    overflow: hidden;
+  }
+  .modal.module-record-modal {
+    width: min(1480px, 94vw);
+    max-width: 94vw;
+    max-height: 95vh;
+    padding: 26px 30px;
+  }
+  .module-record-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px 18px;
+  }
+  .module-record-form > .form-section-title,
+  .module-record-form > .form-two,
+  .module-record-form > .property-detail-section,
+  .module-record-form > .module-data-section,
+  .module-record-form > .form-actions,
+  .module-record-form > .ax-inr-amount-error,
+  .module-record-form > .form-help,
+  .module-record-form > .searchable-contact-picker--multiple,
+  .module-record-form > label:has(textarea) {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .module-record-form > label:first-of-type {
+    grid-column: span 2;
+  }
+  .module-record-form > .form-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+  }
+  .module-record-form .module-data-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+  .module-record-form .module-data-grid > label,
+  .module-record-form > label {
+    min-width: 0;
+  }
+  .module-record-form .searchable-contact-picker__options {
+    max-height: 220px;
+  }
+  .module-record-form .ax-inr-amount-entry {
+    grid-template-columns: minmax(0, 1fr) 180px;
+    gap: 10px;
+  }
+  .module-record-form .ax-inr-amount-entry input,
+  .module-record-form .ax-inr-amount-entry select {
+    min-height: 46px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1099px) {
+  .modal-backdrop.module-record-modal-backdrop {
+    padding: 3vh 3vw;
+  }
+  .modal.module-record-modal {
+    width: min(980px, 94vw);
+    max-width: 94vw;
+    max-height: 94vh;
+    padding: 22px;
+  }
+  .module-record-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 14px;
+  }
+  .module-record-form > .form-section-title,
+  .module-record-form > .form-two,
+  .module-record-form > .property-detail-section,
+  .module-record-form > .module-data-section,
+  .module-record-form > .form-actions,
+  .module-record-form > .ax-inr-amount-error,
+  .module-record-form > .form-help,
+  .module-record-form > .searchable-contact-picker--multiple,
+  .module-record-form > label:has(textarea) {
+    grid-column: 1 / -1;
+  }
+  .module-record-form > .form-two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .module-record-form .module-data-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 719px) {
+  .modal-backdrop.module-record-modal-backdrop {
+    align-items: stretch;
+    justify-content: center;
+    padding: 5px;
+    overflow: hidden;
+  }
+  .modal.module-record-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 10px);
+    min-height: 0;
+    padding: 14px;
+    border-radius: 15px;
+    overflow: auto;
+  }
+  .module-record-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .module-record-form .form-two,
+  .module-record-form .module-data-grid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .module-record-form > label,
+  .module-record-form .form-two > label {
+    width: 100%;
+  }
+  .module-record-form .searchable-contact-picker__options {
+    max-height: 210px;
+  }
+  .module-record-form .ax-inr-amount-entry {
+    grid-template-columns: minmax(0, 1fr) 116px;
+  }
+  .module-record-form .ax-inr-amount-entry input,
+  .module-record-form .ax-inr-amount-entry select {
+    min-height: 44px;
+  }
+}
+
+/* The number entry remains a real editable text field on every form factor. */
+.ax-inr-amount-entry {
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 150px);
+  align-items: stretch;
+}
+.ax-inr-amount-entry input {
+  min-height: 44px;
+  cursor: text;
+  caret-color: #23e4f4;
+}
+.ax-inr-amount-entry input:focus {
+  border-color: #23cfe6;
+  box-shadow: 0 0 0 3px #1fcce51c;
+}
+.ax-inr-amount-entry select {
+  min-height: 44px;
+  cursor: pointer;
+}
+.searchable-contact-picker--multiple {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Keep large master-directory checkboxes aligned with their contact details inside forms. */
+.form-card .searchable-contact-picker__option {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+  padding: 9px 8px;
+}
+.form-card .searchable-contact-picker__option input[type="checkbox"] {
+  appearance: auto;
+  display: block;
+  flex: 0 0 17px;
+  width: 17px;
+  min-width: 17px;
+  max-width: 17px;
+  height: 17px;
+  min-height: 17px;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: #20d9ef;
+}
+.form-card .searchable-contact-picker__option span {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  gap: 3px;
+}
+.form-card .searchable-contact-picker__options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+}
