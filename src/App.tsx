@@ -14,6 +14,7 @@ import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
+import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -582,6 +583,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
   const contactsRef = useRef(contacts);
   contactsRef.current = contacts;
+  const contactIdRemapRef = useRef<Record<string, string>>({});
   const savedWhatsAppGroupsRef = useRef(savedWhatsAppGroups);
   savedWhatsAppGroupsRef.current = savedWhatsAppGroups;
   const [tasks, setTasks] = useState<TaskRecord[]>(() => load("estateflow.tasks", []));
@@ -652,9 +654,16 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(() => {
     let cancelled = false;
     const activeCompanyId = company?.id || "";
-    void localDb.documents.orderBy("createdAt").reverse().toArray().then(saved => {
+    void localDb.documents.orderBy("createdAt").reverse().toArray().then(async saved => {
+      const remap = contactIdRemapRef.current;
       const scoped = saved.filter(record => (record.companyId || "") === activeCompanyId);
-      if (!cancelled) setDocuments(scoped.map(({ file: _file, ...record }) => record));
+      const updated = scoped.filter(record => record.contactId && remap[record.contactId]).map(record => ({
+        ...record, contactId: remap[record.contactId!]
+      }));
+      if (updated.length) await localDb.documents.bulkPut(updated);
+      if (!cancelled) setDocuments(scoped.map(({ file: _file, ...record }) => ({
+        ...record, contactId: record.contactId ? (remap[record.contactId] || record.contactId) : record.contactId
+      })));
     }).catch(error => {
       if (!cancelled) setNotice("Local document vault could not be opened: " + (error instanceof Error ? error.message : String(error)));
     });
@@ -1535,11 +1544,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closeContactForm();
     setNotice("Contact saved on this device.");
   };
-  const normalizedContactPhone = (value: string) => {
-    let digits = String(value || "").replace(/\D/g, "");
-    if (digits.startsWith("00")) digits = digits.slice(2);
-    return digits;
-  };
+  const normalizedContactPhone = (value: string) => canonicalContactPhone(value);
   const sameContactPhone = (left: string, right: string) => {
     const a = normalizedContactPhone(left);
     const b = normalizedContactPhone(right);
@@ -1565,7 +1570,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if (!waName) continue;
 
       // Collapse duplicates inside the same WhatsApp response before touching master records.
-      const incomingKey = jid || digits;
+      const incomingKey = digits || jid;
       if (seenIncoming.has(incomingKey)) continue;
       seenIncoming.add(incomingKey);
 
@@ -1669,6 +1674,58 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       setNotice("WhatsApp groups: removed " + duplicatesRemoved + " duplicate saved group record(s); " + changed.length + " new or updated. Different groups with the same name were preserved.");
     }
   };
+
+  // Consolidate pre-existing duplicate WhatsApp contacts in the AXIVESTRA master register.
+  // IDs referenced by properties, role links, tasks, finance, risks, approvals and documents
+  // are re-pointed to the surviving contact before duplicate cloud rows are soft-deleted.
+  useEffect(() => {
+    if (company?.role === "read_only") return;
+    const result = deduplicateMasterContacts(contactsRef.current);
+    if (!result.duplicatesRemoved) return;
+
+    const remap = result.remap;
+    contactIdRemapRef.current = { ...contactIdRemapRef.current, ...remap };
+    const mapped = remapWorkspaceContactReferences({
+      properties, tasks, financials, riskRecords, approvalRequests
+    }, remap);
+
+    contactsRef.current = result.contacts as ContactRecord[];
+    setContacts(result.contacts as ContactRecord[]);
+    setProperties(mapped.properties as PropertyRecord[]);
+    setTasks(mapped.tasks as TaskRecord[]);
+    setFinancials(mapped.financials as FinancialRecord[]);
+    setRiskRecords(mapped.riskRecords as RiskRecord[]);
+    setApprovalRequests(mapped.approvalRequests as ApprovalRequest[]);
+    setDocuments(current => current.map(document => ({
+      ...document,
+      contactId: document.contactId ? (remap[document.contactId] || document.contactId) : document.contactId
+    })));
+    setEditingProperty(current => current ? ({
+      ...current,
+      primaryContactId: current.primaryContactId ? (remap[current.primaryContactId] || current.primaryContactId) : current.primaryContactId,
+      moduleData: remapWorkspaceContactReferences({ properties: [current] }, remap).properties[0].moduleData as Record<string, string>
+    }) : current);
+    setEditingTask(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setEditingFinancial(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setDocumentContact(current => remap[current] || current);
+    setTaskPrefill(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+    setWhatsAppPrefill(current => current?.contactId ? ({ ...current, contactId: remap[current.contactId] || current.contactId }) : current);
+
+    void localDb.documents.toArray().then(async stored => {
+      const updates = stored.filter(document => document.contactId && remap[document.contactId]).map(document => ({
+        ...document, contactId: remap[document.contactId!]
+      }));
+      if (updates.length) await localDb.documents.bulkPut(updates);
+    }).catch(error => setNotice("Contact links were merged, but one or more document links need a local-vault retry: " + (error instanceof Error ? error.message : String(error))));
+
+    if (company && userId) {
+      const deleted = result.removedIds.map(recordKey => ({ recordType: "contact", recordKey }));
+      void softDeleteCompanyRecords(company, userId, deleted).catch(error => {
+        setNotice("Local duplicate contacts were merged. Cloud duplicate cleanup needs attention: " + (error instanceof Error ? error.message : String(error)));
+      });
+    }
+    setNotice("Merged " + result.duplicatesRemoved + " duplicate WhatsApp contact record(s). Contact details were combined and every saved AXIVESTRA contact link was retained.");
+  }, [contacts, properties, tasks, financials, riskRecords, approvalRequests, company?.id, company?.role, userId]);
 
   // Rehydrate the master contact/group lists from the saved Windows WhatsApp cache on app open,
   // when the app returns to the foreground, and periodically while open. This is additive: existing
