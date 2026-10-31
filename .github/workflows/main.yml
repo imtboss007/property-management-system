@@ -52,12 +52,6 @@ jobs:
   android:
     name: Build Android APK
     runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -110,86 +104,9 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Configure persistent Android release signing
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
-        env:
-          ANDROID_VERSION_CODE: ${{ github.run_number }}
-        run: |
-          set -euo pipefail
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/axivestra-release.p12
-          test -s android/app/axivestra-release.p12
-          keytool -list -keystore android/app/axivestra-release.p12 -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" >/dev/null
-          python3 - <<'PY'
-          import os
-          import re
-          from pathlib import Path
-          gradle = Path("android/app/build.gradle")
-          content = gradle.read_text(encoding="utf-8")
-          if "signingConfigs {" not in content:
-              content, count = re.subn(
-                  r"(android\s*\{)",
-                  r"""\1
-              signingConfigs {
-                  release {
-                      storeFile file("axivestra-release.p12")
-                      storeType "PKCS12"
-                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
-                  }
-              }
-          """,
-                  content,
-                  count=1,
-              )
-              if count != 1:
-                  raise SystemExit("Could not add release signing configuration.")
-          content, count = re.subn(
-              r"(buildTypes\s*\{\s*release\s*\{)",
-              r"\1\n            signingConfig signingConfigs.release",
-              content,
-              count=1,
-          )
-          if count != 1:
-              raise SystemExit("Could not attach the stable signing key.")
-          content, count = re.subn(r"(versionCode\s+)\d+", r"\g<1>" + os.environ["ANDROID_VERSION_CODE"], content, count=1)
-          if count != 1:
-              raise SystemExit("Could not set Android version code.")
-          gradle.write_text(content, encoding="utf-8")
-          PY
-
-      - name: Build signed release APK
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew clean assembleRelease
-
-      - name: Verify signed Android APK
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
-        run: |
-          set -euo pipefail
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-          test -s "$APK"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print -quit)"
-          test -n "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs "$APK"
-
       - name: Upload Android debug APK (CI only)
         uses: actions/upload-artifact@v7
         with:
           name: AXIVESTRA-Android-DEBUG-ONLY
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
-      - name: Upload signed Android APK
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: AXIVESTRA-Android-SIGNED
-          path: android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          retention-days: 90
