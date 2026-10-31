@@ -85,8 +85,8 @@ jobs:
           content = gradle.read_text(encoding="utf-8")
           if "signingConfigs {" not in content:
               content, count = re.subn(
-                  r"(android\\s*\\{)",
-                  r"""\\1
+                  r"(android\s*\{)",
+                  r"""\1
               signingConfigs {
                   release {
                       storeFile file("axivestra-release.jks")
@@ -102,15 +102,15 @@ jobs:
               if count != 1:
                   raise SystemExit("Could not add release signing configuration to generated Gradle file.")
           content, count = re.subn(
-              r"(buildTypes\\s*\\{\\s*release\\s*\\{)",
-              r"\\1\\n            signingConfig signingConfigs.release",
+              r"(buildTypes\s*\{\s*release\s*\{)",
+              r"\1\n            signingConfig signingConfigs.release",
               content,
               count=1,
           )
           if count != 1:
               raise SystemExit("Could not attach the stable signing key to the release build.")
           version_code = os.environ["ANDROID_VERSION_CODE"]
-          content, count = re.subn(r"(versionCode\\s+)\\d+", r"\\g<1>" + version_code, content, count=1)
+          content, count = re.subn(r"(versionCode\s+)\d+", r"\g<1>" + version_code, content, count=1)
           if count != 1:
               raise SystemExit("Could not set the Android version code.")
           gradle.write_text(content, encoding="utf-8")
