@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import worker, { workerInternals } from "../src/index.js";
 
 test("normalizes phone digits without inventing country codes", () => {
@@ -41,4 +42,30 @@ test("dispatch endpoint rejects an incorrect scheduler secret", async () => {
     method: "POST", headers: { "x-axivestra-scheduler-secret": "incorrect" }
   }), { AXIVESTRA_SCHEDULER_SECRET: "correct-secret-with-at-least-32-characters" });
   assert.equal(response.status, 401);
+});
+
+test("Cloudflare Cron is configured for one-minute queue dispatch", async () => {
+  const config = await readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
+  assert.match(config, /crons\s*=\s*\["\* \* \* \* \*"\]/);
+  assert.match(config, /workers_dev\s*=\s*true/);
+  assert.doesNotMatch(config, /\[\[d1_databases\]\]/);
+});
+
+test("database queue enforces company isolation, consent, and service-role dispatch", async () => {
+  const sql = await readFile(new URL("../../../../supabase/migrations/202610310002_whatsapp_cloud_scheduler.sql", import.meta.url), "utf8");
+  assert.match(sql, /enable row level security/i);
+  assert.match(sql, /public\.has_company_role\(company_id, array\['owner','admin','manager','staff'\]\)/i);
+  assert.match(sql, /consent_confirmed = true/i);
+  assert.match(sql, /coalesce\(auth\.role\(\), ''\) <> 'service_role'/i);
+  assert.match(sql, /apply_whatsapp_cloud_delivery_status/i);
+  assert.match(sql, /grant execute on function public\.claim_due_whatsapp_messages\(integer,uuid\) to service_role/i);
+  assert.doesNotMatch(sql, /grant execute on function public\.claim_due_whatsapp_messages\(integer,uuid\) to authenticated/i);
+});
+
+test("worker webhook verifies Meta signatures and maps delivery lifecycle", async () => {
+  const source = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+  assert.match(source, /x-hub-signature-256/i);
+  assert.match(source, /apply_whatsapp_cloud_delivery_status/);
+  assert.match(source, /cancel_whatsapp_cloud_followups_for_reply/);
+  assert.match(source, /\["delivered", "read", "failed"\]/);
 });
