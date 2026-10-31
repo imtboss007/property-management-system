@@ -49,15 +49,14 @@ This applies across the module worksheets' rupee fields, common property value/e
 
 ## Build Windows + Android
 
-The GitHub Actions workflow is `.github/workflows/main.yml`. It runs on pushes to `main`, pull requests targeting `main`, or manual dispatch from the Actions tab. The workflow builds a Windows `.exe` installer and Android debug `.apk`, then uploads each as an Actions artifact. It does not automatically publish a GitHub Release.
+The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and runs the Android debug-build smoke test. The `AXIVESTRA-Android-DEBUG-ONLY` artifact is for automated testing only; **do not install or distribute that APK**.
 
-1. Open the repository's **Actions** tab.
-2. Open the successful **AXIVESTRA Windows and Android builds** run.
-3. Download the `AXIVESTRA-Windows` and/or `AXIVESTRA-Android` artifact.
-4. Install the Windows installer on Windows. On Android, open the APK and approve installation from that source if prompted.
+The user-installable Android package is produced from the tested Android build and re-signed with AXIVESTRA's persistent private release key before delivery. The signing key is maintained in the owner's private AXIVESTRA Library folder, not in GitHub, source control or public workflow artifacts. No GitHub secret setup is required from the owner.
 
-The Android project is created on the GitHub runner with `npx cap add android`, then synced and built. It is a generated build output and is not required to be committed to this source branch.
+The Android package ID is `com.axivestra.mobile2026`, separate from the legacy `com.estateflow.propertymanagement` app. This permits installing the replacement alongside the existing app. Keep the old app until the new app has been paired with Windows and all expected records are confirmed on the phone.
 
+The Windows installer is published by the release workflow. Android APKs are signed and delivered separately; future Android builds must always use the same private release key to remain update-compatible.
+  
 ## Run in a browser for development
 
 Requires Node.js 22 and npm.
