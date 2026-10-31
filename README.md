@@ -49,7 +49,7 @@ This applies across the module worksheets' rupee fields, common property value/e
 
 ## Build Windows + Android
 
-The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and runs an Android debug-build smoke test. The APK from that workflow is **debug-signed and is not an upgrade-safe mobile installer**; do not distribute it as a user update.
+The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and runs an Android debug-build smoke test. Its `AXIVESTRA-Android-DEBUG-ONLY` artifact is **not an installable user update**. When the persistent signing secrets below are configured, the same workflow additionally builds and uploads `AXIVESTRA-Android-SIGNED`; only that signed artifact is suitable for installation.
 
 For a mobile installation, use `.github/workflows/android-signed-release.yml` only. It builds a release APK signed with the persistent AXIVESTRA keystore and uploads the `AXIVESTRA-Android-SIGNED` artifact. Before the first run, configure these GitHub Actions repository secrets:
 
@@ -66,7 +66,7 @@ Run the PowerShell command below on a trusted Windows PC from the folder contain
 
 Then open **GitHub → repository Settings → Secrets and variables → Actions → New repository secret** and add the four values. Keep a secure offline backup of the keystore; future Android updates must use this exact key. Never commit the keystore or passwords to the repository.
 
-To build the signed mobile APK, open **Actions → AXIVESTRA Android Signed Release → Run workflow**. Download the `AXIVESTRA-Android-SIGNED` artifact from the successful run and install the APK. The Android package ID is now `com.axivestra.assetintelligence`, so it installs alongside the legacy `com.estateflow.propertymanagement` app. Keep the old app until the new one is installed, paired to the Windows PC and verified; export/import local record backups before removing the old app if it contains phone-only records.
+To build the signed mobile APK, open **Actions → AXIVESTRA Windows and Android builds** and run the workflow (or push the prepared PR to `main`). Download the `AXIVESTRA-Android-SIGNED` artifact from the successful run and install the APK. The Android package ID is now `com.axivestra.assetintelligence`, so it installs alongside the legacy `com.estateflow.propertymanagement` app. Keep the old app until the new one is installed, paired to the Windows PC and verified; export/import local record backups before removing the old app if it contains phone-only records.
 
 The Android project is generated on the GitHub runner with `npx cap add android`; generated Android build files are not required to be committed.
 
