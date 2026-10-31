@@ -49,9 +49,9 @@ function phoneDigits(value: string) {
   }
   return digits;
 }
-async function currentIdentity() {
+async function currentIdentity(companyIdOverride = "") {
   if (!isSupabaseConfigured || !supabase) throw new Error("AXIVESTRA cloud storage is not configured in this build.");
-  const companyId = activeCompanyId();
+  const companyId = String(companyIdOverride || activeCompanyId());
   if (!companyId) throw new Error("Choose your AXIVESTRA cloud company first.");
   const [{ data: auth, error: authError }, { data: sessionData }] = await Promise.all([
     supabase.auth.getUser(),
@@ -67,13 +67,13 @@ async function currentIdentity() {
   return { companyId, userId: auth.user.id, role: String(membership.role || ""), accessToken: session.access_token };
 }
 
-export async function getCloudWhatsAppStatus(): Promise<CloudWhatsAppStatus> {
+export async function getCloudWhatsAppStatus(companyIdOverride = ""): Promise<CloudWhatsAppStatus> {
   const base = workerBaseUrl();
   if (!base) {
     return { ready: false, configured: false, error: "The AXIVESTRA Cloudflare Worker URL has not been configured in this build." };
   }
   try {
-    const identity = await currentIdentity();
+    const identity = await currentIdentity(companyIdOverride);
     const response = await fetch(base + "/status", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer " + identity.accessToken },
@@ -161,27 +161,27 @@ function mapRow(row: Record<string, unknown>): CloudQueueRow {
     templateName: String(row.template_name || "")
   };
 }
-export async function listCloudWhatsAppMessages(): Promise<CloudQueueRow[]> {
-  const { companyId } = await currentIdentity();
+export async function listCloudWhatsAppMessages(companyIdOverride = ""): Promise<CloudQueueRow[]> {
+  const { companyId } = await currentIdentity(companyIdOverride);
   if (!supabase) return [];
   const { data, error } = await supabase.from("whatsapp_cloud_messages").select("*")
     .eq("company_id", companyId).order("scheduled_at", { ascending: false }).limit(500);
   if (error) throw new Error("Could not load cloud scheduled messages. The AXIVESTRA cloud queue migration may not be deployed yet.");
   return (data || []).map(row => mapRow(row as Record<string, unknown>));
 }
-export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayload, immediate = false): Promise<CloudQueueRow[]> {
+export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayload, immediate = false, companyIdOverride = ""): Promise<CloudQueueRow[]> {
   if (payload.destinationType === "group" || payload.groupJid) {
     throw new Error("The official cloud sender supports individual contacts only. Choose an individual contact.");
   }
   if (payload.consentConfirmed !== true) throw new Error("Confirm that the recipient expects and has agreed to receive these messages.");
-  const cloudStatus = await getCloudWhatsAppStatus();
+  const cloudStatus = await getCloudWhatsAppStatus(companyIdOverride);
   if (!cloudStatus.configured || !cloudStatus.ready) {
     throw new Error(cloudStatus.error || "The official WhatsApp cloud sender is not ready yet. No message has been queued.");
   }
   if (payload.stopOnReply !== false && !cloudStatus.webhookConfigured) {
     throw new Error("Meta webhook credentials are not configured. Set up the signed Meta webhook first, or turn off stop-on-reply for this message.");
   }
-  const { companyId, userId, role } = await currentIdentity();
+  const { companyId, userId, role } = await currentIdentity(companyIdOverride);
   if (role === "read_only") throw new Error("Your cloud role cannot schedule messages.");
   if (!supabase) throw new Error("Cloud storage is not configured.");
   const toPhone = phoneDigits(payload.phone);
@@ -229,14 +229,14 @@ export async function scheduleCloudWhatsAppMessages(payload: CloudSchedulePayloa
   if (error) throw new Error("Could not save the cloud message queue. Confirm that the AXIVESTRA cloud messaging migration is deployed. " + error.message);
   return (data || []).map(row => mapRow(row as Record<string, unknown>));
 }
-export async function cancelCloudWhatsAppMessage(id: string): Promise<void> {
+export async function cancelCloudWhatsAppMessage(id: string, companyIdOverride = ""): Promise<void> {
   if (!supabase) throw new Error("Cloud storage is not configured.");
-  const { companyId } = await currentIdentity();
+  const { companyId } = await currentIdentity(companyIdOverride);
   const { data, error } = await supabase.rpc("cancel_whatsapp_cloud_message", { target_message_id: id, target_company_id: companyId });
   if (error) throw new Error(error.message);
   if (data !== true) throw new Error("This message is already being sent or can no longer be cancelled.");
 }
-export async function retryCloudWhatsAppMessage(id: string): Promise<void> {
+export async function retryCloudWhatsAppMessage(id: string, companyIdOverride = ""): Promise<void> {
   if (!supabase) throw new Error("Cloud storage is not configured.");
   const { companyId } = await currentIdentity();
   const { data, error } = await supabase.rpc("retry_whatsapp_cloud_message", { target_message_id: id, target_company_id: companyId });
