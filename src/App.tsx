@@ -2234,7 +2234,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     moduleData:initial?.moduleData ?? {}
   });
   const [amountError,setAmountError]=useState("");
-  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
@@ -2278,7 +2278,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
       <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
       <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Optional amount"/></label></div>
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}))} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
@@ -2336,7 +2336,7 @@ function FinancialForm({properties,contacts,initial,onSave,onCancel}:{properties
       reference:initial?.reference ?? "",notes:initial?.notes ?? ""};
   });
   const [amountError,setAmountError]=useState("");
-  const update=(key:string,value:string)=>setForm(previous=>({...previous,[key]:value}));
+  const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="amount")setAmountError("");};
   const types=["Purchase","Sale","Advance","Loan Disbursal","Loan Repayment","Interest","Instalment","Brokerage","Expense","Receipt","Settlement","Other"];
   return <form className="form-card" onSubmit={event=>{
     event.preventDefault();
