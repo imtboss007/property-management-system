@@ -69,3 +69,10 @@ test("worker webhook verifies Meta signatures and maps delivery lifecycle", asyn
   assert.match(source, /cancel_whatsapp_cloud_followups_for_reply/);
   assert.match(source, /\["delivered", "read", "failed"\]/);
 });
+
+test("Meta webhook only processes events for the configured WhatsApp sender number", () => {
+  const env = { META_PHONE_NUMBER_ID: "phone-number-123" };
+  assert.equal(workerInternals.isConfiguredSender({ metadata: { phone_number_id: "phone-number-123" } }, env), true);
+  assert.equal(workerInternals.isConfiguredSender({ metadata: { phone_number_id: "another-number" } }, env), false);
+  assert.equal(workerInternals.isConfiguredSender({ messages: [{ from: "919876543210" }] }, env), false);
+});
