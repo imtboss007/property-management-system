@@ -15,6 +15,43 @@ function normalizeDigits(raw) {
   return String(raw || "").replace(/\D/g, "");
 }
 
+function validWhatsAppWebVersion(value) {
+  return Array.isArray(value) && value.length === 3 &&
+    value.every(part => Number.isInteger(Number(part)) && Number(part) >= 0);
+}
+
+async function resolveWhatsAppWebVersion(lib) {
+  // The Baileys metadata helper can lag behind the live WhatsApp Web client
+  // revision. Prefer web.whatsapp.com/sw.js for new device registration.
+  if (typeof lib?.fetchLatestWaWebVersion === "function") {
+    try {
+      const result = await lib.fetchLatestWaWebVersion({ timeout: 10000 });
+      if (result && validWhatsAppWebVersion(result.version)) {
+        return { version: result.version.map(Number), source: "live-whatsapp-web" };
+      }
+    } catch (_) {}
+  }
+  // Keep compatibility with older Baileys builds and temporary web endpoint failures.
+  if (typeof lib?.fetchLatestBaileysVersion === "function") {
+    try {
+      const result = await lib.fetchLatestBaileysVersion({ timeout: 10000 });
+      if (result && validWhatsAppWebVersion(result.version)) {
+        return { version: result.version.map(Number), source: "baileys-metadata-fallback" };
+      }
+    } catch (_) {}
+  }
+  return { version: null, source: "bundled-fallback" };
+}
+
+function reconnectDelayForAttempt(attempt) {
+  const count = Math.max(1, Math.floor(Number(attempt) || 1));
+  return Math.min(60000, 5000 * (2 ** Math.min(4, count - 1)));
+}
+
+function isTerminalHandshakeFailure(code) {
+  return [401, 403, 405].includes(Number(code));
+}
+
 function canonicalWhatsAppPhone(raw) {
   let digits = normalizeDigits(raw);
   if (digits.startsWith("00")) digits = digits.slice(2);
@@ -151,6 +188,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   let bridgePort = 47821;
   let socket = null;
   let socketInit = null;
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
   let authState = null;
   let baileys = null;
   let queue = [];
@@ -442,7 +481,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       useMultiFileAuthState: module.useMultiFileAuthState,
       Browsers: module.Browsers || {},
       DisconnectReason: module.DisconnectReason || {},
-      fetchLatestBaileysVersion: module.fetchLatestBaileysVersion
+      fetchLatestBaileysVersion: module.fetchLatestBaileysVersion,
+      fetchLatestWaWebVersion: module.fetchLatestWaWebVersion
     };
     return baileys;
   }
@@ -459,18 +499,11 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         const lib = await loadBaileys();
         const auth = await lib.useMultiFileAuthState(authDir);
         authState = auth.state;
-        // Negotiate the current WhatsApp Web protocol version when online. Older
-        // bundled defaults can be rejected before a QR is delivered. Keep a safe
-        // fallback so temporary version-endpoint failures do not block connection.
-        let webVersion;
-        if (typeof lib.fetchLatestBaileysVersion === "function") {
-          try {
-            const latest = await lib.fetchLatestBaileysVersion();
-            if (latest && Array.isArray(latest.version) && latest.version.length === 3) {
-              webVersion = latest.version;
-            }
-          } catch (_) {}
-        }
+        // Prefer the live WhatsApp Web revision. fetchLatestBaileysVersion()
+        // reads Baileys' repository metadata and has returned stale revisions that
+        // let QR generation start but cause WhatsApp to reject device registration.
+        const negotiatedVersion = await resolveWhatsAppWebVersion(lib);
+        const webVersion = negotiatedVersion.version;
         const nextSocket = lib.makeWASocket({
           auth: auth.state,
           ...(webVersion ? { version: webVersion } : {}),
@@ -504,6 +537,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
             }
           }
           if (update.connection === "open") {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            reconnectAttempts = 0;
             status.connected = true;
             status.connecting = false;
             status.qrDataUrl = "";
@@ -546,14 +582,21 @@ function createWhatsAppService({ app, ipcMain, notify }) {
               publish("logged-out");
               return;
             }
-            // Keep the protocol close code visible: 401/405/428 often indicate a WhatsApp
-            // handshake/session rejection, not a QR-rendering problem.
+            if (isTerminalHandshakeFailure(code)) {
+              status.error = "WhatsApp rejected this linked-device registration (code " + code + "). Automatic retries are paused to protect your account. Wait briefly, then request one fresh QR. If the official WhatsApp app can link WhatsApp Web but AXIVESTRA still receives this code, the unofficial linked-device registration path may be rejected by WhatsApp.";
+              publish("connection-rejected");
+              return;
+            }
             status.error = "WhatsApp connection closed" + (code ? " (code " + code + ")" : "") +
-              (detail ? ": " + detail : ".") + " Check the internet connection, then try a fresh QR. If this repeats, the linked-device library/session handshake may be rejected by WhatsApp.";
+              (detail ? ": " + detail : ".") + " Check the internet connection. AXIVESTRA will retry with increasing delays.";
             publish("connection-lost");
-            setTimeout(() => {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            const delay = reconnectDelayForAttempt(++reconnectAttempts);
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
               if (!status.connected && !socket && !intentionalLogout) void startSocket();
-            }, 5000);
+            }, delay);
+            reconnectTimer.unref?.();
           }
         });
         nextSocket.ev.on("contacts.upsert", records => { void upsertWhatsAppContacts(records).catch(error => { status.error = "Contact sync failed: " + error.message; publish("address-book-error"); }); });
@@ -807,6 +850,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
 
   async function disconnect() {
     intentionalLogout = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectAttempts = 0;
     pairingRequested = false;
     const current = socket;
     socket = null;
@@ -1365,6 +1411,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     stop() {
       if (tick) clearInterval(tick);
       tick = null;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = null;
       intentionalLogout = true;
       if (socket) {
         try { socket.end(undefined); } catch (_) {}
@@ -1379,6 +1427,9 @@ module.exports = {
   createWhatsAppService,
   normalizeDigits,
   canonicalWhatsAppPhone,
+  resolveWhatsAppWebVersion,
+  reconnectDelayForAttempt,
+  isTerminalHandshakeFailure,
   deduplicateWhatsAppContacts,
   deduplicateWhatsAppGroups
 };
