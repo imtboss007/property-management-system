@@ -1616,21 +1616,38 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const importWhatsAppGroups = (incoming: SavedWhatsAppGroup[]) => {
-    const next = [...savedWhatsAppGroupsRef.current];
+    const byJid = new Map<string, SavedWhatsAppGroup>();
+    for (const saved of savedWhatsAppGroupsRef.current) {
+      const jid = String(saved.jid || saved.id || "").trim().toLowerCase();
+      if (!jid.endsWith("@g.us")) continue;
+      const previous = byJid.get(jid);
+      byJid.set(jid, previous ? {
+        ...previous,
+        ...saved,
+        id: previous.id || saved.id,
+        jid,
+        name: saved.name && saved.name !== "WhatsApp group" ? saved.name : previous.name,
+        description: saved.description || previous.description || "",
+        size: Number(saved.size) > 0 ? saved.size : previous.size,
+        lastSyncedAt: saved.lastSyncedAt || previous.lastSyncedAt
+      } : { ...saved, jid });
+    }
+    const next = [...byJid.values()];
+    const duplicatesRemoved = savedWhatsAppGroupsRef.current.length - next.length;
     const changed: SavedWhatsAppGroup[] = [];
     for (const group of incoming) {
-      const jid = String(group.jid || group.id || "").trim();
+      const jid = String(group.jid || group.id || "").trim().toLowerCase();
       if (!jid.endsWith("@g.us")) continue;
-      const existingIndex = next.findIndex(item => item.jid === jid);
+      const existingIndex = next.findIndex(item => String(item.jid || "").trim().toLowerCase() === jid);
       const previous = existingIndex >= 0 ? next[existingIndex] : undefined;
       const sourceId = String(group.id || "");
       const record: SavedWhatsAppGroup = {
-        id: previous?.id || (sourceId && !sourceId.endsWith("@g.us") ? sourceId : uid()),
+        id: previous?.id || (sourceId && !sourceId.toLowerCase().endsWith("@g.us") ? sourceId : uid()),
         jid,
         name: String(group.name || group.subject || previous?.name || "WhatsApp group"),
         description: String(group.description || previous?.description || ""),
         size: Number(group.size ?? previous?.size ?? 0),
-        lastSyncedAt: String(group.lastSyncedAt || new Date().toISOString())
+        lastSyncedAt: String(group.lastSyncedAt || previous?.lastSyncedAt || new Date().toISOString())
       };
       if (previous) {
         if (previous.name !== record.name || previous.description !== record.description || previous.size !== record.size || previous.lastSyncedAt !== record.lastSyncedAt) {
@@ -1642,15 +1659,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         changed.push(record);
       }
     }
-    if (changed.length) {
+    if (duplicatesRemoved || changed.length) {
       savedWhatsAppGroupsRef.current = next;
       setSavedWhatsAppGroups(next);
       changed.forEach(group => remoteUpsert("whatsapp_groups", {
         id: group.id, jid: group.jid, name: group.name, description: group.description,
         member_count: group.size || 0, last_synced_at: group.lastSyncedAt || null
       }));
+      setNotice("WhatsApp groups: removed " + duplicatesRemoved + " duplicate saved group record(s); " + changed.length + " new or updated. Different groups with the same name were preserved.");
     }
-    if (changed.length) setNotice(`WhatsApp groups restored: ${changed.length} added or refreshed. Saved group names remain available when WhatsApp is disconnected.`);
   };
 
   // Rehydrate the master contact/group lists from the saved Windows WhatsApp cache on app open,
@@ -2199,27 +2216,66 @@ function TaskList({tasks,toggle,remove,edit,onWhatsApp}:{tasks:TaskRecord[];togg
   return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>Deal: {t.property}</small>}{t.contactName&&<small>Contact: {t.contactName}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}{onWhatsApp && t.contactId && <button className="edit-button" onClick={()=>onWhatsApp(t.contactId,t.propertyId,t.id,t.title)} aria-label={`Schedule WhatsApp for ${t.title}`} title="Schedule WhatsApp"><MessageCircle size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
 }
 function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}) { return <div className="modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}><section className="modal" role="dialog" aria-modal="true" aria-label={title}><div className="modal-heading"><h2>{title}</h2><button onClick={onClose} aria-label="Close"><X size={19}/></button></div>{children}</section></div>; }
+type IndianAmountUnit = "rupees" | "thousand" | "lakh" | "crore";
+const AMOUNT_UNIT_SUFFIX: Record<IndianAmountUnit,string> = {
+  rupees: "", thousand: "thousand", lakh: "lakh", crore: "crore"
+};
+const amountUnitFromSuffix = (suffix:string): IndianAmountUnit => {
+  const unit=suffix.toLowerCase();
+  if(unit==="cr" || unit.startsWith("crore"))return "crore";
+  if(unit==="k" || unit.startsWith("thousand"))return "thousand";
+  if(unit.startsWith("lac") || unit.startsWith("lakh"))return "lakh";
+  return "rupees";
+};
 function IndianAmountInput({value,onChange,placeholder,required=false}:{value:string;onChange:(value:string)=>void;placeholder?:string;required?:boolean}) {
-  const hasValue=String(value ?? "").trim().length>0;
-  const parsed=hasValue?parseIndianAmount(value):null;
+  const raw=String(value ?? "");
+  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
+  const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
+  const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):"rupees");
+  useEffect(()=>{
+    if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
+    else if(!raw.trim())setUnit("rupees");
+    else if(simpleAmount)setUnit("rupees");
+  },[raw]);
+  const activeUnit=simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):unit;
+  const displayValue=simpleAmount?simpleAmount[1]:raw;
+  const hasValue=raw.trim().length>0;
+  const parsed=hasValue?parseIndianAmount(raw):null;
+  const writeAmount=(amount:string,nextUnit:IndianAmountUnit)=>{
+    const trimmed=amount.trim();
+    onChange(trimmed ? (nextUnit==="rupees" ? trimmed : trimmed+" "+AMOUNT_UNIT_SUFFIX[nextUnit]) : "");
+  };
   return <div className="ax-inr-amount-control">
-    <input
-      type="text"
-      inputMode="decimal"
-      value={value}
-      required={required}
-      onChange={event=>onChange(event.target.value)}
-      onBlur={()=>{
-        if(!hasValue)return;
-        const normalized=normalizeIndianAmount(value);
-        if(normalized!==null)onChange(normalized);
-      }}
-      placeholder={placeholder || "e.g. 25 thousand, 5 lakh or 2 crore"}
-      aria-invalid={hasValue && parsed===null}
-    />
-    <small className="ax-inr-amount-help">Enter a number, thousand, lakh or crore. Example: 25 thousand · 5 lakh · 2 crore.</small>
+    <div className="ax-inr-amount-entry">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={displayValue}
+        required={required}
+        onChange={event=>writeAmount(event.target.value,activeUnit)}
+        placeholder={placeholder || "Enter amount"}
+        aria-label="Amount in Indian rupees"
+        aria-invalid={hasValue && parsed===null}
+      />
+      <select
+        aria-label="Amount unit"
+        value={activeUnit}
+        disabled={hasCombinedShorthand}
+        onChange={event=>{
+          const nextUnit=event.target.value as IndianAmountUnit;
+          setUnit(nextUnit);
+          writeAmount(displayValue,nextUnit);
+        }}
+      >
+        <option value="rupees">Rupees</option>
+        <option value="thousand">Thousands (×1,000)</option>
+        <option value="lakh">Lakhs (×1,00,000)</option>
+        <option value="crore">Crores (×1,00,00,000)</option>
+      </select>
+    </div>
+    <small className="ax-inr-amount-help">Type the amount, then choose Rupees, Thousands, Lakhs or Crores. Example: 25 + Lakhs = ₹25,00,000.</small>
     {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianAmount(parsed)}</small>}
-    {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount, such as 25000, 25 thousand, 5 lakh or 2 crore.</small>}
+    {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
 function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {

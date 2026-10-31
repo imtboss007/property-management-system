@@ -169,6 +169,22 @@ check("all related-contact fields use a searchable picker and search across exte
   has(read("src/App.tsx"), /contact\.whatsappJid/) &&
   has(read("src/App.tsx"), /label="Primary contact"/i) &&
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i));
+check("all INR amount fields use an editable text input with Rupees, Thousands, Lakhs and Crores selector",
+  has(read("src/App.tsx"), /type="text"[\s\S]{0,500}onChange=\{event=>writeAmount\(event\.target\.value,activeUnit\)\}/i) &&
+  has(read("src/App.tsx"), /aria-label="Amount unit"/i) &&
+  has(read("src/App.tsx"), /option value="thousand"/i) &&
+  has(read("src/App.tsx"), /option value="lakh"/i) &&
+  has(read("src/App.tsx"), /option value="crore"/i) &&
+  has(read("src/App.tsx"), /field\.type==="number" && field\.label\.includes\("₹"\) \? <IndianAmountInput/i) &&
+  !has(read("src/App.tsx"), /onBlur=\{\(\)=>\{[\s\S]{0,200}normalizeIndianAmount\(value\)/i));
+check("module INR values are validated and stored as numeric rupees on save",
+  has(read("src/App.tsx"), /normalizeIndianAmount\(form\.value\)/i) &&
+  has(read("src/App.tsx"), /normalizeIndianAmount\(raw\)/i) &&
+  has(read("src/App.tsx"), /moduleData:normalizedModuleData/i) &&
+  has(read("src/lib/indian-amount.mjs"), /crore:\s*10000000/i) &&
+  has(read("src/lib/indian-amount.mjs"), /lakh:\s*100000/i) &&
+  has(read("src/lib/indian-amount.mjs"), /thousand:\s*1000/i));
+
 check("WhatsApp phone normalisation and deduplication remove punctuation consistently",
   has(whatsappService, /function normalizeDigits\(raw\)/i) &&
   whatsappService.includes('return String(raw || "").replace(/\\D/g, "");') &&
@@ -182,6 +198,13 @@ check("interrupted in-flight WhatsApp sends are surfaced as uncertain instead of
 check("phone normalisation has an executable regression test wired into the app CI job",
   has(read("scripts/whatsapp-contact-normalization.test.cjs"), /\+91 \(98765\) 43210/i) &&
   has(read(".github/workflows/whatsapp-hub-checks.yml"), /node scripts\/whatsapp-contact-normalization\.test\.cjs/i));
+check("pre-existing WhatsApp cache duplicates are removed on load and cleanup counts are shown",
+  has(whatsappService, /whatsappContacts = deduplicateWhatsAppContacts\(whatsappContacts\)/i) &&
+  has(whatsappService, /whatsappGroups = deduplicateWhatsAppGroups\(whatsappGroups\)/i) &&
+  has(whatsappService, /addressBookDuplicatesRemoved/i) &&
+  has(whatsappUi, /duplicateCleanupMessage/i) &&
+  has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppContacts/i) &&
+  has(read("scripts/whatsapp-contact-normalization.test.cjs"), /deduplicateWhatsAppGroups/i));
 
 check("QR-linked WhatsApp credentials are stored and reused to reconnect after desktop restart",
   has(whatsappService, /useMultiFileAuthState\(authDir\)/i) &&

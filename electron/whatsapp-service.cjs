@@ -15,6 +15,103 @@ function normalizeDigits(raw) {
   return String(raw || "").replace(/\D/g, "");
 }
 
+function contactDigits(contact) {
+  let digits = normalizeDigits(contact && (contact.phone || contact.phoneNumber));
+  if (!digits) {
+    const jid = String(contact && (contact.jid || contact.id) || "");
+    if (jid.toLowerCase().endsWith("@s.whatsapp.net")) {
+      digits = normalizeDigits(jid.split("@")[0].split(":")[0]);
+    }
+  }
+  return digits.startsWith("00") ? digits.slice(2) : digits;
+}
+
+function whatsAppContactKeys(contact) {
+  const keys = [];
+  const digits = contactDigits(contact);
+  if (digits) keys.push("phone:" + digits);
+  for (const value of [contact && contact.jid, contact && contact.id]) {
+    const jid = String(value || "").trim().toLowerCase();
+    if (!jid) continue;
+    if (jid.endsWith("@s.whatsapp.net")) {
+      const jidDigits = normalizeDigits(jid.split("@")[0].split(":")[0]);
+      if (jidDigits) keys.push("phone:" + (jidDigits.startsWith("00") ? jidDigits.slice(2) : jidDigits));
+    } else {
+      keys.push("jid:" + jid);
+    }
+  }
+  return [...new Set(keys)];
+}
+
+function mergeWhatsAppContact(saved, incoming) {
+  const merged = { ...saved, ...incoming };
+  const incomingName = String(incoming.whatsappName || incoming.name || "").trim();
+  const savedName = String(saved.whatsappName || saved.name || "").trim();
+  const incomingLooksLikeNumber = /^\+?[\d\s().-]+$/.test(incomingName);
+  merged.id = saved.id || incoming.id || incoming.jid || saved.jid || "";
+  merged.jid = incoming.jid || saved.jid || merged.id;
+  merged.phone = incoming.phone || saved.phone || "";
+  merged.whatsappName = incoming.whatsappName || saved.whatsappName || "";
+  merged.name = incoming.whatsappName || saved.whatsappName ||
+    (incomingName && !incomingLooksLikeNumber ? incomingName : savedName || incomingName);
+  for (const field of ["notify", "verifiedName", "source", "lastSyncedAt"]) {
+    merged[field] = incoming[field] || saved[field] || "";
+  }
+  return merged;
+}
+
+function deduplicateWhatsAppContacts(records) {
+  const result = [];
+  const indexByKey = new Map();
+  for (const contact of Array.isArray(records) ? records : []) {
+    if (!contact || typeof contact !== "object") continue;
+    const keys = whatsAppContactKeys(contact);
+    const index = keys.map(key => indexByKey.get(key)).find(value => value !== undefined);
+    if (index === undefined) {
+      const nextIndex = result.push({ ...contact }) - 1;
+      for (const key of keys) indexByKey.set(key, nextIndex);
+    } else {
+      result[index] = mergeWhatsAppContact(result[index], contact);
+      for (const key of whatsAppContactKeys(result[index])) indexByKey.set(key, index);
+    }
+  }
+  return result.sort((a, b) => String(a.name || a.whatsappName || "").localeCompare(String(b.name || b.whatsappName || "")));
+}
+
+function canonicalWhatsAppGroupJid(group) {
+  const jid = String(group && (group.jid || group.id) || "").trim().toLowerCase();
+  return jid.endsWith("@g.us") ? jid : "";
+}
+
+function deduplicateWhatsAppGroups(records) {
+  const byJid = new Map();
+  for (const group of Array.isArray(records) ? records : []) {
+    if (!group || typeof group !== "object") continue;
+    const jid = canonicalWhatsAppGroupJid(group);
+    if (!jid) continue;
+    const saved = byJid.get(jid);
+    if (!saved) {
+      byJid.set(jid, { ...group, id: group.id || jid, jid });
+      continue;
+    }
+    const incomingName = String(group.name || group.subject || "").trim();
+    const savedName = String(saved.name || saved.subject || "").trim();
+    const name = incomingName && incomingName !== "WhatsApp group" ? incomingName : savedName || incomingName || "WhatsApp group";
+    byJid.set(jid, {
+      ...saved,
+      ...group,
+      id: saved.id || group.id || jid,
+      jid,
+      name,
+      subject: group.subject || saved.subject || name,
+      description: group.description || saved.description || "",
+      size: Number(group.size) > 0 ? Number(group.size) : Number(saved.size) || 0,
+      lastSyncedAt: group.lastSyncedAt || saved.lastSyncedAt || ""
+    });
+  }
+  return [...byJid.values()].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
 function normalizePhone(raw) {
   let digits = normalizeDigits(raw);
   if (digits.startsWith("00")) digits = digits.slice(2);
@@ -56,6 +153,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   let whatsappContacts = [];
   let whatsappGroups = [];
   let addressBookMeta = { lastSyncedAt: "", accountNumber: "", activeGroupJids: [] };
+  let addressBookDuplicatesRemoved = { contacts: 0, groups: 0 };
   let sending = false;
   let lastSendAt = 0;
   let tick = null;
@@ -144,6 +242,17 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       whatsappGroups = [];
       addressBookMeta = { lastSyncedAt: "", accountNumber: "", activeGroupJids: [] };
     }
+    const previousContactCount = whatsappContacts.length;
+    const previousGroupCount = whatsappGroups.length;
+    whatsappContacts = deduplicateWhatsAppContacts(whatsappContacts);
+    whatsappGroups = deduplicateWhatsAppGroups(whatsappGroups);
+    addressBookDuplicatesRemoved = {
+      contacts: Math.max(0, previousContactCount - whatsappContacts.length),
+      groups: Math.max(0, previousGroupCount - whatsappGroups.length)
+    };
+    if (addressBookDuplicatesRemoved.contacts || addressBookDuplicatesRemoved.groups) {
+      await saveAddressBook();
+    }
   }
 
   function saveAddressBook() {
@@ -210,6 +319,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       }
       changed = true;
     }
+    const contactCountBeforeCleanup = whatsappContacts.length;
+    whatsappContacts = deduplicateWhatsAppContacts(whatsappContacts);
+    const removedContacts = contactCountBeforeCleanup - whatsappContacts.length;
+    if (removedContacts > 0) {
+      addressBookDuplicatesRemoved.contacts += removedContacts;
+      changed = true;
+    }
     if (changed) {
       whatsappContacts.sort((a, b) => String(a.name).localeCompare(String(b.name)));
       await saveAddressBook();
@@ -224,7 +340,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     const items = Array.isArray(records) ? records : [];
     for (const raw of items) {
       if (!raw || typeof raw !== "object") continue;
-      const jid = String(raw.id || raw.jid || "");
+      const jid = String(raw.id || raw.jid || "").trim().toLowerCase();
       if (!jid.endsWith("@g.us")) continue;
       const previous = whatsappGroups.find(item => item.jid === jid || item.id === jid);
       const subject = String(raw.subject || raw.name || previous?.name || "WhatsApp group").trim();
@@ -245,6 +361,13 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       }
       changed = true;
     }
+    const groupCountBeforeCleanup = whatsappGroups.length;
+    whatsappGroups = deduplicateWhatsAppGroups(whatsappGroups);
+    const removedGroups = groupCountBeforeCleanup - whatsappGroups.length;
+    if (removedGroups > 0) {
+      addressBookDuplicatesRemoved.groups += removedGroups;
+      changed = true;
+    }
     if (changed) {
       whatsappGroups.sort((a, b) => String(a.name).localeCompare(String(b.name)));
       await saveAddressBook();
@@ -262,7 +385,8 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       accountNumber: addressBookMeta.accountNumber,
       activeGroupJids: addressBookMeta.activeGroupJids || [],
       connected: Boolean(status.connected && socket),
-      counts: { contacts: whatsappContacts.length, groups: whatsappGroups.length }
+      counts: { contacts: whatsappContacts.length, groups: whatsappGroups.length },
+      duplicatesRemoved: { ...addressBookDuplicatesRemoved }
     };
   }
 
@@ -277,7 +401,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       try {
         const found = await socket.groupFetchAllParticipating();
         const values = Object.entries(found || {}).map(([jid, group]) => ({ ...group, id: group?.id || jid }));
-        activeGroupJids = values.map(group => String(group.id || "")).filter(jid => jid.endsWith("@g.us"));
+        activeGroupJids = values.map(group => canonicalWhatsAppGroupJid(group)).filter(Boolean);
         await upsertWhatsAppGroups(values);
       } catch (error) {
         warnings.push("Could not refresh WhatsApp groups: " + (error instanceof Error ? error.message : String(error)));
@@ -1243,4 +1367,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   };
 }
 
-module.exports = { createWhatsAppService, normalizeDigits };
+module.exports = {
+  createWhatsAppService,
+  normalizeDigits,
+  deduplicateWhatsAppContacts,
+  deduplicateWhatsAppGroups
+};
