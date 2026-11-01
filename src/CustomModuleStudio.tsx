@@ -73,8 +73,8 @@ export default function CustomModuleStudio({ existingNames, onSave, onClose }: P
   const save = () => {
     const now = new Date().toISOString();
     const definition: CustomModuleDefinition = {
-      id: "custom-module-" + (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : now.replace(/\\D/g, "").slice(0, 17) + Math.random().toString(36).slice(2, 7)),
-      name: name.trim().replace(/\\s+/g, " "), description: description.trim(), group: group.trim(),
+      id: "custom-module-" + (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : now.replace(/\D/g, "").slice(0, 17) + Math.random().toString(36).slice(2, 7)),
+      name: name.trim().replace(/\s+/g, " "), description: description.trim(), group: group.trim(),
       icon, color, fields, statuses: statuses.split(",").map(value => value.trim()).filter(Boolean),
       createdAt: now, updatedAt: now
     };
