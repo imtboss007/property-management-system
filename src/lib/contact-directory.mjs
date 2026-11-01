@@ -141,6 +141,7 @@ export function remapWorkspaceContactReferences(workspace, remap) {
     return {
       ...property,
       primaryContactId: remapId(property.primaryContactId, remap),
+      followUpContactId: property.followUpContactId ? remapId(property.followUpContactId, remap) : property.followUpContactId,
       moduleData
     };
   });
