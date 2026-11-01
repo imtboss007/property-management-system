@@ -153,3 +153,11 @@ assert.ok(contactDirectory.includes("followUpContactId: property.followUpContact
 assert.ok(report.includes("record.followUpContactId||\"\""), "Record PDFs must resolve the assigned follow-up person.");
 assert.ok(registerReport.includes("record.followUpContactId||\"\""), "Register PDF must resolve the assigned follow-up person.");
 console.log("AXIVESTRA per-module Follow-up Person assignment, automatic register creation, live contact typeahead and stable linkage contracts passed.");
+
+for (const token of [
+  "Workstream overview", "Party / Asset", "Action / Details", "Amount / Terms",
+  "Status / Next Action", "What the person said", "Source module(s)",
+  "Final amount / terms", "Last updated", "roleFilters", "groupFilters",
+  "ax-followup-register__filter-dropdown", "WhatsApp groups", "View what was said"
+]) assert.ok(register.includes(token), "Missing executive follow-up overview/filter behavior: " + token);
+console.log("AXIVESTRA executive follow-up overview, source details, multi-role filtering and expandable WhatsApp group filters passed.");
