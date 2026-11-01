@@ -1,0 +1,30 @@
+const fs = require("node:fs");
+const assert = require("node:assert/strict");
+
+const app = fs.readFileSync("src/App.tsx", "utf8");
+const commandCenter = fs.readFileSync("src/WorkspaceCommandCenter.tsx", "utf8");
+const styles = fs.readFileSync("src/styles.css", "utf8");
+
+for (const token of [
+  'name: "Activity History"', "undoHistory", "suppressAuditRef",
+  "undoLastChange", "beforeRecord", "WorkspaceCommandCenter",
+  "openWorkspaceResult", "quickCreate"
+]) assert.ok(app.includes(token), "Missing app integration: " + token);
+
+for (const token of [
+  "Universal search", "Search results", "onSearchChange", "properties",
+  "contacts", "tasks", "financials", "documents", "risks", "approvals",
+  "groups", "Reminders", "Overdue and next 7 days", "Quick add",
+  "Welcome to AXIVESTRA", "Ctrl K", "onOpenHistory"
+]) assert.ok(commandCenter.includes(token), "Missing workspace capability: " + token);
+
+for (const token of [
+  ".ax-universal-search", ".ax-search-results", ".ax-reminder-menu",
+  ".ax-quick-menu", ".ax-help-menu", ".ax-onboarding-card",
+  ".ax-history-page", "@media(max-width:780px)", "@media(max-width:520px)"
+]) assert.ok(styles.includes(token), "Missing responsive workspace styling: " + token);
+
+assert.ok(app.includes('saveLocal("estateflow.undoHistory"'), "Undo snapshots must persist locally");
+assert.ok(app.includes("setUndoHistory(current => current.slice(1))"), "Undo must consume a single history entry");
+assert.ok(!app.includes('localStorage.clear('), "Workspace upgrades must not clear browser storage");
+console.log("AXIVESTRA workspace enhancement contracts passed.");
