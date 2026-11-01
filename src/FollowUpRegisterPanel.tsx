@@ -25,7 +25,10 @@ type ContactRow = {
 };
 type RecordRow = {
   id: string; title: string; module: string; value: string; status: string;
-  contact: string; primaryContactId?: string; followUpContactId?: string; moduleData: Record<string,string>;
+  contact: string; primaryContactId?: string; followUpContactId?: string;
+  nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
+  nextResponseDescription?: string; nextAction?: string; notes?: string;
+  moduleData: Record<string,string>;
 };
 type GroupRow = { id: string; name: string; jid?: string; size?: number };
 type DraftRow = { contactId: string; item: FollowUpRegisterItem; isNew: boolean; dirty?: boolean };
@@ -272,7 +275,6 @@ export default function FollowUpRegisterPanel(props: Props) {
         const amount=getTransactionAmount(record?.moduleData,item.amount||record?.value||"—")||"—";
         const nextDate=item.promisedDate||record?.nextFollowUpDate||record?.nextResponseDate||"Date not set";
         const nextTime=item.promisedTime||record?.nextFollowUpTime||record?.nextResponseTime||"";
-        const said=item.notes||record?.notes||"No additional statement recorded";
         const sourceModules=record?[record.module]:[];
         return <Fragment key={row.key}>
           <tr className="ax-followup-register__summary-row">
