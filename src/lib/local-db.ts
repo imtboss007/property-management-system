@@ -30,7 +30,7 @@ class AxivestraLocalDatabase extends Dexie {
       documents: "&id,createdAt,companyId,propertyId,contactId,category,name"
     });
     this.version(3).stores({
-      documents: " &id,createdAt,companyId,propertyId,contactId,category,name".trim(),
+      documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
       syncState: "&key"
     });
   }
@@ -72,5 +72,11 @@ export async function loadDeviceSyncBaseline(): Promise<unknown> {
 
 export async function saveDeviceSyncBaseline(value: unknown): Promise<void> {
   await localDb.syncState.put({ key: "deviceSyncBaseline", value });
+  try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
+}
+
+
+export async function clearDeviceSyncBaseline(): Promise<void> {
+  await localDb.syncState.delete("deviceSyncBaseline");
   try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
 }
