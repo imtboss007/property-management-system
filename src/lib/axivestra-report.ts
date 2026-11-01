@@ -46,7 +46,7 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
       let rows:any[]=[];try{const parsed=JSON.parse(data[group.key]||"[]");if(Array.isArray(parsed))rows=parsed;}catch{}
       if(!rows.length)return "";
       const headings=group.fields.map(field=>"<th>"+escapeHtml(field.label)+"</th>").join("");
-      const body=rows.map(item=>"<tr>"+group.fields.map(field=>"<td>"+escapeHtml(valueText(item?.[field.key]||""))+"</td>").join("")+"</tr>").join("");
+      const body=rows.map(item=>"<tr>"+group.fields.map(field=>"<td>"+escapeHtml(valueText(field.type==="date"?[item?.[field.key],item?.[field.key+"Time"]].filter(Boolean).join(" · "):(item?.[field.key]||"")))+"</td>").join("")+"</tr>").join("");
       return "<section class='repeatable pdf-avoid-break'><h3>"+escapeHtml(group.title)+"</h3><table><thead><tr>"+headings+"</tr></thead><tbody>"+body+"</tbody></table></section>";
     }).join("");
     const groupKeys=new Set((axivestraRepeatableGroups[record.module]||[]).map(group=>group.key));
