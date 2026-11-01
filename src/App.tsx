@@ -1535,7 +1535,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         ...(property.moduleData?.__linkedContactIds || "").split(","),
         ...Object.entries(property.moduleData || {}).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))
       ].filter(Boolean));
-      if (!ids.size) {
+      if (!property.primaryContactId) {
         const legacyId=contactByName.get((property.contact||"").trim().toLocaleLowerCase());
         if (legacyId) ids.add(legacyId);
       }
