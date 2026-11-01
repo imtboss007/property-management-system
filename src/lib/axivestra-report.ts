@@ -2,7 +2,7 @@ import { axivestraRepeatableGroups, buildModuleSummary } from "./axivestra-modul
 
 type RecordRow = {
   id:string; title:string; module:string; location:string; value:string; status:string;
-  contact:string; primaryContactId?:string; targetDeadline?:string; targetDeadlineTime?:string;
+  contact:string; primaryContactId?:string; followUpContactId?:string; targetDeadline?:string; targetDeadlineTime?:string;
   nextFollowUpDate?:string; nextFollowUpTime?:string; nextAction?:string;
   nextResponseDate?:string; nextResponseTime?:string; nextResponseType?:string; nextResponseDescription?:string;
   notes:string; createdAt:string; surveyNumber?:string; ownershipDetails?:string;
