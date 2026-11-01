@@ -155,12 +155,15 @@ assert.ok(registerReport.includes("record.followUpContactId||\"\""), "Register P
 console.log("AXIVESTRA per-module Follow-up Person assignment, automatic register creation, live contact typeahead and stable linkage contracts passed.");
 
 for (const token of [
-  "Workstream overview", "Party / Asset", "Action / Details", "Amount / Terms",
-  "Status / Next Action", "What the person said", "Source module(s)",
+  "People-wise follow-up overview", "visibleByContact.size", "Array.from(visibleByContact.entries())",
+  "contactRows.map", "Module type / linked record", "Description / item", "Amount (INR)",
+  "Expected reach-back date", "Expected reach-back time", "What the person said", "Source module(s)",
   "Final amount / terms", "Last updated", "roleFilters", "groupFilters",
-  "ax-followup-register__filter-dropdown", "WhatsApp groups", "View what was said"
-]) assert.ok(register.includes(token), "Missing executive follow-up overview/filter behavior: " + token);
-console.log("AXIVESTRA executive follow-up overview, source details, multi-role filtering and expandable WhatsApp group filters passed.");
+  "ax-followup-register__filter-dropdown", "WhatsApp groups", "View what was said",
+  "Each person appears once", "linked module record(s)"
+]) assert.ok(register.includes(token), "Missing person-grouped follow-up overview/filter behavior: " + token);
+assert.ok(!register.includes("visibleRows.map((row,index)"), "Do not duplicate the same module follow-up as a flat summary and grouped row.");
+console.log("AXIVESTRA person-grouped follow-up overview, editable per-record fields, multi-role filtering and linked group filters passed.");
 
 for (const token of [
   "Edit any field below", "onBlur={()=>save(row.key)}",
