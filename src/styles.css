@@ -1727,3 +1727,19 @@ h2,h3{color:#e5f2fc}
   .contact-filter-bar label { align-items: stretch; flex-direction: column; }
   .contact-filter-bar select { width: 100%; }
 }
+
+.ax-module-footer__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 719px) {
+  .ax-module-footer__actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0,1fr);
+  }
+  .ax-module-footer__actions button { width: 100%; }
+}
