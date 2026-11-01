@@ -49,7 +49,7 @@ export default function WorkspaceCommandCenter(props: Props) {
     return sources.flatMap(([kind, records, detail]) => records
       .filter(record => matches(record, query))
       .slice(0, 5)
-      .map(record => ({ kind, id: String(record.id), title: String(record.title || record.name || record.property || record.party || record.type || "Untitled record"), detail: detail(record), record } as SearchResult)))
+      .map(record => ({ kind, id: String(record.id || record.name || record.title || "record"), title: String(record.title || record.name || record.property || record.party || record.type || "Untitled record"), detail: detail(record), record } as SearchResult)))
       .slice(0, 15);
   }, [props.search, props.properties, props.contacts, props.tasks, props.financials, props.documents, props.risks, props.approvals, props.groups, props.modules]);
 
