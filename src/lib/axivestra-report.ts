@@ -35,7 +35,7 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
       ["Response description",record.nextResponseDescription],["Notes / evidence",record.notes],
       ["Created",record.createdAt?new Date(record.createdAt).toLocaleString("en-IN"):""]
     ];
-    const linkedIds=[record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,val])=>key.startsWith("__contact_")&&Boolean(val)).map(([,val])=>String(val))].filter(Boolean);
+    const linkedIds=[record.followUpContactId||"",record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,val])=>key.startsWith("__contact_")&&Boolean(val)).map(([,val])=>String(val))].filter(Boolean);
     const linkedContacts=contacts.filter(contact=>linkedIds.includes(contact.id));
     if(!linkedContacts.length&&record.contact){const match=contacts.find(contact=>contact.name.trim().toLowerCase()===record.contact.trim().toLowerCase());if(match)linkedContacts.push(match);}
     if(linkedContacts.length)core.push(["Linked contacts",linkedContacts.map(contact=>[contact.name,contact.role||(contact.roles||[]).join(", "),contact.phone,contact.email].filter(Boolean).join(" · ")).join(" | ")]);
