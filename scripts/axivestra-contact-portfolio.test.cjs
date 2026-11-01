@@ -74,4 +74,8 @@ for (const token of [
   "useDeferredValue(query)", "searchIndex", "const metrics=useMemo", "contactIndex"
 ]) assert.ok(workbench.includes(token), "Missing module performance optimization: " + token);
 
+
+assert.ok(app.includes("previousById.get(id)"), "Audit snapshot should reuse unchanged record rows.");
+assert.ok(app.includes("prior.source===record"), "Audit snapshot should skip deep serialization for unchanged rows.");
+assert.ok(app.includes("source: record"), "Audit snapshot should track immutable source row identity.");
 console.log("AXIVESTRA Contact 360 timeline, interactions, group linking, faster search and PDF export contracts passed.");
