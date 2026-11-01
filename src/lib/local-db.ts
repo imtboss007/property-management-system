@@ -80,3 +80,14 @@ export async function clearDeviceSyncBaseline(): Promise<void> {
   await localDb.syncState.delete("deviceSyncBaseline");
   try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
 }
+
+
+/** Keep small workspace state in the existing IndexedDB state table instead of localStorage. */
+export async function loadWorkspaceState<T>(key: string): Promise<T | null> {
+  const row = await localDb.syncState.get("workspace:" + key);
+  return row ? row.value as T : null;
+}
+
+export async function saveWorkspaceState(key: string, value: unknown): Promise<void> {
+  await localDb.syncState.put({ key: "workspace:" + key, value });
+}
