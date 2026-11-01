@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bell, CheckCircle2, ChevronDown, CircleHelp, History, Plus, Search, X } from "lucide-react";
 
-export type SearchKind = "property" | "contact" | "task" | "financial" | "document" | "risk" | "approval" | "group";
+export type SearchKind = "property" | "contact" | "task" | "financial" | "document" | "risk" | "approval" | "group" | "module";
 type SearchResult = { kind: SearchKind; id: string; title: string; detail: string; record: any };
 type Props = {
   search: string;
@@ -14,6 +14,7 @@ type Props = {
   risks: any[];
   approvals: any[];
   groups: any[];
+  modules: Array<{ name: string; description: string; group: string }>;
   onOpenResult: (kind: SearchKind, record: any) => void;
   onQuickCreate: (kind: "property" | "contact" | "task" | "financial") => void;
   onOpenHistory: () => void;
@@ -42,14 +43,15 @@ export default function WorkspaceCommandCenter(props: Props) {
       ["document", props.documents, r => [r.category, r.property, r.expiresOn].filter(Boolean).join(" · ")],
       ["risk", props.risks, r => [r.category, r.severity, r.status].filter(Boolean).join(" · ")],
       ["approval", props.approvals, r => [r.area, r.status, r.approver].filter(Boolean).join(" · ")],
-      ["group", props.groups, r => [r.description, r.size ? r.size + " members" : ""].filter(Boolean).join(" · ")]
+      ["group", props.groups, r => [r.description, r.size ? r.size + " members" : ""].filter(Boolean).join(" · ")],
+      ["module", props.modules, r => [r.group, r.description].filter(Boolean).join(" · ")]
     ];
     return sources.flatMap(([kind, records, detail]) => records
       .filter(record => matches(record, query))
       .slice(0, 5)
       .map(record => ({ kind, id: String(record.id), title: String(record.title || record.name || record.property || record.party || record.type || "Untitled record"), detail: detail(record), record } as SearchResult)))
       .slice(0, 15);
-  }, [props.search, props.properties, props.contacts, props.tasks, props.financials, props.documents, props.risks, props.approvals, props.groups]);
+  }, [props.search, props.properties, props.contacts, props.tasks, props.financials, props.documents, props.risks, props.approvals, props.groups, props.modules]);
 
   const reminders = useMemo(() => {
     const today = new Date();
