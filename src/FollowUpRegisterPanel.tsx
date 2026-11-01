@@ -76,6 +76,8 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [moduleFilter,setModuleFilter] = useState("All modules");
   const [roleFilters,setRoleFilters] = useState<string[]>([]);
   const [groupFilters,setGroupFilters] = useState<string[]>([]);
+  const [transactionFilter,setTransactionFilter] = useState("All transaction types");
+  const [loanDirectionFilter,setLoanDirectionFilter] = useState("All loan directions");
   const [addContactId,setAddContactId] = useState(props.contacts[0]?.id || "");
   const [addContactSearch,setAddContactSearch] = useState("");
   const [addContactPickerOpen,setAddContactPickerOpen] = useState(false);
@@ -119,9 +121,13 @@ export default function FollowUpRegisterPanel(props: Props) {
       contact.name,contact.phone,contact.role,...(contact.roles || []),draft.item.person,draft.item.role,
       draft.item.description,draft.item.amount,draft.item.promisedDate,draft.item.promisedTime,
       draft.item.responseType,draft.item.status,draft.item.notes,record?.module,record?.title,
+      ...Object.entries(record?.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")]),
       ...groupNames
     ].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
-    return [{key,contact,item:draft.item,record,linkedRecords,groupNames,groupIds:Array.from(linkedGroups),searchText}];
+    const transactionType=record?.moduleData?.__transactionType||"Not decided";
+    const loanDirection=record?.moduleData?.__loanDirection||"";
+    const monthlyInterest=transactionType==="Loan"?calculateMonthlyInterest(record?.moduleData,parseDealNumber(record?.value)):0;
+    return [{key,contact,item:draft.item,record,linkedRecords,groupNames,groupIds:Array.from(linkedGroups),searchText,transactionType,loanDirection,monthlyInterest}];
   }).sort((a,b) => {
     const byDate = (a.item.promisedDate || "9999-12-31").localeCompare(b.item.promisedDate || "9999-12-31");
     return byDate || a.contact.name.localeCompare(b.contact.name) || a.item.person.localeCompare(b.item.person);
@@ -131,9 +137,13 @@ export default function FollowUpRegisterPanel(props: Props) {
     return rows.filter(row =>
       (!term || row.searchText.includes(term)) &&
       (statusFilter === "All statuses" || row.item.status === statusFilter) &&
-      (moduleFilter === "All modules" || (row.record?.module || "Contact-level") === moduleFilter)
+      (moduleFilter === "All modules" || (row.record?.module || "Contact-level") === moduleFilter) &&
+      (transactionFilter === "All transaction types" || row.transactionType === transactionFilter) &&
+      (loanDirectionFilter === "All loan directions" || (row.transactionType === "Loan" && row.loanDirection === loanDirectionFilter)) &&
+      (!roleFilters.length || roleFilters.some(role => [row.item.role,row.contact.role,...(row.contact.roles||[])].filter(Boolean).includes(role))) &&
+      (!groupFilters.length || groupFilters.some(groupId => row.groupIds.includes(groupId)))
     );
-  },[rows,deferredQuery,statusFilter,moduleFilter]);
+  },[rows,deferredQuery,statusFilter,moduleFilter,transactionFilter,loanDirectionFilter,roleFilters,groupFilters]);
   const visibleByContact = useMemo(() => {
     const grouped = new Map<string,typeof visibleRows>();
     for (const row of visibleRows) grouped.set(row.contact.id,[...(grouped.get(row.contact.id)||[]),row]);
@@ -142,6 +152,10 @@ export default function FollowUpRegisterPanel(props: Props) {
   const moduleOptions = useMemo(() => Array.from(new Set(rows.map(row=>row.record?.module || "Contact-level"))).sort(),[rows]);
   const roleOptions = useMemo(() => Array.from(new Set(rows.flatMap(row=>[row.item.role,row.contact.role,...(row.contact.roles||[])].filter((value): value is string => Boolean(value))))).sort(),[rows]);
   const groupOptions = useMemo(() => props.groups.filter(group=>rows.some(row=>row.groupIds.includes(group.id))),[props.groups,rows]);
+  const transactionOptions = useMemo(() => dealTransactionTypes.filter(type=>rows.some(row=>row.transactionType===type)),[rows]);
+  const loanPrimaryRows = rows.filter(row=>row.transactionType==="Loan"&&row.item.isPrimary&&row.record);
+  const monthlyInterestReceivable = loanPrimaryRows.filter(row=>row.loanDirection===loanDirections[0]).reduce((sum,row)=>sum+row.monthlyInterest,0);
+  const monthlyInterestPayable = loanPrimaryRows.filter(row=>row.loanDirection===loanDirections[1]).reduce((sum,row)=>sum+row.monthlyInterest,0);
   const overdueCount = rows.filter(row => row.item.promisedDate && row.item.promisedDate < new Date().toISOString().slice(0,10) && !["Completed","Cancelled","Reached back"].includes(row.item.status)).length;
   const primaryCount = rows.filter(row=>row.item.isPrimary).length;
 
