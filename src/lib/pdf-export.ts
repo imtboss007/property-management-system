@@ -78,13 +78,15 @@ function drawTable(doc: jsPDF, table: HTMLTableElement, y: number, page: { left:
       let x=page.left;
       for(let columnIndex=0;columnIndex<columnCount;columnIndex++){
         const width=widths[columnIndex];
-        doc.setFillColor(...(isHeader?[232,243,246]:[255,255,255]));
+        if(isHeader)doc.setFillColor(232,243,246);
+        else doc.setFillColor(255,255,255);
         doc.setDrawColor(205,218,227);
         doc.setLineWidth(0.12);
         doc.rect(x,y,width,rowHeight,"FD");
         doc.setFont("helvetica",isHeader?"bold":"normal");
         doc.setFontSize(fontSize);
-        doc.setTextColor(...(isHeader?[35,66,87]:[35,55,70]));
+        if(isHeader)doc.setTextColor(35,66,87);
+        else doc.setTextColor(35,55,70);
         const slice=wrapped[columnIndex].slice(start,start+chunkLines);
         if(slice.length)doc.text(slice,x+paddingX,y+paddingY+fontSize*0.34);
         x+=width;
