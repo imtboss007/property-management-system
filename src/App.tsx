@@ -2914,13 +2914,15 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     const invalidLabels:string[]=[];
     if(!normalizedModuleData.__transactionType)invalidLabels.push("Deal / transaction structure");
     if(normalizedModuleData.__transactionType==="Loan"){
+      if(!normalizedModuleData.__loanDirection)invalidLabels.push("Loan direction (receivable / payable / arranging)");
       normalizedModuleData.__loanPrincipal=getLoanPrincipalValue(normalizedModuleData,form.value);
       normalizedModuleData.__loanInterestRate=normalizedModuleData.__loanInterestRate||normalizedModuleData.interestRate||normalizedModuleData.annualInterestRate||"";
       normalizedModuleData.__loanInterestMethod=normalizedModuleData.__loanInterestMethod||((normalizedModuleData.interestRate||normalizedModuleData.annualInterestRate)?"Percentage per year":"Percentage per month");
       const monthly=calculateMonthlyInterest(normalizedModuleData,parseDealNumber(form.value));
       normalizedModuleData.__loanMonthlyInterest=monthly.toFixed(2);
-      normalizedModuleData.__loanDirection=normalizedModuleData.__loanDirection||loanDirections[0];
     }
+    if(normalizedModuleData.__transactionType==="Sharing"&&!normalizedModuleData.__sharingModel)invalidLabels.push("Sharing model");
+    if(normalizedModuleData.__transactionType==="Settlement"&&!normalizedModuleData.__settlementModel)invalidLabels.push("Settlement model");
     if(normalizedModuleData.__transactionType==="Sharing" && normalizedModuleData.__sharingModel==="10% gift + 90% balance sharing"){
       normalizedModuleData.__giftPercentage=normalizedModuleData.__giftPercentage||"10";
     }
@@ -2973,7 +2975,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
       </div>}
       {form.moduleData.__transactionType==="Loan"&&<div className="ax-deal-structure__section">
         <h4>Loan terms & monthly interest</h4>
-        <label>Loan direction<select value={form.moduleData.__loanDirection||loanDirections[0]} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanDirection:event.target.value}}))}>{loanDirections.map(x=><option key={x}>{x}</option>)}</select></label>
+        <label>Loan direction<select value={form.moduleData.__loanDirection||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanDirection:event.target.value}}))}><option value="">Select loan direction</option>{loanDirections.map(x=><option key={x}>{x}</option>)}</select></label>
         <div className="form-two"><label>Principal / loan amount (₹)<IndianAmountInput value={getLoanPrincipalValue(form.moduleData,form.value)} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanPrincipal:value}}))} placeholder="Loan principal"/></label><label>Interest calculation<select value={form.moduleData.__loanInterestMethod||((form.moduleData.interestRate||form.moduleData.annualInterestRate)?"Percentage per year":"Percentage per month")} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanInterestMethod:event.target.value}}))}>{loanInterestMethods.map(x=><option key={x}>{x}</option>)}</select></label></div>
         <div className="form-two"><label>{form.moduleData.__loanInterestMethod==="Fixed amount per month"?"Fixed interest amount per month (₹)":form.moduleData.__loanInterestMethod==="Percentage per year"?"Annual interest rate (% p.a.)":"Interest rate (% per month)"}<input type="number" min="0" step="0.0001" value={form.moduleData.__loanInterestRate||form.moduleData.interestRate||form.moduleData.annualInterestRate||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanInterestRate:event.target.value}}))} placeholder={form.moduleData.__loanInterestMethod==="Fixed amount per month"?"Monthly rupee interest":"Interest rate"}/></label><label>Tenure (months)<input type="number" min="0" step="1" value={form.moduleData.__loanTenureMonths||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanTenureMonths:event.target.value}}))} placeholder="Loan duration"/></label></div>
         <div className="form-two"><label>Repayment structure<select value={form.moduleData.__loanRepaymentMethod||"Interest-only monthly"} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanRepaymentMethod:event.target.value}}))}>{loanRepaymentMethods.map(x=><option key={x}>{x}</option>)}</select></label><label>Monthly interest due day<input type="number" min="1" max="31" value={form.moduleData.__loanDueDay||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__loanDueDay:event.target.value}}))} placeholder="1–31"/></label></div>
