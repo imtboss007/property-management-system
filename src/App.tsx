@@ -24,6 +24,7 @@ import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCente
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
+import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber } from "./lib/deal-structure";
 import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEditor, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
@@ -2907,6 +2908,18 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
+    if(!normalizedModuleData.__transactionType)invalidLabels.push("Deal / transaction structure");
+    if(normalizedModuleData.__transactionType==="Loan"){
+      const monthly=calculateMonthlyInterest(normalizedModuleData,parseDealNumber(form.value));
+      normalizedModuleData.__loanMonthlyInterest=monthly.toFixed(2);
+      normalizedModuleData.__loanDirection=normalizedModuleData.__loanDirection||loanDirections[0];
+    }
+    if(normalizedModuleData.__transactionType==="Sharing" && normalizedModuleData.__sharingModel==="10% gift + 90% balance sharing"){
+      normalizedModuleData.__giftPercentage=normalizedModuleData.__giftPercentage||"10";
+    }
+    if(normalizedModuleData.__transactionType==="Gift"){
+      normalizedModuleData.__giftCalculatedAmount=calculateGiftAmount(normalizedModuleData,parseDealNumber(form.value)).toFixed(2);
+    }
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
     if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("Rate per unit");
     for(const field of selectedFields){
