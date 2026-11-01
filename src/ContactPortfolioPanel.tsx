@@ -4,7 +4,7 @@ import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-m
 
 type Contact = { id: string; name: string; phone: string; email?: string; role: string; roles?: string[]; notes?: string; whatsappGroupIds?: string[] };
 type SavedGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
-type RecordRow = {};
+type RecordRow = {
   id: string; title: string; module: string; location: string; value: string; status: string;
   contact: string; primaryContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextAction?: string;
