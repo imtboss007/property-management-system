@@ -979,11 +979,11 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Actual / projected exit value", sumRows(data.fundPortfolioInvestments, "exitValue"));
     add("Fund transaction total", sumRows(data.fundTransactions, "amount"));
     const fundSize = val("totalFundSize");
-    const deployedPercent = deployed !== null && fundSize ? deployed / fundSize * 100 : null;
-    add("Fund utilisation", deployedPercent, "percent");
     const invested = sumRows(data.fundPortfolioInvestments, "initialInvestment");
     const additions = sumRows(data.fundPortfolioInvestments, "additionalInvestment");
     const deployed = invested !== null || additions !== null ? (invested || 0) + (additions || 0) : null;
+    const deployedPercent = deployed !== null && fundSize ? deployed / fundSize * 100 : null;
+    add("Fund utilisation", deployedPercent, "percent");
     const current = sumRows(data.fundPortfolioInvestments, "currentValue");
     add("Total deployed investment", deployed);
     add("Portfolio unrealised / realised value", current);
