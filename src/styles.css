@@ -2525,3 +2525,102 @@ h2,h3{color:#e5f2fc}
   .ax-followup-register__row-more>summary{color:#315b87}
   .ax-followup-register__grid-actions,.ax-followup-register__grid-module .ax-followup-register__inline-link{display:none!important}
 }
+
+/* AXIVESTRA Intelligence Hub */
+.ax-intelligence-hub{display:grid;gap:16px;margin-top:10px;min-width:0}
+.ax-intelligence-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 26px;border:1px solid #183e54;border-radius:16px;background:linear-gradient(120deg,#0b2638,#123e55 68%,#15566a);color:#effaff;box-shadow:0 12px 26px #102c4014}
+.ax-intelligence-hero .section-kicker{display:flex;align-items:center;gap:7px;color:#8fe0e8;font-size:9px;font-weight:850;letter-spacing:1.25px}
+.ax-intelligence-hero h2{margin:8px 0 5px;color:#f4fbff;font:800 clamp(21px,3vw,29px) "Manrope",sans-serif;letter-spacing:-.55px}
+.ax-intelligence-hero p{margin:0;color:#b5cfdb;font-size:12px}
+.ax-intelligence-hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ax-intelligence-hero-actions .secondary-button{border-color:#456b7c;background:#163c50;color:#f0fbff}
+.ax-intelligence-hero-actions .primary-button{background:#e2f7fa;color:#0a3448;border-color:#e2f7fa}
+.ax-intelligence-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ax-intelligence-metrics>button{display:flex;min-width:0;min-height:112px;flex-direction:column;align-items:flex-start;justify-content:center;gap:5px;padding:15px 16px;border:1px solid #dce5e9;border-radius:12px;background:#fff;text-align:left;box-shadow:0 3px 12px #1b35470a;transition:transform .15s,border-color .15s,box-shadow .15s}
+.ax-intelligence-metrics>button:hover{transform:translateY(-2px);border-color:#7eb9c4;box-shadow:0 8px 20px #1b354713}
+.ax-intelligence-metrics>button>span{color:#6b7e8c;font-size:10px;font-weight:750}
+.ax-intelligence-metrics>button>strong{max-width:100%;overflow-wrap:anywhere;color:#163b53;font:800 clamp(19px,2.4vw,25px) "Manrope",sans-serif}
+.ax-intelligence-metrics>button>strong.is-warning{color:#b56c13}
+.ax-intelligence-metrics>button>small{color:#81919c;font-size:9px;line-height:1.4}
+.ax-intelligence-grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:13px;align-items:start}
+.ax-intelligence-panel{min-width:0;padding:17px;border:1px solid #dbe5ea;border-radius:13px;background:#fff;box-shadow:0 4px 15px #1b35470a}
+.ax-intelligence-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.ax-intelligence-panel>header>svg{flex:none;color:#247a8e}
+.ax-intelligence-panel>header .section-kicker{display:block;color:#23768a;font-size:8px;font-weight:850;letter-spacing:1px}
+.ax-intelligence-panel>header h3{margin:4px 0;color:#18394e;font:750 16px "Manrope",sans-serif}
+.ax-intelligence-panel>header p{margin:4px 0 0;color:#748895;font-size:10px;line-height:1.5}
+.ax-intelligence-priority-list{display:grid;gap:6px}
+.ax-intelligence-priority-list>button{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 9px;border:1px solid transparent;border-radius:9px;background:#f6f9fa;text-align:left;color:#244256}
+.ax-intelligence-priority-list>button:hover{border-color:#c8dce3;background:#eef6f8}
+.ax-intelligence-priority-list>button>span:nth-child(2){display:grid;flex:1;min-width:0;gap:3px}
+.ax-intelligence-priority-list strong{font-size:11px;color:#1f4054}
+.ax-intelligence-priority-list small{color:#7a8b96;font-size:9px;line-height:1.4}
+.ax-intelligence-priority-list>button>svg{flex:none;color:#6e8998}
+.ax-intelligence-priority-icon{display:grid;flex:none;width:31px;height:31px;place-items:center;border-radius:9px;background:#e3f1f4;color:#24778a}
+.ax-intelligence-priority-icon.is-warning{background:#fff1dd;color:#a86311}
+.ax-deal-copilot{display:grid;gap:10px}
+.ax-deal-copilot>header{margin-bottom:0}
+.ax-deal-copilot-input{display:flex;align-items:center;gap:8px;min-width:0;padding:6px 7px 6px 10px;border:1px solid #cfdee5;border-radius:10px;background:#fbfdfe}
+.ax-deal-copilot-input>svg{flex:none;color:#638392}
+.ax-deal-copilot-input input{flex:1;min-width:0;height:35px;border:0;outline:0;background:transparent;color:#203e50;font-size:11px}
+.ax-deal-copilot-input input:focus{outline:0}
+.ax-deal-copilot-input button{min-height:32px;padding:0 13px;border:0;border-radius:7px;background:#123f57;color:#fff;font-size:10px;font-weight:750}
+.ax-deal-copilot-input button:disabled{opacity:.45;cursor:not-allowed}
+.ax-deal-copilot-prompts{display:flex;flex-wrap:wrap;gap:6px}
+.ax-deal-copilot-prompts button{padding:6px 8px;border:1px solid #dbe6eb;border-radius:999px;background:#f8fbfc;color:#496675;font-size:9px;cursor:pointer}
+.ax-deal-copilot-prompts button:hover{border-color:#85bac5;background:#eff8fa}
+.ax-deal-copilot-answer{display:grid;gap:7px;padding-top:10px;border-top:1px solid #e5edf0}
+.ax-deal-copilot-answer>p{margin:0;color:#395466;font-size:11px;line-height:1.55}
+.ax-deal-copilot-answer>button{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px;border:1px solid #e0e9ed;border-radius:8px;background:#fff;text-align:left}
+.ax-deal-copilot-answer>button:hover{background:#f6fafb;border-color:#b7d5dc}
+.ax-deal-copilot-answer>button>span{display:grid;min-width:0;gap:3px}
+.ax-deal-copilot-answer>button strong{color:#23485d;font-size:10px}
+.ax-deal-copilot-answer>button small{color:#7b8e99;font-size:9px;line-height:1.4;overflow-wrap:anywhere}
+.ax-deal-copilot-answer>button em{flex:none;color:#24748a;font-size:9px;font-style:normal;font-weight:750;text-align:right}
+.ax-deal-copilot-answer>small{color:#788e9b;font-size:10px}
+.ax-deal-copilot-disclaimer,.ax-whatsapp-capture-disclaimer{color:#8798a2;font-size:9px;line-height:1.45}
+.ax-whatsapp-capture{grid-column:1/-1}
+.ax-whatsapp-capture>textarea{display:block;width:100%;min-height:84px;padding:11px;border:1px solid #cfdee5;border-radius:9px;background:#fbfdfe;color:#213e50;font:11px/1.5 "DM Sans",sans-serif;resize:vertical}
+.ax-whatsapp-capture>textarea:focus{outline:2px solid #a5d0d9;border-color:#79b6c1}
+.ax-whatsapp-capture-actions{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ax-whatsapp-capture-actions>label{display:grid;flex:1;min-width:230px;gap:5px;color:#536f7e;font-size:10px;font-weight:700}
+.ax-whatsapp-capture-actions select,.ax-whatsapp-capture-preview select,.ax-whatsapp-capture-preview input,.ax-whatsapp-capture-preview textarea{width:100%;min-width:0;min-height:36px;padding:8px;border:1px solid #d1e0e6;border-radius:7px;background:#fff;color:#203f52;font:10px "DM Sans",sans-serif}
+.ax-whatsapp-capture-preview{display:grid;gap:10px;padding:13px;border:1px solid #cbdfe5;border-radius:10px;background:#f6fafb}
+.ax-whatsapp-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ax-whatsapp-preview-heading strong{color:#21465b;font-size:11px}
+.ax-whatsapp-preview-heading span{color:#78909c;font-size:9px}
+.ax-whatsapp-capture-preview>label{display:grid;gap:5px;color:#57717f;font-size:9px;font-weight:750}
+.ax-whatsapp-capture-preview textarea{min-height:57px;resize:vertical;line-height:1.4}
+.ax-whatsapp-preview-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.ax-whatsapp-preview-fields label{display:grid;min-width:0;gap:5px;color:#57717f;font-size:9px;font-weight:750}
+.ax-whatsapp-preview-actions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.ax-whatsapp-capture-warning{margin:0;color:#a45e0c;font-size:10px}
+.ax-whatsapp-capture-success{display:flex;align-items:center;gap:6px;margin:0;color:#237a4c;font-size:10px;font-weight:700}
+@media(max-width:920px){
+  .ax-intelligence-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ax-intelligence-grid{grid-template-columns:1fr}
+  .ax-whatsapp-capture{grid-column:auto}
+}
+@media(max-width:600px){
+  .ax-intelligence-hero{align-items:flex-start;flex-direction:column;padding:18px}
+  .ax-intelligence-hero-actions{width:100%}
+  .ax-intelligence-hero-actions button{flex:1}
+  .ax-intelligence-metrics{gap:7px}
+  .ax-intelligence-metrics>button{min-height:100px;padding:11px}
+  .ax-intelligence-panel{padding:13px}
+  .ax-whatsapp-preview-fields{grid-template-columns:1fr}
+  .ax-whatsapp-capture-actions{align-items:stretch;flex-direction:column}
+  .ax-whatsapp-capture-actions>label{min-width:0}
+  .ax-whatsapp-capture-actions>button{justify-content:center}
+  .ax-whatsapp-preview-heading{align-items:flex-start;flex-direction:column}
+}
+/* PDF personal identity options */
+.ax-pdf-privacy-options{display:grid;gap:11px;min-width:min(100%,420px)}
+.ax-pdf-privacy-options>p{margin:0 0 2px;color:#637784;font-size:11px;line-height:1.5}
+.ax-pdf-privacy-options>label{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #dce6eb;border-radius:9px;background:#fff;color:#24475b;cursor:pointer}
+.ax-pdf-privacy-options>label:has(input:checked){border-color:#65a9b8;background:#f2f9fa;box-shadow:0 0 0 2px #65a9b81a}
+.ax-pdf-privacy-options input{margin:2px 0 0;accent-color:#176b83}
+.ax-pdf-privacy-options label>span{display:grid;gap:3px}
+.ax-pdf-privacy-options label strong{font-size:11px}
+.ax-pdf-privacy-options label small{color:#7a8e99;font-size:9px;line-height:1.4}
+.ax-pdf-privacy-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
