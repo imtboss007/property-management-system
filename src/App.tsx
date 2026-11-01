@@ -1792,11 +1792,13 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     setProperties(prev => editingProperty
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
+    syncModuleFollowUpFromRecord(record);
     syncPrimaryFollowUpsFromRecord(record);
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
       value: record.value.trim() ? Number(record.value) : null, status: record.status,
       contact: record.contact, primary_contact_id: record.primaryContactId || null,
+      follow_up_contact_id: record.followUpContactId || null,
       target_deadline: record.targetDeadline || null, next_follow_up_date: record.nextFollowUpDate || null,
       next_action: record.nextAction || "", notes: record.notes, created_at: record.createdAt,
       survey_number: record.surveyNumber, ownership_details: record.ownershipDetails,
@@ -2749,6 +2751,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
     primaryContactId:initial?.primaryContactId ?? defaultContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
+    followUpContactId:initial?.followUpContactId ?? initial?.primaryContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id=>contacts.some(item=>item.id===id)) ?? defaultContactId ?? "",
     targetDeadline:initial?.targetDeadline ?? "",targetDeadlineTime:initial?.targetDeadlineTime ?? "",
     nextFollowUpDate:initial?.nextFollowUpDate ?? "",nextFollowUpTime:initial?.nextFollowUpTime ?? "",
     nextResponseDate:initial?.nextResponseDate ?? "",nextResponseTime:initial?.nextResponseTime ?? "",
@@ -2772,6 +2775,10 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
+    if(!form.followUpContactId || !contacts.some(contact=>contact.id===form.followUpContactId)){
+      setAmountError("Choose a saved Follow-up Person for this record. The person will be added automatically to the Follow-up Register.");
+      return;
+    }
     const normalizedValue=normalizeIndianAmount(form.value);
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
     const normalizedModuleData={...form.moduleData};
@@ -2799,7 +2806,8 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{availableModules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="Type to select primary contact" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? "",followUpContactId:previous.followUpContactId||id}));}}/></div>
+    <SearchableContactPicker label="Follow-up Person *" contacts={contacts} value={form.followUpContactId||""} placeholder="Type name, role or phone to assign follow-up" onChange={value=>update("followUpContactId",String(value))} help="Required for every business module record. Saving this record automatically creates or updates its row in the global Follow-up Register and the person's Contact 360."/>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
     <SearchableGroupPicker groups={groups} value={(form.moduleData.__linkedWhatsAppGroupIds??"").split(",").filter(Boolean)} onChange={ids=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedWhatsAppGroupIds:ids.join(",")}}))} help="Optionally connect one or more synced WhatsApp groups to this record. Group links are kept separate from individual contact links."/>
