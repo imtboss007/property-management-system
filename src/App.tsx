@@ -1830,9 +1830,18 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const saveProperty = (data: Omit<PropertyRecord, "id" | "createdAt">) => {
-    const record: PropertyRecord = editingProperty
+    const recordBase: PropertyRecord = editingProperty
       ? { ...editingProperty, ...data }
       : { ...data, id: uid(), createdAt: new Date().toISOString() };
+    const followUpStamp=new Date().toISOString();
+    const record: PropertyRecord = {
+      ...recordBase,
+      moduleData:{
+        ...(recordBase.moduleData||{}),
+        __followUpNotes:data.nextAction||"",
+        __followUpUpdatedAt:followUpStamp
+      }
+    };
     setProperties(prev => editingProperty
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
@@ -1952,7 +1961,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const updateContactRecordSchedule = (recordId:string, patch:Pick<PropertyRecord,"nextResponseDate"|"nextResponseTime"|"nextResponseType"|"nextResponseDescription"|"nextFollowUpDate"|"nextFollowUpTime"|"nextAction">) => {
     const existing=properties.find(record=>record.id===recordId);
     const stamp=new Date().toISOString();
-    const updatedRecord=existing?{...existing,...patch,moduleData:{...(existing.moduleData||{}),__followUpUpdatedAt:stamp}}:null;
+    const updatedRecord=existing?{...existing,...patch,moduleData:{...(existing.moduleData||{}),...(patch.nextAction!==undefined?{__followUpNotes:patch.nextAction}:{}),__followUpUpdatedAt:stamp}}:null;
     if(updatedRecord)syncPrimaryFollowUpsFromRecord(updatedRecord);
     setProperties(current=>current.map(record=>record.id===recordId&&updatedRecord?updatedRecord:record));
   };
