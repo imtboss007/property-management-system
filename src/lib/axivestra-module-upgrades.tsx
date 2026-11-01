@@ -1,5 +1,3 @@
-import React from "react";
-
 export type UpgradeField = {
   key: string;
   label: string;
@@ -158,6 +156,16 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     number("equityOfferedPercent", "Equity offered (%)"),
     money("preMoneyValuation", "Pre-money valuation (₹)"),
     money("postMoneyValuation", "Post-money valuation (₹)"),
+    money("totalDebt", "Total company debt (₹)"),
+    money("shareholdersEquity", "Shareholders' equity (₹)"),
+    money("netProfitForRatios", "Net profit for ratios (₹)"),
+    money("averageShareholdersEquity", "Average shareholders' equity (₹)"),
+    money("earningsAvailableToEquity", "Earnings available to equity shareholders (₹)"),
+    number("weightedAverageShares", "Weighted average shares"),
+    number("marketPricePerShare", "Market price per share (₹)"),
+    money("investmentGain", "Investment gain (₹)"),
+    money("investmentCost", "Investment cost (₹)"),
+    number("fullyDilutedShares", "Fully diluted additional shares (options / warrants / convertibles)"),
     number("esopPoolPercent", "ESOP pool (%)"),
     number("esopAllocatedPercent", "ESOP allocated (%)"),
     text("shareClasses", "Share classes / instruments", "Equity / preference / convertible / options / warrants"),
@@ -252,6 +260,13 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
   "Litigation": [
     select("courtCaseAvailable", "Matter going to court?", ["Yes", "No"]),
     text("disputeNature", "Nature of dispute"),
+    select("disputePropertyType", "Property type", ["Agricultural", "Industrial", "Commercial", "Residential", "Other"]),
+    text("disputeLandClassification", "Current land classification"),
+    number("disputeLandExtent", "Property extent / built-up area"),
+    select("disputeLandAreaUnit", "Area unit", ["sq ft", "sq yd", "sq m", "acre", "gunta", "hectare", "cent"]),
+    money("disputeSrValue", "SR / Sub-Registrar value (₹)"),
+    money("disputeGuidelineValue", "Government guideline value (₹)"),
+    money("disputeMarketValue", "Actual market value (₹)"),
     text("caseMainIssue", "Main issue / reason for dispute"),
     text("caseNumberCnr", "Case number / CNR"),
     text("courtName", "Court / tribunal"),
@@ -667,6 +682,25 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("New investor dilution", dilutionShares !== null && totalShares !== null && totalShares + dilutionShares > 0 ? dilutionShares / (totalShares + dilutionShares) * 100 : null, "percent");
     const pre = val("preMoneyValuation"), investment = val("equityFundingRequired");
     add("Calculated post-money valuation", pre !== null && investment !== null ? pre + investment : val("postMoneyValuation"));
+    const otherShares = readRows(data.equityShareholders).filter(row => !["Promoter","Founder","Co-founder","Investor"].includes(row.category || "")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+    const founderShares = readRows(data.equityShareholders).filter(row => ["Founder","Co-founder"].includes(row.category || "")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+    add("Founder ownership", totalShares ? founderShares / totalShares * 100 : null, "percent");
+    add("Other shareholder ownership", totalShares ? otherShares / totalShares * 100 : null, "percent");
+    const fullyDiluted = totalShares !== null ? totalShares + (val("fullyDilutedShares") || 0) : null;
+    add("Fully diluted share count", fullyDiluted, "number");
+    add("Fully diluted investor ownership", fullyDiluted && investorShares ? investorShares / fullyDiluted * 100 : null, "percent");
+    const debt = val("totalDebt"), equity = val("shareholdersEquity");
+    add("Debt-to-equity ratio", debt !== null && equity ? debt / equity : null, "number");
+    const profit = val("netProfitForRatios");
+    const averageEquity = val("averageShareholdersEquity");
+    add("Return on equity (ROE)", profit !== null && averageEquity ? profit / averageEquity * 100 : null, "percent");
+    const earnings = val("earningsAvailableToEquity"), weightedShares = val("weightedAverageShares");
+    const eps = earnings !== null && weightedShares ? earnings / weightedShares : null;
+    add("Earnings per share (EPS)", eps, "money");
+    const marketPrice = val("marketPricePerShare");
+    add("Price-to-earnings ratio (P/E)", marketPrice !== null && eps ? marketPrice / eps : null, "number");
+    const gain = val("investmentGain"), cost = val("investmentCost");
+    add("Return on investment (ROI)", gain !== null && cost ? gain / cost * 100 : null, "percent");
   }
   if (moduleName === "Unsecured Company Loan") {
     add("Three-year / captured turnover total", sumRows(data.companyFinancialYears, "turnover"));
@@ -714,6 +748,16 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Portfolio current value", sumRows(data.fundPortfolioInvestments, "currentValue"));
     add("Actual / projected exit value", sumRows(data.fundPortfolioInvestments, "exitValue"));
     add("Fund transaction total", sumRows(data.fundTransactions, "amount"));
+    const invested = sumRows(data.fundPortfolioInvestments, "initialInvestment");
+    const additions = sumRows(data.fundPortfolioInvestments, "additionalInvestment");
+    const deployed = invested !== null || additions !== null ? (invested || 0) + (additions || 0) : null;
+    const current = sumRows(data.fundPortfolioInvestments, "currentValue");
+    add("Total deployed investment", deployed);
+    add("Portfolio unrealised / realised value", current);
+    add("Portfolio MOIC", deployed && current !== null ? current / deployed : null, "number");
+    add("Portfolio ROI", deployed && current !== null ? (current - deployed) / deployed * 100 : null, "percent");
+    const liabilities = val("fundOutstandingLoans") ?? 0;
+    add("Net portfolio value after fund borrowings", current !== null ? current - liabilities : null);
   }
   if (moduleName === "Investor Relations") {
     add("Previous investment total", sumRows(data.investorPastInvestments, "investmentAmount"));
