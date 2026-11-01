@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { Fragment, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ClipboardList, Download, ExternalLink, FileText, MessageCircle, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
 
 export type FollowUpRegisterItem = {
@@ -73,6 +73,8 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [query,setQuery] = useState("");
   const [statusFilter,setStatusFilter] = useState("All statuses");
   const [moduleFilter,setModuleFilter] = useState("All modules");
+  const [roleFilters,setRoleFilters] = useState<string[]>([]);
+  const [groupFilters,setGroupFilters] = useState<string[]>([]);
   const [addContactId,setAddContactId] = useState(props.contacts[0]?.id || "");
   const [addContactSearch,setAddContactSearch] = useState("");
   const [addContactPickerOpen,setAddContactPickerOpen] = useState(false);
@@ -118,7 +120,7 @@ export default function FollowUpRegisterPanel(props: Props) {
       draft.item.responseType,draft.item.status,draft.item.notes,record?.module,record?.title,
       ...groupNames
     ].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
-    return [{key,contact,item:draft.item,record,linkedRecords,groupNames,searchText}];
+    return [{key,contact,item:draft.item,record,linkedRecords,groupNames,groupIds:Array.from(linkedGroups),searchText}];
   }).sort((a,b) => {
     const byDate = (a.item.promisedDate || "9999-12-31").localeCompare(b.item.promisedDate || "9999-12-31");
     return byDate || a.contact.name.localeCompare(b.contact.name) || a.item.person.localeCompare(b.item.person);
@@ -137,6 +139,8 @@ export default function FollowUpRegisterPanel(props: Props) {
     return grouped;
   },[visibleRows]);
   const moduleOptions = useMemo(() => Array.from(new Set(rows.map(row=>row.record?.module || "Contact-level"))).sort(),[rows]);
+  const roleOptions = useMemo(() => Array.from(new Set(rows.flatMap(row=>[row.item.role,row.contact.role,...(row.contact.roles||[])].filter(Boolean)))).sort(),[rows]);
+  const groupOptions = useMemo(() => props.groups.filter(group=>rows.some(row=>row.groupIds.includes(group.id))),[props.groups,rows]);
   const overdueCount = rows.filter(row => row.item.promisedDate && row.item.promisedDate < new Date().toISOString().slice(0,10) && !["Completed","Cancelled","Reached back"].includes(row.item.status)).length;
   const primaryCount = rows.filter(row=>row.item.isPrimary).length;
 
@@ -228,6 +232,9 @@ export default function FollowUpRegisterPanel(props: Props) {
       <label className="ax-followup-register__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search contact, person, role, group, module, amount or description…"/></label>
       <label><span>Status</span><select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option>All statuses</option>{statuses.map(value=><option key={value}>{value}</option>)}</select></label>
       <label><span>Module type</span><select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option>All modules</option>{moduleOptions.map(value=><option key={value}>{value}</option>)}</select></label>
+      <details className="ax-followup-register__filter-dropdown"><summary>Roles{roleFilters.length?(` · ${roleFilters.length} selected`):" · All"}</summary><div className="ax-followup-register__filter-options">{roleOptions.map(role=><label key={role}><input type="checkbox" checked={roleFilters.includes(role)} onChange={event=>setRoleFilters(current=>event.target.checked?[...current,role]:current.filter(value=>value!==role))}/><span>{role}</span></label>)}{!roleOptions.length&&<small>No roles available</small>}</div></details>
+      <details className="ax-followup-register__filter-dropdown"><summary><MessageCircle size={13}/> WhatsApp groups{groupFilters.length?(` · ${groupFilters.length} selected`):" · All"}</summary><div className="ax-followup-register__filter-options">{groupOptions.map(group=><label key={group.id}><input type="checkbox" checked={groupFilters.includes(group.id)} onChange={event=>setGroupFilters(current=>event.target.checked?[...current,group.id]:current.filter(value=>value!==group.id))}/><span>{group.name}</span></label>)}{!groupOptions.length&&<small>No linked WhatsApp groups</small>}</div></details>
+      {(roleFilters.length>0||groupFilters.length>0)&&<button type="button" className="text-button" onClick={()=>{setRoleFilters([]);setGroupFilters([]);}}>Clear role / group filters</button>}
       <div className="ax-followup-register__add-contact">
         <label htmlFor="ax-followup-add-contact"><span>Add to contact</span></label>
         <div className="ax-followup-register__add-contact-search"><Search size={14}/><input id="ax-followup-add-contact" type="search" value={addContactSearch} onChange={event=>{setAddContactId("");setAddContactSearch(event.target.value);setAddContactPickerOpen(true);}} onFocus={()=>setAddContactPickerOpen(true)} onBlur={()=>setAddContactPickerOpen(false)} placeholder="Type a name, role or phone…"/>{addContactSearch&&<button type="button" onClick={()=>setAddContactSearch("")} aria-label="Clear contact search">×</button>}</div>
@@ -236,6 +243,38 @@ export default function FollowUpRegisterPanel(props: Props) {
       <button type="button" className="primary-button" disabled={!addContactId||props.readOnly} onClick={()=>addForContact(addContactId)}><Plus size={14}/> Add follow-up</button>
     </div>
     <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Changes are per-row; select Save to synchronize.</span></div>
+    <div className="ax-followup-register__summary-heading"><div><strong>Workstream overview</strong><span>One row per follow-up commitment · expand any row for the full linked details</span></div><span>{visibleRows.length} visible</span></div>
+    <div className="ax-followup-register__summary-wrap"><table className="ax-followup-register__summary-table">
+      <thead><tr><th>#</th><th>Party / Asset</th><th>Action / Details</th><th>Amount / Terms</th><th>Status / Next Action</th></tr></thead>
+      <tbody>{visibleRows.map((row,index)=>{
+        const item=row.item, record=row.record;
+        const party=record?.title||row.contact.name;
+        const action=item.description||record?.nextResponseDescription||record?.nextAction||"Follow-up commitment";
+        const amount=item.amount||record?.value||"—";
+        const nextDate=item.promisedDate||record?.nextFollowUpDate||record?.nextResponseDate||"Date not set";
+        const nextTime=item.promisedTime||record?.nextFollowUpTime||record?.nextResponseTime||"";
+        const said=item.notes||record?.notes||"No additional statement recorded";
+        const sourceModules=Array.from(new Set(row.linkedRecords.map(linked=>linked.module)));
+        return <Fragment key={row.key}>
+          <tr className="ax-followup-register__summary-row">
+            <td>{index+1}</td><td><strong>{party}</strong><small>{row.contact.name} · {item.role||row.contact.role||"Role not set"}</small></td>
+            <td>{action}<small>{sourceModules.length?sourceModules.join(" · "):record?.module||"Contact-level"}{record?" · "+record.title:""}</small></td>
+            <td><strong>{amount==="—"||!amount?"—":amount}</strong>{record?.moduleData?.terms&&<small>{record.moduleData.terms}</small>}</td>
+            <td><span className={"ax-followup-register__status ax-followup-register__status--"+(item.status||"").toLowerCase().replace(/[^a-z]+/g,"-")}>{item.status||"Not set"}</span><small>Next: {nextDate}{nextTime?" · "+nextTime:""}</small></td>
+          </tr>
+          <tr className="ax-followup-register__summary-detail-row"><td colSpan={5}><details><summary>View what was said, source modules and update history</summary><div className="ax-followup-register__summary-detail-grid">
+            <div><label>Follow-up person</label><strong>{item.person||row.contact.name}</strong><span>{item.role||row.contact.role||"Role not set"}</span></div>
+            <div><label>Source module(s)</label><strong>{sourceModules.join(", ")||record?.module||"Contact-level"}</strong><span>{row.linkedRecords.map(linked=>linked.title).join(" · ")||"No linked module record"}</span></div>
+            <div><label>Description / action</label><strong>{action}</strong></div>
+            <div><label>What the person said</label><strong>{said}</strong></div>
+            <div><label>Final amount / terms</label><strong>{amount}</strong><span>{record?.moduleData?.terms||"Terms not separately recorded"}</span></div>
+            <div><label>Status / next update</label><strong>{item.status||"Not set"}</strong><span>{nextDate}{nextTime?" at "+nextTime:""} · {item.responseType||"Channel not set"}</span></div>
+            <div><label>WhatsApp group(s)</label><strong>{row.groupNames.join(", ")||"No linked group"}</strong></div>
+            <div><label>Last updated</label><strong>{item.updatedAt?new Date(item.updatedAt).toLocaleString():"Not recorded"}</strong></div>
+          </div>{record&&<button type="button" className="ax-followup-register__inline-link" onClick={()=>props.onEditRecord(record)}><ExternalLink size={12}/> Open source module record</button>}</details></td></tr>
+        </Fragment>;
+      })}</tbody></table></div>
+
     {Array.from(visibleByContact.entries()).map(([contactId,contactRows])=>{
       const contact = contactIndex.get(contactId);
       if(!contact)return null;
