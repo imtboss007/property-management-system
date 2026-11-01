@@ -24,7 +24,7 @@ import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCente
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
-import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber, getLoanPrincipalValue, getTransactionAmount, updateTransactionAmountFields } from "./lib/deal-structure";
+import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber, getLoanPrincipalValue, getTransactionAmount, updateLoanPrincipalFields, updateTransactionAmountFields } from "./lib/deal-structure";
 import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEditor, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
