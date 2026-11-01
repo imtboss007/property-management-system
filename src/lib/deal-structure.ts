@@ -77,8 +77,9 @@ export function updateLoanPrincipalFields(data: Record<string,string> | undefine
 export function calculateMonthlyInterest(data: Record<string, string> | undefined, fallbackPrincipal = 0): number {
   const fields = data || {};
   const principal = parseDealNumber(getLoanPrincipalValue(fields,String(fallbackPrincipal)));
-  const rate = parseDealNumber(fields.__loanInterestRate);
-  const method = fields.__loanInterestMethod || "Percentage per month";
+  const inheritedAnnualRate = fields.interestRate || fields.annualInterestRate || "";
+  const rate = parseDealNumber(fields.__loanInterestRate || inheritedAnnualRate);
+  const method = fields.__loanInterestMethod || (inheritedAnnualRate ? "Percentage per year" : "Percentage per month");
   if (principal <= 0) return 0;
   if (method === "Interest-free") return 0;
   if (method === "Fixed amount per month") return Math.max(0, rate);
