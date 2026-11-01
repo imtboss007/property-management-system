@@ -161,3 +161,17 @@ for (const token of [
   "ax-followup-register__filter-dropdown", "WhatsApp groups", "View what was said"
 ]) assert.ok(register.includes(token), "Missing executive follow-up overview/filter behavior: " + token);
 console.log("AXIVESTRA executive follow-up overview, source details, multi-role filtering and expandable WhatsApp group filters passed.");
+
+for (const token of [
+  "Edit any field below", "onBlur={()=>save(row.key)}",
+  "Action description", "Final amount / terms amount", "Next follow-up date",
+  "Next follow-up time", "What the person said / terms", "Response channel"
+]) assert.ok(register.includes(token), "Missing editable auto-save follow-up overview: " + token);
+for (const token of [
+  "nextFollowUpDate:primary.promisedDate", "nextFollowUpTime:primary.promisedTime",
+  "__followUpStatus:primary.status", "__followUpNotes:primary.notes",
+  "Follow-up saved and synchronized to Contact 360 and the linked module record.",
+  "status:record.moduleData?.__followUpStatus", "record.nextFollowUpDate||record.nextResponseDate"
+]) assert.ok(app.includes(token), "Missing bidirectional follow-up/module synchronization: " + token);
+assert.ok(workbench.includes("Live follow-up snapshot") && workbench.includes("__followUpUpdatedAt"), "Module record detail must show the live synchronized follow-up snapshot.");
+console.log("AXIVESTRA editable overview auto-save, module/Contact360 bidirectional schedule and status synchronization contracts passed.");
