@@ -34,17 +34,17 @@ export default function WorkspaceCommandCenter(props: Props) {
   const results = useMemo(() => {
     const query = props.search.trim().toLocaleLowerCase();
     if (query.length < 2) return [];
-    const sources: Array<[SearchKind, any[], string, (record: any) => string]> = [
-      ["property", props.properties, "Property / module", r => [r.module, r.location, r.status].filter(Boolean).join(" · ")],
-      ["contact", props.contacts, "Contact", r => [r.role, r.phone, r.email].filter(Boolean).join(" · ")],
-      ["task", props.tasks, "Task / reminder", r => [r.date, r.time, r.property, r.contactName].filter(Boolean).join(" · ")],
-      ["financial", props.financials, "Financial transaction", r => [r.type, r.party, r.property, r.reference].filter(Boolean).join(" · ")],
-      ["document", props.documents, "Document", r => [r.category, r.property, r.expiresOn].filter(Boolean).join(" · ")],
-      ["risk", props.risks, "Risk / compliance", r => [r.category, r.severity, r.status].filter(Boolean).join(" · ")],
-      ["approval", props.approvals, "Approval", r => [r.area, r.status, r.approver].filter(Boolean).join(" · ")],
-      ["group", props.groups, "WhatsApp group", r => [r.description, r.size ? r.size + " members" : ""].filter(Boolean).join(" · ")]
+    const sources: Array<[SearchKind, any[], (record: any) => string]> = [
+      ["property", props.properties, r => [r.module, r.location, r.status].filter(Boolean).join(" · ")],
+      ["contact", props.contacts, r => [r.role, r.phone, r.email].filter(Boolean).join(" · ")],
+      ["task", props.tasks, r => [r.date, r.time, r.property, r.contactName].filter(Boolean).join(" · ")],
+      ["financial", props.financials, r => [r.type, r.party, r.property, r.reference].filter(Boolean).join(" · ")],
+      ["document", props.documents, r => [r.category, r.property, r.expiresOn].filter(Boolean).join(" · ")],
+      ["risk", props.risks, r => [r.category, r.severity, r.status].filter(Boolean).join(" · ")],
+      ["approval", props.approvals, r => [r.area, r.status, r.approver].filter(Boolean).join(" · ")],
+      ["group", props.groups, r => [r.description, r.size ? r.size + " members" : ""].filter(Boolean).join(" · ")]
     ];
-    return sources.flatMap(([kind, records, _label, detail]) => records
+    return sources.flatMap(([kind, records, detail]) => records
       .filter(record => matches(record, query))
       .slice(0, 5)
       .map(record => ({ kind, id: String(record.id), title: String(record.title || record.name || record.property || record.party || record.type || "Untitled record"), detail: detail(record), record } as SearchResult)))
