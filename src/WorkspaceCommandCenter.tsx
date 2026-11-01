@@ -112,7 +112,7 @@ export default function WorkspaceCommandCenter(props: Props) {
         {notificationsOpen && <div className="ax-command-dropdown ax-reminder-menu">
           <div className="ax-command-heading"><div><strong>Reminders</strong><small>Overdue and next 7 days</small></div><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close reminders"><X size={14}/></button></div>
           {reminders.length ? reminders.map((task) => <button type="button" className="ax-reminder-item" key={task.id} onClick={() => { props.onOpenResult(task.kind, task.record); setNotificationsOpen(false); }}>
-            <span className={`ax-reminder-dot ${overdue ? "is-overdue" : today ? "is-today" : ""}`}/><span><strong>{task.title}</strong><small>{task.category} · {overdue ? "Overdue" : today ? "Due today" : "Upcoming"} · {task.date}{task.time ? " · " + task.time : ""}</small></span>
+            <span className={`ax-reminder-dot ${task.overdue ? "is-overdue" : task.today ? "is-today" : ""}`}/><span><strong>{task.title}</strong><small>{task.category} · {task.overdue ? "Overdue" : task.today ? "Due today" : "Upcoming"} · {task.date}{task.time ? " · " + task.time : ""}</small></span>
           </button>) : <div className="ax-command-empty">No overdue or upcoming reminders in the next seven days.</div>}
           <button type="button" className="ax-command-footer" onClick={() => { setNotificationsOpen(false); props.onOpenHistory(); }}>Open activity history <History size={14}/></button>
         </div>}
