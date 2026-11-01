@@ -5,6 +5,7 @@ const upgrades = fs.readFileSync("src/lib/axivestra-module-upgrades.tsx", "utf8"
 const app = fs.readFileSync("src/App.tsx", "utf8");
 const localDb = fs.readFileSync("src/lib/local-db.ts", "utf8");
 const workbench = fs.readFileSync("src/ModuleWorkbench.tsx", "utf8");
+const deal = fs.readFileSync("src/lib/deal-structure.ts", "utf8");
 
 const modules = [
   "Property Sale", "Property Loans", "JV / JDA / JD", "SR Rate Settlement",
@@ -45,3 +46,18 @@ assert.equal((app.match(/await saveDeviceSyncBaseline\(result\.baseline\)/g) || 
 assert.ok(!app.includes('localStorage.setItem("axivestra.deviceSyncBaseline"'), "Large sync baseline must not be written to localStorage");
 
 console.log("AXIVESTRA module-upgrade coverage checks passed (" + modules.length + " modules and " + repeatableGroups.length + " repeatable groups).");
+
+for (const token of [
+  "DEAL / TRANSACTION STRUCTURE", "__transactionType", "What is this transaction?",
+  "Sale", "Loan", "Sharing", "Settlement", "Gift", "10% gift + 90% balance sharing",
+  "Percentage per month", "Percentage per year", "Fixed amount per month",
+  "Monthly interest due day", "Monthly interest estimate", "transactionFilter",
+  "Filter by transaction type", "All transactions", "updateTransactionAmountFields"
+]) assert.ok(app.includes(token) || workbench.includes(token), "Missing universal deal / transaction form: " + token);
+for (const token of [
+  "calculateMonthlyInterest", "principal * rate / 100", "principal * rate / 1200",
+  "getLoanPrincipalValue", "updateLoanPrincipalFields", "50:50", "60:40", "70:30",
+  "10% gift + 90% balance sharing", "calculateSettlementBalance", "calculateSaleBalance"
+]) assert.ok(deal.includes(token), "Missing deal structure / finance calculation: " + token);
+assert.ok(workbench.includes("dealTransactionTypes") && workbench.includes("transactionFilter"), "Every module must have transaction-type filtering.");
+console.log("AXIVESTRA universal transaction structure, loan interest, sharing presets, settlement and module filters passed.");
