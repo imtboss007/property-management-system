@@ -327,6 +327,9 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
   ],
   "Investor Relations": [
     text("investorCompanyName", "Investor company / fund name"),
+    select("dealStage", "Investor deal stage", ["New Investor","Contacted","Interested","Meeting Scheduled","Proposal Shared","Due Diligence","Negotiation","Term Sheet","Investment Approved","Agreement Signed","Funds Received","Rejected / On Hold"]),
+    number("investorCompatibilityScore", "Investor compatibility score", "Based on 0–100; assessment input"),
+    text("matchedCompanyProject", "Matched startup / company / project"),
     text("investorContactPerson", "Contact person"),
     text("investorWebsite", "Website"),
     text("investorSectors", "Preferred sectors"),
@@ -560,9 +563,9 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
       rMoney("invested", "Amount invested"), rMoney("pendingContribution", "Pending contribution"), rf("profitSharePercent", "Profit sharing (%)", "%", "number")
     ] },
     { key: "fundPortfolioInvestments", title: "Portfolio investments", description: "Add companies and projects separately with invested value, valuation and exit details.", addLabel: "Add portfolio investment", fields: [
-      rf("companyProject", "Company / project name"), rf("sector", "Sector"), rf("investmentType", "Investment type"),
+      rf("companyProject", "Company / project name"), rf("sector", "Sector"), rf("investmentType", "Investment type"), rf("investmentStage", "Investment stage"),
       rf("investmentDate", "Investment date", "", "date"), rMoney("initialInvestment", "Initial investment"),
-      rMoney("additionalInvestment", "Additional investment"), rMoney("currentValue", "Current value"),
+      rMoney("additionalInvestment", "Additional investment"), rMoney("currentValue", "Current value"), rf("expectedReturnPercent", "Expected return (%)", "%", "number"),
       rf("expectedExitDate", "Expected exit date", "", "date"), rMoney("exitValue", "Expected / actual exit value")
     ] },
     { key: "fundTransactions", title: "Fund transactions", description: "Record capital receipts, deployment, withdrawals, distributions, fees and expenses.", addLabel: "Add fund transaction", fields: [
@@ -697,6 +700,20 @@ function sumBalanceRows(value: string | undefined, settlementKey: string, paidKe
   return hasAny ? total : null;
 }
 
+function sumAreaRateRows(value: string | undefined, amountKey: string, extentKey: string, rateKey: string): number | null {
+  const rows = readRows(value);
+  let hasAny = false;
+  const total = rows.reduce((sum,row) => {
+    const enteredAmount = parseNumber(row[amountKey]);
+    const extent = parseNumber(row[extentKey]);
+    const rate = parseNumber(row[rateKey]);
+    if (enteredAmount === null && (extent === null || rate === null)) return sum;
+    hasAny = true;
+    return sum + (enteredAmount !== null ? enteredAmount : (extent || 0) * (rate || 0));
+  },0);
+  return hasAny ? total : null;
+}
+
 const fmt = (value: number | null) => value === null || !Number.isFinite(value)
   ? "N/A"
   : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -713,7 +730,7 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     return total === null ? null : Math.max(0, total - (paid || 0));
   };
 
-  if (["Property Sale", "Agricultural Land", "Litigation"].includes(moduleName)) {
+  if (["Property Sale", "Agricultural Land", "Litigation", "Commercial Land"].includes(moduleName)) {
     add("Owner settlement balance", paidBalance("ownerSettlementAmount", "ownerAmountPaid"));
     add("Agreement holder settlement balance", paidBalance("agreementHolderSettlementAmount", "agreementHolderAmountPaid"));
   }
@@ -729,7 +746,7 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Settlement parties total", sumRows(data.srSettlementParties, "settlementAmount"));
     add("Amount already paid", sumRows(data.srSettlementParties, "amountPaid"));
     add("Settlement party balances", sumBalanceRows(data.srSettlementParties, "settlementAmount", "amountPaid"));
-    add("Settlement locations total", sumRows(data.srSettlementLocations, "settlementAmount"));
+    add("Settlement locations total", sumAreaRateRows(data.srSettlementLocations,"settlementAmount","extent","settlementRate"));
     const sr = val("srRatePerUnit"), market = val("marketRatePerUnit"), negotiated = val("settlementRatePerUnit");
     if (sr !== null && market !== null) add("Market rate vs SR rate difference", market - sr);
     if (negotiated !== null && market !== null) add("Settlement rate vs market difference", market - negotiated);
@@ -955,6 +972,9 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Portfolio current value", sumRows(data.fundPortfolioInvestments, "currentValue"));
     add("Actual / projected exit value", sumRows(data.fundPortfolioInvestments, "exitValue"));
     add("Fund transaction total", sumRows(data.fundTransactions, "amount"));
+    const fundSize = val("totalFundSize");
+    const deployedPercent = deployed !== null && fundSize ? deployed / fundSize * 100 : null;
+    add("Fund utilisation", deployedPercent, "percent");
     const invested = sumRows(data.fundPortfolioInvestments, "initialInvestment");
     const additions = sumRows(data.fundPortfolioInvestments, "additionalInvestment");
     const deployed = invested !== null || additions !== null ? (invested || 0) + (additions || 0) : null;
@@ -965,6 +985,8 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Portfolio ROI", deployed && current !== null ? (current - deployed) / deployed * 100 : null, "percent");
     const liabilities = val("fundOutstandingLoans");
     add("Net portfolio value after fund borrowings", current !== null && liabilities !== null ? current - liabilities : null);
+    const availableCash = val("availableFunds");
+    add("Calculated NAV including available funds", current !== null && availableCash !== null && liabilities !== null ? current + availableCash - liabilities : null);
     const transactions = readRows(data.fundTransactions);
     const investorCashflows = transactions.flatMap(row => {
       const type = String(row.transactionType || "");
