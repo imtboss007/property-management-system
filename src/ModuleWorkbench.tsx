@@ -232,6 +232,6 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         </section>
       </div>;
     })()}
-    <div className="ax-module-footer"><span><CheckCircle2 size={14}/> Live module view · {filtered.length} shown of {records.length} saved records{query.trim()?" · Search active":""}</span><div className="ax-module-footer__actions"><button className="secondary-button" onClick={()=>onExportReport(filtered)}><FileText size={15}/> Print / Save PDF · Filtered view</button><button className="primary-button" onClick={()=>onExportPdf(records)}><Download size={15}/> Download complete module PDF</button><button onClick={onAdd}><Plus size={15}/> Add another {moduleName.toLowerCase()} record</button></div></div>
+    <div className="ax-module-footer"><span><CheckCircle2 size={14}/> Live module view · {filtered.length} shown of {records.length} saved records{query.trim()?" · Search active":""}</span><div className="ax-module-footer__actions"><button className="secondary-button" onClick={()=>onExportReport(filtered)}><FileText size={15}/> Print / PDF · Save PDF (filtered view)</button><button className="primary-button" onClick={()=>onExportPdf(records)}><Download size={15}/> Download complete module PDF</button><button onClick={onAdd}><Plus size={15}/> Add another {moduleName.toLowerCase()} record</button></div></div>
   </section>;
 }
