@@ -1138,6 +1138,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           const result = reconcileDeviceSync(localSnapshot, remote.snapshot || {}, baseline);
           if (deviceSyncSnapshotsEqual(result.snapshot, remote.snapshot || {})) {
             await saveDeviceSyncBaseline(result.baseline);
+            // This effect may have been replaced because a user edited a record while
+            // the read/reconciliation was in flight. Never apply its stale render snapshot.
+            if (disposed) return;
             deviceSyncRemoteSnapshotRef.current = result.snapshot;
             rememberSyncedLocalReferences(result.snapshot);
             applySnapshot(result.snapshot);
