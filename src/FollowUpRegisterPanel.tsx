@@ -139,7 +139,7 @@ export default function FollowUpRegisterPanel(props: Props) {
     return grouped;
   },[visibleRows]);
   const moduleOptions = useMemo(() => Array.from(new Set(rows.map(row=>row.record?.module || "Contact-level"))).sort(),[rows]);
-  const roleOptions = useMemo(() => Array.from(new Set(rows.flatMap(row=>[row.item.role,row.contact.role,...(row.contact.roles||[])].filter(Boolean)))).sort(),[rows]);
+  const roleOptions = useMemo(() => Array.from(new Set(rows.flatMap(row=>[row.item.role,row.contact.role,...(row.contact.roles||[])].filter((value): value is string => Boolean(value))))).sort(),[rows]);
   const groupOptions = useMemo(() => props.groups.filter(group=>rows.some(row=>row.groupIds.includes(group.id))),[props.groups,rows]);
   const overdueCount = rows.filter(row => row.item.promisedDate && row.item.promisedDate < new Date().toISOString().slice(0,10) && !["Completed","Cancelled","Reached back"].includes(row.item.status)).length;
   const primaryCount = rows.filter(row=>row.item.isPrimary).length;
