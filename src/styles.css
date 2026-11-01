@@ -1853,3 +1853,11 @@ h2,h3{color:#e5f2fc}
 @media print{
  .ax-module-controlbar,.ax-module-hero-actions,.ax-module-footer,.ax-record-actions,.ax-record-quick-actions,.ax-row-actions,.ax-health-actions{display:none!important}
 }
+
+/* Cross-register search and printable record affordances */
+.record-side{flex-wrap:wrap}
+.record-side .edit-button,.record-side .delete-button{min-width:34px;min-height:34px}
+.data-panel .record-list{min-width:0}
+.data-panel .record-card{transition:box-shadow .18s ease,border-color .18s ease}
+.data-panel .record-card:hover{box-shadow:0 10px 26px rgba(19,45,65,.09)}
+@media(max-width:680px){.record-card{align-items:flex-start;flex-wrap:wrap}.record-side{margin-left:auto;justify-content:flex-end}.finance-actions{flex-wrap:wrap}}
