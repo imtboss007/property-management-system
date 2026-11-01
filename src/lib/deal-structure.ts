@@ -69,7 +69,7 @@ export function getLoanPrincipalValue(data: Record<string,string> | undefined, f
   return String(fallback??"");
 }
 export function updateLoanPrincipalFields(data: Record<string,string> | undefined, amount: string): Record<string,string> {
-  const fields={...(data||{}),__loanPrincipal:amount};
+  const fields:Record<string,string>={...(data||{}),__loanPrincipal:amount};
   for(const key of loanPrincipalKeys.slice(1))if(Object.prototype.hasOwnProperty.call(fields,key))fields[key]=amount;
   return fields;
 }
