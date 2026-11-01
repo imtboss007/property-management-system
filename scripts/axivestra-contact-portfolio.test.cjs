@@ -57,6 +57,8 @@ assert.ok(pdf.includes("new DOMParser()"), "PDF helper must parse the supplied r
 assert.ok(pdf.includes('clonedRoot.style.cssText'), "PDF clone must be moved into the capture viewport.");
 assert.ok(pdf.includes("empty or invalid PDF file"), "PDF helper must reject blank or invalid PDFs.");
 assert.ok(report.includes("Linked WhatsApp groups"), "Complete PDF must include linked group names.");
+assert.ok(report.includes("Contact follow-up register"), "Linked record PDFs must include Contact 360 follow-up rows.");
+assert.ok(report.includes("followUpRows") && report.includes("item.promisedTime") && report.includes("item.amount"), "Follow-up PDF must include people, dates, time and amounts.");
 
 
 for (const token of [
