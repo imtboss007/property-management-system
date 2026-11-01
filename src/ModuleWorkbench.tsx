@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
+import { dealTransactionTypes } from "./lib/deal-structure";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileText, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users, X } from "lucide-react";
 
 type ModuleRecord = {
@@ -71,6 +72,7 @@ function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
 export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onExportReport, onExportPdf, onPrintRecord, onDownloadRecordPdf }: Props) {
   const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
+  const [transactionFilter,setTransactionFilter] = useState("All transactions");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const [showAllFields, setShowAllFields] = useState(false);
@@ -85,8 +87,8 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     text:[record.id,record.title,record.module,record.location,record.value,record.status,record.contact,record.surveyNumber,record.ownershipDetails,record.areaValue,record.areaUnit,record.dimensions,record.ratePerUnit,record.targetDeadline,record.targetDeadlineTime,record.nextFollowUpDate,record.nextFollowUpTime,record.nextResponseDate,record.nextResponseTime,record.nextResponseType,record.nextResponseDescription,record.nextAction,record.notes,...Object.entries(record.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")])].join(" ").normalize("NFKC").toLocaleLowerCase()
   })),[records]);
   const filtered=useMemo(()=>searchIndex.filter(({record,text})=>
-    (filter==="All"||record.status===filter||(filter==="Follow-up set"&&Boolean(record.nextFollowUpDate))||(filter==="No follow-up"&&!record.nextFollowUpDate))&&searchTerms.every(term=>text.includes(term))
-  ).map(item=>item.record),[searchIndex,filter,searchTerms]);
+    (filter==="All"||record.status===filter||(filter==="Follow-up set"&&Boolean(record.nextFollowUpDate))||(filter==="No follow-up"&&!record.nextFollowUpDate))&&(transactionFilter==="All transactions"||(record.moduleData?.__transactionType||"Not decided")===transactionFilter)&&searchTerms.every(term=>text.includes(term))
+  ).map(item=>item.record),[searchIndex,filter,transactionFilter,searchTerms]);
   const metrics=useMemo(()=>{
     const totalValue=records.reduce((sum,row)=>sum+(Number(row.value)||0),0);
     const active=records.filter(row=>!CLOSED.has(String(row.status).toLowerCase())).length;
