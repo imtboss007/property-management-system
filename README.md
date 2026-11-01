@@ -49,14 +49,20 @@ This applies across the module worksheets' rupee fields, common property value/e
 
 ## Build Windows + Android
 
-The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and runs the Android debug-build smoke test. The `AXIVESTRA-Android-DEBUG-ONLY` artifact is for automated testing only; **do not install or distribute that APK**.
+The GitHub Actions workflow `.github/workflows/main.yml` builds the Windows installer and validates the Android debug APK for CI. The `AXIVESTRA-Android-DEBUG-ONLY` artifact is for automated checks only; **do not install or distribute it**.
 
-The user-installable Android package is produced from the tested Android build and re-signed with AXIVESTRA's persistent private release key before delivery. The signing key is maintained in the owner's private AXIVESTRA Library folder, not in GitHub, source control or public workflow artifacts. No GitHub secret setup is required from the owner.
+For a mobile installation, configure these four GitHub Actions repository secrets:
+- `ANDROID_KEYSTORE_BASE64`: full contents of `AXIVESTRA-android-release-base64.txt`.
+- `ANDROID_KEYSTORE_PASSWORD`: contents of `AXIVESTRA-android-release-password.txt`.
+- `ANDROID_KEY_ALIAS`: `axivestra-release`.
+- `ANDROID_KEY_PASSWORD`: same value as the keystore password.
 
-The Android package ID is `com.axivestra.mobile2026`, separate from the legacy `com.estateflow.propertymanagement` app. This permits installing the replacement alongside the existing app. Keep the old app until the new app has been paired with Windows and all expected records are confirmed on the phone.
+Run the workflow from **Actions → AXIVESTRA Windows and Android builds → Run workflow**. If the signing secrets are configured, it also creates and uploads `AXIVESTRA-Android-SIGNED`. Install only that signed APK. The new Android package ID is `com.axivestra.mobile2027`, separate from the legacy `com.estateflow.propertymanagement` package, so the replacement can be installed side by side while existing phone data remains intact.
 
-The Windows installer is published by the release workflow. Android APKs are signed and delivered separately; future Android builds must always use the same private release key to remain update-compatible.
-  
+Keep `AXIVESTRA-android-release.p12` in two secure offline backups. Every later build of `com.axivestra.mobile2027` must use the same keystore. Never commit the keystore, Base64 contents or passwords into Git.
+
+The Android project is generated on the GitHub runner with `npx cap add android`; generated Android build files are not required to be committed.
+
 ## Run in a browser for development
 
 Requires Node.js 22 and npm.
