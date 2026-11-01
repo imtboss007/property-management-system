@@ -41,4 +41,21 @@ assert.equal(pkg.dependencies["html2pdf.js"], "^0.10.3");
 assert.match(pkg.scripts.test, /axivestra-contact-portfolio\.test\.cjs/);
 
 assert.ok(repeatable.includes('field.key + "Time"'), "Repeatable date fields need a paired time value.");
-console.log("AXIVESTRA Contact 360, date-time scheduling and full PDF export contracts passed.");
+
+for (const token of [
+  'active === "Contact 360"', 'name: "Contact 360"', 'SearchableGroupPicker',
+  '__linkedWhatsAppGroupIds', 'onUpdateWhatsAppGroups', 'useDeferredValue',
+  'slice(0,80)', 'groups={savedWhatsAppGroups}'
+]) assert.ok(app.includes(token), "Missing standalone Contact 360 / group / fast-link feature: " + token);
+
+for (const token of [
+  "WhatsApp groups connected to this contact", "onUpdateWhatsAppGroups",
+  "savedGroups", "__linkedWhatsAppGroupIds"
+]) assert.ok(contact.includes(token), "Missing Contact 360 group linking: " + token);
+
+assert.ok(pdf.includes("new DOMParser()"), "PDF helper must parse the supplied report document.");
+assert.ok(pdf.includes('clonedRoot.style.cssText'), "PDF clone must be moved into the capture viewport.");
+assert.ok(pdf.includes("empty or invalid PDF file"), "PDF helper must reject blank or invalid PDFs.");
+assert.ok(report.includes("Linked WhatsApp groups"), "Complete PDF must include linked group names.");
+
+console.log("AXIVESTRA Contact 360, standalone module, group linking, fast search and PDF export contracts passed.");

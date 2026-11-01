@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
@@ -38,7 +38,7 @@ type PropertyRecord = {
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
-type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string };
+type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string; whatsappGroupIds?: string[] };
 type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
@@ -62,43 +62,62 @@ type SearchableContactPickerProps = {
 };
 
 function SearchableContactPicker({ label, contacts, value, onChange, multiple = false, placeholder, help }: SearchableContactPickerProps) {
-  const [query, setQuery] = useState("");
-  const selectedIds = Array.isArray(value) ? value : value ? [value] : [];
-  const selected = contacts.filter(contact => selectedIds.includes(contact.id));
-  const filtered = useMemo(() => {
-    const search = query.trim().toLocaleLowerCase();
-    return contacts
-      .filter(contact => !search || [
-        contact.name, contact.whatsappName, contact.phone, contact.role,
-        ...(contact.roles || []), contact.customRoles, contact.email, contact.address,
-        contact.profession, contact.employer, contact.designation, contact.businessType,
-        contact.associatedCompany, contact.whatsappJid
-      ].filter(Boolean).join(" ").toLocaleLowerCase().includes(search))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [contacts, query]);
-  const labelFor = (contact: ContactRecord) => {
-    const roles = Array.from(new Set([...(contact.roles || []), contact.role, ...(contact.customRoles || "").split(",").map(role => role.trim())].filter(Boolean))).join(", ");
-    return `${contact.name}${contact.whatsappName && contact.whatsappName !== contact.name ? " · WhatsApp: " + contact.whatsappName : ""} · ${roles || "Contact"}${contact.phone ? " · " + contact.phone : ""}`;
+  const [query,setQuery]=useState("");
+  const deferredQuery=useDeferredValue(query);
+  const selectedIds=Array.isArray(value)?value:value?[value]:[];
+  const selected=contacts.filter(contact=>selectedIds.includes(contact.id));
+  const contactIndex=useMemo(()=>contacts.map(contact=>({
+    contact,
+    searchText:[
+      contact.name,contact.whatsappName,contact.phone,contact.role,...(contact.roles||[]),
+      contact.customRoles,contact.email,contact.address,contact.profession,contact.employer,
+      contact.designation,contact.businessType,contact.associatedCompany,contact.whatsappJid
+    ].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase()
+  })).sort((a,b)=>a.contact.name.localeCompare(b.contact.name)),[contacts]);
+  const matching=useMemo(()=>{
+    const term=deferredQuery.trim().normalize("NFKC").toLocaleLowerCase();
+    return term?contactIndex.filter(item=>item.searchText.includes(term)):contactIndex;
+  },[contactIndex,deferredQuery]);
+  const visible=matching.slice(0,80).map(item=>item.contact);
+  const labelFor=(contact:ContactRecord)=>{
+    const roles=Array.from(new Set([...(contact.roles||[]),contact.role,...(contact.customRoles||"").split(",").map(role=>role.trim())].filter(Boolean))).join(", ");
+    return `${contact.name}${contact.whatsappName&&contact.whatsappName!==contact.name?" · WhatsApp: "+contact.whatsappName:""} · ${roles||"Contact"}${contact.phone?" · "+contact.phone:""}`;
   };
-  const toggle = (id: string, checked: boolean) => {
-    const next = checked ? Array.from(new Set([...selectedIds, id])) : selectedIds.filter(item => item !== id);
+  const toggle=(id:string,checked:boolean)=>{
+    const next=checked?Array.from(new Set([...selectedIds,id])):selectedIds.filter(item=>item!==id);
     onChange(next);
   };
-
-  return <div className={"searchable-contact-picker"+(multiple ? " searchable-contact-picker--multiple" : "")}>
+  return <div className={"searchable-contact-picker"+(multiple?" searchable-contact-picker--multiple":"")}>
     <span className="searchable-contact-picker__label">{label}</span>
-    <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
+    <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder={placeholder||"Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for "+label}/>{query&&<button type="button" className="searchable-contact-picker__clear" onClick={()=>setQuery("")} aria-label={"Clear search for "+label}>×</button>}</div>
     {multiple
-      ? <div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
-          {filtered.length === 0 ? <p className="searchable-contact-picker__empty">No matching contacts.</p> : filtered.map(contact => <label className="searchable-contact-picker__option" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={event => toggle(contact.id, event.target.checked)}/><span><strong>{contact.name}</strong><small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{contact.role}{contact.phone ? " · " + contact.phone : ""}</small></span></label>)}
+      ? <div className="searchable-contact-picker__options" role="group" aria-label={label+" results"}>
+          {visible.length===0?<p className="searchable-contact-picker__empty">No matching contacts.</p>:visible.map(contact=><label className="searchable-contact-picker__option" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={event=>toggle(contact.id,event.target.checked)}/><span><strong>{contact.name}</strong><small>{contact.whatsappName&&contact.whatsappName!==contact.name?"WhatsApp: "+contact.whatsappName+" · ":""}{contact.role}{contact.phone?" · "+contact.phone:""}</small></span></label>)}
         </div>
-      : <select className="searchable-contact-picker__select" size={1} value={Array.isArray(value) ? "" : value} onChange={event => onChange(event.target.value)}>
-          <option value="">{placeholder || "No contact linked"}</option>
-          {selected.filter(contact => !filtered.some(item => item.id === contact.id)).map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
-          {filtered.map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
+      : <select className="searchable-contact-picker__select" size={1} value={Array.isArray(value)?"":value} onChange={event=>onChange(event.target.value)}>
+          <option value="">{placeholder||"No contact linked"}</option>
+          {selected.filter(contact=>!visible.some(item=>item.id===contact.id)).map(contact=><option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
+          {visible.map(contact=><option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
         </select>}
-    {multiple && <small className="searchable-contact-picker__count">{selectedIds.length} selected · {filtered.length} matching contacts</small>}
-    {help && <small className="searchable-contact-picker__help">{help}</small>}
+    {multiple&&<small className="searchable-contact-picker__count">{selectedIds.length} selected · {matching.length} matching contacts{matching.length>80?" · refine search to see more":""}</small>}
+    {help&&<small className="searchable-contact-picker__help">{help}</small>}
+  </div>;
+}
+
+type SearchableGroupPickerProps={groups:SavedWhatsAppGroup[];value:string[];onChange:(ids:string[])=>void;label?:string;help?:string};
+function SearchableGroupPicker({groups,value,onChange,label="Linked WhatsApp groups",help}:SearchableGroupPickerProps){
+  const [query,setQuery]=useState("");
+  const deferredQuery=useDeferredValue(query);
+  const index=useMemo(()=>groups.map(group=>({group,searchText:[group.name,group.description,group.jid].filter(Boolean).join(" ").toLocaleLowerCase()})).sort((a,b)=>a.group.name.localeCompare(b.group.name)),[groups]);
+  const matching=useMemo(()=>{const term=deferredQuery.trim().toLocaleLowerCase();return term?index.filter(item=>item.searchText.includes(term)):index;},[index,deferredQuery]);
+  const selectedIds=new Set(value);
+  const toggle=(id:string,checked:boolean)=>onChange(checked?Array.from(new Set([...value,id])):value.filter(item=>item!==id));
+  return <div className="searchable-group-picker">
+    <span className="searchable-contact-picker__label">{label}</span>
+    <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search synced WhatsApp groups…" aria-label="Search WhatsApp groups"/></div>
+    {!groups.length?<p className="searchable-contact-picker__empty">No synced WhatsApp groups available.</p>:<div className="searchable-contact-picker__options" role="group" aria-label={label+" results"}>{matching.slice(0,60).map(({group})=><label className="searchable-contact-picker__option" key={group.id}><input type="checkbox" checked={selectedIds.has(group.id)} onChange={event=>toggle(group.id,event.target.checked)}/><span><strong>{group.name}</strong><small>{group.size?group.size+" members · ":""}{group.description||group.jid}</small></span></label>)}</div>}
+    <small className="searchable-contact-picker__count">{value.length} selected · {matching.length} matching groups{matching.length>60?" · refine search to see more":""}</small>
+    {help&&<small className="searchable-contact-picker__help">{help}</small>}
   </div>;
 }
 
@@ -125,6 +144,7 @@ const navigation = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
+  { name: "Contact 360", icon: UserRound },
   { name: "Client & Deal Hub", icon: Handshake },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
@@ -684,6 +704,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
+  const [contact360Search, setContact360Search] = useState("");
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("axivestra.customModules", []));
@@ -1487,7 +1508,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const downloadAxivestraPdf = async (moduleName:string, rows:PropertyRecord[]) => {
     try {
       setNotice("Preparing complete PDF report for "+moduleName+"…");
-      const html=buildAxivestraReportHtml(moduleName,rows,dynamicModuleFields,contacts);
+      const html=buildAxivestraReportHtml(moduleName,rows,dynamicModuleFields,contacts,savedWhatsAppGroups);
       const result=await exportHtmlReportAsPdf(html,"AXIVESTRA-"+moduleName+"-"+(rows.length===1?"Record":"Complete-Module"));
       setNotice(result.delivery==="shared" ? "Android share panel opened for "+result.filename+". Choose Files or Drive to save the PDF." : result.filename+" downloaded ("+Math.ceil(result.sizeBytes/1024)+" KB).");
     } catch(error) {
@@ -1739,6 +1760,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     remoteUpsert("contacts", { id: record.id, name: record.name, phone: record.phone, role: record.role, roles: record.roles ?? [record.role], custom_roles: record.customRoles || "", email: record.email || "", address: record.address || "", profession: record.profession || "", employer: record.employer || "", designation: record.designation || "", business_type: record.businessType || "", income_sources: record.incomeSources || "", associated_company: record.associatedCompany || "", relationship_notes: record.relationshipNotes || "", notes: record.notes, whatsapp_name: record.whatsappName || "", whatsapp_jid: record.whatsappJid || "" });
     closeContactForm();
     setNotice("Contact saved on this device.");
+  };
+  const updateContactWhatsAppGroups = (contactId:string, groupIds:string[]) => {
+    const uniqueIds=Array.from(new Set(groupIds.filter(Boolean)));
+    setContacts(current=>current.map(contact=>contact.id===contactId?{...contact,whatsappGroupIds:uniqueIds}:contact));
+    setNotice("WhatsApp group links updated for this contact.");
   };
   const normalizedContactPhone = (value: string) => canonicalContactPhone(value);
   const sameContactPhone = (left: string, right: string) => {
@@ -2186,7 +2212,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Contact 360" ? (contactProfileId ? openPropertyForm(null,{contactId:contactProfileId}) : openContactForm()) : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contact 360" ? (contactProfileId ? "Add linked record" : "New contact") : active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Activity History" && <section className="ax-history-page">
             <div className="ax-history-heading"><div><span className="section-kicker">WORKSPACE AUDIT TRAIL</span><h2>Activity history</h2><p>Recent record-level changes. Undo restores the latest saved state without clearing the workspace.</p></div><button type="button" className="secondary-button" disabled={!undoHistory.length} onClick={undoLastChange}>Undo last change{undoHistory[0] ? " · " + undoHistory[0].label : ""}</button></div>
@@ -2334,8 +2360,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
-            {contactProfileId && contacts.some(item=>item.id===contactProfileId) && <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} fieldsByModule={dynamicModuleFields} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={(recordId,patch)=>setProperties(current=>current.map(item=>item.id===recordId?{...item,...patch}:item))}/>}
-            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(search.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>setContactProfileId(c.id)}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(search.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
@@ -2357,6 +2382,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             <div className="finance-summary"><div><span>Tracked inflows</span><strong>₹{totalInflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Tracked outflows</span><strong>₹{totalOutflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Net recorded movement</span><strong>₹{(totalInflow-totalOutflow).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div></div>
             <p className="finance-footnote">Totals are category-based summaries of records entered here, not verified bank balances or accounting advice. Review transaction types and source documents before relying on settlement figures.</p>
             {financials.length ? <div className="record-list">{[...financials].filter(item=>[item.type,item.amount,item.date,item.property,item.party,item.reference,item.notes].join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · ₹{Number(item.amount||0).toLocaleString("en-IN",{maximumFractionDigits:2})}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>printSimpleRecord(item.type+" transaction",[["Date",item.date],["Type",item.type],["Property",item.property],["Amount (INR)",item.amount],["Party",item.party],["Reference",item.reference],["Notes",item.notes]],()=>setNotice("Print could not be opened. Check application print permissions."))} aria-label={`Print ${item.type} transaction`}><Download size={15}/></button><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
+          </section>}
+          {active === "Contact 360" && <section className="data-panel ax-contact360-module">
+            <div className="section-heading"><div><span className="section-kicker">RELATIONSHIP INTELLIGENCE</span><h2>Contact 360 workspace</h2><p>Choose a person to see every linked workstream, scheduled response, group and stakeholder relationship in one dedicated module.</p></div><span>{contacts.length} people · {savedWhatsAppGroups.length} synced groups</span></div>
+            <div className="ax-contact360-directory-tools"><label><Search size={15}/><input type="search" value={contact360Search} onChange={event=>setContact360Search(event.target.value)} placeholder="Search contacts by name, role, phone or company…"/></label><span>{contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").toLocaleLowerCase().includes(contact360Search.trim().toLocaleLowerCase())).length} matching contacts</span></div>
+            <div className="ax-contact360-directory">{contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").toLocaleLowerCase().includes(contact360Search.trim().toLocaleLowerCase())).slice(0,100).map(contact=>{
+              const linkedCount=properties.filter(property=>property.primaryContactId===contact.id||(property.moduleData?.__linkedContactIds||"").split(",").includes(contact.id)||Object.entries(property.moduleData||{}).some(([key,value])=>key.startsWith("__contact_")&&value===contact.id)||(!property.primaryContactId&&(property.contact||"").trim().toLocaleLowerCase()===contact.name.trim().toLocaleLowerCase())).length;
+              return <button type="button" className={"ax-contact360-person"+(contactProfileId===contact.id?" active":"")} key={contact.id} onClick={()=>setContactProfileId(contact.id)}><span className="ax-contact360-person__avatar">{contact.name.split(/\\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{contact.name}</strong><small>{contact.role||"Contact"}{contact.phone?" · "+contact.phone:""}</small><em>{linkedCount} linked record(s) · {(contact.whatsappGroupIds||[]).length} direct group(s)</em></span><ArrowUpRight size={15}/></button>;
+            })}{contacts.length===0&&<Empty icon={<Users size={22}/>} title="No contacts have been created" text="Create contacts first, then connect them to properties, deals and WhatsApp groups." action="Create contact" onClick={()=>openContactForm()}/>}</div>
+            {contactProfileId&&contacts.some(item=>item.id===contactProfileId)
+              ? <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} fieldsByModule={dynamicModuleFields} savedGroups={savedWhatsAppGroups} onUpdateWhatsAppGroups={updateContactWhatsAppGroups} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={(recordId,patch)=>setProperties(current=>current.map(item=>item.id===recordId?{...item,...patch}:item))}/>
+              : <div className="ax-contact360-empty"><Users size={26}/><strong>Select a contact to open their full relationship workspace</strong><p>Contact 360 is now a standalone module. Contact records remain in Contacts; this page brings their connected activity together.</p></div>}
           </section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
@@ -2412,7 +2448,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={propertyPrefill?.module || (modules.some(m=>m.name===active)?active:modules[0].name)} defaultContactId={propertyPrefill?.contactId || ""} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()} availableModules={modules} moduleFieldDefinitions={dynamicModuleFields} moduleStatuses={dynamicModuleStatuses}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={propertyPrefill?.module || (modules.some(m=>m.name===active)?active:modules[0].name)} defaultContactId={propertyPrefill?.contactId || ""} contacts={contacts} groups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()} availableModules={modules} moduleFieldDefinitions={dynamicModuleFields} moduleStatuses={dynamicModuleStatuses}/></Modal>}
       {moduleStudioOpen && <Modal className="ax-module-studio-modal" title="AXIVESTRA Module Studio" onClose={()=>setModuleStudioOpen(false)}><CustomModuleStudio existingNames={modules.map(item=>item.name)} onClose={()=>setModuleStudioOpen(false)} onSave={definition=>{if(company?.role==="read_only"){setNotice("Read-only company access cannot create modules.");return;}setCustomModules(current=>[...current,definition]);setModuleStudioOpen(false);setSearch("");setActive(definition.name);setNotice("Custom module created. Its fields, workflow and dashboard card are ready.");}}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
@@ -2607,7 +2643,7 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
-function PropertyForm({defaultModule,defaultContactId,contacts,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;defaultContactId?:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
+function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;defaultContactId?:string;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
@@ -2665,6 +2701,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,initial,onSave,on
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    <SearchableGroupPicker groups={groups} value={(form.moduleData.__linkedWhatsAppGroupIds??"").split(",").filter(Boolean)} onChange={ids=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedWhatsAppGroupIds:ids.join(",")}}))} help="Optionally connect one or more synced WhatsApp groups to this record. Group links are kept separate from individual contact links."/>
     {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEADLINES, RESPONSES & SCHEDULE</span><p>Every scheduled milestone captures its date and time. Keep the expected response and next follow-up separately editable.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Deadline time<input type="time" value={form.targetDeadlineTime} onChange={event=>update("targetDeadlineTime",event.target.value)}/></label></div>
