@@ -9,6 +9,7 @@ const pdf = read("src/lib/pdf-export.ts");
 const repeatable = read("src/lib/axivestra-module-upgrades.tsx");
 const mobile = read("src/lib/mobile-export.ts");
 const register = read("src/FollowUpRegisterPanel.tsx");
+const styles = read("src/styles.css");
 const registerReport = read("src/lib/follow-up-register-report.ts");
 const contactDirectory = read("src/lib/contact-directory.mjs");
 const pkg = JSON.parse(read("package.json"));
@@ -211,4 +212,13 @@ for (const token of [
 assert.ok(app.includes('onAddModule={contactId=>{go("All Properties");openPropertyForm(null,{contactId});}}'),
   "Adding a module from a person column must prefill that follow-up person.");
 console.log("AXIVESTRA person-column follow-up board, editable follow-up cards and direct module creation contracts passed.");
+
+assert.ok(styles.includes(".ax-followup-register__board{display:grid;grid-template-columns:minmax(0,1fr)"),
+  "Each person's follow-up group must occupy its own full-width row.");
+assert.ok(styles.includes(".ax-followup-register__cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))"),
+  "A person's follow-up assignments must display as multiple side-by-side columns, not stacked rows.");
+assert.ok(styles.includes("overflow:visible;padding:10px;overscroll-behavior:contain"),
+  "The person's assignment columns must remain fully visible without an inner vertical scroll panel.");
+console.log("AXIVESTRA one-person-per-row with multiple side-by-side module follow-up columns layout contracts passed.");
+
 
