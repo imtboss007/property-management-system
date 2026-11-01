@@ -679,6 +679,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("axivestra.customModules", []));
   const [moduleStudioOpen, setModuleStudioOpen] = useState(false);
+  const [dashboardLayout, setDashboardLayout] = useState(() => load("estateflow.dashboardLayout", { analytics: true, insightPanels: true, moduleDirectory: true, followups: true, whatsApp: true, recentActivity: true }));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
   // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
@@ -784,6 +785,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(() => {
     saveLocal("axivestra.customModules", customModules);
   }, [customModules]);
+  useEffect(() => {
+    saveLocal("estateflow.dashboardLayout", dashboardLayout);
+  }, [dashboardLayout]);
 
   useEffect(() => {
     saveLocal("estateflow.contacts", contacts);
@@ -2223,6 +2227,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <div className="banner-aside-row"><span>Data mode</span><strong>Local device</strong></div>
               </div>
             </section>
+            <details className="ax-dashboard-customize"><summary><Settings size={15}/> Personalise dashboard <ChevronDown size={13}/></summary><div className="ax-dashboard-customize-panel"><div><strong>Workspace layout</strong><small>Show or hide panels on this device. Your records are never changed.</small></div>
+              {([["analytics","Portfolio analytics"],["insightPanels","Loan and risk intelligence"],["moduleDirectory","Business module directory"],["followups","Upcoming follow-ups"],["whatsApp","WhatsApp preview"],["recentActivity","Recent activities"]] as Array<[keyof typeof dashboardLayout,string]>).map(([key,label])=><label key={key}><input type="checkbox" checked={dashboardLayout[key]} onChange={event=>setDashboardLayout(current=>({...current,[key]:event.target.checked}))}/>{label}</label>)}
+              <button type="button" onClick={()=>setDashboardLayout({analytics:true,insightPanels:true,moduleDirectory:true,followups:true,whatsApp:true,recentActivity:true})}>Reset layout</button>
+            </div></details>
             <div className="stats-grid institutional-stats ax-dashboard-kpis">
               <button type="button" className="ax-dashboard-kpi" onClick={()=>go("All Properties")}><span className="ax-dashboard-kpi-icon cyan"><LandPlot size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Total properties & assets</small><strong>{properties.length}</strong><em>{activeRecordCount} active records</em></span><ArrowUpRight size={16}/></button>
               <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Property Loans")}><span className="ax-dashboard-kpi-icon amber"><HandCoins size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Active loans</small><strong>{loanRecords.length}</strong><em>{loanOutstanding ? "₹"+loanOutstanding.toLocaleString("en-IN",{maximumFractionDigits:0})+" outstanding" : "Outstanding not fully entered"}</em></span><ArrowUpRight size={16}/></button>
@@ -2239,14 +2247,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <button className="control-metric" onClick={()=>go("Documents")}><span className="control-metric-icon violet"><FileText size={17}/></span><span><strong>{expiringDocumentCount}</strong><small>Documents expiring in 30 days</small></span><ArrowUpRight size={15}/></button>
               </div>
             </div>
-            <PortfolioAnalytics
+            {dashboardLayout.analytics && <PortfolioAnalytics
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
               financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
               modules={modules.map(item => ({ name: item.name, value: properties.filter(property => property.module === item.name).reduce((sum, property) => sum + Number(property.value || 0), 0), count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
-            />
-            <section className="ax-dashboard-insights">
+            />}
+            {dashboardLayout.insightPanels && <section className="ax-dashboard-insights">
               <article className="ax-dashboard-insight-panel"><div className="ax-dashboard-insight-heading"><div><span className="section-kicker">CREDIT INTELLIGENCE</span><h3>Loan status</h3><p>Live status distribution across open loan records.</p></div><HandCoins size={20}/></div>
                 {loanStatusBreakdown.length ? loanStatusBreakdown.map(item=><button type="button" className="ax-loan-status-row" key={item.status} onClick={()=>{go("All Properties");setSearch(item.status);}}><span>{item.status}</span><i><b style={{width:(loanRecords.length?item.count/loanRecords.length*100:0)+"%"}}/></i><strong>{item.count}</strong></button>) : <div className="ax-dashboard-empty">No active loan records yet. Add a loan to activate this view.</div>}
                 <button type="button" className="ax-dashboard-link" onClick={()=>go("All Properties")}>Explore loan records <ArrowUpRight size={14}/></button>
@@ -2256,7 +2264,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <button type="button" className="ax-signal-row" onClick={()=>go("Approvals")}><span className="blue"><ClipboardCheck size={16}/></span><span><strong>{pendingApprovalCount} pending approvals</strong><small>Review decision queue</small></span><ArrowUpRight size={14}/></button>
                 <button type="button" className="ax-signal-row" onClick={()=>go("Documents")}><span className="violet"><FileText size={16}/></span><span><strong>{expiringDocumentCount} documents expiring</strong><small>Within the next 30 days</small></span><ArrowUpRight size={14}/></button>
               </article>
-            </section>
+            </section>}
+            {dashboardLayout.moduleDirectory && <>
             <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS · {modules.length} MODULES</span><h2>Explore your operating modules</h2><p>Every workspace has its own record structure, search, analytics, stakeholders and export tools. Create new module types as your business evolves.</p></div><div className="ax-module-directory-actions"><button className="secondary-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button><button className="primary-button" onClick={()=>setModuleStudioOpen(true)} disabled={company?.role==="read_only"}><Plus size={16}/> Add module</button></div></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
@@ -2268,16 +2277,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <span className="module-footer"><span>{count} record{count===1?"":"s"}</span><span className="module-link">Open <ArrowUpRight size={14}/></span></span>
               </button>;
             })}{company?.role!=="read_only" ? <button type="button" className="module-card ax-module-add-card" onClick={()=>setModuleStudioOpen(true)}><span className="ax-module-add-orbit"><Plus size={23}/></span><span className="module-group">MODULE STUDIO</span><h3>Create a custom module</h3><p>Define your own fields, icon, colour and workflow stages.</p><span className="module-footer"><span>Extend your workspace</span><span className="module-link">Create <ArrowUpRight size={14}/></span></span></button> : null}</div>
-            <div className="bottom-grid ax-dashboard-bottom-grid">
-              <section className="panel-card"><div className="panel-heading"><div><span className="section-kicker">NEXT ACTIONS</span><h2>Upcoming follow-ups</h2><p>Calls, meetings, payments and deal deadlines.</p></div><CalendarClock size={20}/></div>{upcomingTasks.length ? <TaskList tasks={upcomingTasks.slice(0,5)} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="No upcoming actions" text="Create a dated task for a payment, meeting, registration or follow-up." action="Create task" onClick={()=>openTaskForm()}/>}</section>
-              <section className="panel-card ax-dashboard-whatsapp"><div className="panel-heading"><div><span className="section-kicker">CONNECTED MESSAGING</span><h2><MessageCircle size={17}/> WhatsApp hub</h2><p>{contacts.length} contacts · {savedWhatsAppGroups.length} groups</p></div><span className="ax-wa-connected"><i/> Directory</span></div>
+            </>}
+            { (dashboardLayout.followups || dashboardLayout.whatsApp || dashboardLayout.recentActivity) && <div className="bottom-grid ax-dashboard-bottom-grid">
+              {dashboardLayout.followups && <section className="panel-card"><div className="panel-heading"><div><span className="section-kicker">NEXT ACTIONS</span><h2>Upcoming follow-ups</h2><p>Calls, meetings, payments and deal deadlines.</p></div><CalendarClock size={20}/></div>{upcomingTasks.length ? <TaskList tasks={upcomingTasks.slice(0,5)} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="No upcoming actions" text="Create a dated task for a payment, meeting, registration or follow-up." action="Create task" onClick={()=>openTaskForm()}/>}</section>
+              {dashboardLayout.whatsApp && <section className="panel-card ax-dashboard-whatsapp"><div className="panel-heading"><div><span className="section-kicker">CONNECTED MESSAGING</span><h2><MessageCircle size={17}/> WhatsApp hub</h2><p>{contacts.length} contacts · {savedWhatsAppGroups.length} groups</p></div><span className="ax-wa-connected"><i/> Directory</span></div>
                 {(contacts.length || savedWhatsAppGroups.length) ? <div className="ax-wa-preview-list">{contacts.slice(0,3).map(contact=><button type="button" key={contact.id} onClick={()=>openWhatsAppFor(contact.id)}><span className="ax-wa-avatar">{contact.name.split(" ").map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{contact.name}</strong><small>{contact.role || "Contact"}{contact.phone ? " · "+contact.phone : ""}</small></span><MessageCircle size={15}/></button>)}{savedWhatsAppGroups.slice(0,2).map(group=><button type="button" key={group.id} onClick={()=>go("WhatsApp Automation")}><span className="ax-wa-avatar group"><Users size={15}/></span><span><strong>{group.name}</strong><small>WhatsApp group{group.size ? " · "+group.size+" members" : ""}</small></span><ArrowUpRight size={15}/></button>)}</div> : <div className="ax-dashboard-empty">Sync your WhatsApp directory to show contacts and groups here.</div>}
                 <button type="button" className="ax-dashboard-link" onClick={()=>go("WhatsApp Automation")}>Open WhatsApp Hub <ArrowUpRight size={14}/></button>
-              </section>
-              <section className="panel-card ax-dashboard-activity"><div className="panel-heading"><div><span className="section-kicker">WORKSPACE TIMELINE</span><h2>Recent activities</h2><p>Latest record changes.</p></div><button type="button" className="text-button" onClick={()=>go("Activity History")}>View all <ArrowUpRight size={14}/></button></div>
+              </section>}
+              {dashboardLayout.recentActivity && <section className="panel-card ax-dashboard-activity"><div className="panel-heading"><div><span className="section-kicker">WORKSPACE TIMELINE</span><h2>Recent activities</h2><p>Latest record changes.</p></div><button type="button" className="text-button" onClick={()=>go("Activity History")}>View all <ArrowUpRight size={14}/></button></div>
                 {auditEvents.length ? <div className="ax-recent-activity-list">{[...auditEvents].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,5).map((event,index)=><button type="button" key={event.id} onClick={()=>go("Activity History")}><span className={"ax-activity-node node-"+(index%4)}>{event.action==="created"?<Plus size={13}/>:event.action==="deleted"?<Trash2 size={13}/>:<Pencil size={13}/>}</span><span><strong>{event.label}</strong><small>{event.entity} · {event.action} · {new Date(event.at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</small></span></button>)}</div> : <div className="ax-dashboard-empty">New record activity will appear here.</div>}
-              </section>
-            </div>
+              </section>}
+            </div>}
           </>}
           
           {active === "All Properties" || modules.some(m=>m.name===active) ? <ModuleWorkbench
