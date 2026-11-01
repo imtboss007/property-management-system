@@ -4,13 +4,13 @@ type ContactFollowUp = {
   isPrimary:boolean; createdAt:string; updatedAt:string;
 };
 type Contact = {id:string;name:string;phone?:string;email?:string;role?:string;roles?:string[];whatsappGroupIds?:string[];followUps?:ContactFollowUp[]};
-type RecordRow = {id:string;title:string;module:string;value:string;status:string;contact:string;primaryContactId?:string;moduleData:Record<string,string>};
+type RecordRow = {id:string;title:string;module:string;value:string;status:string;contact:string;primaryContactId?:string;followUpContactId?:string;moduleData:Record<string,string>};
 type Group = {id:string;name:string;jid?:string;size?:number};
 const esc=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]||char));
 const dateTime=(date?:string,time?:string)=>date?[date,time].filter(Boolean).join(" · "):"Not scheduled";
 const linkedTo=(contact:Contact,record:RecordRow)=>{
   const data=record.moduleData||{};
-  const ids=[record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
+  const ids=[record.followUpContactId||"",record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
   return ids.includes(contact.id)||(record.contact||"").trim().toLowerCase()===contact.name.trim().toLowerCase();
 };
 export function buildContactFollowUpRegisterHtml(contacts:Contact[],records:RecordRow[],groups:Group[]=[]):string{
