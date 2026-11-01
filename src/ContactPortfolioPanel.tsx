@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowUpRight, CalendarClock, Download, FileText, MessageCircle, Pencil, Plus, RefreshCw, Users, X } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Download, FileText, MessageCircle, Pencil, Plus, RefreshCw, Search, Users, X } from "lucide-react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 
-type Contact = { id: string; name: string; phone: string; email?: string; role: string; roles?: string[]; notes?: string };
-type RecordRow = {
+type Contact = { id: string; name: string; phone: string; email?: string; role: string; roles?: string[]; notes?: string; whatsappGroupIds?: string[] };
+type SavedGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
+type RecordRow = {};
   id: string; title: string; module: string; location: string; value: string; status: string;
   contact: string; primaryContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextAction?: string;
@@ -19,6 +20,7 @@ type Draft = SchedulePatch;
 type Props = {
   contact: Contact;
   properties: RecordRow[];
+  savedGroups: SavedGroup[];
   tasks: Task[];
   fieldsByModule: Record<string,Field[]>;
   onClose: () => void;
@@ -29,6 +31,7 @@ type Props = {
   onWhatsApp: (contactId: string, propertyId?: string) => void;
   onDownloadRecord: (record: RecordRow) => void;
   onUpdateSchedule: (recordId: string, patch: SchedulePatch) => void;
+  onUpdateWhatsAppGroups: (contactId: string, groupIds: string[]) => void;
 };
 
 const pretty = (key: string) => key.replace(/^__/,"").replace(/([A-Z])/g," $1").replace(/[_-]+/g," ").replace(/^./,value=>value.toUpperCase());
@@ -51,13 +54,18 @@ const relatedTo = (record: RecordRow,contact: Contact) => {
 };
 
 export default function ContactPortfolioPanel(props: Props) {
-  const {contact,properties,tasks,fieldsByModule}=props;
+  const {contact,properties,tasks,fieldsByModule,savedGroups}=props;
   const [drafts,setDrafts]=useState<Record<string,Draft>>({});
   const [expanded,setExpanded]=useState<string[]>([]);
   const linked=useMemo(()=>properties.filter(record=>relatedTo(record,contact)).sort((a,b)=>(`${a.nextResponseDate||a.nextFollowUpDate||"9999-12-31"}T${a.nextResponseTime||a.nextFollowUpTime||"23:59"}`).localeCompare(`${b.nextResponseDate||b.nextFollowUpDate||"9999-12-31"}T${b.nextResponseTime||b.nextFollowUpTime||"23:59"}`)),[properties,contact]);
   const linkedIds=new Set(linked.map(record=>record.id));
   const openTasks=tasks.filter(task=>(task.contactId===contact.id||(task.propertyId&&linkedIds.has(task.propertyId)))&&!task.done).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time));
   const moduleCounts=Array.from(new Set(linked.map(record=>record.module))).map(module=>({module,count:linked.filter(record=>record.module===module).length}));
+  const [groupSearch,setGroupSearch]=useState("");
+  const directlyLinkedGroupIds=contact.whatsappGroupIds||[];
+  const recordLinkedGroupIds=Array.from(new Set(linked.flatMap(record=>(record.moduleData?.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean))));
+  const groupMatches=savedGroups.filter(group=>!groupSearch.trim()||[group.name,group.description,group.jid].filter(Boolean).join(" ").toLocaleLowerCase().includes(groupSearch.trim().toLocaleLowerCase()));
+  const linkedGroupIds=new Set([...directlyLinkedGroupIds,...recordLinkedGroupIds]);
   const today=new Date().toISOString().slice(0,10);
   const overdue=linked.filter(record=>record.nextResponseDate&&record.nextResponseDate<today).length;
   const getDraft=(record:RecordRow):Draft=>drafts[record.id]||({
@@ -76,6 +84,16 @@ export default function ContactPortfolioPanel(props: Props) {
     </header>
     <div className="ax-contact-portfolio__metrics"><div><span>Linked workstreams</span><strong>{linked.length}</strong></div><div><span>Module types</span><strong>{moduleCounts.length}</strong></div><div><span>Overdue responses</span><strong>{overdue}</strong></div><div><span>Open scheduled actions</span><strong>{openTasks.length}</strong></div></div>
     <div className="ax-contact-portfolio__module-filters">{moduleCounts.map(item=><span key={item.module}>{item.module}<b>{item.count}</b></span>)}</div>
+    <div className="ax-contact-portfolio__section-heading"><div><h3>WhatsApp groups connected to this contact</h3><p>Link existing synced groups directly to this person, or through one of their workstream records.</p></div><span>{linkedGroupIds.size} linked</span></div>
+    <section className="ax-contact-groups">
+      <div className="ax-contact-groups__search"><Search size={14}/><input value={groupSearch} onChange={event=>setGroupSearch(event.target.value)} placeholder="Find a WhatsApp group by name…" aria-label="Search WhatsApp groups"/></div>
+      {savedGroups.length===0?<p className="ax-contact-groups__empty">No WhatsApp groups have been synced yet. Sync groups in the WhatsApp Hub first.</p>:<div className="ax-contact-groups__list">{groupMatches.slice(0,60).map(group=>{
+        const directlyLinked=directlyLinkedGroupIds.includes(group.id);
+        const throughRecord=recordLinkedGroupIds.includes(group.id);
+        return <label className="ax-contact-group" key={group.id}><input type="checkbox" checked={directlyLinked} onChange={event=>props.onUpdateWhatsAppGroups(contact.id,event.target.checked?Array.from(new Set([...directlyLinkedGroupIds,group.id])):directlyLinkedGroupIds.filter(id=>id!==group.id))}/><span className="ax-contact-group__name"><strong>{group.name}</strong><small>{group.size?group.size+" members · ":""}{throughRecord&&!directlyLinked?"Also linked through a workstream":directlyLinked?"Direct contact link":"Not linked"}</small></span><span className={linkedGroupIds.has(group.id)?"is-linked":""}>{linkedGroupIds.has(group.id)?"LINKED":"AVAILABLE"}</span></label>;
+      })}</div>}
+      {savedGroups.length>60&&<small className="ax-contact-groups__hint">Showing the first 60 matching groups. Refine the search to find another group.</small>}
+    </section>
     <div className="ax-contact-portfolio__section-heading"><div><h3>All linked properties, deals and modules</h3><p>One contact can own or participate in multiple records across different business modules.</p></div><span>{linked.length} record(s)</span></div>
     {!linked.length&&<div className="ax-contact-portfolio__empty"><Users size={23}/><strong>No module records linked yet</strong><p>Create a property, loan, litigation or other module record and select this contact as its primary contact or stakeholder.</p><button className="primary-button" onClick={props.onAddRecord}><Plus size={15}/> Create first linked record</button></div>}
     <div className="ax-contact-portfolio__records">{linked.map(record=>{
