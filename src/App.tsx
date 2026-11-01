@@ -583,6 +583,53 @@ async function requestPcSync(host: string, token: string, method: "GET" | "POST"
 
 type AppProps = { company?: WorkspaceCompany; userId?: string; email?: string; onSignOut?: () => void; onSwitchCompany?: () => void };
 
+function reportEscape(value: unknown): string {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[character] || character));
+}
+
+function printModuleReport(moduleName: string, records: PropertyRecord[], fields: ModuleField[], onBlocked: () => void): void {
+  const target = window.open("", "_blank");
+  if (!target) { onBlocked(); return; }
+  const repeaters = records.flatMap(record => (axivestraRepeatableGroups[record.module] || []).map(group => ({ record, group })));
+  const recordMarkup = records.map((record, index) => {
+    const core = [
+      ["Record / deal", record.title], ["Module", record.module], ["Status", record.status],
+      ["Location", record.location], ["Value / exposure", record.value ? "₹ " + Number(record.value).toLocaleString("en-IN") : "N/A"],
+      ["Area / unit", record.areaValue ? record.areaValue + " " + record.areaUnit : "N/A"],
+      ["Survey / property ID", record.surveyNumber], ["Ownership / parties", record.ownershipDetails],
+      ["Next deadline", record.targetDeadline], ["Next follow-up", record.nextFollowUpDate],
+      ["Next action", record.nextAction], ["Notes", record.notes]
+    ];
+    const extra = (record.module === moduleName ? fields : moduleFields[record.module] || []).map(field => {
+      const raw = record.moduleData?.[field.key] || "";
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return null;
+      } catch {}
+      return [field.label, raw];
+    }).filter((item): item is [string,string] => Boolean(item));
+    const calculations = buildModuleSummary(record.module, record.moduleData || {});
+    const rows = [...core, ...extra].filter(([,value]) => String(value || "").trim());
+    const groups = (axivestraRepeatableGroups[record.module] || []).map(group => {
+      const raw = record.moduleData?.[group.key] || "[]";
+      let parsed: Array<Record<string,string>> = [];
+      try { const value = JSON.parse(raw); if (Array.isArray(value)) parsed = value; } catch {}
+      if (!parsed.length) return "";
+      const headers = group.fields.map(field => "<th>" + reportEscape(field.label) + "</th>").join("");
+      const body = parsed.map(row => "<tr>" + group.fields.map(field => "<td>" + reportEscape(row[field.key] || "N/A") + "</td>").join("") + "</tr>").join("");
+      return "<h4>" + reportEscape(group.title) + "</h4><div class='table-wrap'><table><thead><tr>" + headers + "</tr></thead><tbody>" + body + "</tbody></table></div>";
+    }).join("");
+    const calc = calculations.length ? "<h4>Calculated summary</h4><table><tbody>" + calculations.map(item => "<tr><th>" + reportEscape(item.label) + "</th><td>" + reportEscape(item.value) + "</td></tr>").join("") + "</tbody></table>" : "";
+    return "<section class='record'><div class='record-head'><span>RECORD " + (index + 1) + "</span><h2>" + reportEscape(record.title) + "</h2></div><table><tbody>" + rows.map(([label,value])=>"<tr><th>"+reportEscape(label)+"</th><td>"+reportEscape(value)+"</td></tr>").join("") + "</tbody></table>" + (extra.length || groups || calc ? "<div class='details'>" + groups + calc + "</div>" : "") + "</section>";
+  }).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>AXIVESTRA — ${reportEscape(moduleName)} Report</title><style>
+    *{box-sizing:border-box}body{font:13px/1.5 Arial,sans-serif;color:#172533;margin:28px}header{border-bottom:3px solid #1c526d;padding-bottom:16px;margin-bottom:22px}header strong{font-size:22px;letter-spacing:.08em}header h1{font-size:20px;margin:12px 0 4px}header p{color:#5a6c7b;margin:0}.record{break-inside:avoid;margin:0 0 24px;padding:0 0 22px;border-bottom:1px solid #ccd7df}.record-head{display:flex;align-items:start;gap:12px;margin-bottom:10px}.record-head span{font-size:10px;font-weight:bold;color:#60798a;min-width:65px;padding-top:4px}.record-head h2{font-size:16px;margin:0}table{width:100%;border-collapse:collapse;margin:8px 0 14px}th,td{padding:7px 9px;text-align:left;vertical-align:top;border:1px solid #d6e0e7;overflow-wrap:anywhere}th{width:30%;background:#f1f5f7;font-weight:600}.details{margin-left:10px}.details h4{margin:15px 0 5px}.table-wrap{overflow:visible}footer{margin-top:24px;color:#687e8d;font-size:11px}@media print{body{margin:14mm}.record{break-inside:avoid}.table-wrap{overflow:visible}} 
+  </style></head><body><header><strong>AXIVESTRA</strong><h1>${reportEscape(moduleName)} — Management Report</h1><p>Generated ${reportEscape(new Date().toLocaleString("en-IN"))} · ${records.length} record(s) · Values shown only where entered</p></header>${recordMarkup || "<p>No records are available for this report.</p>"}<footer>Confidential workspace report. Validate source documents and financial inputs before relying on this report.</footer></body></html>`;
+  target.document.open(); target.document.write(html); target.document.close();
+  window.setTimeout(() => { try { target.focus(); target.print(); } catch {} }, 350);
+}
+
 export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -2081,6 +2128,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onDelete={deleteProperty}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
+            onExportReport={()=>printModuleReport(active,filteredProperties.filter(record=>active==="All Properties"||record.module===active),moduleFields[active]||[],()=>setNotice("Allow pop-ups for AXIVESTRA to open the printable report."))}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{contactRoleOptions.map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
