@@ -209,7 +209,7 @@ export default function FollowUpRegisterPanel(props: Props) {
       </div>
       <div className="ax-followup-register__actions">
         <button type="button" className="secondary-button" onClick={props.onExportPdf} disabled={!rows.length}><Download size={14}/> Download full PDF</button>
-        <button type="button" className="secondary-button" onClick={()=>window.print()}><FileText size={14}/> Print / Save as PDF</button>
+        <button type="button" className="secondary-button" onClick={()=>{document.body.classList.add("ax-print-followup-register");window.addEventListener("afterprint",()=>document.body.classList.remove("ax-print-followup-register"),{once:true});window.print();}}><FileText size={14}/> Print / Save as PDF</button>
       </div>
     </header>
     <div className="ax-followup-register__metrics">
