@@ -263,6 +263,14 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     money("amountAlreadyPaidToOwner", "Amount already paid to owner (₹)"),
     money("pendingOwnerSettlement", "Pending owner settlement (₹)"),
     money("ownContribution", "Applicant own contribution (₹)"),
+    money("monthlyIncome", "Applicant monthly income (₹)"),
+    money("annualIncome", "Applicant annual income (₹)"),
+    money("rentalIncome", "Applicant monthly rental income (₹)"),
+    money("totalExistingMonthlyEmi", "Existing monthly EMI commitments (₹)"),
+    money("totalExistingLiabilities", "Total existing liabilities (₹)"),
+    number("cibilScore", "Applicant CIBIL score"),
+    number("emiBounces3Years", "EMI bounces — last 3 years"),
+    number("chequeBounces3Years", "Cheque bounces — last 3 years"),
     money("requiredPurchaseLoan", "Required purchase loan (₹)"),
     number("expectedLoanTenureMonths", "Expected loan tenure (months)"),
     text("purchaseType", "Purchase type", "Ready-to-move / resale / under construction / new"),
@@ -789,8 +797,22 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
       add("Other shareholder ownership", totalShares ? otherShares / totalShares * 100 : null, "percent");
       const dilutionShares = val("newInvestorShares");
       add("New investor dilution", dilutionShares !== null && totalShares !== null && totalShares + dilutionShares > 0 ? dilutionShares / (totalShares + dilutionShares) * 100 : null, "percent");
-      const fullyDiluted = totalShares !== null ? totalShares + (val("fullyDilutedShares") || 0) : null;
+      const promoterBeforeShares = val("promoterSharesBefore");
+      const sharesBefore = val("totalSharesBefore");
+      const promoterBeforePercent = promoterBeforeShares !== null && sharesBefore ? promoterBeforeShares / sharesBefore * 100 : null;
+      const promoterAfterPercent = promoterBeforeShares !== null && sharesBefore !== null && dilutionShares !== null && sharesBefore + dilutionShares > 0
+        ? promoterBeforeShares / (sharesBefore + dilutionShares) * 100 : null;
+      add("Promoter ownership before funding", promoterBeforePercent, "percent");
+      add("Promoter ownership after funding", promoterAfterPercent, "percent");
+      add("Promoter dilution", promoterBeforePercent !== null && promoterAfterPercent !== null ? promoterBeforePercent-promoterAfterPercent : null, "percent");
+      const esopGranted = sumRows(data.equityEsop,"optionsGranted");
+      const esopExercised = sumRows(data.equityEsop,"optionsExercised");
+      const esopOutstanding = esopGranted !== null ? Math.max(0,esopGranted-(esopExercised||0)) : null;
+      const additionalFullyDiluted = val("fullyDilutedShares") ?? esopOutstanding;
+      const fullyDiluted = totalShares !== null ? totalShares + (additionalFullyDiluted || 0) : null;
+      add("ESOP options outstanding", esopOutstanding, "number");
       add("Fully diluted share count", fullyDiluted, "number");
+      add("Fully diluted promoter ownership", fullyDiluted && promoterShares ? promoterShares / fullyDiluted * 100 : null, "percent");
       add("Fully diluted investor ownership", fullyDiluted && investorShares ? investorShares / fullyDiluted * 100 : null, "percent");
       const debt = val("totalDebt"), equity = val("shareholdersEquity");
       add("Debt-to-equity ratio", debt !== null && equity ? debt / equity : null, "number");
@@ -878,6 +900,7 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Total property monthly rental income", sumRows(data.housingCollateralProperties, "monthlyRent"));
     const collateralMarket = sumRows(data.housingCollateralProperties, "marketValue");
     add("Total existing monthly EMI", sumRows(data.housingExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi"));
+    const mortgageOutstanding = sumRows(data.housingCollateralProperties,"mortgageOutstanding");
     add("Total existing loan outstanding", sumRows(data.housingExistingLoans, "outstanding") ?? val("totalExistingLoanOutstanding"));
     add("Business turnover — captured financial years", sumRows(data.housingBusinessFinancialYears,"turnover"));
     add("Business net profit — captured financial years", sumRows(data.housingBusinessFinancialYears,"netProfit"));
@@ -895,7 +918,10 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const rate = rule ? parseNumber(rule.interestRate) : null;
     const tenure = rule ? parseNumber(rule.maximumTenureMonths) : null;
     const byIncome = emiCapacity !== null && rate !== null && tenure !== null ? principalFromEmi(emiCapacity,rate,tenure) : null;
-    const byLtv = collateralMarket !== null && maxLtv !== null ? collateralMarket * maxLtv / 100 : null;
+    const netCollateral = collateralMarket !== null ? Math.max(0,collateralMarket-(mortgageOutstanding||0)) : null;
+    const byLtv = netCollateral !== null && maxLtv !== null ? netCollateral * maxLtv / 100 : null;
+    const requested = val("requiredLoanAmount");
+    add("Requested loan LTV against net collateral", requested !== null && netCollateral ? requested / netCollateral * 100 : null,"percent");
     const cap = rule ? parseNumber(rule.maximumLoanAmount) : null;
     const eligible = byIncome !== null && byLtv !== null && minCibil !== null && cibil !== null && cibil >= minCibil
       ? Math.min(byIncome,byLtv,...(cap !== null ? [cap] : [])) : null;
@@ -906,10 +932,16 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const price = val("totalAgreedPurchaseAmount") ?? val("agreedPrice");
     const payments = sumRows(data.purchasePayments, "amount") ?? val("totalAdvancePaid") ?? val("advancePaid");
     add("Total purchase payments entered", payments);
-    add("Balance purchase amount", price !== null ? Math.max(0, price - (payments || 0)) : null);
+    const balance = price !== null && payments !== null ? Math.max(0,price-payments) : null;
+    add("Balance purchase amount", balance);
     add("Owner settlement balance", paidBalance("ownerFinalSettlement", "amountAlreadyPaidToOwner"));
     add("Total person-wise agreed amount", sumRows(data.purchaseOwners, "agreedAmount"));
     add("Total person-wise advance paid", sumRows(data.purchaseOwners, "advancePaid"));
+    add("Own contribution still required after recorded payments", balance !== null && val("ownContribution") !== null ? Math.max(0,balance-(val("ownContribution") as number)) : null);
+    const requestedLoan = val("requiredPurchaseLoan"), income = val("monthlyIncome"), emi = val("totalExistingMonthlyEmi");
+    add("Purchase loan LTV", requestedLoan !== null && price ? requestedLoan / price * 100 : null,"percent");
+    add("Applicant FOIR (existing EMI / monthly income)", income && emi !== null ? emi / income * 100 : null,"percent");
+    add("Existing liabilities", val("totalExistingLiabilities"));
   }
   if (moduleName === "Litigation") {
     add("Person-wise settlement total", sumRows(data.litigationSettlementParties, "settlementAmount"));
