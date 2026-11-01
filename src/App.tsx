@@ -2026,7 +2026,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     else if (entry.entity === "Approval") apply(setApprovalRequests, before as ApprovalRequest);
     else { suppressAuditRef.current = false; return; }
     setUndoHistory(current => current.slice(1));
-    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "updated", entity: "Undo", recordId: entry.recordId, label: entry.label }, ...current].slice(0, 1000));
+    const undoAuditEvent: AuditEvent = { id: uid(), at: new Date().toISOString(), action: "updated", entity: "Undo", recordId: entry.recordId, label: entry.label };
+    setAuditEvents(current => [undoAuditEvent, ...current].slice(0, 1000));
     setNotice("Undid the latest change to " + entry.label + ". The prior record state has been restored on this device and will sync normally.");
   };
 
