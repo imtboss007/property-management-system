@@ -7,7 +7,7 @@ import {
   reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
-import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline, clearDeviceSyncBaseline } from "./lib/local-db";
+import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline, clearDeviceSyncBaseline, loadWorkspaceState, saveWorkspaceState } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -676,7 +676,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [documentContact, setDocumentContact] = useState("");
   const [notice, setNotice] = useState("");
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(() => load("estateflow.auditEvents", []));
-  const [undoHistory, setUndoHistory] = useState<UndoEntry[]>(() => load("estateflow.undoHistory", []));
+  const [undoHistory, setUndoHistory] = useState<UndoEntry[]>([]);
+  const [undoHistoryLoaded, setUndoHistoryLoaded] = useState(false);
   const suppressAuditRef = useRef(false);
   const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown }>> | null>(null);
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
@@ -770,8 +771,20 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     saveLocal("estateflow.auditEvents", auditEvents);
   }, [auditEvents]);
   useEffect(() => {
-    saveLocal("estateflow.undoHistory", undoHistory.slice(0, 30));
-  }, [undoHistory]);
+    let cancelled = false;
+    void loadWorkspaceState<UndoEntry[]>("undo-history").then(saved => {
+      if (cancelled) return;
+      if (Array.isArray(saved)) setUndoHistory(current => current.length ? current : saved.slice(0, 30));
+      setUndoHistoryLoaded(true);
+    }).catch(() => { if (!cancelled) setUndoHistoryLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (!undoHistoryLoaded) return;
+    void saveWorkspaceState("undo-history", undoHistory.slice(0, 30)).catch(() => {
+      setNotice("Undo history could not be persisted to local device storage. Current records remain unchanged.");
+    });
+  }, [undoHistory, undoHistoryLoaded]);
 
   // In authenticated company mode, reconcile this device with the company-scoped cloud records.
   // A debounced write follows edits; a 30-second pull also discovers changes from other devices.
