@@ -1,9 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { ArrowUpRight, CalendarClock, Download, FileText, MessageCircle, Pencil, Plus, RefreshCw, Search, Users, X } from "lucide-react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 
-type Contact = { id: string; name: string; phone: string; email?: string; role: string; roles?: string[]; notes?: string; whatsappGroupIds?: string[] };
+type ContactFollowUp = {
+  id: string; person: string; role: string; linkedRecordId: string; description: string;
+  amount: string; promisedDate: string; promisedTime: string; responseType: string;
+  status: string; notes: string; isPrimary: boolean; createdAt: string; updatedAt: string;
+};
+type Contact = { id: string; name: string; phone: string; email?: string; role: string; roles?: string[]; notes?: string; whatsappGroupIds?: string[]; followUps?: ContactFollowUp[] };
 type SavedGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
 type RecordRow = {
   id: string; title: string; module: string; location: string; value: string; status: string;
@@ -45,6 +50,7 @@ type Props = {
   onUpdateSchedule: (recordId: string, patch: SchedulePatch) => void;
   onUpdateWhatsAppGroups: (contactId: string, groupIds: string[]) => void;
   onLogInteraction: (contactId:string, activityType:string, title:string, description:string, at:string, relatedRecordId?:string) => void;
+  onUpdateFollowUps: (contactId:string, followUps:ContactFollowUp[]) => void;
 };
 
 const pretty = (key: string) => key.replace(/^__/,"").replace(/([A-Z])/g," $1").replace(/[_-]+/g," ").replace(/^./,value=>value.toUpperCase());
@@ -69,6 +75,8 @@ const relatedTo = (record: RecordRow,contact: Contact) => {
 export default function ContactPortfolioPanel(props: Props) {
   const {contact,properties,tasks,financials,documents,risks,approvals,auditEvents,fieldsByModule,savedGroups}=props;
   const [drafts,setDrafts]=useState<Record<string,Draft>>({});
+  const [followUpDrafts,setFollowUpDrafts]=useState<ContactFollowUp[]>(contact.followUps||[]);
+  useEffect(()=>setFollowUpDrafts(contact.followUps||[]),[contact.id,contact.followUps]);
   const [expanded,setExpanded]=useState<string[]>([]);
   const [showInteractionForm,setShowInteractionForm]=useState(false);
   const [timelineFilter,setTimelineFilter]=useState("All");
@@ -141,6 +149,48 @@ export default function ContactPortfolioPanel(props: Props) {
     setShowInteractionForm(false);
   };
 
+  const patchFollowUp=(id:string,key:keyof ContactFollowUp,value:string|boolean)=>setFollowUpDrafts(current=>current.map(row=>row.id===id?{...row,[key]:value}:row));
+  const addFollowUp=()=>{
+    const now=new Date().toISOString();
+    const row:ContactFollowUp={id:"contact-followup-"+Date.now()+"-"+Math.random().toString(36).slice(2,8),person:contact.name,role:contact.role||"Client",linkedRecordId:"",description:"",amount:"",promisedDate:"",promisedTime:"",responseType:"Call",status:"Awaiting response",notes:"",isPrimary:false,createdAt:now,updatedAt:now};
+    const next=[...followUpDrafts,row];
+    setFollowUpDrafts(next);
+    props.onUpdateFollowUps(contact.id,next);
+  };
+  const chooseFollowUpRecord=(rowId:string,recordId:string)=>{
+    const record=linked.find(item=>item.id===recordId);
+    const hasPrimary=Boolean(record&&followUpDrafts.some(item=>item.id!==rowId&&item.linkedRecordId===recordId&&item.isPrimary));
+    setFollowUpDrafts(current=>current.map(row=>row.id===rowId?{
+      ...row,linkedRecordId:recordId,
+      amount:record?(row.amount||record.value||""):row.amount,
+      description:record?(row.description||record.nextResponseDescription||record.nextAction||""):row.description,
+      promisedDate:record?(row.promisedDate||record.nextResponseDate||""):row.promisedDate,
+      promisedTime:record?(row.promisedTime||record.nextResponseTime||""):row.promisedTime,
+      responseType:record?(row.responseType==="Call"?(record.nextResponseType||"Call"):row.responseType):row.responseType,
+      isPrimary:record&&!hasPrimary?true:row.isPrimary
+    }:row));
+  };
+  const setFollowUpPrimary=(rowId:string,checked:boolean)=>{
+    const target=followUpDrafts.find(row=>row.id===rowId);
+    setFollowUpDrafts(current=>current.map(row=>row.id===rowId?{...row,isPrimary:checked}:
+      checked&&target?.linkedRecordId&&row.linkedRecordId===target.linkedRecordId?{...row,isPrimary:false}:row));
+  };
+  const saveFollowUp=(id:string)=>{
+    const selected=followUpDrafts.find(row=>row.id===id);
+    if(!selected)return;
+    const stamp=new Date().toISOString();
+    const saved={...selected,updatedAt:stamp};
+    const next=followUpDrafts.map(row=>row.id===id?saved:
+      saved.isPrimary&&saved.linkedRecordId&&row.linkedRecordId===saved.linkedRecordId?{...row,isPrimary:false}:row);
+    setFollowUpDrafts(next);
+    props.onUpdateFollowUps(contact.id,next);
+  };
+  const removeFollowUp=(id:string)=>{
+    const next=followUpDrafts.filter(row=>row.id!==id);
+    setFollowUpDrafts(next);
+    props.onUpdateFollowUps(contact.id,next);
+  };
+
   return <section className="ax-contact-portfolio">
     <header className="ax-contact-portfolio__header">
       <div className="ax-contact-portfolio__identity"><span className="ax-contact-portfolio__avatar">{contact.name.split(/\\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><div><span className="ax-kicker">CONTACT 360 · CONNECTED WORKSPACE</span><h2>{contact.name}</h2><p>{[...(contact.roles||[contact.role]),contact.phone,contact.email].filter(Boolean).join(" · ")}</p></div></div>
@@ -157,6 +207,39 @@ export default function ContactPortfolioPanel(props: Props) {
         return <label className="ax-contact-group" key={group.id}><input type="checkbox" checked={directlyLinked} onChange={event=>props.onUpdateWhatsAppGroups(contact.id,event.target.checked?Array.from(new Set([...directlyLinkedGroupIds,group.id])):directlyLinkedGroupIds.filter(id=>id!==group.id))}/><span className="ax-contact-group__name"><strong>{group.name}</strong><small>{group.size?group.size+" members · ":""}{throughRecord&&!directlyLinked?"Also linked through a workstream":directlyLinked?"Direct contact link":"Not linked"}</small></span><span className={linkedGroupIds.has(group.id)?"is-linked":""}>{linkedGroupIds.has(group.id)?"LINKED":"AVAILABLE"}</span></label>;
       })}</div>}
       {savedGroups.length>60&&<small className="ax-contact-groups__hint">Showing the first 60 matching groups. Refine the search to find another group.</small>}
+    </section>
+    <div className="ax-contact-portfolio__section-heading ax-contact-followup-heading">
+      <div><h3>Contact follow-up register</h3><p>Track multiple people, roles and commitments for this contact. Link each line to a workstream; the module and amount stay connected to the live record.</p></div>
+      <button type="button" className="primary-button" onClick={addFollowUp}><Plus size={14}/> Add follow-up line</button>
+    </div>
+    <section className="ax-contact-followup">
+      <div className="ax-contact-followup__summary"><span><strong>{followUpDrafts.length}</strong> follow-up line(s)</span><span>Save a row to sync its primary commitment to the linked module record.</span></div>
+      <div className="ax-contact-followup__scroll">
+        <table>
+          <thead><tr><th>Person</th><th>Role</th><th>Linked workstream</th><th>Description / item</th><th>Amount (₹)</th><th>Will reach back</th><th>Time</th><th>Channel</th><th>Status</th><th>Notes / outcome</th><th>Primary</th><th>Actions</th></tr></thead>
+          <tbody>
+            {followUpDrafts.map(row=>{
+              const linkedRecord=linked.find(item=>item.id===row.linkedRecordId);
+              return <tr key={row.id}>
+                <td><input aria-label="Follow-up person" value={row.person} onChange={event=>patchFollowUp(row.id,"person",event.target.value)} placeholder="Person name"/></td>
+                <td><input aria-label="Follow-up role" value={row.role} onChange={event=>patchFollowUp(row.id,"role",event.target.value)} placeholder="Client / agent / lawyer"/></td>
+                <td><select aria-label="Linked module record" value={row.linkedRecordId} onChange={event=>chooseFollowUpRecord(row.id,event.target.value)}><option value="">Contact-level</option>{linked.map(record=><option key={record.id} value={record.id}>{record.module} · {record.title}</option>)}</select><small className="ax-contact-followup__module">{linkedRecord?.module||"Contact-level item"}{linkedRecord?" · "+linkedRecord.title:""}</small></td>
+                <td><textarea aria-label="Follow-up description" rows={2} value={row.description} onChange={event=>patchFollowUp(row.id,"description",event.target.value)} placeholder="What is pending / what was promised?"/></td>
+                <td><input aria-label="Follow-up amount" type="number" min="0" step="any" value={row.amount} onChange={event=>patchFollowUp(row.id,"amount",event.target.value)} placeholder={linkedRecord?.value||"0"}/></td>
+                <td><input aria-label="Expected reach-back date" type="date" value={row.promisedDate} onChange={event=>patchFollowUp(row.id,"promisedDate",event.target.value)}/></td>
+                <td><input aria-label="Expected reach-back time" type="time" value={row.promisedTime} onChange={event=>patchFollowUp(row.id,"promisedTime",event.target.value)}/></td>
+                <td><select aria-label="Follow-up channel" value={row.responseType} onChange={event=>patchFollowUp(row.id,"responseType",event.target.value)}>{["Call","WhatsApp","Email","Meeting","Site visit","Document","Payment update","Other"].map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><select aria-label="Follow-up status" value={row.status} onChange={event=>patchFollowUp(row.id,"status",event.target.value)}>{["Awaiting response","Reached back","Completed","Overdue","On hold","Cancelled"].map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><textarea aria-label="Follow-up notes" rows={2} value={row.notes} onChange={event=>patchFollowUp(row.id,"notes",event.target.value)} placeholder="Outcome / next step"/></td>
+                <td><label className="ax-contact-followup__primary"><input type="checkbox" checked={row.isPrimary} disabled={!row.linkedRecordId} onChange={event=>setFollowUpPrimary(row.id,event.target.checked)}/><span>{row.isPrimary?"Primary":"—"}</span></label></td>
+                <td><div className="ax-contact-followup__actions"><button type="button" className="primary-button" onClick={()=>saveFollowUp(row.id)}><RefreshCw size={12}/> Save</button><button type="button" className="secondary-button" onClick={()=>removeFollowUp(row.id)} title="Remove follow-up row"><X size={13}/></button></div></td>
+              </tr>;
+            })}
+            {!followUpDrafts.length&&<tr><td colSpan={12} className="ax-contact-followup__empty">No follow-up lines yet. Add one for each person, role or commitment you are waiting on.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      <p className="ax-contact-followup__hint">The linked module type and title are read from the live record. Editing the amount or a primary response here updates that record; editing its primary response in the module updates this register automatically.</p>
     </section>
     <div className="ax-contact-portfolio__section-heading"><div><h3>All linked properties, deals and modules</h3><p>One contact can own or participate in multiple records across different business modules.</p></div><span>{linked.length} record(s)</span></div>
     {!linked.length&&<div className="ax-contact-portfolio__empty"><Users size={23}/><strong>No module records linked yet</strong><p>Create a property, loan, litigation or other module record and select this contact as its primary contact or stakeholder.</p><button className="primary-button" onClick={props.onAddRecord}><Plus size={15}/> Create first linked record</button></div>}

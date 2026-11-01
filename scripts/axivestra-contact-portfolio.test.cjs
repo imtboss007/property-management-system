@@ -57,6 +57,8 @@ assert.ok(pdf.includes("new DOMParser()"), "PDF helper must parse the supplied r
 assert.ok(pdf.includes('clonedRoot.style.cssText'), "PDF clone must be moved into the capture viewport.");
 assert.ok(pdf.includes("empty or invalid PDF file"), "PDF helper must reject blank or invalid PDFs.");
 assert.ok(report.includes("Linked WhatsApp groups"), "Complete PDF must include linked group names.");
+assert.ok(report.includes("Contact follow-up register"), "Linked record PDFs must include Contact 360 follow-up rows.");
+assert.ok(report.includes("followUpRows") && report.includes("item.promisedTime") && report.includes("item.amount"), "Follow-up PDF must include people, dates, time and amounts.");
 
 
 for (const token of [
@@ -79,3 +81,22 @@ assert.ok(app.includes("previousById.get(id)"), "Audit snapshot should reuse unc
 assert.ok(app.includes("prior.source===record"), "Audit snapshot should skip deep serialization for unchanged rows.");
 assert.ok(app.includes("source: record"), "Audit snapshot should track immutable source row identity.");
 console.log("AXIVESTRA Contact 360 timeline, interactions, group linking, faster search and PDF export contracts passed.");
+
+for (const token of [
+  "type ContactFollowUp", "Contact follow-up register", "Add follow-up line",
+  "Linked workstream", "Expected reach-back date", "Follow-up description",
+  "Follow-up amount", "Primary", "onUpdateFollowUps", "saveFollowUp",
+  "chooseFollowUpRecord", "isPrimary"
+]) assert.ok(contact.includes(token), "Missing editable Contact 360 follow-up register: " + token);
+
+for (const token of [
+  "type ContactFollowUp", "followUps?: ContactFollowUp[]", "updateContactFollowUps",
+  "syncPrimaryFollowUpsFromRecord", "updateContactRecordSchedule", "primaryByRecord"
+]) assert.ok(app.includes(token), "Missing Contact 360 / linked module synchronization: " + token);
+
+for (const token of [
+  "visibility:visible;opacity:1", "contentHeight", "await inspectionWorker.toCanvas()",
+  "inspectionWorker.get(\"canvas\")",
+  "getImageData", "averageLuminance", "blank or black page"
+]) assert.ok(pdf.includes(token), "Missing nonblank PDF rendering safeguard: " + token);
+console.log("AXIVESTRA editable multi-person Contact 360 follow-up register and bidirectional linked-record sync contracts passed.");

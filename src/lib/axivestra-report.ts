@@ -9,7 +9,8 @@ type RecordRow = {
   areaValue?:string; areaUnit?:string; dimensions?:string; ratePerUnit?:string;
   moduleData:Record<string,string>;
 };
-type ContactRow={id:string;name:string;phone?:string;email?:string;role?:string;roles?:string[]};
+type ContactFollowUpRow={id:string;person:string;role:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;promisedTime:string;responseType:string;status:string;notes:string;isPrimary:boolean};
+type ContactRow={id:string;name:string;phone?:string;email?:string;role?:string;roles?:string[];followUps?:ContactFollowUpRow[]};
 type GroupRow={id:string;name:string;jid?:string;description?:string;size?:number};
 type Field={key:string;label:string;type?:string};
 const escapeHtml=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]||char));
@@ -38,6 +39,23 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
     const linkedContacts=contacts.filter(contact=>linkedIds.includes(contact.id));
     if(!linkedContacts.length&&record.contact){const match=contacts.find(contact=>contact.name.trim().toLowerCase()===record.contact.trim().toLowerCase());if(match)linkedContacts.push(match);}
     if(linkedContacts.length)core.push(["Linked contacts",linkedContacts.map(contact=>[contact.name,contact.role||(contact.roles||[]).join(", "),contact.phone,contact.email].filter(Boolean).join(" · ")).join(" | ")]);
+    const followUpRows=linkedContacts.flatMap(contact=>(contact.followUps||[])
+      .filter(item=>!item.linkedRecordId||item.linkedRecordId===record.id)
+      .map(item=>({...item,contactName:contact.name})));
+    const followUpSection=followUpRows.length
+      ? "<section class=\"followup-register pdf-avoid-break\"><h3>Contact follow-up register</h3><table><thead><tr><th>Person / contact</th><th>Role</th><th>Follow-up description</th><th>Amount (₹)</th><th>Will reach back</th><th>Channel</th><th>Status</th><th>Notes / outcome</th><th>Primary</th></tr></thead><tbody>"+
+        followUpRows.map(item=>"<tr>"+
+          "<td>"+escapeHtml(item.person||item.contactName)+"</td>"+
+          "<td>"+escapeHtml(item.role)+"</td>"+
+          "<td>"+escapeHtml(item.description)+"</td>"+
+          "<td>"+escapeHtml(item.amount?Number(item.amount).toLocaleString("en-IN"):"Not entered")+"</td>"+
+          "<td>"+escapeHtml(dateTime(item.promisedDate,item.promisedTime))+"</td>"+
+          "<td>"+escapeHtml(item.responseType)+"</td>"+
+          "<td>"+escapeHtml(item.status)+"</td>"+
+          "<td>"+escapeHtml(item.notes)+"</td>"+
+          "<td>"+(item.isPrimary?"Yes":"No")+"</td></tr>").join("")+
+        "</tbody></table></section>"
+      : "";
     const linkedGroupIds=(data.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean);
     const linkedGroups=savedGroups.filter(group=>linkedGroupIds.includes(group.id));
     if(linkedGroups.length)core.push(["Linked WhatsApp groups",linkedGroups.map(group=>[group.name,group.size?group.size+" members":"",group.jid].filter(Boolean).join(" · ")).join(" | ")]);
@@ -58,7 +76,7 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
     const calculations=buildModuleSummary(record.module,data);
     const calc=calculations.length?"<section class='pdf-avoid-break'><h3>Calculated summaries</h3><table><tbody>"+calculations.map(item=>row(item.label,item.value)).join("")+"</tbody></table></section>":"";
     const tableRows=core.map(([label,value])=>row(label,value)).join("")+moduleRows.map(([label,value])=>row(label,value)).join("")+extra.map(([label,value])=>row(label,value)).join("");
-    return "<article class='record pdf-avoid-break'><header class='record-heading'><span>RECORD "+(index+1)+" · "+escapeHtml(record.module)+"</span><h2>"+escapeHtml(record.title||"Untitled record")+"</h2><small>"+escapeHtml(record.status||"Status not set")+" · "+escapeHtml(record.id)+"</small></header><table><tbody>"+tableRows+"</tbody></table>"+groups+calc+"</article>";
+    return "<article class='record pdf-avoid-break'><header class='record-heading'><span>RECORD "+(index+1)+" · "+escapeHtml(record.module)+"</span><h2>"+escapeHtml(record.title||"Untitled record")+"</h2><small>"+escapeHtml(record.status||"Status not set")+" · "+escapeHtml(record.id)+"</small></header><table><tbody>"+tableRows+"</tbody></table>"+followUpSection+groups+calc+"</article>";
   }).join("");
-  return "<!doctype html><html><head><meta charset='utf-8'><title>"+escapeHtml(moduleName)+" — AXIVESTRA</title><style>*{box-sizing:border-box}body{font:12px/1.5 Arial,sans-serif;color:#172b3b;background:#fff;margin:0;padding:18px}header.brand{border-bottom:3px solid #126b83;padding:0 0 13px;margin-bottom:20px}header.brand strong{font-size:22px;letter-spacing:2px;color:#0c3148}header.brand h1{font-size:18px;margin:7px 0 3px}header.brand p{font-size:10px;color:#637889;margin:0}.record{margin:0 0 22px;padding:0 0 18px;border-bottom:1px solid #cbd8e1}.record-heading{margin-bottom:8px}.record-heading span{font-size:9px;font-weight:700;letter-spacing:1px;color:#28748c}.record-heading h2{font-size:16px;margin:4px 0}.record-heading small{font-size:9px;color:#698092}table{width:100%;border-collapse:collapse;margin:8px 0 14px;table-layout:fixed}th,td{border:1px solid #d7e0e7;padding:6px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;white-space:pre-wrap}th{width:31%;background:#f0f5f8;font-weight:700;color:#234257}td{color:#233746}h3{font-size:12px;margin:13px 0 5px;color:#14647e}.repeatable{margin:12px 0}.repeatable table th{width:auto}.pdf-footer{font-size:9px;color:#6c8190;margin-top:18px}@media print{body{padding:0}.record{break-inside:auto}.record-heading,table tr{break-inside:avoid}}@page{size:A4;margin:12mm}</style></head><body><header class='brand'><strong>AXIVESTRA</strong><h1>"+escapeHtml(moduleName)+" — Complete Record Report</h1><p>Generated "+escapeHtml(new Date().toLocaleString("en-IN"))+" · "+records.length+" record(s) · Complete saved field and calculation detail</p></header>"+(recordSections||"<p>No records found in this export.</p>")+"<footer class='pdf-footer'>Confidential AXIVESTRA workspace export. Values and details are shown as saved in the application.</footer></body></html>";
+  return "<!doctype html><html><head><meta charset='utf-8'><title>"+escapeHtml(moduleName)+" — AXIVESTRA</title><style>*{box-sizing:border-box}body{font:12px/1.5 Arial,sans-serif;color:#172b3b;background:#fff;margin:0;padding:18px}header.brand{border-bottom:3px solid #126b83;padding:0 0 13px;margin-bottom:20px}header.brand strong{font-size:22px;letter-spacing:2px;color:#0c3148}header.brand h1{font-size:18px;margin:7px 0 3px}header.brand p{font-size:10px;color:#637889;margin:0}.record{margin:0 0 22px;padding:0 0 18px;border-bottom:1px solid #cbd8e1}.record-heading{margin-bottom:8px}.record-heading span{font-size:9px;font-weight:700;letter-spacing:1px;color:#28748c}.record-heading h2{font-size:16px;margin:4px 0}.record-heading small{font-size:9px;color:#698092}table{width:100%;border-collapse:collapse;margin:8px 0 14px;table-layout:fixed}th,td{border:1px solid #d7e0e7;padding:6px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;white-space:pre-wrap}th{width:31%;background:#f0f5f8;font-weight:700;color:#234257}td{color:#233746}h3{font-size:12px;margin:13px 0 5px;color:#14647e}.repeatable{margin:12px 0}.repeatable table th{width:auto}.followup-register{margin:12px 0}.followup-register table{font-size:9px}.followup-register th{width:auto;background:#e8f3f6}.followup-register td{font-size:9px}.pdf-footer{font-size:9px;color:#6c8190;margin-top:18px}@media print{body{padding:0}.record{break-inside:auto}.record-heading,table tr{break-inside:avoid}}@page{size:A4;margin:12mm}</style></head><body><header class='brand'><strong>AXIVESTRA</strong><h1>"+escapeHtml(moduleName)+" — Complete Record Report</h1><p>Generated "+escapeHtml(new Date().toLocaleString("en-IN"))+" · "+records.length+" record(s) · Complete saved field and calculation detail</p></header>"+(recordSections||"<p>No records found in this export.</p>")+"<footer class='pdf-footer'>Confidential AXIVESTRA workspace export. Values and details are shown as saved in the application.</footer></body></html>";
 }
