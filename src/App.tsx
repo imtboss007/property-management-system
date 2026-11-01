@@ -14,8 +14,10 @@ import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
+import FollowUpRegisterPanel from "./FollowUpRegisterPanel";
 import { exportHtmlReportAsPdf } from "./lib/pdf-export";
 import { buildAxivestraReportHtml } from "./lib/axivestra-report";
+import { buildContactFollowUpRegisterHtml } from "./lib/follow-up-register-report";
 import CustomModuleStudio from "./CustomModuleStudio";
 import type { CustomModuleDefinition, CustomModuleField } from "./lib/custom-modules";
 import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
@@ -28,7 +30,7 @@ import {
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
-  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History,
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, ClipboardList, History,
   Layers, Layers3, Landmark, Wallet, Coins, Banknote, Activity, CircleDollarSign, FlaskConical, BarChart3, type LucideIcon
 } from "lucide-react";
 
@@ -146,6 +148,7 @@ const navigation = [
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
   { name: "Contact 360", icon: UserRound },
+  { name: "Follow-up Register", icon: ClipboardList },
   { name: "Client & Deal Hub", icon: Handshake },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
@@ -1564,6 +1567,16 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     }
   };
   const downloadRecordPdf = (record:PropertyRecord) => downloadAxivestraPdf(record.module,[record]);
+  const downloadFollowUpRegisterPdf = async () => {
+    try {
+      setNotice("Preparing complete Contact 360 follow-up register PDF…");
+      const html=buildContactFollowUpRegisterHtml(contacts,properties,savedWhatsAppGroups);
+      const result=await exportHtmlReportAsPdf(html,"AXIVESTRA-Follow-up-Register");
+      setNotice(result.delivery==="shared" ? "Android share panel opened for "+result.filename+". Choose Files or Drive to save the PDF." : result.filename+" downloaded ("+Math.ceil(result.sizeBytes/1024)+" KB).");
+    } catch(error) {
+      setNotice("PDF export failed: "+(error instanceof Error?error.message:String(error)));
+    }
+  };
 
   // Local-only persistence is handled by the state effects above.
   const remoteUpsert = (_table: string, _payload: Record<string, unknown>) => {};
@@ -2290,11 +2303,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
-          <div className="top-actions"><WorkspaceCommandCenter search={search} onSearchChange={setSearch} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} groups={savedWhatsAppGroups} modules={modules.map(item=>({name:item.name,description:item.description,group:item.group}))} onOpenResult={openWorkspaceResult} onQuickCreate={quickCreate} onOpenHistory={() => go("Activity History")} />{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}</div>
+          <div className="top-actions"><WorkspaceCommandCenter search={search} onSearchChange={setSearch} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} groups={savedWhatsAppGroups} modules={modules.map(item=>({name:item.name,description:item.description,group:item.group})).concat([{name:"Follow-up Register",description:"All Contact 360 people, commitments, amounts and expected reach-back dates in one editable register.",group:"Contact Operations"}])} onOpenResult={openWorkspaceResult} onQuickCreate={quickCreate} onOpenHistory={() => go("Activity History")} />{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}</div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Contact 360" ? (contactProfileId ? openPropertyForm(null,{contactId:contactProfileId}) : openContactForm()) : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contact 360" ? (contactProfileId ? "Add linked record" : "New contact") : active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
+            {active !== "Follow-up Register" && <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Contact 360" ? (contactProfileId ? openPropertyForm(null,{contactId:contactProfileId}) : openContactForm()) : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contact 360" ? (contactProfileId ? "Add linked record" : "New contact") : active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button>}</div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {active === "Activity History" && <section className="ax-history-page">
             <div className="ax-history-heading"><div><span className="section-kicker">WORKSPACE AUDIT TRAIL</span><h2>Activity history</h2><p>Recent record-level changes. Undo restores the latest saved state without clearing the workspace.</p></div><button type="button" className="secondary-button" disabled={!undoHistory.length} onClick={undoLastChange}>Undo last change{undoHistory[0] ? " · " + undoHistory[0].label : ""}</button></div>
@@ -2475,6 +2488,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               ? <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} auditEvents={auditEvents} fieldsByModule={dynamicModuleFields} savedGroups={savedWhatsAppGroups} onUpdateWhatsAppGroups={updateContactWhatsAppGroups} onLogInteraction={logContactInteraction} onUpdateFollowUps={updateContactFollowUps} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={updateContactRecordSchedule}/>
               : <div className="ax-contact360-empty"><Users size={26}/><strong>Select a contact to open their full relationship workspace</strong><p>Contact 360 is now a standalone module. Contact records remain in Contacts; this page brings their connected activity together.</p></div>}
           </section>}
+          {active === "Follow-up Register" && <FollowUpRegisterPanel
+            contacts={contacts}
+            properties={properties}
+            groups={savedWhatsAppGroups}
+            readOnly={company?.role==="read_only"}
+            onUpdateFollowUps={updateContactFollowUps}
+            onOpenContact360={id=>{setContactProfileId(id);go("Contact 360");}}
+            onEditRecord={record=>{go(record.module);openPropertyForm(record as PropertyRecord);}}
+            onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)}
+            onExportPdf={()=>void downloadFollowUpRegisterPdf()}
+          />}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
