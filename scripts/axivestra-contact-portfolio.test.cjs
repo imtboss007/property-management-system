@@ -50,7 +50,7 @@ assert.ok(repeatable.includes('field.key + "Time"'), "Repeatable date fields nee
 for (const token of [
   'active === "Contact 360"', 'name: "Contact 360"', 'SearchableGroupPicker',
   '__linkedWhatsAppGroupIds', 'onUpdateWhatsAppGroups', 'useDeferredValue',
-  'slice(0,80)', 'groups={savedWhatsAppGroups}'
+  'slice(0,40)', 'groups={savedWhatsAppGroups}'
 ]) assert.ok(app.includes(token), "Missing standalone Contact 360 / group / fast-link feature: " + token);
 
 for (const token of [
