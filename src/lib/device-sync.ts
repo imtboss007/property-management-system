@@ -46,8 +46,27 @@ function rowsFor(snapshot: Partial<DeviceSyncSnapshot>, key: DeviceSyncCollectio
   const rows = snapshot[key];
   return Array.isArray(rows) ? rows.filter(row => row && typeof row.id === "string" && row.id.length > 0) : [];
 }
+const serializedObjectCache = new WeakMap<object, string>();
+
 function jsonOf(value: DeviceSyncRow | undefined): string {
-  return value ? JSON.stringify(value) : "";
+  if (!value) return "";
+  const object = value as object;
+  const cached = serializedObjectCache.get(object);
+  if (cached !== undefined) return cached;
+  const serialized = JSON.stringify(value);
+  serializedObjectCache.set(object, serialized);
+  return serialized;
+}
+
+export function deviceSyncCollectionsEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index++) {
+    const leftRow = left[index];
+    const rightRow = right[index];
+    if (!leftRow || !rightRow || leftRow.id !== rightRow.id || jsonOf(leftRow) !== jsonOf(rightRow)) return false;
+  }
+  return true;
 }
 function validMeta(value: unknown): DeviceSyncMeta | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -59,11 +78,26 @@ function timestamp(value: string | undefined): number {
   const parsed = Date.parse(value || "");
   return Number.isFinite(parsed) ? parsed : 0;
 }
+function buildAuditTimeIndex(auditEvents: DeviceSyncRow[]): Map<string, string> {
+  const latestByRecord = new Map<string, string>();
+  for (const event of auditEvents) {
+    const value = event as Record<string, unknown>;
+    const entity = String(value.entity || "");
+    const recordId = String(value.recordId || "");
+    const at = String(value.at || "");
+    if (!entity || !recordId || !timestamp(at)) continue;
+    const key = entity + "\u0000" + recordId;
+    const previous = latestByRecord.get(key) || "";
+    if (timestamp(at) > timestamp(previous)) latestByRecord.set(key, at);
+  }
+  return latestByRecord;
+}
+
 function localEditTime(
   collection: DeviceSyncCollection,
   id: string,
   row: DeviceSyncRow | undefined,
-  auditEvents: DeviceSyncRow[],
+  auditTimeIndex: Map<string, string>,
   fallback: string
 ): string {
   if (collection === "auditEvents") {
@@ -76,13 +110,7 @@ function localEditTime(
   }
   const entity = entityByType[collection];
   if (entity) {
-    const matching = auditEvents
-      .filter(event => String((event as Record<string, unknown>).recordId || "") === id &&
-        String((event as Record<string, unknown>).entity || "") === entity)
-      .reduce((latest, event) => {
-        const eventAt = String((event as Record<string, unknown>).at || "");
-        return timestamp(eventAt) > timestamp(latest) ? eventAt : latest;
-      }, "");
+    const matching = auditTimeIndex.get(entity + "\u0000" + id) || "";
     if (timestamp(matching)) return matching;
   }
   return fallback;
@@ -100,6 +128,9 @@ export function reconcileDeviceSync(
   const nextPayloads: Record<string, Record<string, string>> = emptyObject();
   const merged = {} as DeviceSyncSnapshot;
   const auditEvents = rowsFor(localInput, "auditEvents");
+  // Build this once. Filtering the full audit log for every record made reconciliation
+  // O(records × audit events), which became visibly slow on larger workspaces.
+  const auditTimeIndex = buildAuditTimeIndex(auditEvents);
 
   for (const collection of DEVICE_SYNC_COLLECTIONS) {
     const localRows = rowsFor(localInput, collection);
@@ -145,7 +176,7 @@ export function reconcileDeviceSync(
         ))
         : Boolean(remoteText);
       const localDeleted = !localText && knownAtBaseline && Boolean(baseText);
-      const localChangedAt = localEditTime(collection, id, localRow, auditEvents, now);
+      const localChangedAt = localEditTime(collection, id, localRow, auditTimeIndex, now);
       let chosen: DeviceSyncRow | undefined;
       let chosenMeta: DeviceSyncMeta;
 
@@ -226,5 +257,9 @@ export function reconcileDeviceSync(
 }
 
 export function deviceSyncSnapshotsEqual(left: Partial<DeviceSyncSnapshot>, right: Partial<DeviceSyncSnapshot>): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  for (const collection of DEVICE_SYNC_COLLECTIONS) {
+    if (!deviceSyncCollectionsEqual(left[collection], right[collection])) return false;
+  }
+  return jsonOf(left.__axivestraSync as unknown as DeviceSyncRow | undefined)
+    === jsonOf(right.__axivestraSync as unknown as DeviceSyncRow | undefined);
 }
