@@ -20,7 +20,7 @@ import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEdito
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
-  Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
+  Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History
 } from "lucide-react";
