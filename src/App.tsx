@@ -5,8 +5,8 @@ import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import QRCode from "qrcode";
 import {
-  reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
-  type DeviceSyncSnapshot
+  DEVICE_SYNC_COLLECTIONS, reconcileDeviceSync, parseDeviceSyncBaseline,
+  deviceSyncCollectionsEqual, deviceSyncSnapshotsEqual, type DeviceSyncSnapshot
 } from "./lib/device-sync";
 import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline, clearDeviceSyncBaseline, loadWorkspaceState, saveWorkspaceState } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
@@ -486,6 +486,7 @@ type DeviceSyncReply = {
   token?: string;
   revision?: number;
   updatedAt?: string;
+  unchanged?: boolean;
   snapshot?: Partial<DeviceSyncSnapshot>;
 };
 
@@ -586,8 +587,11 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
   return new Blob([bytes], { type: mimeType || "application/octet-stream" });
 }
 
-async function requestPcSync(host: string, token: string, method: "GET" | "POST", body?: Record<string, unknown>): Promise<DeviceSyncReply> {
-  const url = host.replace(/\/+$/, "") + "/api/data-sync";
+async function requestPcSync(host: string, token: string, method: "GET" | "POST", body?: Record<string, unknown>, sinceRevision?: number): Promise<DeviceSyncReply> {
+  const query = method === "GET" && Number.isSafeInteger(sinceRevision)
+    ? "?sinceRevision=" + encodeURIComponent(String(sinceRevision))
+    : "";
+  const url = host.replace(/\/+$/, "") + "/api/data-sync" + query;
   const headers = { "Content-Type": "application/json", "X-EstateFlow-Token": token };
   if (Capacitor.getPlatform() === "android") {
     const response = method === "GET"
@@ -773,6 +777,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const deviceSyncBusyRef = useRef(false);
   const deviceSyncPendingRef = useRef<(() => void) | null>(null);
   const deviceSyncRunRef = useRef<((manual?: boolean) => Promise<void>) | null>(null);
+  const deviceSyncEndpointRef = useRef("");
+  const deviceSyncRemoteRevisionRef = useRef<number | null>(null);
+  const deviceSyncRemoteSnapshotRef = useRef<SyncSnapshot | null>(null);
+  const deviceSyncLastLocalRefsRef = useRef<Partial<SyncSnapshot> | null>(null);
   const [memberUserId, setMemberUserId] = useState("");
   const [memberInviteEmail, setMemberInviteEmail] = useState("");
   const [memberRole, setMemberRole] = useState<CompanyRole>("staff");
@@ -1048,27 +1056,56 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     const phoneTransport = !desktopTransport && Boolean(syncHost.trim() && syncToken.trim());
     if (!desktopTransport && !phoneTransport) return;
 
+    const endpointKey = desktopTransport ? "windows-desktop" : syncHost.trim() + "|" + syncToken.trim();
+    if (deviceSyncEndpointRef.current !== endpointKey) {
+      deviceSyncEndpointRef.current = endpointKey;
+      deviceSyncRemoteRevisionRef.current = null;
+      deviceSyncRemoteSnapshotRef.current = null;
+      deviceSyncLastLocalRefsRef.current = null;
+    }
+
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
       properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
       riskRecords, approvalRequests, auditEvents, customModules
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
-      setProperties(current => JSON.stringify(current) === JSON.stringify(snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
-      setContacts(current => JSON.stringify(current) === JSON.stringify(snapshot.contacts || []) ? current : (snapshot.contacts || []) as ContactRecord[]);
-      setSavedWhatsAppGroups(current => JSON.stringify(current) === JSON.stringify(snapshot.whatsappGroups || []) ? current : (snapshot.whatsappGroups || []) as SavedWhatsAppGroup[]);
-      setTasks(current => JSON.stringify(current) === JSON.stringify(snapshot.tasks || []) ? current : (snapshot.tasks || []) as TaskRecord[]);
-      setFinancials(current => JSON.stringify(current) === JSON.stringify(snapshot.financials || []) ? current : (snapshot.financials || []) as FinancialRecord[]);
-      setRiskRecords(current => JSON.stringify(current) === JSON.stringify(snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
-      setApprovalRequests(current => JSON.stringify(current) === JSON.stringify(snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
-      setAuditEvents(current => JSON.stringify(current) === JSON.stringify(snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
-      setCustomModules(current => JSON.stringify(current) === JSON.stringify(snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
+      setProperties(current => deviceSyncCollectionsEqual(current, snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
+      setContacts(current => deviceSyncCollectionsEqual(current, snapshot.contacts || []) ? current : (snapshot.contacts || []) as ContactRecord[]);
+      setSavedWhatsAppGroups(current => deviceSyncCollectionsEqual(current, snapshot.whatsappGroups || []) ? current : (snapshot.whatsappGroups || []) as SavedWhatsAppGroup[]);
+      setTasks(current => deviceSyncCollectionsEqual(current, snapshot.tasks || []) ? current : (snapshot.tasks || []) as TaskRecord[]);
+      setFinancials(current => deviceSyncCollectionsEqual(current, snapshot.financials || []) ? current : (snapshot.financials || []) as FinancialRecord[]);
+      setRiskRecords(current => deviceSyncCollectionsEqual(current, snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
+      setApprovalRequests(current => deviceSyncCollectionsEqual(current, snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
+      setAuditEvents(current => deviceSyncCollectionsEqual(current, snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
+      setCustomModules(current => deviceSyncCollectionsEqual(current, snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
+    };
+    const rememberSyncedLocalReferences = (snapshot: SyncSnapshot) => {
+      const references = {} as Partial<SyncSnapshot>;
+      for (const collection of DEVICE_SYNC_COLLECTIONS) {
+        references[collection] = deviceSyncCollectionsEqual(localSnapshot[collection], snapshot[collection])
+          ? localSnapshot[collection]
+          : snapshot[collection];
+      }
+      deviceSyncLastLocalRefsRef.current = references;
+    };
+    const fetchRemote = async (sinceRevision?: number): Promise<DeviceSyncReply> => {
+      if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync(sinceRevision);
+      return requestPcSync(syncHost.trim(), syncToken.trim(), "GET", undefined, sinceRevision);
     };
     const readRemote = async (): Promise<DeviceSyncReply> => {
-      if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync();
-      return requestPcSync(syncHost.trim(), syncToken.trim(), "GET");
+      let remote = await fetchRemote(deviceSyncRemoteRevisionRef.current ?? undefined);
+      // A conditional response is useful only when this client still has the matching
+      // in-memory snapshot. After a cold start, request the full snapshot once.
+      if (remote.unchanged && !deviceSyncRemoteSnapshotRef.current) remote = await fetchRemote();
+      if (Number.isSafeInteger(remote.revision)) deviceSyncRemoteRevisionRef.current = Number(remote.revision);
+      if (remote.snapshot) deviceSyncRemoteSnapshotRef.current = remote.snapshot as SyncSnapshot;
+      if (remote.unchanged && deviceSyncRemoteSnapshotRef.current) {
+        remote = { ...remote, snapshot: deviceSyncRemoteSnapshotRef.current };
+      }
+      return remote;
     };
-    const writeRemote = async (revision: number, snapshot: DeviceSyncSnapshot): Promise<DeviceSyncReply> => {
+    const writeRemote = async (revision: number, snapshot: SyncSnapshot): Promise<DeviceSyncReply> => {
       if (desktopTransport && desktopApi?.saveDataSync) return await desktopApi.saveDataSync(revision, snapshot);
       return requestPcSync(syncHost.trim(), syncToken.trim(), "POST", { expectedRevision: revision, snapshot: snapshot as unknown as Record<string, unknown> });
     };
@@ -1084,24 +1121,44 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         let remote = await readRemote();
         const baselineValue = await loadDeviceSyncBaseline();
         const baseline = parseDeviceSyncBaseline(baselineValue);
+        const previousLocalRefs = deviceSyncLastLocalRefsRef.current;
+        const localChanged = !previousLocalRefs
+          || DEVICE_SYNC_COLLECTIONS.some(collection => localSnapshot[collection] !== previousLocalRefs[collection]);
         let completed = false;
-        for (let attempt = 0; attempt < 3; attempt++) {
+        let alreadyCurrent = false;
+        // When the remote revision and every local collection reference are unchanged,
+        // there is nothing to reconcile. This avoids serializing the full workspace on
+        // every polling tick while still detecting edits immediately through the effect.
+        if (remote.unchanged && !localChanged) {
+          completed = true;
+          alreadyCurrent = true;
+        }
+        for (let attempt = 0; !completed && attempt < 3; attempt++) {
           if (disposed) return;
           const result = reconcileDeviceSync(localSnapshot, remote.snapshot || {}, baseline);
           if (deviceSyncSnapshotsEqual(result.snapshot, remote.snapshot || {})) {
             await saveDeviceSyncBaseline(result.baseline);
+            deviceSyncRemoteSnapshotRef.current = result.snapshot;
+            rememberSyncedLocalReferences(result.snapshot);
             applySnapshot(result.snapshot);
             completed = true;
             break;
           }
           const saved = await writeRemote(Number(remote.revision || 0), result.snapshot);
           if (saved.conflict) {
-            remote = saved;
+            remote = { ...saved, unchanged: false };
+            if (Number.isSafeInteger(saved.revision)) deviceSyncRemoteRevisionRef.current = Number(saved.revision);
+            if (saved.snapshot) deviceSyncRemoteSnapshotRef.current = saved.snapshot as SyncSnapshot;
             continue;
           }
           if (saved.ok === false) throw new Error(saved.error || "The PC did not save the shared data.");
           if (disposed) return;
           await saveDeviceSyncBaseline(result.baseline);
+          deviceSyncRemoteRevisionRef.current = Number.isSafeInteger(saved.revision)
+            ? Number(saved.revision)
+            : Number(remote.revision || 0) + 1;
+          deviceSyncRemoteSnapshotRef.current = result.snapshot;
+          rememberSyncedLocalReferences(result.snapshot);
           applySnapshot(result.snapshot);
           completed = true;
           break;
@@ -1109,7 +1166,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         if (!completed) throw new Error("The shared data changed on both devices. Tap Sync now to retry.");
         if (!disposed) {
           const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-          setSyncStatus(desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
+          setSyncStatus(alreadyCurrent
+            ? "Connected · up to date " + time
+            : desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
         }
       } catch (error) {
         if (!disposed) {
@@ -1126,7 +1185,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     };
     deviceSyncRunRef.current = runSync;
     const firstSync = window.setTimeout(() => { void runSync(false); }, 700);
-    const syncInterval = window.setInterval(() => { void runSync(false); }, 15000);
+    // Revision-only polls are tiny; five seconds makes changes from the other device
+    // appear much faster without repeatedly transferring the complete record database.
+    const syncInterval = window.setInterval(() => { void runSync(false); }, 5000);
     return () => {
       disposed = true;
       window.clearTimeout(firstSync);
