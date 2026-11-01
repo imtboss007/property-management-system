@@ -1916,7 +1916,7 @@ h2,h3{color:#e5f2fc}
 .ax-module-add-orbit{display:grid;place-items:center;width:44px;height:44px;margin-bottom:14px;border-radius:14px;color:#72eff4;background:#123b50;border:1px solid #2b9ab0;box-shadow:0 0 0 7px #2bd8e70b}
 .ax-module-add-card h3{margin:7px 0;color:#e9f8ff;font:750 14px "Manrope",sans-serif}
 .ax-module-add-card p{font-size:10px;color:#8daec1;line-height:1.6}
-.ax-module-studio-modal .modal{width:min(1040px,calc(100vw - 30px));max-width:1040px}
+.modal.ax-module-studio-modal{width:min(1040px,calc(100vw - 30px));max-width:1040px;max-height:94dvh;overflow:auto}
 .ax-module-studio{padding:20px;color:#dbeaf4;background:linear-gradient(145deg,#0a1b2b,#0d2438);border:1px solid #21465e;border-radius:16px}
 .ax-studio-heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}
 .ax-studio-heading h2{font:800 22px "Manrope",sans-serif;color:#f0f9ff;margin:7px 0}
@@ -1990,3 +1990,16 @@ h2,h3{color:#e5f2fc}
  .ax-dashboard-kpi,.ax-module-add-card{transition:none!important}
  .ax-dashboard-kpi:hover,.ax-module-add-card:hover{transform:none!important}
 }
+
+
+.ax-dashboard-customize{position:relative;display:flex;justify-content:flex-end;margin:10px 0 8px}
+.ax-dashboard-customize>summary{display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid #285069;border-radius:9px;background:#0d2437;color:#a8c8da;font-size:10px;font-weight:750;cursor:pointer;list-style:none}
+.ax-dashboard-customize>summary::-webkit-details-marker{display:none}
+.ax-dashboard-customize[open]>summary{border-color:#36bed0;color:#70e8ed}
+.ax-dashboard-customize-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:15;display:grid;gap:10px;width:min(300px,calc(100vw - 34px));padding:14px;border:1px solid #2d566e;border-radius:12px;background:#0c2133;box-shadow:0 18px 45px #0009}
+.ax-dashboard-customize-panel>div{display:grid;gap:4px;padding-bottom:7px;border-bottom:1px solid #23445a}
+.ax-dashboard-customize-panel>div strong{font-size:11px;color:#e8f7ff}
+.ax-dashboard-customize-panel>div small{font-size:9px;color:#88a8bd;line-height:1.5}
+.ax-dashboard-customize-panel>label{display:flex;align-items:center;gap:9px;font-size:10px;color:#c2d7e4;cursor:pointer}
+.ax-dashboard-customize-panel>label input{accent-color:#2bd1e0;width:14px;height:14px}
+.ax-dashboard-customize-panel>button{justify-self:start;padding:7px 9px;border:1px solid #31536a;border-radius:8px;background:#112f43;color:#78dce7;font-size:9px;font-weight:800}
