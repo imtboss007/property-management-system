@@ -49,13 +49,13 @@ export const settlementModels = [
 
 export function parseDealNumber(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const raw = String(value ?? "").trim().replace(/,/g, "");
+  const raw = String(value ?? "").trim().replace(/[₹,\s]/g, "");
   if (!raw) return 0;
-  const match = raw.match(/^(-?\\d+(?:\\.\\d+)?)\\s*(cr|crore|l|lac|lakh|k)?$/i);
+  const match = raw.match(/^(-?\d+(?:\.\d+)?)(cr|crores?|l|lacs?|lakhs?|thousands?|k)?$/i);
   if (match) {
     const amount = Number(match[1]);
     const unit = (match[2] || "").toLowerCase();
-    const multiplier = unit === "cr" || unit === "crore" ? 10000000 : unit === "l" || unit === "lac" || unit === "lakh" ? 100000 : 1;
+    const multiplier = unit.startsWith("cr") ? 10000000 : unit === "l" || unit.startsWith("lac") || unit.startsWith("lakh") ? 100000 : unit.startsWith("thousand") || unit === "k" ? 1000 : 1;
     return Number.isFinite(amount) ? amount * multiplier : 0;
   }
   const parsed = Number(raw);
