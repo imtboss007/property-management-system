@@ -27,10 +27,14 @@ type CompanyRecordClient = {
  * records overwrite cloud rows that were merely outside the first page.
  */
 export async function fetchAllCompanyRecords(
-  client: CompanyRecordClient,
+  clientInput: unknown,
   companyId: string,
   pageSize = 500
 ): Promise<CompanyRecordRow[]> {
+  // Keep the Supabase client's deeply generic fluent-builder types behind this
+  // narrow boundary; the query shape is validated by this module's typed adapter.
+  const client = clientInput as CompanyRecordClient;
+  if (!client || typeof client.from !== "function") throw new Error("A company-record client is required.");
   if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
     throw new Error("Company record page size must be between 1 and 1,000.");
   }
