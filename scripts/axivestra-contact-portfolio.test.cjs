@@ -105,7 +105,7 @@ assert.ok(pdf.includes('from "jspdf"') && pdf.includes('doc.output("arraybuffer"
 console.log("AXIVESTRA editable multi-person Contact 360 follow-up register and bidirectional linked-record sync contracts passed.");
 
 for (const token of [
-  "Follow-up Register", "Module type / linked record", "Description / item", "Amount (INR)",
+  "Follow-up Register", "Linked module record", "Description", "Final Amount (INR)",
   "Expected reach-back date", "Expected reach-back time", "WhatsApp groups", "onUpdateFollowUps",
   "onOpenContact360", "onEditRecord", "onDownloadRecord", "onExportPdf", "setPrimary", "dirty:true"
 ]) assert.ok(register.includes(token), "Missing standalone follow-up register capability: " + token);
@@ -157,7 +157,7 @@ console.log("AXIVESTRA per-module Follow-up Person assignment, automatic registe
 
 for (const token of [
   "People-wise follow-up overview", "visibleByContact.size", "Array.from(visibleByContact.entries())",
-  "contactRows.map", "Module type / linked record", "Description / item", "Amount (INR)",
+  "contactRows.map", "Linked module record", "Description", "Final Amount (INR)",
   "Expected reach-back date", "Expected reach-back time", "What the person said",
   "roleFilters", "groupFilters",
   "ax-followup-register__filter-dropdown", "WhatsApp groups",
@@ -168,7 +168,7 @@ console.log("AXIVESTRA person-grouped follow-up overview, editable per-record fi
 
 for (const token of [
   "Edit any field below", "onBlur={()=>save(row.key)}",
-  'aria-label="Follow-up description"', 'aria-label="Follow-up amount"',
+  'aria-label="Follow-up description"', 'aria-label="Final amount"',
   "Expected reach-back date", "Expected reach-back time",
   "What the person said / terms", "Follow-up channel"
 ]) assert.ok(register.includes(token), "Missing editable per-record follow-up row: " + token);
@@ -190,7 +190,7 @@ console.log("AXIVESTRA module-originated follow-up updates, notes and last-updat
 
 for (const token of [
   "transactionFilter", "loanDirectionFilter", "monthlyInterestReceivable",
-  "monthlyInterestPayable", "calculateMonthlyInterest", "Amount (INR)",
+  "monthlyInterestPayable", "calculateMonthlyInterest", "Final Amount (INR)",
   "Loan direction", "ax-followup-register__interest-metric", "__transactionType",
   "roleFilters.some", "groupFilters.some"
 ]) assert.ok(register.includes(token), "Missing Follow-up Register transaction/loan view or filters: " + token);
@@ -203,22 +203,25 @@ for (const token of [
 console.log("AXIVESTRA Follow-up Register monthly loan interest totals, transaction search and deal amount linkage passed.");
 
 for (const token of [
-  "ax-followup-register__board", "ax-followup-register__cards",
-  "ax-followup-register__card-fields", "ax-followup-register__field--wide",
-  "ax-followup-register__card-actions", "Expected reach-back date",
+  "ax-followup-register__board", "ax-followup-register__grid-wrap",
+  "ax-followup-register__grid", "ax-followup-register__grid-control",
+  "ax-followup-register__row-more", "ax-followup-register__grid-actions",
+  "Final Amount (INR)", "Expected reach-back date",
   "Expected reach-back time", "Follow-up description", "onAddModule",
   "Add module record", "props.onAddModule(contactId)"
 ]) assert.ok(register.includes(token), "Missing column-based Follow-up Register / direct module creation: " + token);
 assert.ok(app.includes('onAddModule={contactId=>{go("All Properties");openPropertyForm(null,{contactId});}}'),
   "Adding a module from a person column must prefill that follow-up person.");
-console.log("AXIVESTRA person-column follow-up board, editable follow-up cards and direct module creation contracts passed.");
+console.log("AXIVESTRA person-grouped editable follow-up grid and direct module creation contracts passed.");
 
 assert.ok(styles.includes(".ax-followup-register__board{display:grid;grid-template-columns:minmax(0,1fr)"),
   "Each person's follow-up group must occupy its own full-width row.");
-assert.ok(styles.includes(".ax-followup-register__cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))"),
-  "A person's follow-up assignments must display as multiple side-by-side columns, not stacked rows.");
-assert.ok(styles.includes("overflow:visible;padding:10px;overscroll-behavior:contain"),
-  "The person's assignment columns must remain fully visible without an inner vertical scroll panel.");
-console.log("AXIVESTRA one-person-per-row with multiple side-by-side module follow-up columns layout contracts passed.");
+assert.ok(styles.includes(".ax-followup-register__grid-wrap{width:100%;overflow-x:auto"),
+  "Each person's editable follow-up fields must appear in a single horizontally structured grid.");
+assert.ok(styles.includes(".ax-followup-register__grid{width:100%;min-width:1190px"),
+  "Module, Description, Date, Time, Final Amount and Status must remain distinct table columns.");
+for (const heading of ["Module","Description","Date","Time","Final Amount (INR)","Status"])
+  assert.ok(register.includes(">"+heading+"</th>"), "Missing directly editable follow-up column: " + heading);
+console.log("AXIVESTRA person-grouped six-column editable follow-up grid layout contracts passed.");
 
 
