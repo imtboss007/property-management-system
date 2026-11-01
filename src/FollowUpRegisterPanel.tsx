@@ -264,44 +264,8 @@ export default function FollowUpRegisterPanel(props: Props) {
       </div>
       <button type="button" className="primary-button" disabled={!addContactId||props.readOnly} onClick={()=>addForContact(addContactId)}><Plus size={14}/> Add follow-up</button>
     </div>
-    <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Changes are per-row; select Save to synchronize.</span></div>
-    <div className="ax-followup-register__summary-heading"><div><strong>Workstream overview</strong><span>One row per follow-up commitment · expand any row for the full linked details</span></div><span>{visibleRows.length} visible</span></div>
-    <div className="ax-followup-register__summary-wrap"><table className="ax-followup-register__summary-table">
-      <thead><tr><th>#</th><th>Party / Asset</th><th>Action / Details</th><th>Amount / Terms</th><th>Status / Next Action</th></tr></thead>
-      <tbody>{visibleRows.map((row,index)=>{
-        const item=row.item, record=row.record;
-        const party=record?.title||row.contact.name;
-        const action=item.description||record?.nextResponseDescription||record?.nextAction||"Follow-up commitment";
-        const amount=getTransactionAmount(record?.moduleData,item.amount||record?.value||"—")||"—";
-        const nextDate=item.promisedDate||record?.nextFollowUpDate||record?.nextResponseDate||"Date not set";
-        const nextTime=item.promisedTime||record?.nextFollowUpTime||record?.nextResponseTime||"";
-        const sourceModules=record?[record.module]:[];
-        return <Fragment key={row.key}>
-          <tr className="ax-followup-register__summary-row">
-            <td>{index+1}</td><td><strong>{party}</strong><small>{row.contact.name} · {item.role||row.contact.role||"Role not set"}</small></td>
-            <td><textarea className="ax-followup-register__overview-input" aria-label="Action description" rows={2} disabled={props.readOnly} value={item.description} onChange={event=>patch(row.key,"description",event.target.value)} onBlur={()=>save(row.key)} placeholder={action}/><small>{row.transactionType} · {sourceModules.length?sourceModules.join(" · "):"Contact-level"}{record?" · "+record.title:""}</small></td>
-            <td><input className="ax-followup-register__overview-input ax-followup-register__overview-amount" aria-label="Final amount / terms amount" type="number" min="0" step="any" disabled={props.readOnly} value={item.amount} onChange={event=>patch(row.key,"amount",event.target.value)} onBlur={()=>save(row.key)} placeholder={record?.value||"Final amount"}/>{record?.moduleData?.terms&&<small>{record.moduleData.terms}</small>}{row.transactionType==="Loan"&&<small className="ax-followup-register__monthly-interest">{formatINR(row.monthlyInterest)} / month {row.loanDirection===loanDirections[0]?"receivable":row.loanDirection===loanDirections[1]?"payable":"estimated"}</small>}</td>
-            <td><select className="ax-followup-register__overview-input ax-followup-register__overview-status" aria-label="Follow-up status" disabled={props.readOnly} value={item.status} onChange={event=>patch(row.key,"status",event.target.value)} onBlur={()=>save(row.key)}>{statuses.map(value=><option key={value}>{value}</option>)}</select><small>Next update</small><div className="ax-followup-register__overview-datetime"><input className="ax-followup-register__overview-input" aria-label="Next follow-up date" type="date" disabled={props.readOnly} value={item.promisedDate} onChange={event=>patch(row.key,"promisedDate",event.target.value)} onBlur={()=>save(row.key)}/><input className="ax-followup-register__overview-input" aria-label="Next follow-up time" type="time" disabled={props.readOnly} value={item.promisedTime} onChange={event=>patch(row.key,"promisedTime",event.target.value)} onBlur={()=>save(row.key)}/></div></td>
-          </tr>
-          <tr className="ax-followup-register__summary-detail-row"><td colSpan={5}><details><summary>View what was said, source modules and update history</summary><div className="ax-followup-register__summary-detail-grid">
-            <div><label>Follow-up person</label><strong>{item.person||row.contact.name}</strong><span>{item.role||row.contact.role||"Role not set"}</span></div>
-            <div><label>Source module(s)</label><strong>{sourceModules.join(", ")||record?.module||"Contact-level"}</strong><span>{row.linkedRecords.map(linked=>linked.title).join(" · ")||"No linked module record"}</span></div>
-            <div><label>Description / action</label><strong>{action}</strong></div>
-            <div><label>What the person said / terms</label><textarea className="ax-followup-register__overview-input" aria-label="What the person said" rows={3} disabled={props.readOnly} value={item.notes} onChange={event=>patch(row.key,"notes",event.target.value)} onBlur={()=>save(row.key)} placeholder="Record the exact commitment, terms or response"/></div>
-            <div><label>Final amount / terms</label><strong>{amount}</strong><span>{record?.moduleData?.terms||"Terms not separately recorded"}</span></div>
-            <div><label>Transaction structure</label><strong>{row.transactionType}</strong><span>{record?.moduleData?.__transactionTerms||"No additional transaction conditions"}</span></div>
-            {row.transactionType==="Loan"&&<div><label>Monthly interest estimate</label><strong>{formatINR(row.monthlyInterest)} / month</strong><span>{row.loanDirection} · {record?.moduleData?.__loanInterestRate||"0"} {record?.moduleData?.__loanInterestMethod==="Fixed amount per month"?"₹ / month":record?.moduleData?.__loanInterestMethod==="Percentage per year"?"% p.a.":"% per month"} · {record?.moduleData?.__loanRepaymentMethod||"Repayment not set"}</span></div>}
-            {row.transactionType==="Sharing"&&<div><label>Sharing allocation</label><strong>{record?.moduleData?.__sharingModel||"Not set"}</strong><span>{record?.moduleData?.__sharingFirstPercent||"—"}% / {record?.moduleData?.__sharingSecondPercent||"—"}% {record?.moduleData?.__giftPercentage&&Number(record.moduleData.__giftPercentage)>0?" · Gift "+record.moduleData.__giftPercentage+"% · "+formatINR(calculateGiftAmount(record.moduleData,parseDealNumber(record.value))):""}</span></div>}
-            {row.transactionType==="Gift"&&<div><label>Gift value</label><strong>{formatINR(calculateGiftAmount(record?.moduleData,parseDealNumber(record?.value)))}</strong><span>{record?.moduleData?.__giftAmountMode||"Percentage"} · {record?.moduleData?.__giftDonorId||"Donor not selected"} → {record?.moduleData?.__giftRecipientId||"Recipient not selected"}</span></div>}
-            {row.transactionType==="Settlement"&&<div><label>Settlement</label><strong>{record?.moduleData?.__settlementModel||"Not set"}</strong><span>{record?.moduleData?.__settlementStage||"Stage not set"} · Balance {formatINR(Math.max(0,parseDealNumber(record?.moduleData?.__settlementAgreedAmount)-parseDealNumber(record?.moduleData?.__settlementPaidAmount)))}</span></div>}
-            {row.transactionType==="Sale"&&<div><label>Sale balance</label><strong>{formatINR(Math.max(0,parseDealNumber(record?.moduleData?.__saleFinalAmount)-parseDealNumber(record?.moduleData?.__saleAdvancePaid)))}</strong><span>{record?.moduleData?.__saleStage||"Sale stage not set"}</span></div>}
-            <div><label>Status / next update</label><strong>{item.status||"Not set"}</strong><span>{nextDate}{nextTime?" at "+nextTime:""} · {item.responseType||"Channel not set"}</span></div><div><label>Response channel</label><select className="ax-followup-register__overview-input" aria-label="Response channel" disabled={props.readOnly} value={item.responseType} onChange={event=>patch(row.key,"responseType",event.target.value)} onBlur={()=>save(row.key)}>{channels.map(value=><option key={value}>{value}</option>)}</select></div>
-            <div><label>WhatsApp group(s)</label><strong>{row.groupNames.join(", ")||"No linked group"}</strong></div>
-            <div><label>Last updated</label><strong>{item.updatedAt?new Date(item.updatedAt).toLocaleString():"Not recorded"}</strong></div>
-          </div>{record&&<button type="button" className="ax-followup-register__inline-link" onClick={()=>props.onEditRecord(record)}><ExternalLink size={12}/> Open source module record</button>}</details></td></tr>
-        </Fragment>;
-      })}</tbody></table></div>
-
+    <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Rows are grouped by follow-up person; each linked record is edited independently.</span></div>
+    <div className="ax-followup-register__summary-heading"><div><strong>People-wise follow-up overview</strong><span>Each person appears once. Every linked module record has its own editable description, amount, reach-back date and time.</span></div><span>{visibleByContact.size} person group(s) · {visibleRows.length} module / contact follow-up(s)</span></div>
     {Array.from(visibleByContact.entries()).map(([contactId,contactRows])=>{
       const contact = contactIndex.get(contactId);
       if(!contact)return null;
@@ -313,7 +277,7 @@ export default function FollowUpRegisterPanel(props: Props) {
           <div className="ax-followup-register__contact-meta">
             <strong>{contact.name}</strong>
             <span>{[contact.role,...(contact.roles||[]),contact.phone,contact.email].filter(Boolean).join(" · ")}</span>
-            <small>{contactRows.length} follow-up line(s) · {linkedRecordCount} linked workstream(s)</small>
+            <small>{contactRows.length} follow-up commitment(s) · {linkedRecordCount} linked module record(s)</small>
             <div className="ax-followup-register__groups"><MessageCircle size={12}/>{groups.length?groups.map(group=><span key={group}>{group}</span>):<em>No WhatsApp groups linked</em>}</div>
           </div>
           <div className="ax-followup-register__contact-actions">
