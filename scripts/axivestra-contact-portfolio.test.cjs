@@ -115,7 +115,7 @@ for (const token of [
 ]) assert.ok(app.includes(token), "Missing standalone follow-up module integration: " + token);
 assert.ok(app.indexOf('{ name: "Contact 360"') < app.indexOf('{ name: "Follow-up Register"'), "Follow-up Register must sit directly after Contact 360 in navigation.");
 assert.ok(registerReport.includes("buildContactFollowUpRegisterHtml"), "Missing cross-contact PDF report builder.");
-for (const token of ["Module type","Description","Amount (INR)","Will reach back","WhatsApp groups","item.promisedTime","item.isPrimary"])
+for (const token of ["Module / transaction","Description","Final amount / principal","Monthly loan interest","Will reach back","WhatsApp groups","item.promisedTime","item.isPrimary"])
   assert.ok(registerReport.includes(token), "Missing follow-up register PDF field: " + token);
 console.log("AXIVESTRA standalone cross-contact follow-up register and PDF export contracts passed.");
 
