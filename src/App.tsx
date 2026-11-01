@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, ReactNode, ComponentType } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -13,6 +13,8 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import CustomModuleStudio from "./CustomModuleStudio";
+import type { CustomModuleDefinition, CustomModuleField } from "./lib/custom-modules";
 import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
@@ -23,7 +25,8 @@ import {
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
-  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History,
+  Layers, Landmark, Wallet, Coins, Activity, CircleDollarSign, FlaskConical, ChartNoAxesCombined
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -96,7 +99,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   </div>;
 }
 
-const modules = [
+const builtInModules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
   { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
@@ -129,7 +132,7 @@ const navigation = [
   { name: "Activity History", icon: History }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select" | "textarea"; options?: string[] };
+type ModuleField = CustomModuleField;
 const baseModuleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
@@ -433,7 +436,7 @@ const uid = () => {
   });
 };
 const storageKey = (key: string): string => {
-  if (!key.startsWith("estateflow.")) return key;
+  if (!key.startsWith("estateflow.") && key !== "axivestra.customModules") return key;
   try {
     const companyId = localStorage.getItem("axivestra.activeCompanyId");
     return companyId ? `axivestra.company.${companyId}.${key}` : key;
@@ -661,6 +664,12 @@ function printModuleReport(moduleName: string, records: PropertyRecord[], fields
   window.setTimeout(() => { try { target.focus(); target.print(); } catch { onBlocked(); } finally { window.setTimeout(() => targetFrame.remove(), 1500); } }, 700);
 }
 
+const customModuleIconRegistry: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
+  Building2, Landmark, Wallet, Coins, ChartNoAxesCombined, BriefcaseBusiness, Scale, ShieldCheck,
+  Users, FileText, Handshake, CalendarDays, House, Wheat, Layers, Activity, ClipboardCheck,
+  FlaskConical, CircleDollarSign, Rocket, PieChart, Calculator, Store
+};
+
 export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -668,6 +677,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("axivestra.customModules", []));
+  const [moduleStudioOpen, setModuleStudioOpen] = useState(false);
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
   // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
@@ -770,6 +781,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(() => {
     saveLocal("estateflow.properties", properties);
   }, [properties]);
+  useEffect(() => {
+    saveLocal("axivestra.customModules", customModules);
+  }, [customModules]);
 
   useEffect(() => {
     saveLocal("estateflow.contacts", contacts);
@@ -837,7 +851,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         financials: financials as WorkspaceCollections["financials"],
         riskRecords: riskRecords as WorkspaceCollections["riskRecords"],
         approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
-        auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
+        auditEvents: auditEvents as WorkspaceCollections["auditEvents"],
+        customModules: customModules as WorkspaceCollections["customModules"]
       };
       const currentKeys: Record<string, Set<string>> = {
         property: new Set(properties.map(record => record.id)),
@@ -847,7 +862,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         financial: new Set(financials.map(record => record.id)),
         risk: new Set(riskRecords.map(record => record.id)),
         approval: new Set(approvalRequests.map(record => record.id)),
-        audit_event: new Set(auditEvents.map(record => record.id))
+        audit_event: new Set(auditEvents.map(record => record.id)),
+        custom_module: new Set(customModules.map(record => record.id))
       };
       try {
         const previousKeys = cloudPreviousRef.current;
@@ -869,6 +885,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
         if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
+        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
@@ -877,7 +894,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           financial: new Set(synced.financials.map(record => record.id)),
           risk: new Set(synced.riskRecords.map(record => record.id)),
           approval: new Set(synced.approvalRequests.map(record => record.id)),
-          audit_event: new Set(synced.auditEvents.map(record => record.id))
+          audit_event: new Set(synced.auditEvents.map(record => record.id)),
+          custom_module: new Set(synced.customModules.map(record => record.id))
         };
       } catch (error) {
         if (!disposed && cloudSyncSequenceRef.current === sequence) {
@@ -943,7 +961,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
       properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
-      riskRecords, approvalRequests, auditEvents
+      riskRecords, approvalRequests, auditEvents, customModules
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
       setProperties(current => JSON.stringify(current) === JSON.stringify(snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
@@ -954,6 +972,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       setRiskRecords(current => JSON.stringify(current) === JSON.stringify(snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
       setApprovalRequests(current => JSON.stringify(current) === JSON.stringify(snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
       setAuditEvents(current => JSON.stringify(current) === JSON.stringify(snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
+      setCustomModules(current => JSON.stringify(current) === JSON.stringify(snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
     };
     const readRemote = async (): Promise<DeviceSyncReply> => {
       if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync();
@@ -1024,7 +1043,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       window.clearInterval(syncInterval);
       if (deviceSyncRunRef.current === runSync) deviceSyncRunRef.current = null;
     };
-  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
+  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, customModules, syncHost, syncToken]);
 
   useEffect(() => {
     let disposed = false;
@@ -1383,6 +1402,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setMemberBusy(false); }
   };
 
+  const modules = useMemo(() => [
+    ...builtInModules,
+    ...customModules.filter(item => !item.archived).map(item => ({ name: item.name, icon: customModuleIconRegistry[item.icon] || Layers, color: item.color, group: item.group, description: item.description, custom: true }))
+  ], [customModules]);
+  const dynamicModuleFields = useMemo(() => ({
+    ...moduleFields,
+    ...Object.fromEntries(customModules.filter(item => !item.archived).map(item => [item.name, item.fields]))
+  }), [customModules]);
+  const dynamicModuleStatuses = useMemo(() => Object.fromEntries(customModules.filter(item => !item.archived).map(item => [item.name, item.statuses])), [customModules]);
   const rangeSearches = useMemo(() => parsePropertyRangeQueries(search), [search]);
   const rangeSearch = rangeSearches[0] ?? null;
   const filteredModules = rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
@@ -1422,6 +1450,13 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
+  const loanModuleNames = new Set(["Property Loans", "Unsecured Company Loan", "Personal Loan", "Housing Loan"]);
+  const dealModuleNames = new Set(["Property Sale", "JV / JDA / JD", "SR Rate Settlement", "House Purchase", "Startup", "Equity"]);
+  const loanRecords = properties.filter(item => loanModuleNames.has(item.module) && !["Completed", "Closed", "Settled"].includes(item.status));
+  const activeDealRecords = properties.filter(item => dealModuleNames.has(item.module) && !["Completed", "Closed", "Settled"].includes(item.status));
+  const loanOutstanding = loanRecords.reduce((sum, item) => sum + (Number(String(item.moduleData?.outstandingAmount || item.moduleData?.loanOutstanding || item.moduleData?.currentOutstanding || "").replace(/,/g, "")) || 0), 0);
+  const totalPeopleAndGroups = contacts.length + savedWhatsAppGroups.length;
+  const loanStatusBreakdown = Array.from(new Set(loanRecords.map(item => item.status || "Unspecified"))).map(status => ({ status, count: loanRecords.filter(item => item.status === status).length }));
   const openLitigationCount = properties.filter(item => item.module === "Litigation" && !["Completed", "Closed"].includes(item.status)).length;
   const startupCount = properties.filter(item => item.module === "Startup" && !["Completed", "Closed"].includes(item.status)).length;
   const equityCount = properties.filter(item => item.module === "Equity").length;
@@ -2187,11 +2222,12 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <div className="banner-aside-row"><span>Data mode</span><strong>Local device</strong></div>
               </div>
             </section>
-            <div className="stats-grid institutional-stats">
-              <Stat label="Active records" value={activeRecordCount} icon={<LandPlot size={18}/>} />
-              <Stat label="Startup pipeline" value={startupCount} icon={<Rocket size={18}/>} />
-              <Stat label="Equity positions" value={equityCount} icon={<PieChart size={18}/>} />
-              <Stat label="Open litigation" value={openLitigationCount} icon={<Scale size={18}/>} />
+            <div className="stats-grid institutional-stats ax-dashboard-kpis">
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("All Properties")}><span className="ax-dashboard-kpi-icon cyan"><LandPlot size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Total properties & assets</small><strong>{properties.length}</strong><em>{activeRecordCount} active records</em></span><ArrowUpRight size={16}/></button>
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Property Loans")}><span className="ax-dashboard-kpi-icon amber"><HandCoins size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Active loans</small><strong>{loanRecords.length}</strong><em>{loanOutstanding ? "₹"+loanOutstanding.toLocaleString("en-IN",{maximumFractionDigits:0})+" outstanding" : "Outstanding not fully entered"}</em></span><ArrowUpRight size={16}/></button>
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Property Sale")}><span className="ax-dashboard-kpi-icon violet"><Handshake size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Active deals</small><strong>{activeDealRecords.length}</strong><em>{startupCount} startup · {equityCount} equity records</em></span><ArrowUpRight size={16}/></button>
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Schedule & Tasks")}><span className="ax-dashboard-kpi-icon blue"><CalendarClock size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Pending tasks</small><strong>{upcomingTasks.length}</strong><em>{overdueTaskCount} overdue · {Math.max(0,upcomingTasks.length-overdueTaskCount)} upcoming</em></span><ArrowUpRight size={16}/></button>
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Contacts")}><span className="ax-dashboard-kpi-icon teal"><Users size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Total contacts & groups</small><strong>{totalPeopleAndGroups}</strong><em>{contacts.length} people · {savedWhatsAppGroups.length} groups</em></span><ArrowUpRight size={16}/></button>
             </div>
             <div className="control-strip">
               <div className="control-strip-heading"><div><span className="section-kicker">CONTROL & OVERSIGHT</span><h2>Items requiring attention</h2></div><button className="text-button" onClick={()=>go("Risk & Compliance")}>Open risk console <ArrowUpRight size={15}/></button></div>
@@ -2206,10 +2242,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
               financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
-              modules={modules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
+              modules={modules.map(item => ({ name: item.name, value: properties.filter(property => property.module === item.name).reduce((sum, property) => sum + Number(property.value || 0), 0), count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
             />
-            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Sixteen interconnected workspaces across assets, capital, lending, funds, investor services, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS · {modules.length} MODULES</span><h2>Explore your operating modules</h2><p>Every workspace has its own record structure, search, analytics, stakeholders and export tools. Create new module types as your business evolves.</p></div><div className="ax-module-directory-actions"><button className="secondary-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button><button className="primary-button" onClick={()=>setModuleStudioOpen(true)} disabled={company?.role==="read_only"}><Plus size={16}/> Add module</button></div></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
@@ -2230,15 +2266,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             moduleName={active === "All Properties" ? "All Properties" : active}
             description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : modules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
-            fields={active==="All Properties" ? [] : moduleFields[active] || []}
+            fields={active==="All Properties" ? [] : dynamicModuleFields[active] || []}
             contacts={contacts}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
-            onExportReport={rows=>printModuleReport(active,rows as PropertyRecord[],moduleFields[active]||[],()=>setNotice("Check application print permissions to open the printable report."))}
-            onPrintRecord={record=>printModuleReport(record.module,[record as PropertyRecord],moduleFields[record.module]||[],()=>setNotice("The printable report could not be opened. Check the application print permission."))}
+            onExportReport={rows=>printModuleReport(active,rows as PropertyRecord[],dynamicModuleFields[active]||[],()=>setNotice("Check application print permissions to open the printable report."),dynamicModuleFields)}
+            onPrintRecord={record=>printModuleReport(record.module,[record as PropertyRecord],dynamicModuleFields[record.module]||[],()=>setNotice("The printable report could not be opened. Check the application print permission."),dynamicModuleFields)}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
@@ -2315,11 +2351,12 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].filter(record=>[record.title,record.area,record.entity,record.requestedBy,record.approver,record.priority,record.status,record.rationale,record.decisionNotes].join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="edit-button" onClick={()=>printSimpleRecord("Approval request",[["Title",record.title],["Area",record.area],["Entity",record.entity],["Requested by",record.requestedBy],["Approver",record.approver],["Priority",record.priority],["Status",record.status],["Rationale",record.rationale],["Decision notes",record.decisionNotes],["Requested at",record.requestedAt],["Decided at",record.decidedAt]],()=>setNotice("Print could not be opened. Check application print permissions."))} aria-label="Print approval request"><Download size={15}/></button><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : "Your business records and document files automatically sync with your linked Windows PC while both devices are connected."}</p><button className="secondary-button" onClick={async()=>{const filename=`axivestra-business-backup-${today}.json`;try{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const delivery=await saveBlobForUser(blob,filename);setNotice(delivery==="shared"?"Android share panel opened. Choose Files, Drive or another secure destination to save the business backup.":"Business backup download started. Store the file securely.");}catch(error){setNotice("Business backup export failed: "+(error instanceof Error?error.message:String(error)));}}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{company && <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync automatically through your AXIVESTRA account. The phone link also shares the Windows WhatsApp session and document files.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div>}<div className="settings-card"><h3>Sync WhatsApp + data</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>Open AXIVESTRA on your Android phone and scan this code once.</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p></div> : Capacitor.getPlatform() === "android" ? <div><p>{syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Scan the PC code once to share records, documents and its linked WhatsApp number."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Scan PC code"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to display the link code.</p>}</div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={async()=>{const filename=`axivestra-audit-${today}.json`;try{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const delivery=await saveBlobForUser(blob,filename);setNotice(delivery==="shared"?"Android share panel opened. Choose Files, Drive or another secure destination to save the audit log.":"Audit log download started.");}catch(error){setNotice("Audit log export failed: "+(error instanceof Error?error.message:String(error)));}}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : "Your business records and document files automatically sync with your linked Windows PC while both devices are connected."}</p><button className="secondary-button" onClick={async()=>{const filename=`axivestra-business-backup-${today}.json`;try{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,customModules,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const delivery=await saveBlobForUser(blob,filename);setNotice(delivery==="shared"?"Android share panel opened. Choose Files, Drive or another secure destination to save the business backup.":"Business backup download started. Store the file securely.");}catch(error){setNotice("Business backup export failed: "+(error instanceof Error?error.message:String(error)));}}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.customModules))setCustomModules(data.customModules);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{company && <div className="settings-card"><h3>Company cloud sync</h3><p>Signed in to <strong>{company.name}</strong>. Business records sync automatically through your AXIVESTRA account. The phone link also shares the Windows WhatsApp session and document files.</p><p className="sync-status">Cloud records are protected by company membership policies. If a sync error appears, preserve your local backup and verify the Supabase migration and network.</p></div>}<div className="settings-card"><h3>Sync WhatsApp + data</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>Open AXIVESTRA on your Android phone and scan this code once.</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p></div> : Capacitor.getPlatform() === "android" ? <div><p>{syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Scan the PC code once to share records, documents and its linked WhatsApp number."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Scan PC code"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to display the link code.</p>}</div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={async()=>{const filename=`axivestra-audit-${today}.json`;try{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const delivery=await saveBlobForUser(blob,filename);setNotice(delivery==="shared"?"Android share panel opened. Choose Files, Drive or another secure destination to save the audit log.":"Audit log download started.");}catch(error){setNotice("Audit log export failed: "+(error instanceof Error?error.message:String(error)));}}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()} availableModules={modules} moduleFieldDefinitions={dynamicModuleFields} moduleStatuses={dynamicModuleStatuses}/></Modal>}
+      {moduleStudioOpen && <Modal className="ax-module-studio-modal" title="AXIVESTRA Module Studio" onClose={()=>setModuleStudioOpen(false)}><CustomModuleStudio existingNames={modules.map(item=>item.name)} onClose={()=>setModuleStudioOpen(false)} onSave={definition=>{if(company?.role==="read_only"){setNotice("Read-only company access cannot create modules.");return;}setCustomModules(current=>[...current,definition]);setModuleStudioOpen(false);setSearch("");setActive(definition.name);setNotice("Custom module created. Its fields, workflow and dashboard card are ready.");}}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
