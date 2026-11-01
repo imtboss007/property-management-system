@@ -57,7 +57,7 @@ function makeClient(rows, options = {}) {
   const result = await fetchAllCompanyRecords(fixture.client, "company-abc");
 
   assert.equal(result.length, 1207, "pagination must load every row beyond the PostgREST first-page cap");
-  assert.deepEqual(result.map(row => row.record_key), rows.map(row => row.record_key),
+  assert.deepEqual(Array.from(result, row => row.record_key), rows.map(row => row.record_key),
     "pagination must preserve deterministic server page order without duplication or omissions");
   assert.deepEqual(fixture.ranges, [[0, 499], [500, 999], [1000, 1499]],
     "pages must be fetched in bounded, non-overlapping ranges");
