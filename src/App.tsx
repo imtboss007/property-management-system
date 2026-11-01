@@ -1593,6 +1593,23 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const openWhatsAppFor = (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => { setWhatsAppPrefill({ contactId, propertyId, taskId, taskTitle }); setActive("WhatsApp Automation"); setMobileMenu(false); setNotice(""); };
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
+  const openWorkspaceResult = (kind: SearchKind, record: any) => {
+    setSearch("");
+    if (kind === "property") { go(record.module || "All Properties"); openPropertyForm(record as PropertyRecord); return; }
+    if (kind === "contact") { go("Contacts"); openContactForm(record as ContactRecord); return; }
+    if (kind === "task") { go("Schedule & Tasks"); openTaskForm(record as TaskRecord); return; }
+    if (kind === "financial") { go("Financials"); openFinancialForm(record as FinancialRecord); return; }
+    if (kind === "document") { go("Documents"); setDocumentProperty(record.propertyId || ""); setDocumentCategory(record.category || "Other"); return; }
+    if (kind === "risk") { go("Risk & Compliance"); return; }
+    if (kind === "approval") { go("Approvals"); return; }
+    go("WhatsApp Automation");
+  };
+  const quickCreate = (kind: "property" | "contact" | "task" | "financial") => {
+    if (kind === "property") { go("All Properties"); openPropertyForm(); }
+    else if (kind === "contact") { go("Contacts"); openContactForm(); }
+    else if (kind === "task") { go("Schedule & Tasks"); openTaskForm(null, { date: today, time: "10:00", type: "Follow-up" }); }
+    else { go("Financials"); openFinancialForm(); }
+  };
 
   const saveProperty = (data: Omit<PropertyRecord, "id" | "createdAt">) => {
     const record: PropertyRecord = editingProperty
@@ -1985,6 +2002,32 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     const isDone = !task.done;
     setTasks(prev => prev.map(item => item.id === id ? { ...item, done: isDone } : item));
     remoteUpdateTask(id, { is_done: isDone });
+  };
+
+  const undoLastChange = () => {
+    const entry = undoHistory[0];
+    if (!entry) return;
+    const before = entry.beforeRecord as any;
+    const apply = <T extends { id: string }>(setItems: (next: (previous: T[]) => T[]) => void, previousRecord?: T) => {
+      if (entry.hadPrevious && previousRecord) {
+        setItems(previous => previous.some(item => item.id === entry.recordId)
+          ? previous.map(item => item.id === entry.recordId ? previousRecord : item)
+          : [previousRecord, ...previous]);
+      } else {
+        setItems(previous => previous.filter(item => item.id !== entry.recordId));
+      }
+    };
+    suppressAuditRef.current = true;
+    if (entry.entity === "Property") apply(setProperties, before as PropertyRecord);
+    else if (entry.entity === "Contact") apply(setContacts, before as ContactRecord);
+    else if (entry.entity === "Task") apply(setTasks, before as TaskRecord);
+    else if (entry.entity === "Financial") apply(setFinancials, before as FinancialRecord);
+    else if (entry.entity === "Risk") apply(setRiskRecords, before as RiskRecord);
+    else if (entry.entity === "Approval") apply(setApprovalRequests, before as ApprovalRequest);
+    else { suppressAuditRef.current = false; return; }
+    setUndoHistory(current => current.slice(1));
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "updated", entity: "Undo", recordId: entry.recordId, label: entry.label }, ...current].slice(0, 1000));
+    setNotice("Undid the latest change to " + entry.label + ". The prior record state has been restored on this device and will sync normally.");
   };
 
   return (
