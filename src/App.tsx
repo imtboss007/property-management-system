@@ -1495,7 +1495,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     }
   };
   const downloadRecordPdf = (record:PropertyRecord) => downloadAxivestraPdf(record.module,[record]);
-  const downloadModulePdf = (moduleName:string) => downloadAxivestraPdf(moduleName,properties.filter(record=>record.module===moduleName));
 
   // Local-only persistence is handled by the state effects above.
   const remoteUpsert = (_table: string, _payload: Record<string, unknown>) => {};
