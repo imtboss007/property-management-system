@@ -2005,3 +2005,35 @@ h2,h3{color:#e5f2fc}
 .ax-dashboard-customize-panel>button{justify-self:start;padding:7px 9px;border:1px solid #31536a;border-radius:8px;background:#112f43;color:#78dce7;font-size:9px;font-weight:800}
 
 .module-icon.cyan{background:linear-gradient(145deg,#173e56,#105067);color:#67e4ee;box-shadow:inset 0 1px #ffffff14,0 7px 17px #030d18a6}
+
+
+/* AXIVESTRA command-centre refinement: date context, quick actions and tactile module identity. */
+.ax-dashboard-date-badge{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid #6ea9c43b;border-radius:11px;background:linear-gradient(110deg,#0c263bba,#0b1d2e99);margin-bottom:1px}
+.ax-dashboard-date-icon{width:38px;height:38px;display:grid;place-items:center;flex:none;border-radius:10px;background:#173d58;color:#75dbef}
+.ax-dashboard-date-copy{display:grid;gap:4px;min-width:0}
+.ax-dashboard-date-copy strong{font:750 11px "Manrope",sans-serif;color:#f1faff;letter-spacing:.1px}
+.ax-dashboard-date-copy small{font-size:9px;line-height:1.45;color:#91afc1}
+.ax-date-value-divider{margin:12px 0 10px}
+.ax-dashboard-quick-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:13px}
+.ax-dashboard-quick-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:7px 10px;border:1px solid #49728a83;border-radius:8px;background:#061c2b66;color:#d5edf5;font-size:9px;font-weight:750;transition:background .18s,border-color .18s,transform .18s}
+.ax-dashboard-quick-actions button:hover{background:#16445a;border-color:#48cddd;transform:translateY(-1px)}
+.ax-dashboard-quick-actions button:last-child{border-color:#238aa0;background:#0d4050;color:#9af3f0}
+.enterprise-module-card .module-icon{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;box-shadow:inset 0 1px #ffffff25,0 8px 20px #07182718;transition:transform .2s,box-shadow .2s}
+.enterprise-module-card:hover .module-icon{transform:translateY(-2px) scale(1.04);box-shadow:0 10px 24px #07182725}
+.enterprise-module-card .module-number{font-weight:800;letter-spacing:.8px}
+.ax-studio-control-label{display:block;margin-bottom:7px;font-size:10px;font-weight:750;color:#b6ccdb}
+.ax-studio-icon-search{display:flex!important;align-items:center;gap:8px!important;padding:0 10px;border:1px solid #31546b;border-radius:9px;background:#091a2a;color:#7798ad}
+.ax-studio-icon-search input{border:0!important;outline:0!important;background:transparent!important;padding:9px 0!important;box-shadow:none!important}
+.ax-studio-icon-picker{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin-top:9px}
+.ax-studio-icon-picker button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:61px;padding:8px 4px;border:1px solid #294b61;border-radius:9px;background:#0a1c2b;color:#8daec1;transition:background .16s,border-color .16s,color .16s,transform .16s}
+.ax-studio-icon-picker button:hover{border-color:#4b9eb2;background:#123349;color:#d8f8ff;transform:translateY(-1px)}
+.ax-studio-icon-picker button.selected{border-color:#36ccdc;background:linear-gradient(145deg,#12435a,#0c2c40);color:#8cf0f1;box-shadow:inset 0 0 0 1px #36ccdc26,0 0 0 2px #36ccdc12}
+.ax-studio-icon-picker button small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px;color:inherit}
+.ax-studio-icon-empty{grid-column:1/-1;padding:12px;border:1px dashed #31546b;border-radius:9px;color:#88a8bc;font-size:10px;text-align:center}
+.ax-studio-colour-picker{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ax-studio-colour-picker button{display:inline-flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid #2b4b60;border-radius:20px;background:#091a2a;color:#a9c2d2;font-size:9px}
+.ax-studio-colour-picker button:hover,.ax-studio-colour-picker button.selected{border-color:#4acbd8;background:#12364b;color:#e4fbff}
+.ax-studio-color-dot{width:11px;height:11px;display:block;border-radius:50%;box-shadow:0 0 0 2px #ffffff17}
+.ax-studio-color-dot.cyan{background:#43d9e8}.ax-studio-color-dot.blue{background:#4e9cff}.ax-studio-color-dot.violet{background:#a48bff}.ax-studio-color-dot.mint{background:#54d6ae}.ax-studio-color-dot.amber{background:#f2bd62}.ax-studio-color-dot.rose{background:#fa8cad}.ax-studio-color-dot.green{background:#61d493}
+@media(max-width:780px){.ax-dashboard-quick-actions{gap:6px}.ax-dashboard-quick-actions button{flex:1 1 calc(50% - 6px)}.ax-studio-icon-picker{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:440px){.ax-dashboard-date-badge{padding:9px}.ax-dashboard-quick-actions button{font-size:8px;padding:7px 6px}.ax-studio-icon-picker{grid-template-columns:repeat(3,minmax(0,1fr))}}
