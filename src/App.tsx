@@ -26,7 +26,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History,
-  Layers, Landmark, Wallet, Coins, Activity, CircleDollarSign, FlaskConical, BarChart3
+  Layers, Layers3, Landmark, Wallet, Coins, Banknote, Activity, CircleDollarSign, FlaskConical, BarChart3
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -665,8 +665,8 @@ function printModuleReport(moduleName: string, records: PropertyRecord[], fields
 }
 
 const customModuleIconRegistry: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
-  Building2, Landmark, Wallet, Coins, BarChart3, BriefcaseBusiness, Scale, ShieldCheck,
-  Users, FileText, Handshake, CalendarDays, House, Wheat, Layers, Activity, ClipboardCheck,
+  Building2, Landmark, Wallet, Coins, Banknote, BarChart3, BriefcaseBusiness, Scale, ShieldCheck,
+  Users, FileText, Handshake, CalendarDays, House, Wheat, Layers, Layers3, Activity, ClipboardCheck,
   FlaskConical, CircleDollarSign, Rocket, PieChart, Calculator, Store
 };
 
