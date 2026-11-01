@@ -2418,14 +2418,14 @@ h2,h3{color:#e5f2fc}
 
 
 /* Follow-up Register: people are horizontal lanes; each assignment is a vertical editable card. */
-.ax-followup-register__board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start;gap:14px;margin-top:10px}
+.ax-followup-register__board{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:14px;margin-top:10px}
 .ax-followup-register__contact{min-width:0;margin:0;border:1px solid #254b64;border-radius:14px;background:linear-gradient(145deg,#0d2436,#0a1b2b);overflow:hidden}
 .ax-followup-register__contact-head{align-items:flex-start;flex-wrap:wrap;padding:13px}
 .ax-followup-register__contact-meta{min-width:0}
 .ax-followup-register__contact-actions{width:100%;padding-left:49px;display:flex;flex-wrap:wrap}
 .ax-followup-register__contact-actions button{flex:1 1 auto;justify-content:center}
 .ax-followup-register__contact-actions .primary-button,.ax-followup-register__contact-actions .secondary-button{min-height:32px}
-.ax-followup-register__cards{display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 310px);min-height:120px;overflow:auto;padding:10px;overscroll-behavior:contain}
+.ax-followup-register__cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));align-items:stretch;gap:10px;min-height:120px;overflow:visible;padding:10px;overscroll-behavior:contain}
 .ax-followup-register__card{min-width:0;padding:11px;border:1px solid #294e65;border-radius:11px;background:#081b2a;box-shadow:0 3px 12px #0002}
 .ax-followup-register__card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;padding-bottom:9px;margin-bottom:10px;border-bottom:1px solid #1e3e53}
 .ax-followup-register__card-module{display:grid;gap:3px;min-width:0}
@@ -2456,8 +2456,8 @@ h2,h3{color:#e5f2fc}
   .ax-followup-register__card-actions .ax-followup-register__row-actions{margin-left:0}
 }
 @media print{
-  .ax-followup-register__board{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .ax-followup-register__cards{max-height:none!important;overflow:visible!important;padding:6px!important}
+  .ax-followup-register__board{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  .ax-followup-register__cards{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;max-height:none!important;overflow:visible!important;padding:6px!important}
   .ax-followup-register__card{break-inside:avoid;border:1px solid #cbd6de!important;background:#fff!important;box-shadow:none!important}
   .ax-followup-register__card-module strong,.ax-followup-register__card-module small,.ax-followup-register__card-module>span,.ax-followup-register__field{color:#172b3b!important}
   .ax-followup-register__field input,.ax-followup-register__field select,.ax-followup-register__field textarea{min-height:0!important;padding:3px!important;border:1px solid #cbd6de!important;background:#fff!important;color:#172b3b!important;font-size:7px!important}
