@@ -7,7 +7,7 @@ type ModuleRecord = {
   nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
 };
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select" | "textarea"; options?: string[] };
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "currency" | "percent" | "date" | "select" | "textarea" | "email" | "phone" | "url" | "checkbox"; options?: string[]; required?: boolean };
 type Contact = { id: string; name: string; phone: string; role: string; notes: string };
 type Props = {
   moduleName: string;
