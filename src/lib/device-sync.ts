@@ -1,6 +1,6 @@
 export const DEVICE_SYNC_COLLECTIONS = [
   "properties", "contacts", "whatsappGroups", "tasks",
-  "financials", "riskRecords", "approvalRequests", "auditEvents"
+  "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules"
 ] as const;
 
 export type DeviceSyncCollection = typeof DEVICE_SYNC_COLLECTIONS[number];
