@@ -2320,10 +2320,12 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
-            onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
+            onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.nextResponseDate||record.targetDeadline||today,time:record.nextFollowUpTime||record.nextResponseTime||record.targetDeadlineTime||"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
             onExportReport={rows=>printModuleReport(active,rows as PropertyRecord[],dynamicModuleFields[active]||[],()=>setNotice("Check application print permissions to open the printable report."),dynamicModuleFields)}
+            onExportPdf={rows=>void downloadAxivestraPdf(active,rows as PropertyRecord[])}
             onPrintRecord={record=>printModuleReport(record.module,[record as PropertyRecord],dynamicModuleFields[record.module]||[],()=>setNotice("The printable report could not be opened. Check the application print permission."),dynamicModuleFields)}
+            onDownloadRecordPdf={record=>void downloadRecordPdf(record as PropertyRecord)}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
