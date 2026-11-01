@@ -432,7 +432,7 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
   "Startup": [
     { key: "startupFounders", title: "Founders and management", description: "Add multiple founders, co-founders, directors and management members.", addLabel: "Add another founder / director", fields: [
       rf("name", "Name"), rf("role", "Role", "", "select", ["Founder", "Co-founder", "Director", "CEO", "CFO", "CTO", "Promoter", "Other"]),
-      rf("phone", "Phone"), rf("email", "Email"), rf("qualificationExperience", "Qualifications / experience")
+      rf("phone", "Phone"), rf("email", "Email"), rf("ownershipPercent", "Ownership / shareholding (%)", "%", "number"), rMoney("capitalContribution", "Capital contribution"), rf("qualificationExperience", "Qualifications / experience")
     ] },
     { key: "startupProjects", title: "Projects and implementation plans", description: "Add every project separately with cost, implementation time and projected financials.", addLabel: "Add another project", fields: [
       rf("projectName", "Project name"), rf("projectType", "Project type"), rMoney("projectCost", "Project cost"),
@@ -460,7 +460,7 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     { key: "equityFundingRounds", title: "Investment rounds and dilution history", description: "Record each round so before / after funding and dilution scenarios can be compared.", addLabel: "Add another funding round", fields: [
       rf("roundName", "Round name"), rf("investorName", "Investor"), rMoney("investmentAmount", "Investment amount"),
       rMoney("preMoneyValuation", "Pre-money valuation"), rMoney("postMoneyValuation", "Post-money valuation"),
-      rf("sharesIssued", "New shares issued", "Quantity", "number"), rf("roundDate", "Investment date", "", "date")
+      rf("sharesIssued", "New shares issued", "Quantity", "number"), rMoney("capitalContribution", "Capital contribution (LLP / partnership)"), rf("ownershipAfter", "Ownership / profit share after round (%)", "%", "number"), rf("roundDate", "Investment date", "", "date")
     ] },
     { key: "equityEsop", title: "ESOP grants and employee equity", description: "Track pool allocation, grants, exercises and available options.", addLabel: "Add another ESOP grant", fields: [
       rf("employeeName", "Employee name"), rf("optionsGranted", "Options granted", "Quantity", "number"), rf("optionsExercised", "Options exercised", "Quantity", "number"),
@@ -558,6 +558,12 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     ] }
   ],
   "Fund & Portfolio Management": [
+    { key: "fundPerformanceHistory", title: "Monthly / quarterly / annual NAV history", description: "Add dated valuation snapshots to calculate actual period-over-period returns. Do not enter projected values as actual NAV.", addLabel: "Add performance period", fields: [
+      rf("periodType", "Period type", "", "select", ["Monthly", "Quarterly", "Annual"]),
+      rf("periodEndDate", "Period end date", "", "date"), rMoney("nav", "NAV / portfolio value"),
+      rMoney("contributions", "Capital contributions in period"), rMoney("distributions", "Investor distributions in period"),
+      rMoney("realisedGains", "Realised gains"), rMoney("unrealisedGains", "Unrealised gains")
+    ] },
     { key: "fundInvestors", title: "Fund investors and commitments", description: "Maintain each investor's commitment, contribution, outstanding contribution and profit share.", addLabel: "Add another investor", fields: [
       rf("investorName", "Investor name"), rf("investorType", "Investor type"), rMoney("commitment", "Commitment"),
       rMoney("invested", "Amount invested"), rMoney("pendingContribution", "Pending contribution"), rf("profitSharePercent", "Profit sharing (%)", "%", "number")
@@ -1000,7 +1006,17 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const terminalDate = String(data.fundEndDate || data.reportingDate || "");
     const irrFlows = terminalValue !== null && terminalDate ? [...investorCashflows,{date:terminalDate,amount:terminalValue}] : investorCashflows;
     add("Investor cash-flow IRR (XIRR)", xirr(irrFlows), "percent");
-
+    const history = readRows(data.fundPerformanceHistory);
+    const periodReturn = (type:string):number|null => {
+      const snapshots = history.filter(row=>row.periodType===type && row.periodEndDate && parseNumber(row.nav)!==null)
+        .map(row=>({date:String(row.periodEndDate),nav:parseNumber(row.nav) as number}))
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      if(snapshots.length<2 || snapshots[snapshots.length-2].nav===0) return null;
+      return (snapshots[snapshots.length-1].nav-snapshots[snapshots.length-2].nav)/snapshots[snapshots.length-2].nav*100;
+    };
+    add("Latest monthly NAV return", periodReturn("Monthly"), "percent");
+    add("Latest quarterly NAV return", periodReturn("Quarterly"), "percent");
+    add("Latest annual NAV return", periodReturn("Annual"), "percent");
   }
   if (moduleName === "Investor Relations") {
     add("Previous investment total", sumRows(data.investorPastInvestments, "investmentAmount"));
