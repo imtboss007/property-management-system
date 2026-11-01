@@ -2899,7 +2899,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
       ? (!form.moduleData.equityLegalStructure ? selectedFields.filter(field=>field.key === "equityLegalStructure") : nonShareEquityStructure ? selectedFields.filter(field=>!new Set(["authorisedShareCapital","issuedShareCapital","subscribedShareCapital","paidUpShareCapital","faceValuePerShare","currentSharePrice","totalSharesBefore","newInvestorShares","fullyDilutedShares","esopPoolPercent","esopAllocatedPercent"]).has(field.key)) : selectedFields)
       : selectedFields;
   const displayedSelectedFields = form.moduleData.__transactionType==="Loan"
-    ? visibleSelectedFields.filter(field=>!["interestRate","annualInterestRate"].includes(field.key))
+    ? visibleSelectedFields.filter(field=>!["interestRate","annualInterestRate","loanAmount","facilityAmount","principal","originalPrincipal","requestedAmount"].includes(field.key))
     : visibleSelectedFields;
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
@@ -2916,6 +2916,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     if(normalizedModuleData.__transactionType==="Loan"){
       if(!normalizedModuleData.__loanDirection)invalidLabels.push("Loan direction (receivable / payable / arranging)");
       normalizedModuleData.__loanPrincipal=getLoanPrincipalValue(normalizedModuleData,form.value);
+      Object.assign(normalizedModuleData,updateLoanPrincipalFields(normalizedModuleData,normalizedModuleData.__loanPrincipal));
       normalizedModuleData.__loanInterestRate=normalizedModuleData.__loanInterestRate||normalizedModuleData.interestRate||normalizedModuleData.annualInterestRate||"";
       normalizedModuleData.__loanInterestMethod=normalizedModuleData.__loanInterestMethod||((normalizedModuleData.interestRate||normalizedModuleData.annualInterestRate)?"Percentage per year":"Percentage per month");
       const monthly=calculateMonthlyInterest(normalizedModuleData,parseDealNumber(form.value));
