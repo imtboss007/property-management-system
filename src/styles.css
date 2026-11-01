@@ -2278,11 +2278,11 @@ h2,h3{color:#e5f2fc}
 @media(max-width:720px){.ax-followup-register{padding:12px;border-radius:13px}.ax-followup-register__header h2{font-size:19px}.ax-followup-register__metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.ax-followup-register__metrics>div{padding:10px}.ax-followup-register__metrics strong{font-size:17px}.ax-followup-register__toolbar{grid-template-columns:1fr;padding:9px}.ax-followup-register__search{grid-column:auto}.ax-followup-register__contact-head{align-items:flex-start;flex-wrap:wrap}.ax-followup-register__contact-actions{width:100%;padding-left:49px}.ax-followup-register__contact-actions>*{flex:1}.ax-followup-register__result-line{align-items:flex-start;flex-direction:column}}
 
 @media print{
-  @page{size:A4 landscape;margin:8mm}
+  @page axFollowUpLandscape{size:A4 landscape;margin:8mm}
   html,body{background:#fff!important;color:#172b3b!important}
-  body *{visibility:hidden!important}
+  body.ax-print-followup-register *{visibility:hidden!important}
   .ax-followup-register,.ax-followup-register *{visibility:visible!important}
-  .ax-followup-register{position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;color:#172b3b!important;overflow:visible!important}
+  .ax-followup-register{page:axFollowUpLandscape;position:absolute!important;left:0!important;top:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;color:#172b3b!important;overflow:visible!important}
   .ax-followup-register__header{border-bottom:2px solid #17657b!important}
   .ax-followup-register__header h2,.ax-followup-register__contact-meta strong,.ax-followup-register__empty strong{color:#102f43!important}
   .ax-followup-register__header p,.ax-followup-register__header small,.ax-followup-register__contact-meta>span,.ax-followup-register__contact-meta small,.ax-followup-register__footnote,.ax-followup-register__result-line{color:#455b6b!important}
