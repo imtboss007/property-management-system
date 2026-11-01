@@ -626,11 +626,6 @@ export function RepeatableModuleEditor({ config, value, onChange }: {
   </section>;
 }
 
-function presentNumber(value: number | null, kind: "money" | "number" | "percent" = "money"): string {
-  if (value === null || !Number.isFinite(value)) return "N/A";
-  return kind === "money" ? fmt(value) : kind === "percent" ? value.toFixed(2) + "%" : value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
-}
-
 function principalFromEmi(emi: number, annualRate: number, months: number): number | null {
   if (![emi, annualRate, months].every(Number.isFinite) || emi < 0 || annualRate < 0 || months <= 0) return null;
   const monthlyRate = annualRate / 1200;
