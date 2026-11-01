@@ -1,4 +1,5 @@
 import { axivestraRepeatableGroups, buildModuleSummary } from "./axivestra-module-upgrades";
+import { calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, formatINR, getLoanPrincipalValue, parseDealNumber } from "./deal-structure";
 
 type RecordRow = {
   id:string; title:string; module:string; location:string; value:string; status:string;
@@ -35,6 +36,37 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
       ["Response description",record.nextResponseDescription],["Notes / evidence",record.notes],
       ["Created",record.createdAt?new Date(record.createdAt).toLocaleString("en-IN"):""]
     ];
+    const transaction=String(data.__transactionType||"");
+    if(transaction){
+      core.push(["Transaction structure",transaction],["Transaction conditions",data.__transactionTerms||""]);
+      if(transaction==="Loan"){
+        core.push(["Loan direction",data.__loanDirection||"Not selected"]);
+        core.push(["Loan principal",formatINR(parseDealNumber(getLoanPrincipalValue(data,record.value)))]);
+        core.push(["Interest method / rate",String(data.__loanInterestMethod||"Not set")+" · "+String(data.__loanInterestRate||"0")]);
+        core.push(["Expected monthly interest",formatINR(calculateMonthlyInterest(data,parseDealNumber(record.value)))]);
+        core.push(["Tenure / repayment",String(data.__loanTenureMonths||"Not set")+" months · "+String(data.__loanRepaymentMethod||"Not set")]);
+        core.push(["Interest start / maturity",[data.__loanInterestStartDate,data.__loanMaturityDate].filter(Boolean).join(" · ")]);
+      }else if(transaction==="Sale"){
+        core.push(["Sale format / stage",String(data.__saleFormat||"Not set")+" · "+String(data.__saleStage||"Not set")]);
+        core.push(["Final sale amount",formatINR(parseDealNumber(data.__saleFinalAmount||record.value))]);
+        core.push(["Sale balance",formatINR(calculateSaleBalance(data))]);
+      }else if(transaction==="Sharing"){
+        core.push(["Sharing model",data.__sharingModel||"Not set"]);
+        core.push(["Party split",String(data.__sharingFirstPercent||"—")+"% / "+String(data.__sharingSecondPercent||"—")+"%"]);
+        if(Number(data.__giftPercentage||0)>0)core.push(["Gift portion",String(data.__giftPercentage)+"% · "+formatINR(calculateGiftAmount(data,parseDealNumber(record.value)))]);
+        core.push(["Sharing terms",data.__sharingTerms||""]);
+      }else if(transaction==="Settlement"){
+        core.push(["Settlement model / stage",String(data.__settlementModel||"Not set")+" · "+String(data.__settlementStage||"Not set")]);
+        core.push(["Demanded / agreed amount",formatINR(parseDealNumber(data.__settlementDemandAmount))+" / "+formatINR(parseDealNumber(data.__settlementAgreedAmount))]);
+        core.push(["Paid / outstanding",formatINR(parseDealNumber(data.__settlementPaidAmount))+" / "+formatINR(calculateSettlementBalance(data))]);
+      }else if(transaction==="Gift"){
+        core.push(["Gift amount",formatINR(calculateGiftAmount(data,parseDealNumber(record.value)))],["Gift conditions",data.__giftTerms||""]);
+      }else if(transaction==="Purchase"){
+        core.push(["Purchase offer / final",formatINR(parseDealNumber(data.__purchaseOfferAmount))+" / "+formatINR(parseDealNumber(data.__purchaseFinalAmount))]);
+      }else if(transaction==="Lease"){
+        core.push(["Monthly rent / security deposit",formatINR(parseDealNumber(data.__leaseMonthlyRent))+" / "+formatINR(parseDealNumber(data.__leaseDeposit))]);
+      }
+    }
     const linkedIds=[record.followUpContactId||"",record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,val])=>key.startsWith("__contact_")&&Boolean(val)).map(([,val])=>String(val))].filter(Boolean);
     const linkedContacts=contacts.filter(contact=>linkedIds.includes(contact.id));
     if(!linkedContacts.length&&record.contact){const match=contacts.find(contact=>contact.name.trim().toLowerCase()===record.contact.trim().toLowerCase());if(match)linkedContacts.push(match);}
