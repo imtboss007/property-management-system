@@ -751,7 +751,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [undoHistory, setUndoHistory] = useState<UndoEntry[]>([]);
   const [undoHistoryLoaded, setUndoHistoryLoaded] = useState(false);
   const suppressAuditRef = useRef(false);
-  const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown }>> | null>(null);
+  const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown; source: unknown }>> | null>(null);
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
   const cloudSyncSequenceRef = useRef(0);
   const cloudSyncInFlightRef = useRef(false);
@@ -1227,17 +1227,28 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       Risk: riskRecords,
       Approval: approvalRequests
     };
-    const snapshot: Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown }>> = {};
+    const previous = auditSnapshot.current;
+    const snapshot: Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown; source: unknown }>> = {};
     for (const [entity, rawRecords] of Object.entries(collections)) {
       const records = rawRecords as Array<{ id: string; [key: string]: unknown }>;
-      snapshot[entity] = records.map(record => ({
-        id: String(record.id),
-        fingerprint: JSON.stringify(record),
-        label: String(record.title || record.name || record.type || record.module || record.id).slice(0, 160),
-        record: JSON.parse(JSON.stringify(record))
-      }));
+      const previousById = new Map((previous?.[entity] || []).map(record => [record.id, record]));
+      snapshot[entity] = records.map(record => {
+        const id=String(record.id);
+        const prior=previousById.get(id);
+        // All workspace edits replace changed rows immutably. Reuse the previous
+        // snapshot for untouched rows so a single edit does not deep-serialize
+        // every contact, property, task and financial record again.
+        if(prior&&prior.source===record)return prior;
+        const fingerprint=JSON.stringify(record);
+        return {
+          id,
+          fingerprint,
+          label: String(record.title || record.name || record.type || record.module || record.id).slice(0,160),
+          record: JSON.parse(fingerprint),
+          source: record
+        };
+      });
     }
-    const previous = auditSnapshot.current;
     auditSnapshot.current = snapshot;
     if (!previous) return;
     if (suppressAuditRef.current) { suppressAuditRef.current = false; return; }
