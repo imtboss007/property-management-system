@@ -15,7 +15,7 @@ const escapeHtml=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"
 const labelFor=(key:string)=>key.replace(/^__/,"").replace(/([A-Z])/g," $1").replace(/[_-]+/g," ").replace(/^./,value=>value.toUpperCase());
 const valueText=(value:unknown)=>{if(value===null||value===undefined||value==="")return "Not entered";if(typeof value==="string"){try{const parsed=JSON.parse(value);return typeof parsed==="object"?JSON.stringify(parsed,null,2):value;}catch{return value;}}return typeof value==="object"?JSON.stringify(value,null,2):String(value);};
 const dateTime=(date?:string,time?:string)=>date?[date,time].filter(Boolean).join(" · "):"Not scheduled";
-const row=(label:string,value:unknown)=>"<tr><th>"+escapeHtml(label)+"</th><td>"+escapeHtml(valueText(value))+"</td></tr>";
+const row=(label:unknown,value:unknown)=>"<tr><th>"+escapeHtml(label)+"</th><td>"+escapeHtml(valueText(value))+"</td></tr>";
 
 export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],fieldsByModule:Record<string,Field[]>,contacts:ContactRow[]):string{
   const recordSections=records.map((record,index)=>{
