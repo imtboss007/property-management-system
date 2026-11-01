@@ -18,6 +18,8 @@ for (const token of [
   "customModules: customModules as WorkspaceCollections[\"customModules\"]",
   "custom_module: new Set(customModules.map(record => record.id))",
   "setCustomModules(current => [...current, definition])",
+  "Personalise dashboard",
+  "saveLocal(\"estateflow.dashboardLayout\", dashboardLayout)",
   "dynamicModuleFields[active]",
   "availableModules={modules}",
   "moduleStatuses={dynamicModuleStatuses}",
