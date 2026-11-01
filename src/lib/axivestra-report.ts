@@ -18,7 +18,7 @@ const valueText=(value:unknown)=>{if(value===null||value===undefined||value===""
 const dateTime=(date?:string,time?:string)=>date?[date,time].filter(Boolean).join(" · "):"Not scheduled";
 const row=(label:unknown,value:unknown)=>"<tr><th>"+escapeHtml(label)+"</th><td>"+escapeHtml(valueText(value))+"</td></tr>";
 
-export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],fieldsByModule:Record<string,Field[]>,contacts:ContactRow[],groups:GroupRow[]=[]):string{
+export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],fieldsByModule:Record<string,Field[]>,contacts:ContactRow[],savedGroups:GroupRow[]=[]):string{
   const recordSections=records.map((record,index)=>{
     const data=record.moduleData||{};
     const fields=fieldsByModule[record.module]||[];
@@ -39,7 +39,7 @@ export function buildAxivestraReportHtml(moduleName:string,records:RecordRow[],f
     if(!linkedContacts.length&&record.contact){const match=contacts.find(contact=>contact.name.trim().toLowerCase()===record.contact.trim().toLowerCase());if(match)linkedContacts.push(match);}
     if(linkedContacts.length)core.push(["Linked contacts",linkedContacts.map(contact=>[contact.name,contact.role||(contact.roles||[]).join(", "),contact.phone,contact.email].filter(Boolean).join(" · ")).join(" | ")]);
     const linkedGroupIds=(data.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean);
-    const linkedGroups=groups.filter(group=>linkedGroupIds.includes(group.id));
+    const linkedGroups=savedGroups.filter(group=>linkedGroupIds.includes(group.id));
     if(linkedGroups.length)core.push(["Linked WhatsApp groups",linkedGroups.map(group=>[group.name,group.size?group.size+" members":"",group.jid].filter(Boolean).join(" · ")).join(" | ")]);
     const moduleRows=fields.map(field=>{
       const raw=data[field.key]||"";
