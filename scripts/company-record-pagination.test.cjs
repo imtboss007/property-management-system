@@ -66,8 +66,9 @@ function makeClient(rows, options = {}) {
     ["record_type", true], ["record_key", true],
     ["record_type", true], ["record_key", true]
   ], "every page must use stable ordering");
-  assert.deepEqual(fixture.filters, [["company_id", "company-abc"]],
-    "every page must remain scoped to the requested company");
+  assert.deepEqual(fixture.filters, [
+    ["company_id", "company-abc"], ["company_id", "company-abc"], ["company_id", "company-abc"]
+  ], "every page must remain scoped to the requested company");
 
   const shortPage = makeClient(rows.slice(0, 7));
   const shortResult = await fetchAllCompanyRecords(shortPage.client, "small-company");
