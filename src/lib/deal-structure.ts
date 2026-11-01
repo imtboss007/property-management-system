@@ -86,6 +86,31 @@ export function calculateMonthlyInterest(data: Record<string, string> | undefine
   return Math.max(0, principal * rate / 100);
 }
 
+export function getTransactionAmount(data: Record<string,string> | undefined, fallback = ""): string {
+  const fields=data||{};
+  switch(fields.__transactionType){
+    case "Loan": return getLoanPrincipalValue(fields,fallback);
+    case "Sale": return String(fields.__saleFinalAmount||fallback);
+    case "Settlement": return String(fields.__settlementAgreedAmount||fallback);
+    case "Purchase": return String(fields.__purchaseFinalAmount||fallback);
+    case "Lease": return String(fields.__leaseMonthlyRent||fallback);
+    case "Gift": return fields.__giftAmountMode==="Fixed amount" ? String(fields.__giftFixedAmount||fallback) : String(fields.__giftCalculatedAmount||fallback);
+    default: return String(fallback||"");
+  }
+}
+export function updateTransactionAmountFields(data: Record<string,string> | undefined, amount: string): Record<string,string> {
+  const fields={...(data||{})};
+  switch(fields.__transactionType){
+    case "Loan": return updateLoanPrincipalFields(fields,amount);
+    case "Sale": fields.__saleFinalAmount=amount; break;
+    case "Settlement": fields.__settlementAgreedAmount=amount; break;
+    case "Purchase": fields.__purchaseFinalAmount=amount; break;
+    case "Lease": fields.__leaseMonthlyRent=amount; break;
+    case "Gift": if(fields.__giftAmountMode==="Fixed amount")fields.__giftFixedAmount=amount; break;
+  }
+  return fields;
+}
+
 export function calculateGiftAmount(data: Record<string, string> | undefined, basisAmount = 0): number {
   const fields = data || {};
   const basis = parseDealNumber(basisAmount);
