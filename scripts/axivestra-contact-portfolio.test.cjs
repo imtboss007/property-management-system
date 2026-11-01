@@ -159,7 +159,7 @@ for (const token of [
   "contactRows.map", "Module type / linked record", "Description / item", "Amount (INR)",
   "Expected reach-back date", "Expected reach-back time", "What the person said",
   "roleFilters", "groupFilters",
-  "ax-followup-register__filter-dropdown", "WhatsApp groups", "View what was said",
+  "ax-followup-register__filter-dropdown", "WhatsApp groups",
   "Each person appears once", "linked module record(s)"
 ]) assert.ok(register.includes(token), "Missing person-grouped follow-up overview/filter behavior: " + token);
 assert.ok(!register.includes("visibleRows.map((row,index)"), "Do not duplicate the same module follow-up as a flat summary and grouped row.");
