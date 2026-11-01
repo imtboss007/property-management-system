@@ -38,7 +38,8 @@ type PropertyRecord = {
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
-type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string; whatsappGroupIds?: string[] };
+type ContactFollowUp = { id:string; person:string; role:string; linkedRecordId:string; description:string; amount:string; promisedDate:string; promisedTime:string; responseType:string; status:string; notes:string; isPrimary:boolean; createdAt:string; updatedAt:string };
+type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string; whatsappGroupIds?: string[]; followUps?: ContactFollowUp[] };
 type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
 type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
@@ -1782,6 +1783,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     setProperties(prev => editingProperty
       ? prev.map(item => item.id === record.id ? record : item)
       : [record, ...prev]);
+    syncPrimaryFollowUpsFromRecord(record);
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
       value: record.value.trim() ? Number(record.value) : null, status: record.status,
@@ -1812,6 +1814,33 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     const uniqueIds=Array.from(new Set(groupIds.filter(Boolean)));
     setContacts(current=>current.map(contact=>contact.id===contactId?{...contact,whatsappGroupIds:uniqueIds}:contact));
     setNotice("WhatsApp group links updated for this contact.");
+  };
+  const updateContactFollowUps = (contactId:string, followUps:ContactFollowUp[]) => {
+    if(company?.role==="read_only"){setNotice("This account has read-only company access.");return;}
+    const normalized=followUps.map(row=>({...row,amount:String(row.amount??""),updatedAt:row.updatedAt||new Date().toISOString()}));
+    const primaryByRecord=new Map<string,ContactFollowUp>();
+    normalized.forEach(row=>{if(row.isPrimary&&row.linkedRecordId)primaryByRecord.set(row.linkedRecordId,row);});
+    setContacts(current=>current.map(contact=>contact.id===contactId?{...contact,followUps:normalized}:contact));
+    setProperties(current=>current.map(record=>{
+      const primary=primaryByRecord.get(record.id);
+      return primary?{...record,value:primary.amount.trim()||record.value,nextResponseDate:primary.promisedDate,nextResponseTime:primary.promisedTime,nextResponseType:primary.responseType,nextResponseDescription:primary.description,nextAction:primary.notes}:record;
+    }));
+    setNotice("Contact follow-up register saved. Primary linked commitments are synchronized with their module records.");
+  };
+  const syncPrimaryFollowUpsFromRecord = (record:PropertyRecord) => {
+    const stamp=new Date().toISOString();
+    setContacts(current=>current.map(contact=>{
+      if(!(contact.followUps||[]).some(row=>row.isPrimary&&row.linkedRecordId===record.id))return contact;
+      return {...contact,followUps:(contact.followUps||[]).map(row=>row.isPrimary&&row.linkedRecordId===record.id?{
+        ...row,amount:record.value,description:record.nextResponseDescription||"",promisedDate:record.nextResponseDate||"",
+        promisedTime:record.nextResponseTime||"",responseType:record.nextResponseType||"Call",notes:record.nextAction||"",updatedAt:stamp
+      }:row)};
+    }));
+  };
+  const updateContactRecordSchedule = (recordId:string, patch:Pick<PropertyRecord,"nextResponseDate"|"nextResponseTime"|"nextResponseType"|"nextResponseDescription"|"nextFollowUpDate"|"nextFollowUpTime"|"nextAction">) => {
+    const existing=properties.find(record=>record.id===recordId);
+    if(existing)syncPrimaryFollowUpsFromRecord({...existing,...patch});
+    setProperties(current=>current.map(record=>record.id===recordId?{...record,...patch}:record));
   };
   const logContactInteraction = (contactId:string, activityType:string, title:string, description:string, at:string, relatedRecordId?:string) => {
     if(company?.role==="read_only"){setNotice("This account has read-only company access.");return;}
@@ -2443,7 +2472,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               <button type="button" className={"ax-contact360-person"+(contactProfileId===contact.id?" active":"")} key={contact.id} onClick={()=>setContactProfileId(contact.id)}><span className="ax-contact360-person__avatar">{contact.name.split(/\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{contact.name}</strong><small>{contact.role||"Contact"}{contact.phone?" · "+contact.phone:""}</small><em>{linkedCount} linked record(s) · {(contact.whatsappGroupIds||[]).length} direct group(s)</em></span><ArrowUpRight size={15}/></button>
             )}{contacts.length===0&&<Empty icon={<Users size={22}/>} title="No contacts have been created" text="Create contacts first, then connect them to properties, deals and WhatsApp groups." action="Create contact" onClick={()=>openContactForm()}/>}</div>
             {contactProfileId&&contacts.some(item=>item.id===contactProfileId)
-              ? <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} auditEvents={auditEvents} fieldsByModule={dynamicModuleFields} savedGroups={savedWhatsAppGroups} onUpdateWhatsAppGroups={updateContactWhatsAppGroups} onLogInteraction={logContactInteraction} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={(recordId,patch)=>setProperties(current=>current.map(item=>item.id===recordId?{...item,...patch}:item))}/>
+              ? <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} auditEvents={auditEvents} fieldsByModule={dynamicModuleFields} savedGroups={savedWhatsAppGroups} onUpdateWhatsAppGroups={updateContactWhatsAppGroups} onLogInteraction={logContactInteraction} onUpdateFollowUps={updateContactFollowUps} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={updateContactRecordSchedule}/>
               : <div className="ax-contact360-empty"><Users size={26}/><strong>Select a contact to open their full relationship workspace</strong><p>Contact 360 is now a standalone module. Contact records remain in Contacts; this page brings their connected activity together.</p></div>}
           </section>}
           {active === "Client & Deal Hub" && <RelationshipHub

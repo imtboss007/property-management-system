@@ -79,3 +79,21 @@ assert.ok(app.includes("previousById.get(id)"), "Audit snapshot should reuse unc
 assert.ok(app.includes("prior.source===record"), "Audit snapshot should skip deep serialization for unchanged rows.");
 assert.ok(app.includes("source: record"), "Audit snapshot should track immutable source row identity.");
 console.log("AXIVESTRA Contact 360 timeline, interactions, group linking, faster search and PDF export contracts passed.");
+
+for (const token of [
+  "type ContactFollowUp", "Contact follow-up register", "Add follow-up line",
+  "Linked workstream", "Expected reach-back date", "Follow-up description",
+  "Follow-up amount", "Primary", "onUpdateFollowUps", "saveFollowUp",
+  "chooseFollowUpRecord", "isPrimary"
+]) assert.ok(contact.includes(token), "Missing editable Contact 360 follow-up register: " + token);
+
+for (const token of [
+  "type ContactFollowUp", "followUps?: ContactFollowUp[]", "updateContactFollowUps",
+  "syncPrimaryFollowUpsFromRecord", "updateContactRecordSchedule", "primaryByRecord"
+]) assert.ok(app.includes(token), "Missing Contact 360 / linked module synchronization: " + token);
+
+for (const token of [
+  "visibility:visible;opacity:1", "contentHeight", "await worker.toCanvas()",
+  "getImageData", "averageLuminance", "blank or black page"
+]) assert.ok(pdf.includes(token), "Missing nonblank PDF rendering safeguard: " + token);
+console.log("AXIVESTRA editable multi-person Contact 360 follow-up register and bidirectional linked-record sync contracts passed.");
