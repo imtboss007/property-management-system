@@ -2624,6 +2624,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             readOnly={company?.role==="read_only"}
             onUpdateFollowUps={updateContactFollowUps}
             onOpenContact360={id=>{setContactProfileId(id);go("Contact 360");}}
+            onAddModule={contactId=>{go("All Properties");openPropertyForm(null,{contactId});}}
             onEditRecord={record=>{go(record.module);openPropertyForm(record as PropertyRecord);}}
             onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)}
             onExportPdf={()=>void downloadFollowUpRegisterPdf()}
