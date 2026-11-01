@@ -2421,7 +2421,8 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
   const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost","caseNumber","court","parties","counsel","caseType","claimExposure"]);
-  const nonShareEquityStructure = ["LLP","Partnership","Proprietorship"].includes(form.moduleData.equityLegalStructure || "");
+  const hasEquityStructure = Boolean(form.moduleData.equityLegalStructure);
+  const nonShareEquityStructure = hasEquityStructure && !["Private Limited","Public Limited"].includes(form.moduleData.equityLegalStructure || "");
   const visibleSelectedFields = form.module === "Litigation"
     ? (form.moduleData.courtCaseAvailable === "Yes" ? selectedFields : form.moduleData.courtCaseAvailable === "No" ? selectedFields.filter(field=>!courtOnlyFieldKeys.has(field.key)) : selectedFields.filter(field=>field.key === "courtCaseAvailable"))
     : form.module === "Equity"
@@ -2471,11 +2472,17 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     </div>}
     {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{field.type==="select" ? <select value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))}><option value="">{field.placeholder || "Select"}</option>{(field.options ?? []).map(option=><option key={option}>{option}</option>)}</select> : field.type==="textarea" ? <textarea rows={3} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/> : field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {(axivestraRepeatableGroups[form.module] ?? []).map(config=>{
+      if(form.module === "Equity" && !hasEquityStructure) return null;
+      if(form.module === "Equity" && nonShareEquityStructure && config.key === "equityEsop") return null;
       const editorConfig = form.module === "Equity" && config.key === "equityShareholders" && nonShareEquityStructure
         ? {...config,fields:config.fields.filter(field=>!new Set(["shareClass","shares","faceValue","sharePrice"]).has(field.key))}
-        : form.module === "Equity" && config.key === "equityShareholders" && !nonShareEquityStructure
+        : form.module === "Equity" && config.key === "equityShareholders"
           ? {...config,fields:config.fields.filter(field=>field.key!=="capitalContribution")}
-          : config;
+          : form.module === "Equity" && config.key === "equityFundingRounds" && nonShareEquityStructure
+            ? {...config,fields:config.fields.filter(field=>field.key!=="sharesIssued")}
+            : form.module === "Equity" && config.key === "equityFundingRounds"
+              ? {...config,fields:config.fields.filter(field=>field.key!=="capitalContribution" && field.key!=="ownershipAfter")}
+              : config;
       return <RepeatableModuleEditor key={config.key} config={editorConfig} value={form.moduleData[config.key] ?? "[]"} onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[config.key]:value}}))}/>;
     })}
     {form.module==="Litigation" && form.moduleData.courtCaseAvailable==="No" && <p className="form-help">Non-litigation settlement workflow selected. Court filing, hearing and court-cost fields are hidden; party-wise settlement details remain available.</p>}
