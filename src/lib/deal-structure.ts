@@ -115,7 +115,7 @@ export function updateTransactionAmountFields(data: Record<string,string> | unde
 export function calculateGiftAmount(data: Record<string, string> | undefined, basisAmount = 0): number {
   const fields = data || {};
   const basis = parseDealNumber(basisAmount);
-  const mode = fields.__giftAmountMode || "Percentage";
+  const mode = fields.__transactionType === "Sharing" ? "Percentage" : (fields.__giftAmountMode || "Percentage");
   if (mode === "Fixed amount") return Math.max(0, parseDealNumber(fields.__giftFixedAmount));
   return Math.max(0, basis * parseDealNumber(fields.__giftPercentage || "10") / 100);
 }
