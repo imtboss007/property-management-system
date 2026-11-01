@@ -57,10 +57,18 @@ export default function WorkspaceCommandCenter(props: Props) {
     const horizon = new Date(today);
     horizon.setDate(horizon.getDate() + 7);
     const horizonKey = new Date(horizon.getTime() - horizon.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    return props.tasks.filter(task => !task.done && task.date && task.date <= horizonKey)
-      .sort((a, b) => `${a.date}T${a.time || "00:00"}`.localeCompare(`${b.date}T${b.time || "00:00"}`))
-      .map(task => ({ task, overdue: task.date < todayKey, today: task.date === todayKey }));
-  }, [props.tasks]);
+    const candidates: Array<{ id: string; title: string; date: string; time?: string; kind: SearchKind; record: any; category: string }> = [];
+    props.tasks.filter(task => !task.done && task.date).forEach(task => candidates.push({ id: "task:" + task.id, title: task.title || "Untitled task", date: task.date, time: task.time, kind: "task", record: task, category: "Task" }));
+    props.properties.forEach(property => {
+      if (property.nextFollowUpDate) candidates.push({ id: "followup:" + property.id, title: property.title || "Property follow-up", date: property.nextFollowUpDate, kind: "property", record: property, category: "Follow-up" });
+      if (property.targetDeadline) candidates.push({ id: "deadline:" + property.id, title: property.title || "Property deadline", date: property.targetDeadline, kind: "property", record: property, category: "Deadline" });
+    });
+    props.documents.filter(document => document.expiresOn).forEach(document => candidates.push({ id: "document:" + document.id, title: document.name || "Document expiry", date: document.expiresOn, kind: "document", record: document, category: "Document expiry" }));
+    props.risks.filter(risk => risk.dueDate && risk.status !== "Closed").forEach(risk => candidates.push({ id: "risk:" + risk.id, title: risk.title || "Risk review", date: risk.dueDate, kind: "risk", record: risk, category: "Risk review" }));
+    return candidates.filter(item => item.date <= horizonKey)
+      .sort((a, b) => (a.date + "T" + (a.time || "00:00")).localeCompare(b.date + "T" + (b.time || "00:00")))
+      .map(item => ({ ...item, overdue: item.date < todayKey, today: item.date === todayKey }));
+  }, [props.tasks, props.properties, props.documents, props.risks]);
   const reminderCount = reminders.length;
   const dismissOnboarding = () => {
     setOnboardingOpen(false);
@@ -103,8 +111,8 @@ export default function WorkspaceCommandCenter(props: Props) {
         <button type="button" className="icon-button ax-notification-button" aria-label={`Notifications: ${reminderCount} upcoming or overdue tasks`} onClick={() => { setNotificationsOpen(value => !value); setQuickOpen(false); }} aria-expanded={notificationsOpen}><Bell size={19}/>{reminderCount > 0 && <i className="ax-notification-count">{reminderCount > 99 ? "99+" : reminderCount}</i>}</button>
         {notificationsOpen && <div className="ax-command-dropdown ax-reminder-menu">
           <div className="ax-command-heading"><div><strong>Reminders</strong><small>Overdue and next 7 days</small></div><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close reminders"><X size={14}/></button></div>
-          {reminders.length ? reminders.map(({task, overdue, today}) => <button type="button" className="ax-reminder-item" key={task.id} onClick={() => { props.onOpenResult("task", task); setNotificationsOpen(false); }}>
-            <span className={`ax-reminder-dot ${overdue ? "is-overdue" : today ? "is-today" : ""}`}/><span><strong>{task.title || "Untitled task"}</strong><small>{overdue ? "Overdue" : today ? "Due today" : "Upcoming"} · {task.date}{task.time ? " · " + task.time : ""}</small></span>
+          {reminders.length ? reminders.map(({task, overdue, today}) => <button type="button" className="ax-reminder-item" key={task.id} onClick={() => { props.onOpenResult(task.kind, task.record); setNotificationsOpen(false); }}>
+            <span className={`ax-reminder-dot ${overdue ? "is-overdue" : today ? "is-today" : ""}`}/><span><strong>{task.title}</strong><small>{task.category} · {overdue ? "Overdue" : today ? "Due today" : "Upcoming"} · {task.date}{task.time ? " · " + task.time : ""}</small></span>
           </button>) : <div className="ax-command-empty">No overdue or upcoming reminders in the next seven days.</div>}
           <button type="button" className="ax-command-footer" onClick={() => { setNotificationsOpen(false); props.onOpenHistory(); }}>Open activity history <History size={14}/></button>
         </div>}
