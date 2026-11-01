@@ -107,7 +107,7 @@ export function updateTransactionAmountFields(data: Record<string,string> | unde
     case "Settlement": fields.__settlementAgreedAmount=amount; break;
     case "Purchase": fields.__purchaseFinalAmount=amount; break;
     case "Lease": fields.__leaseMonthlyRent=amount; break;
-    case "Gift": if(fields.__giftAmountMode==="Fixed amount")fields.__giftFixedAmount=amount; break;
+    case "Gift": fields.__giftAmountMode="Fixed amount"; fields.__giftFixedAmount=amount; fields.__giftCalculatedAmount=amount; break;
   }
   return fields;
 }
