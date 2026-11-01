@@ -200,3 +200,15 @@ for (const token of [
   "__giftPercentage", "__transactionType"
 ]) assert.ok(app.includes(token), "Missing persistent shared deal field: " + token);
 console.log("AXIVESTRA Follow-up Register monthly loan interest totals, transaction search and deal amount linkage passed.");
+
+for (const token of [
+  "ax-followup-register__board", "ax-followup-register__cards",
+  "ax-followup-register__card-fields", "ax-followup-register__field--wide",
+  "ax-followup-register__card-actions", "Expected reach-back date",
+  "Expected reach-back time", "Follow-up description", "onAddModule",
+  "Add module record", "props.onAddModule(contactId)"
+]) assert.ok(register.includes(token), "Missing column-based Follow-up Register / direct module creation: " + token);
+assert.ok(app.includes('onAddModule={contactId=>{go("All Properties");openPropertyForm(null,{contactId});}}'),
+  "Adding a module from a person column must prefill that follow-up person.");
+console.log("AXIVESTRA person-column follow-up board, editable follow-up cards and direct module creation contracts passed.");
+
