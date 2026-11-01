@@ -1,6 +1,6 @@
 import { Fragment, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ClipboardList, Download, ExternalLink, FileText, MessageCircle, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
-import { calculateMonthlyInterest, formatINR, parseDealNumber, dealTransactionTypes, loanDirections } from "./lib/deal-structure";
+import { calculateMonthlyInterest, formatINR, parseDealNumber, dealTransactionTypes, loanDirections, getTransactionAmount } from "./lib/deal-structure";
 
 export type FollowUpRegisterItem = {
   id: string;
@@ -269,7 +269,7 @@ export default function FollowUpRegisterPanel(props: Props) {
         const item=row.item, record=row.record;
         const party=record?.title||row.contact.name;
         const action=item.description||record?.nextResponseDescription||record?.nextAction||"Follow-up commitment";
-        const amount=item.amount||record?.value||"—";
+        const amount=getTransactionAmount(record?.moduleData,item.amount||record?.value||"—")||"—";
         const nextDate=item.promisedDate||record?.nextFollowUpDate||record?.nextResponseDate||"Date not set";
         const nextTime=item.promisedTime||record?.nextFollowUpTime||record?.nextResponseTime||"";
         const said=item.notes||record?.notes||"No additional statement recorded";
@@ -277,7 +277,7 @@ export default function FollowUpRegisterPanel(props: Props) {
         return <Fragment key={row.key}>
           <tr className="ax-followup-register__summary-row">
             <td>{index+1}</td><td><strong>{party}</strong><small>{row.contact.name} · {item.role||row.contact.role||"Role not set"}</small></td>
-            <td><textarea className="ax-followup-register__overview-input" aria-label="Action description" rows={2} disabled={props.readOnly} value={item.description} onChange={event=>patch(row.key,"description",event.target.value)} onBlur={()=>save(row.key)} placeholder={action}/><small>{sourceModules.length?sourceModules.join(" · "):"Contact-level"}{record?" · "+record.title:""}</small></td>
+            <td><textarea className="ax-followup-register__overview-input" aria-label="Action description" rows={2} disabled={props.readOnly} value={item.description} onChange={event=>patch(row.key,"description",event.target.value)} onBlur={()=>save(row.key)} placeholder={action}/><small>{row.transactionType} · {sourceModules.length?sourceModules.join(" · "):"Contact-level"}{record?" · "+record.title:""}</small></td>
             <td><input className="ax-followup-register__overview-input ax-followup-register__overview-amount" aria-label="Final amount / terms amount" type="number" min="0" step="any" disabled={props.readOnly} value={item.amount} onChange={event=>patch(row.key,"amount",event.target.value)} onBlur={()=>save(row.key)} placeholder={record?.value||"Final amount"}/>{record?.moduleData?.terms&&<small>{record.moduleData.terms}</small>}{row.transactionType==="Loan"&&<small className="ax-followup-register__monthly-interest">{formatINR(row.monthlyInterest)} / month {row.loanDirection===loanDirections[0]?"receivable":row.loanDirection===loanDirections[1]?"payable":"estimated"}</small>}</td>
             <td><select className="ax-followup-register__overview-input ax-followup-register__overview-status" aria-label="Follow-up status" disabled={props.readOnly} value={item.status} onChange={event=>patch(row.key,"status",event.target.value)} onBlur={()=>save(row.key)}>{statuses.map(value=><option key={value}>{value}</option>)}</select><small>Next update</small><div className="ax-followup-register__overview-datetime"><input className="ax-followup-register__overview-input" aria-label="Next follow-up date" type="date" disabled={props.readOnly} value={item.promisedDate} onChange={event=>patch(row.key,"promisedDate",event.target.value)} onBlur={()=>save(row.key)}/><input className="ax-followup-register__overview-input" aria-label="Next follow-up time" type="time" disabled={props.readOnly} value={item.promisedTime} onChange={event=>patch(row.key,"promisedTime",event.target.value)} onBlur={()=>save(row.key)}/></div>
           </tr>
