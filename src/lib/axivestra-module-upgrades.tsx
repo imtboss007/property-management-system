@@ -197,6 +197,9 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     money("monthlyBankDebits", "Monthly bank debits (₹)"),
     number("chequeBouncesLast3Years", "Cheque bounces — last 3 years"),
     number("emiBouncesLast3Years", "EMI bounces — last 3 years"),
+    text("primaryBankName", "Primary bank name"),
+    text("bankAccountType", "Bank account type"),
+    text("bankStatementAvailability", "Bank statement availability / period", "Last 6 months / pending / N/A"),
     money("expectedUnsecuredLoan", "Expected unsecured loan amount (₹)"),
     text("loanPurpose", "Loan purpose", "Working capital / expansion / machinery / other"),
     number("preferredTenureMonths", "Preferred loan tenure (months)"),
@@ -457,6 +460,10 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     { key: "companyFinancialYears", title: "Last three financial years — turnover and P&L", description: "Enter each financial year separately. Leave values blank / NIL where not available.", addLabel: "Add financial year", fields: [
       rf("financialYear", "Financial year", "FY 2023–24"), rMoney("turnover", "Turnover"), rMoney("grossProfit", "Gross profit"),
       rMoney("ebitda", "EBITDA"), rMoney("netProfit", "Net profit"), rMoney("netLoss", "Net loss")
+    ] },
+    { key: "companyBounceHistory", title: "Year-wise cheque and EMI bounce history", description: "Keep current overdue amounts separate from historical bounce counts and amounts.", addLabel: "Add bounce-history year", fields: [
+      rf("financialYear", "Financial year"), rf("chequeBounceCount", "Cheque bounce count", "Count", "number"), rMoney("chequeBounceAmount", "Cheque bounce amount"),
+      rf("emiBounceCount", "EMI bounce count", "Count", "number"), rMoney("emiBounceAmount", "EMI bounce amount")
     ] },
     { key: "companyExistingLoans", title: "Existing loans and liabilities", description: "Add each bank / NBFC / lender facility separately, including EMI and overdue position.", addLabel: "Add another loan", fields: [
       rf("lender", "Bank / NBFC / lender"), rf("loanType", "Loan type"), rMoney("originalAmount", "Original loan amount"),
