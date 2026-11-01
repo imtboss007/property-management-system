@@ -66,10 +66,6 @@ const createFollowUp = (contact: ContactRow): FollowUpRegisterItem => {
     createdAt: now, updatedAt: now
   };
 };
-const formatDate = (date: string, time: string) => {
-  if (!date) return "Not scheduled";
-  const parsed = new Date(date + "T" + (time || "00:00"));
-  return Number.isNaN(parsed.getTime()) ? [date,time].filter(Boolean).join(" · ") :
     parsed.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:time?"short":undefined});
 };
 
