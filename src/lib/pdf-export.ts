@@ -10,7 +10,7 @@ const safeFilename = (value: string) => value.normalize("NFKD")
 export async function exportHtmlReportAsPdf(html: string, title: string): Promise<PdfExportResult> {
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const reportBody = parsed.body;
-  const reportText = reportBody?.textContent?.replace(/\\s+/g, " ").trim() || "";
+  const reportText = reportBody?.textContent?.replace(/\s+/g, " ").trim() || "";
   if (!reportBody || reportText.length < 20) throw new Error("The report has no visible record content to export.");
   const wrapper = document.createElement("div");
   wrapper.className = "ax-pdf-export-root";
