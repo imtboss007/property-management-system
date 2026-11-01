@@ -24,7 +24,7 @@ import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCente
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
-import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber } from "./lib/deal-structure";
+import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber, getLoanPrincipalValue, getTransactionAmount, updateTransactionAmountFields } from "./lib/deal-structure";
 import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEditor, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
@@ -841,7 +841,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         const row:ContactFollowUp={
           id:rowId,person:contact.name,role:contact.role||contact.roles?.[0]||"Client",linkedRecordId:record.id,
           description:record.nextResponseDescription||record.nextAction||existing?.description||("Follow-up regarding "+record.title),
-          amount:String(record.value||""),promisedDate:record.nextResponseDate||record.nextFollowUpDate||"",
+          amount:String(getTransactionAmount(record.moduleData,record.value)||""),promisedDate:record.nextResponseDate||record.nextFollowUpDate||"",
           promisedTime:record.nextResponseTime||record.nextFollowUpTime||"",responseType:record.nextResponseType||existing?.responseType||"Call",
           status:record.moduleData?.__followUpStatus||existing?.status||"Awaiting response",
           notes:record.moduleData?.__followUpNotes??record.nextAction??existing?.notes??"",
@@ -1898,7 +1898,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           id:rowId,person:owner.name,role:owner.role||owner.roles?.[0]||"Client",
           linkedRecordId:record.id,
           description:record.nextResponseDescription||record.nextAction||existing?.description||("Follow-up regarding "+record.title),
-          amount:String(record.value||""),
+          amount:String(getTransactionAmount(record.moduleData,record.value)||""),
           promisedDate:record.nextResponseDate||record.nextFollowUpDate||"",
           promisedTime:record.nextResponseTime||record.nextFollowUpTime||"",
           responseType:record.nextResponseType||record.moduleData?.__followUpChannel||existing?.responseType||"Call",
@@ -1935,7 +1935,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         nextResponseDescription:primary.description,
         nextAction:primary.notes,
         moduleData:{
-          ...(unassigned.moduleData||{}),
+          ...updateTransactionAmountFields(unassigned.moduleData,primary.amount.trim()),
           __followUpStatus:primary.status||"Awaiting response",
           __followUpChannel:primary.responseType||"Call",
           __followUpNotes:primary.notes||"",
