@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import {
-  Activity, ArrowDownRight, ArrowUpRight, CalendarClock, CheckCircle2,
-  CircleAlert, ClipboardList, Coins, MessageCircle, Search, Sparkles,
-  Users, Wallet, X
+  Activity, ArrowUpRight, CalendarClock, CheckCircle2,
+  CircleAlert, ClipboardList, MessageCircle, Search, Sparkles,
+  Users, X
 } from "lucide-react";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 import { extractWhatsAppCommitment } from "./lib/whatsapp-message-intelligence.mjs";
@@ -54,16 +54,16 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
     const loans=properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan");
     const items=loans.map(record=>({record,interest:calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value))}));
     const total=items.reduce((sum,item)=>sum+item.interest,0);
-    return {summary:`I found ${loans.length} loan record(s). Their saved terms indicate ${localMoney(total)} total monthly interest. This is a calculation from the values saved in AXIVESTRA, not a bank-confirmed balance.`,entries:items.slice(0,8).map(({record,interest})=>({title:record.title||record.module,detail:record.module+\" · \"+(record.moduleData?.__loanDirection||\"Loan direction not set\"),value:localMoney(interest)+\" / month\",module:record.module})) ,empty:"No loan records are saved yet."};
+    return {summary:`I found ${loans.length} loan record(s). Their saved terms indicate ${localMoney(total)} total monthly interest. This is a calculation from the values saved in AXIVESTRA, not a bank-confirmed balance.`,entries:items.slice(0,8).map(({record,interest})=>({title:record.title||record.module,detail:record.module+" · "+(record.moduleData?.__loanDirection||"Loan direction not set"),value:localMoney(interest)+" / month",module:record.module})) ,empty:"No loan records are saved yet."};
   }
   if(/\b(overdue|follow.?up|commitment|pending response|reach.?back)\b/.test(q)){
     const open=allFollowUps.filter(row=>isOpen(row.item.status));
     const overdue=open.filter(row=>row.item.promisedDate&&row.item.promisedDate<today);
     const selected=/\boverdue\b/.test(q)?overdue:open;
-    return {summary:`${selected.length} ${/\boverdue\b/.test(q)?"overdue":"open"} follow-up commitment(s) found across ${new Set(selected.map(row=>row.contact.id)).size} contact(s).`,entries:selected.slice(0,10).map(row=>({title:row.contact.name,detail:(row.record?.module||"Contact follow-up")+\" · \"+(row.item.description||"No description")+(row.item.promisedDate?\" · \"+row.item.promisedDate:""),value:row.item.amount?localMoney(parseDealNumber(row.item.amount)):"Amount not set",module:row.record?.module})) ,empty:"No matching follow-up commitments are saved."};
+    return {summary:`${selected.length} ${/\boverdue\b/.test(q)?"overdue":"open"} follow-up commitment(s) found across ${new Set(selected.map(row=>row.contact.id)).size} contact(s).`,entries:selected.slice(0,10).map(row=>({title:row.contact.name,detail:(row.record?.module||"Contact follow-up")+" · "+(row.item.description||"No description")+(row.item.promisedDate?" · "+row.item.promisedDate:""),value:row.item.amount?localMoney(parseDealNumber(row.item.amount)):"Amount not set",module:row.record?.module})) ,empty:"No matching follow-up commitments are saved."};
   }
   if(/\b(today|task|schedule|deadline|meeting)\b/.test(q)){
-    const selected=tasks.filter(task=>!task.done&&(task.date===today||task.date<today||/\bupcoming\b/.test(q))).sort((a,b)=>(a.date+\"T\"+a.time).localeCompare(b.date+\"T\"+b.time));
+    const selected=tasks.filter(task=>!task.done&&(task.date===today||task.date<today||/\bupcoming\b/.test(q))).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time));
     const overdue=selected.filter(task=>task.date<today).length;
     return {summary:`${selected.length} open task(s) match this schedule request; ${overdue} are overdue.`,entries:selected.slice(0,10).map(task=>({title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task"})),empty:"No matching open tasks are saved."};
   }
@@ -73,13 +73,13 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
     const inflow=financials.filter(item=>inflowTypes.has(item.type)).reduce((sum,item)=>sum+Number(item.amount||0),0);
     const outflow=financials.filter(item=>outflowTypes.has(item.type)).reduce((sum,item)=>sum+Number(item.amount||0),0);
     const recent=[...financials].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
-    return {summary:`Saved financial entries total ${localMoney(inflow)} in category-based inflows and ${localMoney(outflow)} in category-based outflows. Net recorded movement: ${localMoney(inflow-outflow)}. These are entered transactions, not verified bank balances.`,entries:recent.map(item=>({title:item.type+\" · \"+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),value:localMoney(Number(item.amount||0))})),empty:"No financial transactions are saved."};
+    return {summary:`Saved financial entries total ${localMoney(inflow)} in category-based inflows and ${localMoney(outflow)} in category-based outflows. Net recorded movement: ${localMoney(inflow-outflow)}. These are entered transactions, not verified bank balances.`,entries:recent.map(item=>({title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),value:localMoney(Number(item.amount||0))})),empty:"No financial transactions are saved."};
   }
   const tokens=q.split(/\s+/).filter(token=>token.length>1);
   const recordMatches=properties.filter(record=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLowerCase().includes(q)||tokens.every(token=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLowerCase().includes(token)));
   const contactMatches=contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[])].join(" ").toLowerCase().includes(q)||tokens.every(token=>[contact.name,contact.phone,contact.role,...(contact.roles||[])].join(" ").toLowerCase().includes(token)));
   const entries:CopilotEntry[]=[
-    ...recordMatches.slice(0,6).map(record=>({title:record.title||"Untitled record",detail:record.module+\" · \"+record.location+\" · \"+record.status,value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",module:record.module})),
+    ...recordMatches.slice(0,6).map(record=>({title:record.title||"Untitled record",detail:record.module+" · "+record.location+" · "+record.status,value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",module:record.module})),
     ...contactMatches.slice(0,4).map(contact=>({title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact"}))
   ];
   return {summary:`I searched saved AXIVESTRA records and contacts for “${query.trim()}”. I found ${recordMatches.length} record(s) and ${contactMatches.length} contact(s). Open a result to inspect its complete details.`,entries,empty:"No matching records or contacts were found. Try a shorter name, module, location or transaction term."};
