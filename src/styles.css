@@ -1828,3 +1828,28 @@ h2,h3{color:#e5f2fc}
   .ax-reminder-menu,.ax-help-menu,.ax-quick-menu{max-width:calc(100vw - 28px)}
 }
 @media(prefers-reduced-motion:reduce){.ax-command-dropdown,.ax-onboarding-card{scroll-behavior:auto;transition:none!important}}
+
+
+/* AXIVESTRA universal module search, record print actions and print-friendly controls */
+.ax-module-search{position:relative;min-width:240px;display:flex;align-items:center;gap:9px}
+.ax-module-search input{min-width:0;flex:1}
+.ax-module-search-clear{border:0;background:transparent;color:var(--text-muted,#718096);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px}
+.ax-health-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ax-record-actions button,.ax-row-actions button,.ax-kanban-card button,.ax-health-actions button{transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.ax-record-actions button:hover,.ax-row-actions button:hover,.ax-kanban-card button:hover,.ax-health-actions button:hover{transform:translateY(-1px)}
+.ax-module-controlbar{position:sticky;top:0;z-index:5;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.ax-module-record-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.ax-module-record-card:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(12,34,52,.12)}
+.ax-record-table-wrap{overflow-x:auto}
+.ax-record-table{min-width:760px}
+@media(max-width:760px){
+ .ax-module-controlbar{position:static;display:flex;flex-direction:column;align-items:stretch}
+ .ax-module-view-switch{overflow-x:auto;max-width:100%}
+ .ax-module-search{width:100%;min-width:0}
+ .ax-module-filter{width:100%}
+ .ax-module-filter select{width:100%}
+ .ax-record-actions{flex-wrap:wrap}
+}
+@media print{
+ .ax-module-controlbar,.ax-module-hero-actions,.ax-module-footer,.ax-record-actions,.ax-record-quick-actions,.ax-row-actions,.ax-health-actions{display:none!important}
+}
