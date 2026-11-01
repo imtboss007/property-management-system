@@ -504,6 +504,10 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     ] }
   ],
   "Housing Loan": [
+    { key: "housingBusinessFinancialYears", title: "Applicant business turnover and P&L — last three years", description: "For self-employed applicants, capture turnover, profit and loss for each financial year.", addLabel: "Add financial year", fields: [
+      rf("financialYear", "Financial year"), rMoney("turnover", "Annual turnover"), rMoney("grossProfit", "Gross profit"),
+      rMoney("ebitda", "EBITDA"), rMoney("netProfit", "Net profit"), rMoney("netLoss", "Net loss")
+    ] },
     { key: "housingLenderCriteria", title: "Lender-wise eligibility criteria", description: "Enter the chosen lender's configured minimum CIBIL, maximum FOIR, maximum LTV, interest rate and tenure. No generic lender thresholds are assumed.", addLabel: "Add lender criteria", fields: [
       rf("lender", "Lender name"), rf("minimumCibil", "Minimum CIBIL score", "Score", "number"), rf("maximumFoir", "Maximum FOIR (%)", "%", "number"),
       rf("maximumLtv", "Maximum LTV (%)", "%", "number"), rf("interestRate", "Annual interest rate (%)", "%", "number"),
@@ -672,6 +676,19 @@ function sumRows(value: string | undefined, key: string): number | null {
   return entered.reduce((sum, item) => sum + item, 0);
 }
 
+function sumBalanceRows(value: string | undefined, settlementKey: string, paidKey: string): number | null {
+  const rows = readRows(value);
+  let hasAny = false;
+  const total = rows.reduce((sum, row) => {
+    const settlement = parseNumber(row[settlementKey]);
+    const paid = parseNumber(row[paidKey]);
+    if (settlement === null && paid === null) return sum;
+    hasAny = true;
+    return sum + Math.max(0, (settlement || 0) - (paid || 0));
+  }, 0);
+  return hasAny ? total : null;
+}
+
 const fmt = (value: number | null) => value === null || !Number.isFinite(value)
   ? "N/A"
   : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -698,23 +715,25 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Conversion amount required", val("conversionCostEstimate"));
     add("Party settlements total", sumRows(data.jvSettlementParties, "finalSettlement"));
     add("Party payments total", sumRows(data.jvSettlementParties, "amountPaid"));
+    add("Party settlement balances", sumBalanceRows(data.jvSettlementParties, "finalSettlement", "amountPaid"));
   }
   if (moduleName === "SR Rate Settlement") {
     add("Settlement parties total", sumRows(data.srSettlementParties, "settlementAmount"));
     add("Amount already paid", sumRows(data.srSettlementParties, "amountPaid"));
+    add("Settlement party balances", sumBalanceRows(data.srSettlementParties, "settlementAmount", "amountPaid"));
     add("Settlement locations total", sumRows(data.srSettlementLocations, "settlementAmount"));
     const sr = val("srRatePerUnit"), market = val("marketRatePerUnit"), negotiated = val("settlementRatePerUnit");
     if (sr !== null && market !== null) add("Market rate vs SR rate difference", market - sr);
     if (negotiated !== null && market !== null) add("Settlement rate vs market difference", market - negotiated);
   }
   if (moduleName === "Property Sale") {
-    add("Converted extent total", sumRows(data.saleConversionParcels, "extent"), "number");
+    add("Conversion portion extent total", sumRows(data.saleConversionParcels, "extent"), "number");
     add("Conversion amount required", sumRows(data.saleConversionParcels, "conversionAmountNeeded") ?? val("conversionCostEstimate"));
   }
   if (moduleName === "Agricultural Land") {
     add("Converted / conversion parcel extent", sumRows(data.agriConversionParcels, "extent"), "number");
     add("Conversion amount required", sumRows(data.agriConversionParcels, "conversionFee") ?? val("conversionCostEstimate"));
-    add("Party settlement balance", sumRows(data.agriSettlementParties, "balanceAmount"));
+    add("Party settlement balance", sumBalanceRows(data.agriSettlementParties, "settlementAmount", "amountPaid"));
   }
   if (moduleName === "Commercial Land") {
     const currentMonthly = sumRows(data.commercialRentRoll, "currentMonthlyRent") ?? val("monthlyCurrentRent");
@@ -807,6 +826,10 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const emi = sumRows(data.companyExistingLoans, "monthlyEmi") ?? val("totalMonthlyEmi");
     add("Total existing loan outstanding", loanOutstanding);
     add("Total monthly EMI commitments", emi);
+    add("Year-wise cheque bounce count", sumRows(data.companyBounceHistory,"chequeBounceCount"), "number");
+    add("Year-wise cheque bounce amount", sumRows(data.companyBounceHistory,"chequeBounceAmount"));
+    add("Year-wise EMI bounce count", sumRows(data.companyBounceHistory,"emiBounceCount"), "number");
+    add("Year-wise EMI bounce amount", sumRows(data.companyBounceHistory,"emiBounceAmount"));
     const assetRows = sumRows(data.companyAssets, "marketValue");
     const singleAssets = ["stockMarketValue","machineryValue","propertyAssetValue"].map(key=>val(key)).filter((item):item is number=>item!==null);
     const assets = assetRows ?? (singleAssets.length ? singleAssets.reduce((sum,item)=>sum+item,0) : null);
@@ -856,6 +879,9 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const collateralMarket = sumRows(data.housingCollateralProperties, "marketValue");
     add("Total existing monthly EMI", sumRows(data.housingExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi"));
     add("Total existing loan outstanding", sumRows(data.housingExistingLoans, "outstanding") ?? val("totalExistingLoanOutstanding"));
+    add("Business turnover — captured financial years", sumRows(data.housingBusinessFinancialYears,"turnover"));
+    add("Business net profit — captured financial years", sumRows(data.housingBusinessFinancialYears,"netProfit"));
+    add("Business net loss — captured financial years", sumRows(data.housingBusinessFinancialYears,"netLoss"));
     const income = val("monthlyIncome"), emi = sumRows(data.housingExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi");
     add("FOIR (existing EMI / monthly income)", income && emi !== null ? emi / income * 100 : null, "percent");
     const requestedLender = String(data.lender || "").trim().toLowerCase();
@@ -888,7 +914,7 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
   if (moduleName === "Litigation") {
     add("Person-wise settlement total", sumRows(data.litigationSettlementParties, "settlementAmount"));
     add("Person-wise amount paid", sumRows(data.litigationSettlementParties, "amountPaid"));
-    add("Person-wise balance to settle", sumRows(data.litigationSettlementParties, "balance"));
+    add("Person-wise balance to settle", sumBalanceRows(data.litigationSettlementParties, "settlementAmount", "amountPaid"));
   }
   if (moduleName === "Fund & Portfolio Management") {
     add("Investor commitments total", sumRows(data.fundInvestors, "commitment"));
@@ -947,8 +973,13 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
       add("Cash payment total", cashValues.length ? cashValues.reduce((sum, amount) => sum + amount, 0) : null);
       add("RTGS payment total", rtgsValues.length ? rtgsValues.reduce((sum, amount) => sum + amount, 0) : null);
       add("Payment total", paymentTotal);
+      add("NEFT / IMPS / UPI payment total", ["NEFT","IMPS","UPI"].some(mode=>payments.some(row=>row.mode===mode))
+        ? payments.filter(row=>["NEFT","IMPS","UPI"].includes(String(row.mode))).map(row=>parseNumber(row.amount)).filter((amount):amount is number=>amount!==null).reduce((sum,amount)=>sum+amount,0)
+        : null);
       add("Payment difference / balance", total !== null && paymentTotal !== null ? total - paymentTotal : null);
     }
+    const buyer = val("buyerSideAmount"), seller = val("sellerSideAmount");
+    add("Buyer vs seller side difference", buyer !== null && seller !== null ? buyer-seller : null);
   }
   return result;
 }
