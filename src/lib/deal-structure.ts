@@ -62,9 +62,21 @@ export function parseDealNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+const loanPrincipalKeys = ["__loanPrincipal","loanAmount","facilityAmount","principal","originalPrincipal","requestedAmount","sanctionedAmount","outstandingAmount"];
+export function getLoanPrincipalValue(data: Record<string,string> | undefined, fallback = ""): string {
+  const fields=data||{};
+  for(const key of loanPrincipalKeys){const value=String(fields[key]??"").trim();if(value)return value;}
+  return String(fallback??"");
+}
+export function updateLoanPrincipalFields(data: Record<string,string> | undefined, amount: string): Record<string,string> {
+  const fields={...(data||{}),__loanPrincipal:amount};
+  for(const key of loanPrincipalKeys.slice(1))if(Object.prototype.hasOwnProperty.call(fields,key))fields[key]=amount;
+  return fields;
+}
+
 export function calculateMonthlyInterest(data: Record<string, string> | undefined, fallbackPrincipal = 0): number {
   const fields = data || {};
-  const principal = parseDealNumber(fields.__loanPrincipal || fallbackPrincipal);
+  const principal = parseDealNumber(getLoanPrincipalValue(fields,String(fallbackPrincipal)));
   const rate = parseDealNumber(fields.__loanInterestRate);
   const method = fields.__loanInterestMethod || "Percentage per month";
   if (principal <= 0) return 0;
