@@ -10,25 +10,29 @@ const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
 const compiled = { exports: {} };
 vm.runInNewContext(code, { module: compiled, exports: compiled.exports, require }, { filename });
 const { reconcileDeviceSync, emptyDeviceSyncBaseline } = compiled.exports;
-const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [] });
+const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [], customModules: [] });
 const pc = empty();
 pc.properties = [{ id: "p1", title: "PC property" }];
 pc.contacts = [{ id: "c1", name: "Vendor" }];
+pc.customModules = [{ id: "m1", name: "Construction Projects", fields: [{ key: "budget", label: "Budget", type: "currency" }] }];
 const first = reconcileDeviceSync(pc, empty(), emptyDeviceSyncBaseline(), "2026-10-29T10:00:00.000Z");
 assert.equal(first.snapshot.properties[0].title, "PC property");
 assert.equal(first.snapshot.contacts[0].name, "Vendor");
+assert.equal(first.snapshot.customModules[0].name, "Construction Projects");
 assert.ok(first.snapshot.__axivestraSync.records.properties.p1.updatedAt);
 
 const phoneInitial = reconcileDeviceSync(empty(), first.snapshot, emptyDeviceSyncBaseline(), "2026-10-29T10:01:00.000Z");
 assert.equal(phoneInitial.snapshot.properties[0].title, "PC property");
 assert.equal(phoneInitial.snapshot.contacts[0].name, "Vendor");
+assert.equal(phoneInitial.snapshot.customModules[0].fields[0].key, "budget", "phone receives custom module definitions");
 
-const phoneEdit = { ...phoneInitial.snapshot, properties: [{ id: "p1", title: "Edited on phone" }], __axivestraSync: phoneInitial.snapshot.__axivestraSync };
+const phoneEdit = { ...phoneInitial.snapshot, properties: [{ id: "p1", title: "Edited on phone" }], customModules: [{ ...phoneInitial.snapshot.customModules[0], description: "Edited on phone" }], __axivestraSync: phoneInitial.snapshot.__axivestraSync };
 const phoneResult = reconcileDeviceSync(phoneEdit, first.snapshot, phoneInitial.baseline, "2026-10-29T10:02:00.000Z");
 assert.equal(phoneResult.snapshot.properties[0].title, "Edited on phone");
 
 const pcNext = reconcileDeviceSync(pc, phoneResult.snapshot, first.baseline, "2026-10-29T10:03:00.000Z");
 assert.equal(pcNext.snapshot.properties[0].title, "Edited on phone", "PC receives phone edits");
+assert.equal(pcNext.snapshot.customModules[0].description, "Edited on phone", "PC receives custom-module changes");
 
 const deletion = { ...phoneResult.snapshot, properties: [], __axivestraSync: phoneResult.snapshot.__axivestraSync };
 const deleted = reconcileDeviceSync(deletion, phoneResult.snapshot, phoneResult.baseline, "2026-10-29T10:04:00.000Z");
