@@ -16,7 +16,7 @@ for (const token of [
   'saveLocal("axivestra.customModules", customModules)',
   "customModules: customModules as WorkspaceCollections[\"customModules\"]",
   "custom_module: new Set(customModules.map(record => record.id))",
-  "setCustomModules(current => [...current, definition])",
+  "setCustomModules(current=>[...current,definition])",
   "Personalise dashboard",
   "saveLocal(\"estateflow.dashboardLayout\", dashboardLayout)",
   "dynamicModuleFields[active]",
