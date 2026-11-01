@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { ArrowUpRight, CalendarClock, Download, FileText, MessageCircle, Pencil, Plus, RefreshCw, Search, Users, X } from "lucide-react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 
@@ -130,7 +131,7 @@ export default function ContactPortfolioPanel(props: Props) {
   },[auditEvents,contact.id,linked,linkedIds,linkedTasks,financials,documents,risks,approvals]);
   const timelineCategories=["All","Interaction","Call","WhatsApp","Email","Meeting","Site visit","Schedule","Records","Money","Documents","Risk","Approvals"];
   const filteredTimeline=useMemo(()=>timeline.filter(item=>timelineFilter==="All"||item.category===timelineFilter||(timelineFilter==="Interaction"&&["Call","WhatsApp","Email","Meeting","Site visit","Other interaction"].includes(item.category))),[timeline,timelineFilter]);
-  const saveInteraction=(event:React.FormEvent<HTMLFormElement>)=>{
+  const saveInteraction=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!activityDraft.title.trim()||!activityDraft.at)return;
     const instant=new Date(activityDraft.at);
