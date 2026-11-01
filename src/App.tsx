@@ -47,7 +47,7 @@ type DocumentRecord = { id: string; propertyId: string; property: string; contac
 type FinancialRecord = { id: string; propertyId: string; property: string; contactId?: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
 type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; propertyId?: string; contactId?: string; mitigation: string; createdAt: string };
 type ApprovalRequest = { id: string; title: string; area: string; entity: string; propertyId?: string; contactId?: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
-type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string };
+type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string; activityType?: string; description?: string; relatedRecordId?: string };
 type UndoEntry = { id: string; at: string; entity: string; recordId: string; label: string; hadPrevious: boolean; beforeRecord?: unknown };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
 
@@ -705,6 +705,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [search, setSearch] = useState("");
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
   const [contact360Search, setContact360Search] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const deferredContact360Search = useDeferredValue(contact360Search);
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("axivestra.customModules", []));
@@ -1447,18 +1449,21 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     ...Object.fromEntries(customModules.filter(item => !item.archived).map(item => [item.name, item.fields]))
   }), [customModules]);
   const dynamicModuleStatuses = useMemo(() => Object.fromEntries(customModules.filter(item => !item.archived).map(item => [item.name, item.statuses])), [customModules]);
-  const rangeSearches = useMemo(() => parsePropertyRangeQueries(search), [search]);
+  const rangeSearches = useMemo(() => parsePropertyRangeQueries(deferredSearch), [deferredSearch]);
   const rangeSearch = rangeSearches[0] ?? null;
-  const filteredModules = rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
-  const filteredProperties = useMemo(() => properties.filter(property => {
-    if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
-    const searchableText = [
-      property.title, property.module, property.location, property.contact, property.status,
-      property.surveyNumber, property.areaValue, property.areaUnit, property.dimensions,
-      property.ownershipDetails, property.notes, ...Object.values(property.moduleData ?? {})
-    ].join(" ").toLowerCase();
-    return searchableText.includes(search.toLowerCase());
-  }), [properties, search, rangeSearches]);
+  const filteredModules = useMemo(() => rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(deferredSearch.toLowerCase())), [modules, rangeSearches, deferredSearch]);
+  const filteredProperties = useMemo(() => {
+    const term = deferredSearch.toLowerCase();
+    return properties.filter(property => {
+      if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
+      const searchableText = [
+        property.title, property.module, property.location, property.contact, property.status,
+        property.surveyNumber, property.areaValue, property.areaUnit, property.dimensions,
+        property.ownershipDetails, property.notes, ...Object.values(property.moduleData ?? {})
+      ].join(" ").toLowerCase();
+      return searchableText.includes(term);
+    });
+  }, [properties, deferredSearch, rangeSearches]);
   const rangeSortedProperties = useMemo(() => {
     if (!rangeSearches.length || rangeSort === "best") return filteredProperties;
     const getSortValue = (property: PropertyRecord) => rangeSort.startsWith("price")
@@ -1478,32 +1483,63 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     const value = getPropertyPriceForRangeSearch(property);
     return value === null ? "Value not entered" : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
   };
-  const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+  const upcomingTasks = useMemo(() => tasks.filter(t => !t.done).sort((a,b) => (a.date + "T" + a.time).localeCompare(b.date + "T" + b.time)), [tasks]);
   const today = new Date().toISOString().slice(0,10);
-  const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
-  const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
-  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
-  const assetModuleNames = new Set(["Property Sale", "Agricultural Land", "Commercial Land", "House Purchase"]);
-  const assetRecords = properties.filter(item => assetModuleNames.has(item.module));
-  const loanModuleNames = new Set(["Property Loans", "Unsecured Company Loan", "Personal Loan", "Housing Loan"]);
-  const dealModuleNames = new Set(["Property Sale", "JV / JDA / JD", "SR Rate Settlement", "House Purchase", "Startup", "Equity"]);
-  const loanRecords = properties.filter(item => loanModuleNames.has(item.module) && !["Completed", "Closed", "Settled"].includes(item.status));
-  const activeDealRecords = properties.filter(item => dealModuleNames.has(item.module) && !["Completed", "Closed", "Settled"].includes(item.status));
-  const loanOutstanding = loanRecords.reduce((sum, item) => sum + (Number(String(item.moduleData?.outstandingAmount || item.moduleData?.loanOutstanding || item.moduleData?.currentOutstanding || "").replace(/,/g, "")) || 0), 0);
-  const totalPeopleAndGroups = contacts.length + savedWhatsAppGroups.length;
-  const loanStatusBreakdown = Array.from(new Set(loanRecords.map(item => item.status || "Unspecified"))).map(status => ({ status, count: loanRecords.filter(item => item.status === status).length }));
-  const openLitigationCount = properties.filter(item => item.module === "Litigation" && !["Completed", "Closed"].includes(item.status)).length;
-  const startupCount = properties.filter(item => item.module === "Startup" && !["Completed", "Closed"].includes(item.status)).length;
-  const equityCount = properties.filter(item => item.module === "Equity").length;
-  const pendingApprovalCount = approvalRequests.filter(item => item.status === "pending").length;
-  const highRiskCount = riskRecords.filter(item => ["High", "Critical"].includes(item.severity) && item.status !== "Closed").length;
-  const overdueTaskCount = upcomingTasks.filter(item => item.date < today).length;
   const inThirtyDays = new Date();
   inThirtyDays.setDate(inThirtyDays.getDate() + 30);
   const expiryWindowDate = inThirtyDays.toISOString().slice(0, 10);
-  const expiringDocumentCount = documents.filter(item => item.expiresOn && item.expiresOn >= today && item.expiresOn <= expiryWindowDate).length;
+  const inflowTypes = new Set(["Sale", "Advance", "Loan Disbursal", "Receipt"]);
+  const outflowTypes = new Set(["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"]);
+  const totalInflow = useMemo(() => financials.reduce((sum,item)=>sum+(inflowTypes.has(item.type)?Number(item.amount||0):0),0),[financials]);
+  const totalOutflow = useMemo(() => financials.reduce((sum,item)=>sum+(outflowTypes.has(item.type)?Number(item.amount||0):0),0),[financials]);
+  const portfolioValue = useMemo(() => properties.reduce((sum,item)=>sum+Number(item.value||0),0),[properties]);
+  const assetModuleNames = new Set(["Property Sale", "Agricultural Land", "Commercial Land", "House Purchase"]);
+  const loanModuleNames = new Set(["Property Loans", "Unsecured Company Loan", "Personal Loan", "Housing Loan"]);
+  const dealModuleNames = new Set(["Property Sale", "JV / JDA / JD", "SR Rate Settlement", "House Purchase", "Startup", "Equity"]);
+  const isOpenStatus = (status:string) => !["Completed","Closed","Settled"].includes(status);
+  const assetRecords = useMemo(() => properties.filter(item=>assetModuleNames.has(item.module)),[properties]);
+  const loanRecords = useMemo(() => properties.filter(item=>loanModuleNames.has(item.module)&&isOpenStatus(item.status)),[properties]);
+  const activeDealRecords = useMemo(() => properties.filter(item=>dealModuleNames.has(item.module)&&isOpenStatus(item.status)),[properties]);
+  const loanOutstanding = useMemo(() => loanRecords.reduce((sum,item)=>sum+(Number(String(item.moduleData?.outstandingAmount||item.moduleData?.loanOutstanding||item.moduleData?.currentOutstanding||"").replace(/,/g,""))||0),0),[loanRecords]);
+  const totalPeopleAndGroups = contacts.length + savedWhatsAppGroups.length;
+  const loanStatusBreakdown = useMemo(() => {
+    const counts=new Map<string,number>();
+    loanRecords.forEach(item=>{const status=item.status||"Unspecified";counts.set(status,(counts.get(status)||0)+1);});
+    return Array.from(counts,([status,count])=>({status,count})).sort((a,b)=>b.count-a.count);
+  },[loanRecords]);
+  const openLitigationCount = useMemo(() => properties.filter(item=>item.module==="Litigation"&&!["Completed","Closed"].includes(item.status)).length,[properties]);
+  const startupCount = useMemo(() => properties.filter(item=>item.module==="Startup"&&!["Completed","Closed"].includes(item.status)).length,[properties]);
+  const equityCount = useMemo(() => properties.filter(item=>item.module==="Equity").length,[properties]);
+  const pendingApprovalCount = useMemo(() => approvalRequests.filter(item=>item.status==="pending").length,[approvalRequests]);
+  const highRiskCount = useMemo(() => riskRecords.filter(item=>["High","Critical"].includes(item.severity)&&item.status!=="Closed").length,[riskRecords]);
+  const overdueTaskCount = useMemo(() => upcomingTasks.filter(item=>item.date<today).length,[upcomingTasks,today]);
+  const expiringDocumentCount = useMemo(() => documents.filter(item=>item.expiresOn&&item.expiresOn>=today&&item.expiresOn<=expiryWindowDate).length,[documents,today,expiryWindowDate]);
+
+  const contact360Directory = useMemo(() => {
+    const counts = new Map<string, number>();
+    const contactByName = new Map(contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact.id]));
+    for (const property of properties) {
+      const ids = new Set([
+        property.primaryContactId || "",
+        ...(property.moduleData?.__linkedContactIds || "").split(","),
+        ...Object.entries(property.moduleData || {}).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))
+      ].filter(Boolean));
+      if (!ids.size) {
+        const legacyId=contactByName.get((property.contact||"").trim().toLocaleLowerCase());
+        if (legacyId) ids.add(legacyId);
+      }
+      ids.forEach(id=>counts.set(id,(counts.get(id)||0)+1));
+    }
+    return contacts.map(contact=>({
+      contact,
+      linkedCount:counts.get(contact.id)||0,
+      searchText:[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase()
+    }));
+  },[contacts,properties]);
+  const visibleContact360Directory = useMemo(() => {
+    const term=deferredContact360Search.trim().normalize("NFKC").toLocaleLowerCase();
+    return contact360Directory.filter(item=>!term||item.searchText.includes(term)).slice(0,100);
+  },[contact360Directory,deferredContact360Search]);
 
   const downloadAxivestraPdf = async (moduleName:string, rows:PropertyRecord[]) => {
     try {
@@ -2360,7 +2396,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
-            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(search.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(deferredSearch.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
@@ -2376,7 +2412,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           />}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
-            {tasks.filter(item=>[item.title,item.date,item.time,item.type,item.property,item.contactName,item.notes].join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).length ? <TaskList tasks={tasks.filter(item=>[item.title,item.date,item.time,item.type,item.property,item.contactName,item.notes].join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
+            {tasks.filter(item=>[item.title,item.date,item.time,item.type,item.property,item.contactName,item.notes].join(" ").toLocaleLowerCase().includes(deferredSearch.trim().toLocaleLowerCase())).length ? <TaskList tasks={tasks.filter(item=>[item.title,item.date,item.time,item.type,item.property,item.contactName,item.notes].join(" ").toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
           {active === "Financials" && <section className="data-panel">
             <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
             <div className="finance-summary"><div><span>Tracked inflows</span><strong>₹{totalInflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Tracked outflows</span><strong>₹{totalOutflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Net recorded movement</span><strong>₹{(totalInflow-totalOutflow).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div></div>
@@ -2385,11 +2421,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           </section>}
           {active === "Contact 360" && <section className="data-panel ax-contact360-module">
             <div className="section-heading"><div><span className="section-kicker">RELATIONSHIP INTELLIGENCE</span><h2>Contact 360 workspace</h2><p>Choose a person to see every linked workstream, scheduled response, group and stakeholder relationship in one dedicated module.</p></div><span>{contacts.length} people · {savedWhatsAppGroups.length} synced groups</span></div>
-            <div className="ax-contact360-directory-tools"><label><Search size={15}/><input type="search" value={contact360Search} onChange={event=>setContact360Search(event.target.value)} placeholder="Search contacts by name, role, phone or company…"/></label><span>{contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").toLocaleLowerCase().includes(contact360Search.trim().toLocaleLowerCase())).length} matching contacts</span></div>
-            <div className="ax-contact360-directory">{contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").toLocaleLowerCase().includes(contact360Search.trim().toLocaleLowerCase())).slice(0,100).map(contact=>{
-              const linkedCount=properties.filter(property=>property.primaryContactId===contact.id||(property.moduleData?.__linkedContactIds||"").split(",").includes(contact.id)||Object.entries(property.moduleData||{}).some(([key,value])=>key.startsWith("__contact_")&&value===contact.id)||(!property.primaryContactId&&(property.contact||"").trim().toLocaleLowerCase()===contact.name.trim().toLocaleLowerCase())).length;
-              return <button type="button" className={"ax-contact360-person"+(contactProfileId===contact.id?" active":"")} key={contact.id} onClick={()=>setContactProfileId(contact.id)}><span className="ax-contact360-person__avatar">{contact.name.split(/\\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{contact.name}</strong><small>{contact.role||"Contact"}{contact.phone?" · "+contact.phone:""}</small><em>{linkedCount} linked record(s) · {(contact.whatsappGroupIds||[]).length} direct group(s)</em></span><ArrowUpRight size={15}/></button>;
-            })}{contacts.length===0&&<Empty icon={<Users size={22}/>} title="No contacts have been created" text="Create contacts first, then connect them to properties, deals and WhatsApp groups." action="Create contact" onClick={()=>openContactForm()}/>}</div>
+            <div className="ax-contact360-directory-tools"><label><Search size={15}/><input type="search" value={contact360Search} onChange={event=>setContact360Search(event.target.value)} placeholder="Search contacts by name, role, phone or company…"/></label><span>{contact360Directory.filter(item=>!deferredContact360Search.trim()||item.searchText.includes(deferredContact360Search.trim().normalize("NFKC").toLocaleLowerCase())).length} matching contacts</span></div>
+            <div className="ax-contact360-directory">{visibleContact360Directory.map(({contact,linkedCount})=>
+              <button type="button" className={"ax-contact360-person"+(contactProfileId===contact.id?" active":"")} key={contact.id} onClick={()=>setContactProfileId(contact.id)}><span className="ax-contact360-person__avatar">{contact.name.split(/\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</span><span><strong>{contact.name}</strong><small>{contact.role||"Contact"}{contact.phone?" · "+contact.phone:""}</small><em>{linkedCount} linked record(s) · {(contact.whatsappGroupIds||[]).length} direct group(s)</em></span><ArrowUpRight size={15}/></button>
+            )}{contacts.length===0&&<Empty icon={<Users size={22}/>} title="No contacts have been created" text="Create contacts first, then connect them to properties, deals and WhatsApp groups." action="Create contact" onClick={()=>openContactForm()}/>}</div>
             {contactProfileId&&contacts.some(item=>item.id===contactProfileId)
               ? <ContactPortfolioPanel contact={contacts.find(item=>item.id===contactProfileId)!} properties={properties} tasks={tasks} fieldsByModule={dynamicModuleFields} savedGroups={savedWhatsAppGroups} onUpdateWhatsAppGroups={updateContactWhatsAppGroups} onClose={()=>setContactProfileId(null)} onEditContact={()=>{const selected=contacts.find(item=>item.id===contactProfileId);if(selected)openContactForm(selected);}} onAddRecord={()=>openPropertyForm(null,{contactId:contactProfileId})} onEditRecord={record=>{setContactProfileId(null);go(record.module);openPropertyForm(record as PropertyRecord);}} onScheduleTask={record=>openTaskForm(null,{title:record?"Follow up · "+record.title:"Follow up · "+(contacts.find(item=>item.id===contactProfileId)?.name||"contact"),date:record?.nextFollowUpDate||record?.nextResponseDate||today,time:record?.nextFollowUpTime||record?.nextResponseTime||"10:00",type:"Follow-up",property:record?.title||"",propertyId:record?.id,contactId:contactProfileId,contactName:contacts.find(item=>item.id===contactProfileId)?.name||""})} onWhatsApp={openWhatsAppFor} onDownloadRecord={record=>void downloadRecordPdf(record as PropertyRecord)} onUpdateSchedule={(recordId,patch)=>setProperties(current=>current.map(item=>item.id===recordId?{...item,...patch}:item))}/>
               : <div className="ax-contact360-empty"><Users size={26}/><strong>Select a contact to open their full relationship workspace</strong><p>Contact 360 is now a standalone module. Contact records remain in Contacts; this page brings their connected activity together.</p></div>}
