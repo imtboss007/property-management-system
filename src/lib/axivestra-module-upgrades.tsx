@@ -203,7 +203,8 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     money("availableMonthlyCashflow", "Available monthly cash flow (₹)"),
     money("monthlyNetIncome", "Monthly net business income (₹)"),
     money("monthlyOperatingExpenses", "Monthly operating expenses (₹)"),
-    money("ownerCapital", "Owner / partner capital (₹)")
+    money("ownerCapital", "Owner / partner capital (₹)"),
+    money("otherBusinessLiabilities", "Other business liabilities (₹)")
   ],
   "Personal Loan": [
     money("monthlyIncome", "Monthly salary / income (₹)"),
@@ -784,13 +785,38 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Return on investment (ROI)", gain !== null && cost ? gain / cost * 100 : null, "percent");
   }
   if (moduleName === "Unsecured Company Loan") {
-    add("Three-year / captured turnover total", sumRows(data.companyFinancialYears, "turnover"));
-    add("Total existing loan outstanding", sumRows(data.companyExistingLoans, "outstanding") ?? val("totalExistingLoanOutstanding"));
-    add("Total monthly EMI commitments", sumRows(data.companyExistingLoans, "monthlyEmi") ?? val("totalMonthlyEmi"));
-    add("Total stock / asset market value", sumRows(data.companyAssets, "marketValue"));
+    const years = readRows(data.companyFinancialYears);
+    const turnover = years.map(row=>({year:String(row.financialYear||""),value:parseNumber(row.turnover)})).filter((row):row is {year:string;value:number}=>row.value!==null);
+    const gross = sumRows(data.companyFinancialYears,"grossProfit");
+    const totalTurnover = sumRows(data.companyFinancialYears, "turnover");
+    const netProfit = sumRows(data.companyFinancialYears,"netProfit");
+    const netLoss = sumRows(data.companyFinancialYears,"netLoss");
+    add("Three-year / captured turnover total", totalTurnover);
+    add("Three-year gross profit total", gross);
+    add("Three-year net profit total", netProfit);
+    add("Three-year net loss total", netLoss);
+    add("Three-year net result", netProfit !== null || netLoss !== null ? (netProfit||0)-(netLoss||0) : null);
+    const orderedTurnover = [...turnover].sort((a,b)=>a.year.localeCompare(b.year));
+    const firstTurnover = orderedTurnover[0]?.value;
+    const latestTurnover = orderedTurnover[orderedTurnover.length-1]?.value;
+    add("Turnover growth from first to latest captured year", firstTurnover && latestTurnover !== undefined ? (latestTurnover-firstTurnover)/firstTurnover*100 : null,"percent");
+    add("Latest captured financial year turnover", latestTurnover ?? null);
+    const loanOutstanding = sumRows(data.companyExistingLoans, "outstanding") ?? val("totalExistingLoanOutstanding");
+    const emi = sumRows(data.companyExistingLoans, "monthlyEmi") ?? val("totalMonthlyEmi");
+    add("Total existing loan outstanding", loanOutstanding);
+    add("Total monthly EMI commitments", emi);
+    const assetRows = sumRows(data.companyAssets, "marketValue");
+    const singleAssets = ["stockMarketValue","machineryValue","propertyAssetValue"].map(key=>val(key)).filter((item):item is number=>item!==null);
+    const assets = assetRows ?? (singleAssets.length ? singleAssets.reduce((sum,item)=>sum+item,0) : null);
+    add("Total stock / asset market value", assets);
     add("Total rental income per month", sumRows(data.companyRentalProperties, "monthlyRent"));
-    const cash = val("availableMonthlyCashflow"), emi = sumRows(data.companyExistingLoans, "monthlyEmi") ?? val("totalMonthlyEmi");
-    add("Cash flow after existing EMI", cash !== null ? cash - (emi || 0) : null);
+    const cash = val("availableMonthlyCashflow"), monthlyNetIncome = val("monthlyNetIncome");
+    add("Cash flow after existing EMI", cash !== null && emi !== null ? cash - emi : null);
+    add("Debt-to-income (monthly EMI / net income)", monthlyNetIncome && emi !== null ? emi / monthlyNetIncome * 100 : null,"percent");
+    const otherLiabilities = val("otherBusinessLiabilities");
+    const totalLiabilities = loanOutstanding !== null || otherLiabilities !== null ? (loanOutstanding||0)+(otherLiabilities||0) : null;
+    add("Debt-to-equity ratio", totalLiabilities !== null && val("ownerCapital") ? totalLiabilities / (val("ownerCapital") as number) : null,"number");
+    add("Estimated net worth (captured assets less liabilities)", assets !== null && totalLiabilities !== null ? assets-totalLiabilities : null);
   }
   if (moduleName === "Personal Loan") {
     const emi = sumRows(data.personalExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi");
