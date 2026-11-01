@@ -56,7 +56,8 @@ function drawTable(doc: jsPDF, table: HTMLTableElement, y: number, page: { left:
   const maxPrintableHeight = page.bottom - page.top - 6;
 
   rows.forEach((cells,rowIndex) => {
-    const isHeader = headerRows.has(rowIndex) || Boolean(rowNodes[rowIndex]?.querySelector("th"));
+    const rowCells = Array.from(rowNodes[rowIndex]?.cells ?? []);
+    const isHeader = headerRows.has(rowIndex) || (rowCells.length > 0 && rowCells.every(cell => cell.tagName.toUpperCase() === "TH"));
     const fontSize = isHeader ? headerFont : bodyFont;
     const lineHeight = fontSize * 0.42 + 0.85;
     doc.setFont("helvetica",isHeader?"bold":"normal");
@@ -94,7 +95,7 @@ function drawTable(doc: jsPDF, table: HTMLTableElement, y: number, page: { left:
   return y+3;
 }
 
-/** Generate a searchable, vector-text PDF. No html2canvas/page screenshot is used. */
+/** Generate a searchable, vector-text PDF without rasterizing the pages. */
 export async function exportHtmlReportAsPdf(html: string, title: string): Promise<PdfExportResult> {
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const body = parsed.body;
