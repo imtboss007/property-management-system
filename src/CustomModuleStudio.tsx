@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, BarChart3,
   Check, CircleDollarSign, ClipboardCheck, FileText, FlaskConical,
-  Handshake, House, Landmark, Layers3, Plus, Scale, ShieldCheck, Trash2,
+  Handshake, House, Landmark, Layers3, Plus, Search, Scale, ShieldCheck, Trash2,
   Users, Wallet, Wheat, X, type LucideIcon
 } from "lucide-react";
 import type { CustomModuleDefinition, CustomModuleField, CustomModuleFieldType } from "./lib/custom-modules";
@@ -47,6 +47,7 @@ export default function CustomModuleStudio({ existingNames, onSave, onClose }: P
   const [description, setDescription] = useState("");
   const [group, setGroup] = useState("Custom workspace");
   const [icon, setIcon] = useState("Layers3");
+  const [iconQuery, setIconQuery] = useState("");
   const [color, setColor] = useState("cyan");
   const [statuses, setStatuses] = useState(DEFAULT_STATUSES);
   const [fields, setFields] = useState<CustomModuleField[]>([]);
@@ -59,6 +60,7 @@ export default function CustomModuleStudio({ existingNames, onSave, onClose }: P
 
   const duplicate = useMemo(() => existingNames.some(value => normaliseCustomModuleName(value).toLocaleLowerCase() === normaliseCustomModuleName(name).toLocaleLowerCase()), [existingNames, name]);
   const Icon = ICONS.find(item => item.id === icon)?.Icon || Layers3;
+  const filteredIcons = useMemo(() => ICONS.filter(item => item.label.toLocaleLowerCase().includes(iconQuery.trim().toLocaleLowerCase())), [iconQuery]);
   const addField = () => {
     const label = fieldLabel.trim();
     if (!label) { setError("Enter a field label before adding it."); return; }
@@ -95,8 +97,8 @@ export default function CustomModuleStudio({ existingNames, onSave, onClose }: P
             <label className="ax-studio-full">Module name *<input maxLength={48} value={name} onChange={event=>setName(event.target.value)} placeholder="e.g. Construction Projects" autoFocus/></label>
             <label className="ax-studio-full">Purpose / description<textarea rows={2} value={description} onChange={event=>setDescription(event.target.value)} placeholder="What will this workspace manage?"/></label>
             <label>Category<input value={group} onChange={event=>setGroup(event.target.value)} placeholder="e.g. Operations"/></label>
-            <label>Icon<select value={icon} onChange={event=>setIcon(event.target.value)}>{ICONS.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-            <label>Accent colour<select value={color} onChange={event=>setColor(event.target.value)}>{COLORS.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+            <div className="ax-studio-full ax-studio-icon-field"><span className="ax-studio-control-label">Choose an icon</span><label className="ax-studio-icon-search"><Search size={14}/><input type="search" value={iconQuery} onChange={event=>setIconQuery(event.target.value)} placeholder="Find an icon by name…"/></label><div className="ax-studio-icon-picker" role="group" aria-label="Module icon">{filteredIcons.map(item=>{const ItemIcon=item.Icon;return <button type="button" key={item.id} className={icon===item.id?"selected":""} aria-pressed={icon===item.id} title={item.label} onClick={()=>setIcon(item.id)}><ItemIcon size={18}/><small>{item.label}</small></button>;})}{!filteredIcons.length&&<span className="ax-studio-icon-empty">No icons match this search.</span>}</div></div>
+            <div className="ax-studio-full ax-studio-colour-field"><span className="ax-studio-control-label">Accent colour</span><div className="ax-studio-colour-picker" role="group" aria-label="Module accent colour">{COLORS.map(item=><button type="button" key={item.id} className={color===item.id?"selected":""} aria-pressed={color===item.id} onClick={()=>setColor(item.id)}><i className={"ax-studio-color-dot "+item.id}/><span>{item.label}</span></button>)}</div></div>
           </div>
           <div className="ax-studio-preview"><span className={"ax-studio-preview-icon " + color}><Icon size={22}/></span><span><strong>{name.trim() || "Your new module"}</strong><small>{group || "Custom workspace"} · {fields.length} custom fields</small></span><Check size={16}/></div>
           {duplicate && <p className="ax-studio-error">A module with this name already exists.</p>}

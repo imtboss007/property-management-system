@@ -2214,12 +2214,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           {active === "Overview" && !rangeSearch && <>
             <section className="institutional-banner">
               <div className="institutional-copy">
-                <span className="institutional-label"><span className="live-dot"/> AXIVESTRA COMMAND MATRIX</span>
-                <h2>Every asset. Every obligation. One intelligence layer.</h2>
+                <span className="institutional-label"><span className="live-dot"/> WELCOME BACK · AXIVESTRA COMMAND CENTRE</span>
+                <h2>See your entire portfolio. Move every decision forward.</h2>
                 <p>Unify property operations, lending, investments, legal matters and follow-ups in a single command centre.</p>
-                <div className="banner-actions"><button className="hero-button" onClick={()=>go("All Properties")}>Open deal pipeline <ArrowUpRight size={16}/></button><button className="banner-ghost" onClick={()=>go("Risk & Compliance")}>Review risk signals <ShieldCheck size={15}/></button></div>
+                <div className="banner-actions"><button className="hero-button" onClick={()=>go("All Properties")}>Open deal pipeline <ArrowUpRight size={16}/></button><button className="banner-ghost" onClick={()=>go("Risk & Compliance")}>Review risk signals <ShieldCheck size={15}/></button></div><div className="ax-dashboard-quick-actions" aria-label="Dashboard quick actions"><button type="button" onClick={()=>openContactForm()}><Users size={14}/> New contact</button><button type="button" onClick={()=>openFinancialForm()}><Calculator size={14}/> Record transaction</button><button type="button" onClick={()=>openTaskForm()}><CalendarClock size={14}/> Schedule follow-up</button>{company?.role!=="read_only"&&<button type="button" onClick={()=>setModuleStudioOpen(true)}><Plus size={14}/> Add module</button>}</div>
               </div>
               <div className="banner-aside">
+                <div className="ax-dashboard-date-badge"><span className="ax-dashboard-date-icon"><CalendarDays size={19}/></span><span className="ax-dashboard-date-copy"><strong>{new Date().toLocaleDateString("en-IN",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})}</strong><small>Track today. Close tomorrow. Build forever.</small></span></div>
+                <div className="banner-divider ax-date-value-divider"/>
                 <span>TRACKED PORTFOLIO VALUE</span>
                 <strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong>
                 <small>Based on values entered in AXIVESTRA</small>
