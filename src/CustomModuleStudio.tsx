@@ -6,7 +6,7 @@ import {
   Users, Wallet, Wheat, X, type LucideIcon
 } from "lucide-react";
 import type { CustomModuleDefinition, CustomModuleField, CustomModuleFieldType } from "./lib/custom-modules";
-import { customModuleFieldKey, validateCustomModule } from "./lib/custom-modules";
+import { customModuleFieldKey, normaliseCustomModuleName, validateCustomModule } from "./lib/custom-modules";
 
 const ICONS: Array<{ id: string; label: string; Icon: LucideIcon }> = [
   { id: "Building2", label: "Building", Icon: Building2 }, { id: "Landmark", label: "Institution", Icon: Landmark },
@@ -57,7 +57,7 @@ export default function CustomModuleStudio({ existingNames, onSave, onClose }: P
   const [fieldOptions, setFieldOptions] = useState("New, In progress, Completed");
   const [error, setError] = useState("");
 
-  const duplicate = useMemo(() => existingNames.some(value => value.trim().toLocaleLowerCase() === name.trim().toLocaleLowerCase()), [existingNames, name]);
+  const duplicate = useMemo(() => existingNames.some(value => normaliseCustomModuleName(value).toLocaleLowerCase() === normaliseCustomModuleName(name).toLocaleLowerCase()), [existingNames, name]);
   const Icon = ICONS.find(item => item.id === icon)?.Icon || Layers3;
   const addField = () => {
     const label = fieldLabel.trim();
