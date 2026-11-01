@@ -12,7 +12,7 @@ type Contact = { id: string; name: string; phone: string; email?: string; role: 
 type SavedGroup = { id: string; jid: string; name: string; description?: string; size?: number; lastSyncedAt?: string };
 type RecordRow = {
   id: string; title: string; module: string; location: string; value: string; status: string;
-  contact: string; primaryContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
+  contact: string; primaryContactId?: string; followUpContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextAction?: string;
   nextResponseDate?: string; nextResponseTime?: string; nextResponseType?: string;
   nextResponseDescription?: string; notes: string; createdAt: string;
@@ -68,7 +68,7 @@ const dateTimeLabel = (date?: string,time?: string) => {
 };
 const relatedTo = (record: RecordRow,contact: Contact) => {
   const data=record.moduleData||{};
-  const ids=[record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
+  const ids=[record.followUpContactId||"",record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
   return ids.includes(contact.id)||(record.contact||"").trim().toLocaleLowerCase()===contact.name.trim().toLocaleLowerCase();
 };
 
