@@ -7,7 +7,7 @@ import {
   reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
-import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
+import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline, clearDeviceSyncBaseline } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -584,13 +584,13 @@ async function requestPcSync(host: string, token: string, method: "GET" | "POST"
 type AppProps = { company?: WorkspaceCompany; userId?: string; email?: string; onSignOut?: () => void; onSwitchCompany?: () => void };
 
 function reportEscape(value: unknown): string {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[character] || character));
+  const entities: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  return String(value ?? "").replace(/[&<>"']/g, character => entities[character] || character);
 }
 
 function printModuleReport(moduleName: string, records: PropertyRecord[], fields: ModuleField[], onBlocked: () => void): void {
   const target = window.open("", "_blank");
   if (!target) { onBlocked(); return; }
-  const repeaters = records.flatMap(record => (axivestraRepeatableGroups[record.module] || []).map(group => ({ record, group })));
   const recordMarkup = records.map((record, index) => {
     const core = [
       ["Record / deal", record.title], ["Module", record.module], ["Status", record.status],
@@ -1168,7 +1168,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     localStorage.removeItem("axivestra.syncToken");
     localStorage.removeItem("estateflow.whatsapp.host");
     localStorage.removeItem("estateflow.whatsapp.token");
-    localStorage.removeItem("axivestra.deviceSyncBaseline");
+    await clearDeviceSyncBaseline();
     setSyncHost("");
     setSyncToken("");
     setSyncStatus("Phone unlinked.");
@@ -1224,7 +1224,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       localStorage.setItem("axivestra.syncToken", connectedToken);
       localStorage.setItem("estateflow.whatsapp.host", connectedHost);
       localStorage.setItem("estateflow.whatsapp.token", connectedToken);
-      localStorage.removeItem("axivestra.deviceSyncBaseline");
+      await clearDeviceSyncBaseline();
       setSyncHost(connectedHost);
       setSyncToken(connectedToken);
       setSyncStatus("Phone linked. Syncing your shared records…");
