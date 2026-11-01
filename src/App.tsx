@@ -2208,7 +2208,18 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closeTaskForm();
     setNotice("Task saved on this device. Background notifications still require a scheduler.");
   };
-  const deleteProperty = (id: string) => { const record = properties.find(item => item.id === id); if (!window.confirm(`Delete ${record?.title || "this record"}? This removes it from your AXIVESTRA workspace.`)) return; setProperties(prev => prev.filter(p => p.id !== id)); remoteDelete("property_records", id); };
+  const deleteProperty = (id: string) => {
+    const record = properties.find(item => item.id === id);
+    if (!window.confirm(`Delete ${record?.title || "this record"}? This removes it from your AXIVESTRA workspace.`)) return;
+    setProperties(prev => prev.filter(item => item.id !== id));
+    const generatedId=moduleFollowUpRowId(id);
+    setContacts(prev=>prev.map(contact=>{
+      const rows=contact.followUps||[];
+      const nextRows=rows.filter(row=>row.id!==generatedId);
+      return nextRows.length===rows.length?contact:{...contact,followUps:nextRows};
+    }));
+    remoteDelete("property_records", id);
+  };
   const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); setProperties(prev=>prev.map(record=>record.followUpContactId===id?{...record,followUpContactId:""}:record)); remoteDelete("contacts", id); };
   const deleteTask = (id: string) => { setTasks(prev => prev.filter(t => t.id !== id)); remoteDelete("tasks", id); };
   const saveFinancial = (data: Omit<FinancialRecord, "id">) => {
