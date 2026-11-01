@@ -1953,7 +1953,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     setContacts(current=>current.map(contact=>{
       if(!(contact.followUps||[]).some(row=>row.isPrimary&&row.linkedRecordId===record.id))return contact;
       return {...contact,followUps:(contact.followUps||[]).map(row=>row.isPrimary&&row.linkedRecordId===record.id?{
-        ...row,amount:record.value,description:record.nextResponseDescription||"",promisedDate:record.nextFollowUpDate||record.nextResponseDate||"",
+        ...row,amount:getTransactionAmount(record.moduleData,record.value),description:record.nextResponseDescription||"",promisedDate:record.nextFollowUpDate||record.nextResponseDate||"",
         promisedTime:record.nextFollowUpTime||record.nextResponseTime||"",responseType:record.nextResponseType||record.moduleData?.__followUpChannel||"Call",
         status:record.moduleData?.__followUpStatus||row.status||"Awaiting response",
         notes:record.moduleData?.__followUpNotes??record.nextAction??"",updatedAt:stamp
