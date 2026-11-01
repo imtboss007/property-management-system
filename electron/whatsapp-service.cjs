@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const http = require("node:http");
 const os = require("node:os");
 const QRCode = require("qrcode");
+const { createDataSyncReadReply } = require("./device-sync-protocol.cjs");
 
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_REPEAT_COUNT = 20;
@@ -1127,7 +1128,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   async function saveDataSyncStore(value) {
     dataSyncWrite = dataSyncWrite.catch(() => {}).then(async () => {
       const tempPath = dataSyncPath + ".tmp";
-      await fs.writeFile(tempPath, JSON.stringify(value, null, 2), { encoding: "utf8", mode: 0o600 });
+      // This is an internal machine snapshot, not a user-facing export. Compact JSON
+      // materially reduces serialization time and disk I/O for large workspaces.
+      await fs.writeFile(tempPath, JSON.stringify(value), { encoding: "utf8", mode: 0o600 });
       await fs.rename(tempPath, dataSyncPath);
     });
     await dataSyncWrite;
@@ -1177,11 +1180,15 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   }
 
   async function readBridgeBody(request, maxBytes = 1024 * 1024) {
-    let raw = "";
+    const chunks = [];
+    let totalBytes = 0;
     for await (const chunk of request) {
-      raw += chunk.toString("utf8");
-      if (raw.length > maxBytes) throw new Error("Request body is too large.");
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.length;
+      if (totalBytes > maxBytes) throw new Error("Request body is too large.");
+      chunks.push(buffer);
     }
+    const raw = Buffer.concat(chunks, totalBytes).toString("utf8");
     return raw.trim() ? JSON.parse(raw) : {};
   }
 
@@ -1246,7 +1253,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       const body = request.method === "POST" ? await readBridgeBody(request, bodyLimit) : {};
       if (request.method === "GET" && route === "/api/data-sync") {
         const store = await readDataSyncStore();
-        bridgeReply(response, 200, { ok: true, schemaVersion: store.schemaVersion, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot });
+        bridgeReply(response, 200, createDataSyncReadReply(store, url.searchParams.get("sinceRevision")));
         return;
       }
       if (request.method === "GET" && route === "/api/documents") {
@@ -1364,9 +1371,9 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     await startBridge();
     return { host: "http://127.0.0.1:" + bridgePort, token: deviceToken };
   });
-  ipcMain.handle("estateflow:wa:get-data-sync", async () => {
+  ipcMain.handle("estateflow:wa:get-data-sync", async (_event, sinceRevision) => {
     const store = await readDataSyncStore();
-    return { ok: true, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot };
+    return createDataSyncReadReply(store, sinceRevision);
   });
   ipcMain.handle("estateflow:wa:save-data-sync", async (_event, payload) => {
     const expectedRevision = Number(payload && payload.expectedRevision);
