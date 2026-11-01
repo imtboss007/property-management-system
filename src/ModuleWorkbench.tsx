@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
-  contact: string; primaryContactId?: string; targetDeadline?: string; nextFollowUpDate?: string;
-  nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
+  contact: string; primaryContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
+  nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
+  nextResponseType?: string; nextResponseDescription?: string; nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
 };
 type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "currency" | "percent" | "date" | "select" | "textarea" | "email" | "phone" | "url" | "checkbox"; options?: string[]; required?: boolean };
@@ -21,7 +23,9 @@ type Props = {
   onSchedule: (record: ModuleRecord, contact?: Contact) => void;
   onWhatsApp: (contactId?: string, propertyId?: string) => void;
   onExportReport: (records: ModuleRecord[]) => void;
+  onExportPdf: (records: ModuleRecord[]) => void;
   onPrintRecord: (record: ModuleRecord) => void;
+  onDownloadRecordPdf: (record: ModuleRecord) => void;
 };
 
 const CLOSED = new Set(["completed", "closed", "settled", "rejected", "cancelled"]);
@@ -63,7 +67,7 @@ function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
   return <div className="ax-module-chart-line"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Module records trend"><defs><linearGradient id="axModuleLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#20d9ef" stopOpacity=".22"/><stop offset="100%" stopColor="#20d9ef" stopOpacity="0"/></linearGradient></defs>{[0,1,2,3,4].map(n=><line key={n} x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#203e55" strokeDasharray="4 6"/>)}{points.length>1&&<polygon points={points.map(point=>point.x+","+point.y).join(" ")+" "+points[points.length-1].x+","+(height-bottom)+" "+points[0].x+","+(height-bottom)} fill="url(#axModuleLineFill)"/>}<polyline points={points.map(point=>point.x+","+point.y).join(" ")} fill="none" stroke="#20d9ef" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>{points.map(point=><g key={point.name} tabIndex={0} role="button" onClick={()=>onSelect(point.name)} className="ax-chart-point"><circle cx={point.x} cy={point.y} r="5" fill={point.color} stroke="#071827" strokeWidth="2"/><text x={point.x} y={point.y-13} textAnchor="middle" fill="#e7f8ff" fontSize="10">{metric==="value"?currency(point.value):point.value}</text><text x={point.x} y={height-15} textAnchor="middle" fill="#8aa9bf" fontSize="10">{point.name.length>12?point.name.slice(0,11)+"…":point.name}</text></g>)}</svg></div>;
 }
 
-export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onExportReport, onPrintRecord }: Props) {
+export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onExportReport, onExportPdf, onPrintRecord, onDownloadRecordPdf }: Props) {
   const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
@@ -71,9 +75,10 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [showAllFields, setShowAllFields] = useState(false);
   const [moduleChartType, setModuleChartType] = useState<"donut" | "bar" | "line">("donut");
   const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
+  const [detailRecordId, setDetailRecordId] = useState<string|null>(null);
 
   const filtered = useMemo(() => records.filter(record => {
-    const text = [record.id, record.title, record.module, record.location, record.value, record.status, record.contact, record.surveyNumber, record.ownershipDetails, record.areaValue, record.areaUnit, record.dimensions, record.ratePerUnit, record.targetDeadline, record.nextFollowUpDate, record.nextAction, record.notes, ...Object.entries(record.moduleData || {}).flatMap(([key, value]) => [key, String(value ?? "")])].join(" ").normalize("NFKC").toLocaleLowerCase();
+    const text = [record.id, record.title, record.module, record.location, record.value, record.status, record.contact, record.surveyNumber, record.ownershipDetails, record.areaValue, record.areaUnit, record.dimensions, record.ratePerUnit, record.targetDeadline, record.targetDeadlineTime, record.nextFollowUpDate, record.nextFollowUpTime, record.nextResponseDate, record.nextResponseTime, record.nextResponseType, record.nextResponseDescription, record.nextAction, record.notes, ...Object.entries(record.moduleData || {}).flatMap(([key, value]) => [key, String(value ?? "")])].join(" ").normalize("NFKC").toLocaleLowerCase();
     const terms = query.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return (filter === "All" || record.status === filter || (filter === "Follow-up set" && Boolean(record.nextFollowUpDate)) || (filter === "No follow-up" && !record.nextFollowUpDate)) && terms.every(term => text.includes(term));
   }), [records, filter, query]);
@@ -87,13 +92,19 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     { key: "location", label: "Location / collateral", placeholder: "" },
     { key: "value", label: "Value / exposure", placeholder: "" },
     { key: "targetDeadline", label: "Target deadline", placeholder: "" },
+    { key: "targetDeadlineTime", label: "Deadline time", placeholder: "" },
     { key: "nextFollowUpDate", label: "Next follow-up", placeholder: "" },
+    { key: "nextFollowUpTime", label: "Follow-up time", placeholder: "" },
+    { key: "nextResponseDate", label: "Expected next response date", placeholder: "" },
+    { key: "nextResponseTime", label: "Expected next response time", placeholder: "" },
+    { key: "nextResponseType", label: "Response type", placeholder: "" },
+    { key: "nextResponseDescription", label: "Response description", placeholder: "" },
     { key: "nextAction", label: "Next action", placeholder: "" },
     { key: "ownershipDetails", label: "Ownership / parties", placeholder: "" },
     { key: "notes", label: "Notes / evidence", placeholder: "" }
   ];
   const dataFields = [...coreDataFields, ...fields.filter(field => !coreDataFields.some(core => core.key === field.key))];
-  const getFieldValue = (record: ModuleRecord, key: string) => key === "location" || key === "value" || key === "targetDeadline" || key === "nextFollowUpDate" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
+  const getFieldValue = (record: ModuleRecord, key: string) => key === "location" || key === "value" || key === "targetDeadline" || key === "targetDeadlineTime" || key === "nextFollowUpDate" || key === "nextFollowUpTime" || key === "nextResponseDate" || key === "nextResponseTime" || key === "nextResponseType" || key === "nextResponseDescription" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
     ? String(record[key as keyof ModuleRecord] || "")
     : String(record.moduleData?.[key] || "");
   const presentFields = (record: ModuleRecord) => dataFields.filter(field => getFieldValue(record, field.key).trim()).length;
@@ -109,6 +120,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     return Array.from(groups.values()).sort((a,b)=>b.value-a.value);
   })();
   const moduleChartTotal = moduleChartData.reduce((sum,item)=>sum+item.value,0);
+  const detailRecord = detailRecordId ? records.find(record=>record.id===detailRecordId) || null : null;
   const expandedHas = (id: string) => expanded.includes(id);
   const toggleExpanded = (id: string) => setExpanded(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
   const linkedContacts = (record: ModuleRecord) => {
