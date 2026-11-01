@@ -14,7 +14,6 @@ const commandCenter = fs.readFileSync("src/WorkspaceCommandCenter.tsx", "utf8");
 for (const token of [
   'load("axivestra.customModules", [])',
   'saveLocal("axivestra.customModules", customModules)',
-  'stateKey: "customModules"',
   "customModules: customModules as WorkspaceCollections[\"customModules\"]",
   "custom_module: new Set(customModules.map(record => record.id))",
   "setCustomModules(current => [...current, definition])",
@@ -40,6 +39,7 @@ for (const token of [
 assert.ok(sync.includes('"customModules"'), "Custom modules must be included in PC/phone sync.");
 assert.equal((windowsSync.match(/"customModules"/g) || []).length, 2, "Windows HTTP and desktop sync allow custom module records.");
 assert.ok(commandCenter.includes('"module"') && commandCenter.includes("props.modules"), "Universal search must include module definitions.");
+assert.ok(cloud.includes('stateKey: "customModules"'), "Custom module collection must be registered for company cloud sync.");
 assert.ok(cloud.includes('recordType: "custom_module"'), "Custom modules must be included in company cloud records.");
 for (const type of ["currency", "percent", "date", "select", "textarea", "email", "phone", "url", "checkbox"]) {
   assert.ok(studio.includes(type), "Module Studio should offer field type: " + type);
