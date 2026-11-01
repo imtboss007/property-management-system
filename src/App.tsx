@@ -13,6 +13,8 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import ContactPortfolioPanel from "./ContactPortfolioPanel";
+import { exportHtmlReportAsPdf } from "./lib/pdf-export";
 import CustomModuleStudio from "./CustomModuleStudio";
 import type { CustomModuleDefinition, CustomModuleField } from "./lib/custom-modules";
 import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
@@ -31,7 +33,7 @@ import {
 
 type PropertyRecord = {
   id: string; title: string; module: string; location: string; value: string;
-  status: string; contact: string; primaryContactId?: string; targetDeadline?: string; nextFollowUpDate?: string; nextAction?: string; notes: string; createdAt: string;
+  status: string; contact: string; primaryContactId?: string; targetDeadline?: string; targetDeadlineTime?: string; nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string; nextResponseType?: string; nextResponseDescription?: string; nextAction?: string; notes: string; createdAt: string;
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
   moduleData: Record<string, string>;
 };
@@ -704,6 +706,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [documentVaultBusy, setDocumentVaultBusy] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [propertyPrefill, setPropertyPrefill] = useState<{contactId?:string;module?:string}|null>(null);
+  const [contactProfileId, setContactProfileId] = useState<string|null>(null);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState<PropertyRecord | null>(null);
@@ -1656,8 +1660,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
-  const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
-  const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); };
+  const openPropertyForm = (record: PropertyRecord | null = null, prefill: {contactId?:string;module?:string}|null = null) => { setEditingProperty(record); setPropertyPrefill(prefill); setShowPropertyForm(true); };
+  const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); setPropertyPrefill(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
   const closeContactForm = () => { setShowContactForm(false); setEditingContact(null); };
   const openTaskForm = (record: TaskRecord | null = null, prefill: Partial<TaskRecord> | null = null) => { setEditingTask(record); setTaskPrefill(prefill); setShowTaskForm(true); };
@@ -2386,7 +2390,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()} availableModules={modules} moduleFieldDefinitions={dynamicModuleFields} moduleStatuses={dynamicModuleStatuses}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={propertyPrefill?.module || (modules.some(m=>m.name===active)?active:modules[0].name)} defaultContactId={propertyPrefill?.contactId || ""} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()} availableModules={modules} moduleFieldDefinitions={dynamicModuleFields} moduleStatuses={dynamicModuleStatuses}/></Modal>}
       {moduleStudioOpen && <Modal className="ax-module-studio-modal" title="AXIVESTRA Module Studio" onClose={()=>setModuleStudioOpen(false)}><CustomModuleStudio existingNames={modules.map(item=>item.name)} onClose={()=>setModuleStudioOpen(false)} onSave={definition=>{if(company?.role==="read_only"){setNotice("Read-only company access cannot create modules.");return;}setCustomModules(current=>[...current,definition]);setModuleStudioOpen(false);setSearch("");setActive(definition.name);setNotice("Custom module created. Its fields, workflow and dashboard card are ready.");}}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
@@ -2581,12 +2585,15 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
-function PropertyForm({defaultModule,contacts,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
+function PropertyForm({defaultModule,defaultContactId,contacts,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;defaultContactId?:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",
-    primaryContactId:initial?.primaryContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
-    targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
+    primaryContactId:initial?.primaryContactId ?? defaultContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
+    targetDeadline:initial?.targetDeadline ?? "",targetDeadlineTime:initial?.targetDeadlineTime ?? "",
+    nextFollowUpDate:initial?.nextFollowUpDate ?? "",nextFollowUpTime:initial?.nextFollowUpTime ?? "",
+    nextResponseDate:initial?.nextResponseDate ?? "",nextResponseTime:initial?.nextResponseTime ?? "",
+    nextResponseType:initial?.nextResponseType ?? "Call",nextResponseDescription:initial?.nextResponseDescription ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
     areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
@@ -2637,8 +2644,11 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel,availableM
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
     {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
-    <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
-      <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
+    <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEADLINES, RESPONSES & SCHEDULE</span><p>Every scheduled milestone captures its date and time. Keep the expected response and next follow-up separately editable.</p></div>
+      <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Deadline time<input type="time" value={form.targetDeadlineTime} onChange={event=>update("targetDeadlineTime",event.target.value)}/></label></div>
+      <div className="form-two"><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label><label>Follow-up time<input type="time" value={form.nextFollowUpTime} onChange={event=>update("nextFollowUpTime",event.target.value)}/></label></div>
+      <div className="form-two"><label>Expected next response date<input type="date" value={form.nextResponseDate} onChange={event=>update("nextResponseDate",event.target.value)}/></label><label>Expected response time<input type="time" value={form.nextResponseTime} onChange={event=>update("nextResponseTime",event.target.value)}/></label></div>
+      <div className="form-two"><label>Response / schedule type<select value={form.nextResponseType} onChange={event=>update("nextResponseType",event.target.value)}>{["Call","WhatsApp","Email","Meeting","Document","Payment update","Site visit","Other"].map(value=><option key={value}>{value}</option>)}</select></label><label>Response description<input value={form.nextResponseDescription} onChange={event=>update("nextResponseDescription",event.target.value)} placeholder="What response is expected from whom?"/></label></div>
       <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
     </div>
     {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
