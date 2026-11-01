@@ -2119,3 +2119,43 @@ h2,h3{color:#e5f2fc}
 @media(max-width:900px){.ax-contact-portfolio__metrics,.ax-record-detail__summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-contact-details-grid,.ax-record-detail__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-contact-workstream__schedule{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-contact-workstream__schedule>label.wide{grid-column:span 2}}
 @media(max-width:620px){.ax-contact-portfolio{padding:13px}.ax-contact-portfolio__actions{width:100%}.ax-contact-portfolio__actions button{flex:1}.ax-contact-portfolio__metrics{gap:6px}.ax-contact-portfolio__metrics>div{padding:9px}.ax-contact-portfolio__metrics strong{font-size:18px}.ax-contact-workstream__schedule{grid-template-columns:1fr 1fr;padding:10px}.ax-contact-workstream__schedule>label.wide{grid-column:1/-1}.ax-contact-workstream__actions button{flex:1}.ax-contact-details-grid,.ax-record-detail__grid{grid-template-columns:1fr 1fr}.ax-record-detail-backdrop{padding:0;align-items:stretch}.ax-record-detail{width:100%;max-height:100dvh;border-radius:0;padding:13px}.ax-record-detail__header h2{font-size:17px}.ax-record-detail__toolbar button{flex:1;justify-content:center}.ax-record-detail__summary{grid-template-columns:1fr 1fr}.ax-record-detail__section{padding:10px}}
 @media(max-width:380px){.ax-contact-workstream__schedule{grid-template-columns:1fr}.ax-contact-workstream__schedule>label.wide{grid-column:auto}.ax-contact-details-grid,.ax-record-detail__grid{grid-template-columns:1fr}}
+
+
+/* Standalone Contact 360 directory and group linking. */
+.ax-contact360-module{background:linear-gradient(145deg,#091d2e,#0d2538);border:1px solid #22445a;color:#dcecf5}
+.ax-contact360-module .section-heading h2{color:#edf8ff}
+.ax-contact360-module .section-heading p{color:#87a7bd}
+.ax-contact360-directory-tools{display:flex;align-items:center;gap:12px;margin:16px 0 12px}
+.ax-contact360-directory-tools>label{display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding:10px 12px;border:1px solid #2b4e65;border-radius:10px;background:#071a2a;color:#70d9e9}
+.ax-contact360-directory-tools input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#e8f6fd;font-size:12px}
+.ax-contact360-directory-tools input::placeholder{color:#6b879d}
+.ax-contact360-directory-tools>span{color:#81a1b6;font-size:10px;white-space:nowrap}
+.ax-contact360-directory{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.ax-contact360-person{display:flex;align-items:center;gap:9px;min-width:0;padding:10px;border:1px solid #25465d;border-radius:11px;background:linear-gradient(145deg,#102b40,#0b2032);color:#dcecf5;text-align:left;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
+.ax-contact360-person:hover,.ax-contact360-person.active{border-color:#34bdd3;background:linear-gradient(145deg,#123b50,#10283b);transform:translateY(-1px)}
+.ax-contact360-person__avatar{width:35px;height:35px;display:grid;place-items:center;flex:none;border:1px solid #28627b;border-radius:10px;background:#16455e;color:#d8faff;font:800 11px "Manrope",sans-serif}
+.ax-contact360-person>span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+.ax-contact360-person strong{color:#edf8fd;font-size:10px;overflow-wrap:anywhere}
+.ax-contact360-person small{color:#86a6ba;font-size:9px;overflow-wrap:anywhere}
+.ax-contact360-person em{color:#64d4e3;font-size:8px;font-style:normal}
+.ax-contact360-person>svg{flex:none;color:#75cbd9}
+.ax-contact360-empty{display:grid;justify-items:center;gap:8px;padding:30px 16px;border:1px dashed #2a536c;border-radius:13px;color:#68d7e5;text-align:center}
+.ax-contact360-empty strong{color:#eaf8fc;font-size:12px}
+.ax-contact360-empty p{max-width:520px;margin:0;color:#86a6bb;font-size:10px;line-height:1.6}
+
+.ax-contact-groups{display:grid;gap:9px;margin:0 0 20px;padding:13px;border:1px solid #254a61;border-radius:12px;background:#091c2b}
+.ax-contact-groups__search{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 10px;border:1px solid #2b526b;border-radius:8px;background:#071827;color:#72d9e8}
+.ax-contact-groups__search input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#eaf6fc;font-size:10px}
+.ax-contact-groups__search input::placeholder{color:#67869b}
+.ax-contact-groups__list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.ax-contact-group{display:flex;align-items:center;gap:8px;min-width:0;padding:9px;border:1px solid #24475e;border-radius:9px;background:#10283a;cursor:pointer}
+.ax-contact-group>input{flex:none;accent-color:#2ecbe2}
+.ax-contact-group__name{display:flex;flex:1;flex-direction:column;gap:3px;min-width:0}
+.ax-contact-group__name strong{color:#e6f4fa;font-size:10px;overflow-wrap:anywhere}
+.ax-contact-group__name small{color:#809eb2;font-size:8px;line-height:1.4}
+.ax-contact-group>span:last-child{flex:none;color:#8199a9;font-size:7px;font-weight:850;letter-spacing:.5px}
+.ax-contact-group>span:last-child.is-linked{color:#66dce8}
+.ax-contact-groups__empty,.ax-contact-groups__hint{margin:0;color:#85a5b8;font-size:9px;line-height:1.5}
+.searchable-group-picker{display:flex;flex-direction:column;gap:7px;min-width:0;width:100%;color:var(--text-secondary,#9fb7c9);font-size:12px;font-weight:700}
+@media(max-width:950px){.ax-contact360-directory{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.ax-contact360-directory-tools{align-items:stretch;flex-direction:column}.ax-contact360-directory{grid-template-columns:1fr}.ax-contact-groups__list{grid-template-columns:1fr}}
