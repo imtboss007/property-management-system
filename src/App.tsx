@@ -15,6 +15,7 @@ import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
 import { exportHtmlReportAsPdf } from "./lib/pdf-export";
+import { buildAxivestraReportHtml } from "./lib/axivestra-report";
 import CustomModuleStudio from "./CustomModuleStudio";
 import type { CustomModuleDefinition, CustomModuleField } from "./lib/custom-modules";
 import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
@@ -1476,6 +1477,19 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   inThirtyDays.setDate(inThirtyDays.getDate() + 30);
   const expiryWindowDate = inThirtyDays.toISOString().slice(0, 10);
   const expiringDocumentCount = documents.filter(item => item.expiresOn && item.expiresOn >= today && item.expiresOn <= expiryWindowDate).length;
+
+  const downloadAxivestraPdf = async (moduleName:string, rows:PropertyRecord[]) => {
+    try {
+      setNotice("Preparing complete PDF report for "+moduleName+"…");
+      const html=buildAxivestraReportHtml(moduleName,rows,dynamicModuleFields,contacts);
+      const result=await exportHtmlReportAsPdf(html,"AXIVESTRA-"+moduleName+"-"+(rows.length===1?"Record":"Complete-Module"));
+      setNotice(result.delivery==="shared" ? "Android share panel opened for "+result.filename+". Choose Files or Drive to save the PDF." : result.filename+" downloaded ("+Math.ceil(result.sizeBytes/1024)+" KB).");
+    } catch(error) {
+      setNotice("PDF export failed: "+(error instanceof Error?error.message:String(error)));
+    }
+  };
+  const downloadRecordPdf = (record:PropertyRecord) => downloadAxivestraPdf(record.module,[record]);
+  const downloadModulePdf = (moduleName:string) => downloadAxivestraPdf(moduleName,properties.filter(record=>record.module===moduleName));
 
   // Local-only persistence is handled by the state effects above.
   const remoteUpsert = (_table: string, _payload: Record<string, unknown>) => {};
