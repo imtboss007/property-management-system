@@ -74,7 +74,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
 
   const filtered = useMemo(() => records.filter(record => {
     const text = [record.id, record.title, record.module, record.location, record.value, record.status, record.contact, record.surveyNumber, record.ownershipDetails, record.areaValue, record.areaUnit, record.dimensions, record.ratePerUnit, record.targetDeadline, record.nextFollowUpDate, record.nextAction, record.notes, ...Object.entries(record.moduleData || {}).flatMap(([key, value]) => [key, String(value ?? "")])].join(" ").normalize("NFKC").toLocaleLowerCase();
-    const terms = query.trim().normalize("NFKC").toLocaleLowerCase().split(/\\s+/).filter(Boolean);
+    const terms = query.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean);
     return (filter === "All" || record.status === filter || (filter === "Follow-up set" && Boolean(record.nextFollowUpDate)) || (filter === "No follow-up" && !record.nextFollowUpDate)) && terms.every(term => text.includes(term));
   }), [records, filter, query]);
   const totalValue = records.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
