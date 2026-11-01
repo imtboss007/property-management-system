@@ -18,6 +18,7 @@ for (const token of [
   "custom_module: new Set(customModules.map(record => record.id))",
   "setCustomModules(current=>[...current,definition])",
   "Personalise dashboard",
+  "ax-dashboard-date-badge", "ax-dashboard-quick-actions",
   "saveLocal(\"estateflow.dashboardLayout\", dashboardLayout)",
   "dynamicModuleFields[active]",
   "availableModules={modules}",
@@ -28,7 +29,8 @@ for (const token of [
 for (const token of [
   "Module Studio", "Module identity", "Build the data form",
   "Workflow stages", "Add field", "Create module", "Required field",
-  "Dropdown options", "existingNames", "onSave"
+  "Dropdown options", "existingNames", "onSave", "ax-studio-icon-picker",
+  "ax-studio-colour-picker", "Choose an icon", "Find an icon by name"
 ]) assert.ok(studio.toLocaleLowerCase().includes(token.toLocaleLowerCase()), "Missing Module Studio control: " + token);
 
 for (const token of [
@@ -47,7 +49,9 @@ for (const type of ["currency", "percent", "date", "select", "textarea", "email"
 for (const token of [
   ".ax-dashboard-kpis", ".ax-dashboard-insights", ".ax-dashboard-bottom-grid",
   ".ax-dashboard-whatsapp", ".ax-dashboard-activity", ".ax-module-add-card",
-  ".ax-module-studio", ".ax-studio-field-builder", ".ax-dashboard-customize", "@media(max-width:780px)"
+  ".ax-module-studio", ".ax-studio-field-builder", ".ax-dashboard-customize",
+  ".ax-dashboard-date-badge", ".ax-dashboard-quick-actions",
+  ".ax-studio-icon-picker", ".ax-studio-colour-picker", "@media(max-width:780px)"
 ]) assert.ok(styles.includes(token), "Missing responsive dashboard / studio style: " + token);
 
 assert.ok(workbench.includes("Search all ") && workbench.includes("Print / Save PDF"), "Custom modules must reuse the search and PDF workbench.");
