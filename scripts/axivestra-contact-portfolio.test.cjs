@@ -8,6 +8,8 @@ const report = read("src/lib/axivestra-report.ts");
 const pdf = read("src/lib/pdf-export.ts");
 const repeatable = read("src/lib/axivestra-module-upgrades.tsx");
 const mobile = read("src/lib/mobile-export.ts");
+const register = read("src/FollowUpRegisterPanel.tsx");
+const registerReport = read("src/lib/follow-up-register-report.ts");
 const pkg = JSON.parse(read("package.json"));
 
 for (const token of [
@@ -33,11 +35,13 @@ for (const token of [
   "buildModuleSummary", "field.key+\"Time\""
 ]) assert.ok(report.includes(token), "Missing complete PDF report data: " + token);
 
-assert.ok(pdf.includes('from "html2pdf.js"'), "PDF helper must use a real PDF renderer.");
-assert.ok(pdf.includes("worker.outputPdf(\"blob\")"), "PDF helper must generate a PDF Blob.");
-assert.ok(pdf.includes("saveBlobForUser(blob, filename)"), "PDF must use the common PC/Android delivery helper.");
+assert.ok(pdf.includes('from "jspdf"'), "PDF helper must use jsPDF vector rendering.");
+assert.ok(pdf.includes("new jsPDF("), "PDF helper must create a real PDF document.");
+assert.ok(pdf.includes('doc.output("arraybuffer")'), "PDF helper must validate the actual PDF byte stream.");
+assert.ok(pdf.includes("saveBlobForUser(blob,filename)"), "PDF must use the common PC/Android delivery helper.");
+assert.ok(!pdf.includes("html2canvas") && !pdf.includes("getImageData"), "PDF output must not rasterize pages through the old canvas capture path.");
 assert.ok(mobile.includes("Capacitor.isNativePlatform()"), "PDF delivery must support Android native.");
-assert.equal(pkg.dependencies["html2pdf.js"], "^0.10.3");
+assert.equal(pkg.dependencies["jspdf"], "^4.2.1");
 assert.match(pkg.scripts.test, /axivestra-contact-portfolio\.test\.cjs/);
 
 assert.ok(repeatable.includes('field.key + "Time"'), "Repeatable date fields need a paired time value.");
@@ -54,8 +58,9 @@ for (const token of [
 ]) assert.ok(contact.includes(token), "Missing Contact 360 group linking: " + token);
 
 assert.ok(pdf.includes("new DOMParser()"), "PDF helper must parse the supplied report document.");
-assert.ok(pdf.includes('clonedRoot.style.cssText'), "PDF clone must be moved into the capture viewport.");
-assert.ok(pdf.includes("empty or invalid PDF file"), "PDF helper must reject blank or invalid PDFs.");
+assert.ok(pdf.includes("report has no visible record content"), "PDF helper must reject empty reports before generation.");
+assert.ok(pdf.includes("The generated file is not a valid PDF document."), "PDF helper must verify its signature before delivery.");
+assert.ok(pdf.includes("arrayBuffer.byteLength<1000"), "PDF helper must reject tiny/empty output.");
 assert.ok(report.includes("Linked WhatsApp groups"), "Complete PDF must include linked group names.");
 assert.ok(report.includes("Contact follow-up register"), "Linked record PDFs must include Contact 360 follow-up rows.");
 assert.ok(report.includes("followUpRows") && report.includes("item.promisedTime") && report.includes("item.amount"), "Follow-up PDF must include people, dates, time and amounts.");
@@ -94,9 +99,21 @@ for (const token of [
   "syncPrimaryFollowUpsFromRecord", "updateContactRecordSchedule", "primaryByRecord"
 ]) assert.ok(app.includes(token), "Missing Contact 360 / linked module synchronization: " + token);
 
-for (const token of [
-  "visibility:visible;opacity:1", "contentHeight", "await inspectionWorker.toCanvas()",
-  "inspectionWorker.get(\"canvas\")",
-  "getImageData", "averageLuminance", "blank or black page"
-]) assert.ok(pdf.includes(token), "Missing nonblank PDF rendering safeguard: " + token);
+assert.ok(pdf.includes('from "jspdf"') && pdf.includes('doc.output("arraybuffer")'), "PDF path must use real vector PDF generation.");
 console.log("AXIVESTRA editable multi-person Contact 360 follow-up register and bidirectional linked-record sync contracts passed.");
+
+for (const token of [
+  "Follow-up Register", "Module type / linked record", "Description / item", "Amount (INR)",
+  "Expected reach-back date", "Expected reach-back time", "WhatsApp groups", "onUpdateFollowUps",
+  "onOpenContact360", "onEditRecord", "onDownloadRecord", "onExportPdf", "setPrimary", "dirty:true"
+]) assert.ok(register.includes(token), "Missing standalone follow-up register capability: " + token);
+
+for (const token of [
+  'name: "Follow-up Register"', "FollowUpRegisterPanel", "buildContactFollowUpRegisterHtml",
+  "downloadFollowUpRegisterPdf", "onUpdateFollowUps={updateContactFollowUps}"
+]) assert.ok(app.includes(token), "Missing standalone follow-up module integration: " + token);
+assert.ok(app.indexOf('{ name: "Contact 360"') < app.indexOf('{ name: "Follow-up Register"'), "Follow-up Register must sit directly after Contact 360 in navigation.");
+assert.ok(registerReport.includes("buildContactFollowUpRegisterHtml"), "Missing cross-contact PDF report builder.");
+for (const token of ["Module type","Description","Amount (INR)","Will reach back","WhatsApp groups","item.promisedTime","item.isPrimary"])
+  assert.ok(registerReport.includes(token), "Missing follow-up register PDF field: " + token);
+console.log("AXIVESTRA standalone cross-contact follow-up register and PDF export contracts passed.");
