@@ -67,7 +67,7 @@ export async function exportHtmlReportAsPdf(html: string, title: string): Promis
     if (bright / samples < 0.35 || dark / samples < 0.0005 || averageLuminance < 100) {
       throw new Error("PDF rendering produced a blank or black page. The file was not downloaded; please retry.");
     }
-    const blob = await worker.toPdf().outputPdf("blob") as Blob;
+    const blob = await worker.outputPdf("blob") as Blob;
     if (!(blob instanceof Blob) || blob.size < 1200 || blob.type !== "application/pdf") {
       throw new Error("The PDF generator returned an empty or invalid PDF file. Please retry the export.");
     }
