@@ -74,7 +74,11 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [statusFilter,setStatusFilter] = useState("All statuses");
   const [moduleFilter,setModuleFilter] = useState("All modules");
   const [addContactId,setAddContactId] = useState(props.contacts[0]?.id || "");
+  const [addContactSearch,setAddContactSearch] = useState("");
+  const [addContactPickerOpen,setAddContactPickerOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
+  const deferredAddContactSearch = useDeferredValue(addContactSearch);
+  const matchingAddContacts = useMemo(() => { const term=deferredAddContactSearch.trim().normalize("NFKC").toLocaleLowerCase(); return props.contacts.filter(contact=>!term||[contact.name,contact.role,...(contact.roles||[]),contact.phone,contact.email].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase().includes(term)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,30); },[props.contacts,deferredAddContactSearch]);
 
   useEffect(() => {
     const saved = emptyRows(props.contacts);
@@ -92,7 +96,7 @@ export default function FollowUpRegisterPanel(props: Props) {
     });
   },[props.contacts]);
   useEffect(() => {
-    if (!props.contacts.some(contact => contact.id === addContactId)) setAddContactId(props.contacts[0]?.id || "");
+    if (!props.contacts.some(contact => contact.id === addContactId)) setAddContactId("");
   },[props.contacts,addContactId]);
 
   const contactIndex = useMemo(() => new Map(props.contacts.map(contact => [contact.id,contact])),[props.contacts]);
@@ -224,7 +228,11 @@ export default function FollowUpRegisterPanel(props: Props) {
       <label className="ax-followup-register__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search contact, person, role, group, module, amount or description…"/></label>
       <label><span>Status</span><select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option>All statuses</option>{statuses.map(value=><option key={value}>{value}</option>)}</select></label>
       <label><span>Module type</span><select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option>All modules</option>{moduleOptions.map(value=><option key={value}>{value}</option>)}</select></label>
-      <label><span>Add to contact</span><select value={addContactId} onChange={event=>setAddContactId(event.target.value)}><option value="">Choose contact</option>{props.contacts.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role||"Contact"}</option>)}</select></label>
+      <div className="ax-followup-register__add-contact">
+        <label htmlFor="ax-followup-add-contact"><span>Add to contact</span></label>
+        <div className="ax-followup-register__add-contact-search"><Search size={14}/><input id="ax-followup-add-contact" type="search" value={addContactSearch} onChange={event=>{setAddContactSearch(event.target.value);setAddContactPickerOpen(true);}} onFocus={()=>setAddContactPickerOpen(true)} placeholder="Type a name, role or phone…"/>{addContactSearch&&<button type="button" onClick={()=>setAddContactSearch("")} aria-label="Clear contact search">×</button>}</div>
+        {addContactPickerOpen&&<div className="ax-followup-register__add-contact-results">{matchingAddContacts.map(contact=><button type="button" key={contact.id} onClick={()=>{setAddContactId(contact.id);setAddContactSearch(contact.name);setAddContactPickerOpen(false);}}><strong>{contact.name}</strong><small>{contact.role||"Contact"}{contact.phone?" · "+contact.phone:""}</small></button>)}{!matchingAddContacts.length&&<p>No saved contacts match this search.</p>}</div>}
+      </div>
       <button type="button" className="primary-button" disabled={!addContactId||props.readOnly} onClick={()=>addForContact(addContactId)}><Plus size={14}/> Add follow-up</button>
     </div>
     <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Changes are per-row; select Save to synchronize.</span></div>
