@@ -40,7 +40,7 @@ export function validateCustomModule(value: CustomModuleDefinition, existingName
   const name = normaliseCustomModuleName(value.name);
   if (!name) errors.push("Enter a module name.");
   if (name.length > 48) errors.push("Module names must be 48 characters or fewer.");
-  if (existingNames.some(item => item.trim().toLocaleLowerCase() === name.toLocaleLowerCase())) {
+  if (existingNames.some(item => normaliseCustomModuleName(item).toLocaleLowerCase() === name.toLocaleLowerCase())) {
     errors.push("A module with this name already exists.");
   }
   if (!value.group.trim()) errors.push("Choose a module category.");
