@@ -179,6 +179,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       </div>
       <label className="ax-module-search"><Search size={15}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder={"Search all " + moduleName.toLowerCase() + " fields"} aria-label={"Search all fields in " + moduleName}/>{query&&<button type="button" className="ax-module-search-clear" onClick={()=>setQuery("")} aria-label="Clear module search">×</button>}</label>
       <div className="ax-module-filter"><ListFilter size={14}/><select aria-label="Filter by status" value={filter} onChange={event=>setFilter(event.target.value)}><option>All</option>{statuses.map(status=><option key={status}>{status}</option>)}</select></div>
+      <div className="ax-module-filter ax-module-filter--transaction"><ListFilter size={14}/><select aria-label="Filter by transaction type" value={transactionFilter} onChange={event=>setTransactionFilter(event.target.value)}><option>All transactions</option>{dealTransactionTypes.map(type=><option key={type}>{type}</option>)}</select></div>
     </div>
     {records.length > 0 && <div className="ax-stage-strip">
       <button className={filter==="All"?"selected":""} onClick={()=>setFilter("All")}><span>All records</span><strong>{records.length}</strong></button>
