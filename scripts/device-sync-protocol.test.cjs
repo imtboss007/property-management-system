@@ -33,4 +33,4 @@ const emptyStore = { schemaVersion: 1, revision: 0, updatedAt: "", snapshot: {} 
 assert.equal(createDataSyncReadReply(emptyStore, 0).unchanged, true,
   "revision zero is a valid unchanged state after an empty store has been read once");
 
-process.stdout.write("Revision-aware device sync protocol tests passed.\\n");
+process.stdout.write("Revision-aware device sync protocol tests passed.\n");
