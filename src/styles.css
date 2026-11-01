@@ -2406,3 +2406,12 @@ h2,h3{color:#e5f2fc}
 .ax-followup-register__monthly-interest{color:#187044!important;font-weight:750}
 @media(max-width:1180px){.ax-followup-register__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.ax-followup-register__toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.ax-followup-register__toolbar .ax-followup-register__search{grid-column:span 2}}
 @media(max-width:650px){.ax-followup-register__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-followup-register__toolbar{grid-template-columns:1fr 1fr}.ax-followup-register__toolbar .ax-followup-register__search{grid-column:1/-1}.ax-deal-structure{padding:12px}.ax-deal-structure__section{padding:11px}}
+
+
+.ax-transaction-chip{display:inline-flex;max-width:125px;padding:4px 7px;border:1px solid #28516a;border-radius:6px;background:#102c42;color:#9ad9ee;font-size:9px;font-weight:750;white-space:normal;line-height:1.35}
+.ax-record-transaction{border-color:#315b71;background:#0e2537}
+.ax-record-transaction h3{color:#bceafa}
+.ax-record-transaction .ax-record-detail__grid>div{border-color:#254961;background:#0a1d2d}
+.ax-record-transaction .ax-record-detail__grid span{color:#85a9bd}
+.ax-record-transaction .ax-record-detail__grid strong{color:#e3f4ff}
+.ax-record-transaction .ax-record-detail__grid-wide{grid-column:1/-1}
