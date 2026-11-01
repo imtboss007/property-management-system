@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { deviceSyncCollectionsEqual } from "./device-sync";
+import { fetchAllCompanyRecords } from "./company-record-pagination";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || "";
 const publishableKey = (
@@ -74,11 +76,7 @@ export async function prepareCompanyWorkspace(
 ): Promise<{ counts: Record<string, number>; uploaded: number }> {
   if (!supabase) throw new Error("Cloud authentication is not configured.");
   if (company.role === "read_only") importLegacy = false;
-  const { data: rows, error } = await supabase
-    .from("company_records")
-    .select("record_type,record_key,payload,deleted_at")
-    .eq("company_id", company.id);
-  if (error) throw new Error("Could not load this company's cloud records. Confirm the SQL migration is applied: " + error.message);
+  const rows = await fetchAllCompanyRecords(supabase, company.id);
 
   const remoteByType = new Map<string, Array<Record<string, unknown> & { id: string }>>();
   const deletedByType = new Map<string, Set<string>>();
@@ -241,11 +239,7 @@ export async function syncCompanyWorkspace(
 ): Promise<WorkspaceCollections> {
   if (!supabase) return collections;
 
-  const { data: remoteRows, error: readError } = await supabase
-    .from("company_records")
-    .select("record_type,record_key,payload,updated_at,deleted_at")
-    .eq("company_id", company.id);
-  if (readError) throw new Error("Could not refresh cloud records: " + readError.message);
+  const remoteRows = await fetchAllCompanyRecords(supabase, company.id);
 
   type SyncRow = Record<string, unknown> & { id: string };
   type RemoteRow = { payload: SyncRow; updatedAt: string };
@@ -284,6 +278,16 @@ export async function syncCompanyWorkspace(
     property: "Property", contact: "Contact", task: "Task", financial: "Financial",
     risk: "Risk", approval: "Approval"
   };
+  const auditTimeByRecord = new Map<string, number>();
+  for (const event of collections.auditEvents) {
+    const entity = String(event.entity || "");
+    const recordId = String(event.recordId || "");
+    const eventAt = Date.parse(String(event.at || ""));
+    if (!entity || !recordId || !Number.isFinite(eventAt)) continue;
+    const key = entity + "\u0000" + recordId;
+    if (eventAt > (auditTimeByRecord.get(key) || 0)) auditTimeByRecord.set(key, eventAt);
+  }
+
   const localChangedAt = (recordType: string, recordId: string, payload: SyncRow): number => {
     if (recordType === "audit_event") {
       const stamp = Date.parse(String(payload.at || ""));
@@ -295,9 +299,7 @@ export async function syncCompanyWorkspace(
     }
     const entity = auditEntityByType[recordType];
     if (entity) {
-      const matching = collections.auditEvents
-        .filter(event => event.recordId === recordId && event.entity === entity)
-        .reduce((latest, event) => Math.max(latest, Date.parse(String(event.at ?? "")) || 0), 0);
+      const matching = auditTimeByRecord.get(entity + "\u0000" + recordId) || 0;
       if (matching) return matching;
     }
     return 0;
@@ -397,7 +399,9 @@ export async function syncCompanyWorkspace(
 
     (mergedSnapshot[item.stateKey] as SyncRow[]) = result;
     const localKey = scopedStorageKey(company.id, item.storageKey);
-    localStorage.setItem(localKey, JSON.stringify(result));
+    if (!deviceSyncCollectionsEqual(rows, result)) {
+      localStorage.setItem(localKey, JSON.stringify(result));
+    }
   }
 
   if (toDelete.length && company.role !== "read_only") await softDeleteCompanyRecords(company, userId, toDelete);
@@ -407,7 +411,10 @@ export async function syncCompanyWorkspace(
     if (error) throw new Error("Could not upload changed company records: " + error.message);
   }
 
-  localStorage.setItem(baselineKey, JSON.stringify(nextBaseline));
+  const nextBaselineText = JSON.stringify(nextBaseline);
+  if (localStorage.getItem(baselineKey) !== nextBaselineText) {
+    localStorage.setItem(baselineKey, nextBaselineText);
+  }
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.lastCloudSync"), new Date().toISOString());
   return mergedSnapshot;
 }
