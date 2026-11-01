@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Bell, CheckCircle2, ChevronDown, CircleHelp, Clock3, FileText, History, Plus, Search, Users, X } from "lucide-react";
+import { Bell, CheckCircle2, ChevronDown, CircleHelp, History, Plus, Search, X } from "lucide-react";
 
-type SearchKind = "property" | "contact" | "task" | "financial" | "document" | "risk" | "approval" | "group";
+export type SearchKind = "property" | "contact" | "task" | "financial" | "document" | "risk" | "approval" | "group";
 type SearchResult = { kind: SearchKind; id: string; title: string; detail: string; record: any };
 type Props = {
   search: string;
