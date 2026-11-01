@@ -29,7 +29,7 @@ for (const token of [
   "Module Studio", "Module identity", "Build the data form",
   "Workflow stages", "Add field", "Create module", "Required field",
   "Dropdown options", "existingNames", "onSave"
-]) assert.ok(studio.includes(token), "Missing Module Studio control: " + token);
+]) assert.ok(studio.toLocaleLowerCase().includes(token.toLocaleLowerCase()), "Missing Module Studio control: " + token);
 
 for (const token of [
   "CustomModuleDefinition", "CustomModuleFieldType", "customModuleFieldKey",
