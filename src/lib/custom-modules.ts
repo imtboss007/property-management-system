@@ -6,7 +6,7 @@ export type CustomModuleField = {
   key: string;
   label: string;
   placeholder: string;
-  type: CustomModuleFieldType;
+  type?: CustomModuleFieldType;
   options?: string[];
   required?: boolean;
 };
