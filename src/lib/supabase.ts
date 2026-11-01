@@ -399,7 +399,8 @@ export async function syncCompanyWorkspace(
 
     (mergedSnapshot[item.stateKey] as SyncRow[]) = result;
     const localKey = scopedStorageKey(company.id, item.storageKey);
-    if (!deviceSyncCollectionsEqual(rows, result)) {
+    const originalRows = collections[item.stateKey] || [];
+    if (!deviceSyncCollectionsEqual(originalRows, result)) {
       localStorage.setItem(localKey, JSON.stringify(result));
     }
   }
