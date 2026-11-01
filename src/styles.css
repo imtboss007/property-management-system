@@ -2382,3 +2382,27 @@ h2,h3{color:#e5f2fc}
 .ax-followup-register__summary-detail-grid>div{min-width:0}
 .ax-record-detail__grid-wide{grid-column:1/-1}
 .ax-record-detail__grid-wide strong{white-space:pre-wrap;overflow-wrap:anywhere}
+
+
+/* Universal transaction structure and finance fields */
+.ax-deal-structure{border:1px solid #dbe7df;background:linear-gradient(145deg,#fbfdfb,#f2f7f3);border-radius:14px;padding:18px;margin:18px 0}
+.ax-deal-structure .form-section-title{margin-bottom:12px}
+.ax-deal-structure__section{margin-top:16px;padding:15px;border:1px solid #dfe8e1;border-radius:11px;background:#fff}
+.ax-deal-structure__section h4{margin:0 0 13px;color:#203d2c;font:700 13px "Manrope",sans-serif}
+.ax-deal-structure__section label,.ax-deal-structure>label{display:flex;flex-direction:column;gap:7px}
+.ax-deal-structure__section input,.ax-deal-structure__section select,.ax-deal-structure__section textarea,.ax-deal-structure>label select{width:100%;min-width:0;border:1px solid #dce5dd;border-radius:8px;padding:9px 10px;background:#fff;color:#263a2c;font:12px "DM Sans",sans-serif}
+.ax-deal-structure__section textarea{resize:vertical}
+.ax-deal-structure__field-label{display:block;margin-bottom:7px;color:#475a4b;font-size:12px;font-weight:650}
+.ax-deal-structure__calculation{display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:62px;padding:10px 12px;border:1px solid #d5e5d9;border-radius:9px;background:#eff7f0}
+.ax-deal-structure__calculation span,.ax-deal-structure__interest-result span{color:#617865;font-size:10px}
+.ax-deal-structure__calculation strong{color:#1e6239;font:800 17px "Manrope",sans-serif}
+.ax-deal-structure__interest-result{display:flex;flex-direction:column;gap:6px;margin-top:12px;padding:14px;border:1px solid #b7d9c2;border-radius:10px;background:#eaf6ed}
+.ax-deal-structure__interest-result strong{color:#145f32;font:800 23px "Manrope",sans-serif}
+.ax-deal-structure__interest-result small{color:#536d59;font-size:10px;line-height:1.55}
+.ax-followup-register__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ax-followup-register__interest-metric strong{font-size:16px!important;white-space:nowrap}
+.ax-followup-register__interest-metric small{color:#7398ad;font-size:8px;line-height:1.4}
+.ax-followup-register__toolbar{grid-template-columns:minmax(220px,1.5fr) repeat(5,minmax(120px,.8fr)) auto}
+.ax-followup-register__monthly-interest{color:#187044!important;font-weight:750}
+@media(max-width:1180px){.ax-followup-register__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.ax-followup-register__toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}.ax-followup-register__toolbar .ax-followup-register__search{grid-column:span 2}}
+@media(max-width:650px){.ax-followup-register__metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-followup-register__toolbar{grid-template-columns:1fr 1fr}.ax-followup-register__toolbar .ax-followup-register__search{grid-column:1/-1}.ax-deal-structure{padding:12px}.ax-deal-structure__section{padding:11px}}
