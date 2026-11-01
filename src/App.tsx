@@ -12,6 +12,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
@@ -21,7 +22,7 @@ import {
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
-  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -40,6 +41,7 @@ type FinancialRecord = { id: string; propertyId: string; property: string; conta
 type RiskRecord = { id: string; title: string; category: string; severity: string; status: string; owner: string; dueDate: string; entity: string; propertyId?: string; contactId?: string; mitigation: string; createdAt: string };
 type ApprovalRequest = { id: string; title: string; area: string; entity: string; propertyId?: string; contactId?: string; requestedBy: string; approver: string; priority: string; status: string; rationale: string; decisionNotes: string; requestedAt: string; decidedAt: string };
 type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string };
+type UndoEntry = { id: string; at: string; entity: string; recordId: string; label: string; hadPrevious: boolean; beforeRecord?: unknown };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
 
 type SearchableContactPickerProps = {
@@ -122,7 +124,8 @@ const navigation = [
   { name: "Schedule & Tasks", icon: CalendarClock },
   { name: "Risk & Compliance", icon: ShieldCheck },
   { name: "Approvals", icon: ClipboardCheck },
-  { name: "WhatsApp Automation", icon: MessageCircle }
+  { name: "WhatsApp Automation", icon: MessageCircle },
+  { name: "Activity History", icon: History }
 ];
 
 type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select" | "textarea"; options?: string[] };
@@ -673,7 +676,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [documentContact, setDocumentContact] = useState("");
   const [notice, setNotice] = useState("");
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(() => load("estateflow.auditEvents", []));
-  const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string }>> | null>(null);
+  const [undoHistory, setUndoHistory] = useState<UndoEntry[]>(() => load("estateflow.undoHistory", []));
+  const suppressAuditRef = useRef(false);
+  const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown }>> | null>(null);
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
   const cloudSyncSequenceRef = useRef(0);
   const cloudSyncInFlightRef = useRef(false);
@@ -700,6 +705,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         document.querySelector<HTMLInputElement>(".topbar .search-box input")?.focus();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        document.querySelector<HTMLButtonElement>(".ax-quick-create")?.click();
       }
       if (event.key === "Escape") {
         setMobileMenu(false);
@@ -760,6 +769,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(() => {
     saveLocal("estateflow.auditEvents", auditEvents);
   }, [auditEvents]);
+  useEffect(() => {
+    saveLocal("estateflow.undoHistory", undoHistory.slice(0, 30));
+  }, [undoHistory]);
 
   // In authenticated company mode, reconcile this device with the company-scoped cloud records.
   // A debounced write follows edits; a 30-second pull also discovers changes from other devices.
