@@ -167,9 +167,10 @@ console.log("AXIVESTRA person-grouped follow-up overview, editable per-record fi
 
 for (const token of [
   "Edit any field below", "onBlur={()=>save(row.key)}",
-  "Action description", "Final amount / terms amount", "Next follow-up date",
-  "Next follow-up time", "What the person said / terms", "Response channel"
-]) assert.ok(register.includes(token), "Missing editable auto-save follow-up overview: " + token);
+  'aria-label="Follow-up description"', 'aria-label="Follow-up amount"',
+  "Expected reach-back date", "Expected reach-back time",
+  "What the person said / terms", "Follow-up channel"
+]) assert.ok(register.includes(token), "Missing editable per-record follow-up row: " + token);
 for (const token of [
   "nextFollowUpDate:primary.promisedDate", "nextFollowUpTime:primary.promisedTime",
   "__followUpStatus:primary.status", "__followUpNotes:primary.notes",
