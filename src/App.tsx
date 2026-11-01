@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -80,7 +80,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   const selectSingle=(id:string)=>{onChange(id);setQuery("");setOpen(false);};
   const toggle=(id:string)=>{const next=selectedIds.includes(id)?selectedIds.filter(item=>item!==id):Array.from(new Set([...selectedIds,id]));onChange(next);setQuery("");setOpen(true);};
   const remove=(id:string)=>{const next=selectedIds.filter(item=>item!==id);onChange(multiple?next:"");};
-  const handleKeyDown=(event:KeyboardEvent<HTMLInputElement>)=>{if(event.key==="Escape"){setOpen(false);setQuery("");}if(event.key==="Enter"&&visible[0]){event.preventDefault();if(multiple)toggle(visible[0].id);else selectSingle(visible[0].id);}};
+  const handleKeyDown=(event:ReactKeyboardEvent<HTMLInputElement>)=>{if(event.key==="Escape"){setOpen(false);setQuery("");}if(event.key==="Enter"&&visible[0]){event.preventDefault();if(multiple)toggle(visible[0].id);else selectSingle(visible[0].id);}};
   return <div className={"searchable-contact-picker"+(multiple?" searchable-contact-picker--multiple":"")}>
     <span className="searchable-contact-picker__label">{label}</span>
     {selected.length>0&&<div className="searchable-contact-picker__selected">{selected.map(contact=><span className="searchable-contact-picker__chip" key={contact.id}><span><strong>{contact.name}</strong><small>{rolesFor(contact)||"Contact"}{contact.phone?" · "+contact.phone:""}</small></span><button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>remove(contact.id)} aria-label={"Remove "+contact.name+" from "+label}><X size={12}/></button></span>)}</div>}
