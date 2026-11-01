@@ -93,7 +93,8 @@ for (const token of [
 ]) assert.ok(app.includes(token), "Missing Contact 360 / linked module synchronization: " + token);
 
 for (const token of [
-  "visibility:visible;opacity:1", "contentHeight", "await worker.toCanvas()",
+  "visibility:visible;opacity:1", "contentHeight", "await inspectionWorker.toCanvas()",
+  "inspectionWorker.get(\"canvas\")",
   "getImageData", "averageLuminance", "blank or black page"
 ]) assert.ok(pdf.includes(token), "Missing nonblank PDF rendering safeguard: " + token);
 console.log("AXIVESTRA editable multi-person Contact 360 follow-up register and bidirectional linked-record sync contracts passed.");
