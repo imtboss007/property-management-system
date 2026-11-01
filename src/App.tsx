@@ -595,8 +595,18 @@ function reportEscape(value: unknown): string {
 }
 
 function printModuleReport(moduleName: string, records: PropertyRecord[], fields: ModuleField[], onBlocked: () => void): void {
-  const target = window.open("", "_blank");
-  if (!target) { onBlocked(); return; }
+  const targetFrame = document.createElement("iframe");
+  targetFrame.setAttribute("aria-hidden", "true");
+  targetFrame.title = "AXIVESTRA printable report";
+  targetFrame.style.position = "fixed";
+  targetFrame.style.right = "0";
+  targetFrame.style.bottom = "0";
+  targetFrame.style.width = "0";
+  targetFrame.style.height = "0";
+  targetFrame.style.border = "0";
+  document.body.appendChild(targetFrame);
+  const target = targetFrame.contentWindow;
+  if (!target) { targetFrame.remove(); onBlocked(); return; }
   const recordMarkup = records.map((record, index) => {
     const core = [
       ["Record / deal", record.title], ["Module", record.module], ["Status", record.status],
@@ -633,7 +643,8 @@ function printModuleReport(moduleName: string, records: PropertyRecord[], fields
     *{box-sizing:border-box}body{font:13px/1.5 Arial,sans-serif;color:#172533;margin:28px}header{border-bottom:3px solid #1c526d;padding-bottom:16px;margin-bottom:22px}header strong{font-size:22px;letter-spacing:.08em}header h1{font-size:20px;margin:12px 0 4px}header p{color:#5a6c7b;margin:0}.record{break-inside:avoid;margin:0 0 24px;padding:0 0 22px;border-bottom:1px solid #ccd7df}.record-head{display:flex;align-items:start;gap:12px;margin-bottom:10px}.record-head span{font-size:10px;font-weight:bold;color:#60798a;min-width:65px;padding-top:4px}.record-head h2{font-size:16px;margin:0}table{width:100%;border-collapse:collapse;margin:8px 0 14px}th,td{padding:7px 9px;text-align:left;vertical-align:top;border:1px solid #d6e0e7;overflow-wrap:anywhere}th{width:30%;background:#f1f5f7;font-weight:600}.details{margin-left:10px}.details h4{margin:15px 0 5px}.table-wrap{overflow:visible}footer{margin-top:24px;color:#687e8d;font-size:11px}@media print{body{margin:14mm}.record{break-inside:avoid}.table-wrap{overflow:visible}} 
   </style></head><body><header><strong>AXIVESTRA</strong><h1>${reportEscape(moduleName)} — Management Report</h1><p>Generated ${reportEscape(new Date().toLocaleString("en-IN"))} · ${records.length} record(s) · Values shown only where entered</p></header>${recordMarkup || "<p>No records are available for this report.</p>"}<footer>Confidential workspace report. Validate source documents and financial inputs before relying on this report.</footer></body></html>`;
   target.document.open(); target.document.write(html); target.document.close();
-  window.setTimeout(() => { try { target.focus(); target.print(); } catch {} }, 350);
+  target.onload = () => { window.setTimeout(() => { try { target.focus(); target.print(); } catch { onBlocked(); } finally { window.setTimeout(() => targetFrame.remove(), 1200); } }, 450); };
+  window.setTimeout(() => { if (targetFrame.isConnected) { try { target.focus(); target.print(); } catch { onBlocked(); } finally { window.setTimeout(() => targetFrame.remove(), 1200); } } }, 900);
 }
 
 export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
@@ -2213,6 +2224,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
             onExportReport={rows=>printModuleReport(active,rows as PropertyRecord[],moduleFields[active]||[],()=>setNotice("Allow pop-ups for AXIVESTRA to open the printable report."))}
+            onPrintRecord={record=>printModuleReport(record.module,[record as PropertyRecord],moduleFields[record.module]||[],()=>setNotice("The printable report could not be opened. Check the application print permission."))}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
