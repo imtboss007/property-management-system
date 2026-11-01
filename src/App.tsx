@@ -7,7 +7,7 @@ import {
   reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
-import { localDb } from "./lib/local-db";
+import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -15,6 +15,7 @@ import ModuleWorkbench from "./ModuleWorkbench";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
+import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEditor, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -108,6 +109,7 @@ const modules = [
   { name: "Litigation", icon: Scale, color: "amber", group: "Legal & Risk", description: "Case chronology, exposure, counsel and hearing deadlines." },
   { name: "Fund & Portfolio Management", icon: PieChart, color: "blue", group: "Portfolio & Funds", description: "Commitments, deployed capital, NAV, fees, hurdle rates and benchmarks." },
   { name: "Investor Relations", icon: Users, color: "mint", group: "Investor Services", description: "LPs, investors, commitments, paid-in capital, KYC status and reporting." },
+  { name: "USDT Transaction Details", icon: HandCoins, color: "green", group: "Transactions", description: "Buyer, seller, reference rate, discounted rate and payment reconciliation." },
   { name: "Compliance & KYC", icon: ShieldCheck, color: "violet", group: "Governance", description: "Counterparty onboarding, beneficial ownership, screening and review dates." }
 ];
 const navigation = [
@@ -123,8 +125,8 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
-const moduleFields: Record<string, ModuleField[]> = {
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select" | "textarea"; options?: string[] };
+const baseModuleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
     { key: "buyer", label: "Buyer", placeholder: "Buyer contact or legal entity" },
@@ -305,6 +307,15 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "evidenceStatus", label: "Evidence checklist", placeholder: "ID, registration, BO, source of funds…" }
   ]
 };
+const moduleFields: Record<string, ModuleField[]> = Object.fromEntries(
+  Array.from(new Set([...Object.keys(baseModuleFields), ...Object.keys(axivestraModuleFields)])).map(moduleName => {
+    const fields = [...(baseModuleFields[moduleName] ?? []), ...(axivestraModuleFields[moduleName] ?? [])];
+    const byKey = new Map<string, ModuleField>();
+    fields.forEach(field => byKey.set(field.key, field));
+    return [moduleName, Array.from(byKey.values())];
+  })
+);
+const contactRoleOptions = ["Client","Mediator","Funder","Landowner","Property buyer","Property seller","Builder / developer","Borrower","Lender","Investor","Company owner / director","Broker / agent","Professional adviser","Guarantor","JV / JDA partner","Advocate","Contractor","Employee / salaried","Supplier / vendor","Introducer / referral partner","Tenant","Loan officer","Bank relationship manager","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Other"];
 type ModuleContactField = { key: string; label: string };
 const moduleContactFields: Record<string, ModuleContactField[]> = {
   "Property Sale": [
@@ -576,6 +587,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
+  const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
@@ -861,16 +873,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if (manual) setSyncBusy(true);
       try {
         let remote = await readRemote();
-        const baselineKey = "axivestra.deviceSyncBaseline";
-        let baselineValue: unknown = null;
-        try { baselineValue = JSON.parse(localStorage.getItem(baselineKey) || "null"); } catch {}
+        const baselineValue = await loadDeviceSyncBaseline();
         const baseline = parseDeviceSyncBaseline(baselineValue);
         let completed = false;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (disposed) return;
           const result = reconcileDeviceSync(localSnapshot, remote.snapshot || {}, baseline);
           if (deviceSyncSnapshotsEqual(result.snapshot, remote.snapshot || {})) {
-            localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
+            await saveDeviceSyncBaseline(result.baseline);
             applySnapshot(result.snapshot);
             completed = true;
             break;
@@ -882,7 +892,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           }
           if (saved.ok === false) throw new Error(saved.error || "The PC did not save the shared data.");
           if (disposed) return;
-          localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
+          await saveDeviceSyncBaseline(result.baseline);
           applySnapshot(result.snapshot);
           completed = true;
           break;
@@ -2073,7 +2083,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
-            {contacts.length ? <div className="record-list">{contacts.filter(c=>`${c.name} ${c.phone} ${c.role} ${(c.roles ?? []).join(" ")} ${c.customRoles ?? ""} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`.toLowerCase().includes(search.toLowerCase())).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+            <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{contactRoleOptions.map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
+            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(search.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
@@ -2359,6 +2370,10 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
+  const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost"]);
+  const visibleSelectedFields = form.module === "Litigation"
+    ? (form.moduleData.courtCaseAvailable === "Yes" ? selectedFields : form.moduleData.courtCaseAvailable === "No" ? selectedFields.filter(field=>!courtOnlyFieldKeys.has(field.key)) : selectedFields.filter(field=>field.key === "courtCaseAvailable"))
+    : selectedFields;
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
@@ -2401,14 +2416,18 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
       <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
       <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Optional amount"/></label></div>
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{field.type==="select" ? <select value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))}><option value="">{field.placeholder || "Select"}</option>{(field.options ?? []).map(option=><option key={option}>{option}</option>)}</select> : field.type==="textarea" ? <textarea rows={3} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/> : field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {(axivestraRepeatableGroups[form.module] ?? []).map(config=><RepeatableModuleEditor key={config.key} config={config} value={form.moduleData[config.key] ?? "[]"} onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[config.key]:value}}))}/>)}
+    {form.module==="Litigation" && form.moduleData.courtCaseAvailable==="No" && <p className="form-help">Non-litigation settlement workflow selected. Court filing, hearing and court-cost fields are hidden; party-wise settlement details remain available.</p>}
+    {buildModuleSummary(form.module,form.moduleData).length>0 && <div className="module-data-section ax-calculated-summary"><div className="form-section-title"><span className="section-kicker">LIVE CALCULATIONS</span><p>Calculated only from values entered here. Missing inputs are shown as N/A; no financial figures are assumed.</p></div><div className="module-data-grid">{buildModuleSummary(form.module,form.moduleData).map(item=><div className="ax-calculated-summary__item" key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>)}</div></div>}
+
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
   </form>;
 }
 function ContactForm({initial,onSave,onCancel}:{initial?:ContactRecord|null;onSave:(v:Omit<ContactRecord,"id">)=>void;onCancel:()=>void}) {
-  const roleOptions=["Client","Mediator","Funder","Landowner","Property buyer","Property seller","Builder / developer","Borrower","Lender","Investor","Company owner / director","Broker / agent","Professional adviser","Guarantor","JV / JDA partner","Advocate","Contractor","Employee / salaried","Supplier / vendor","Introducer / referral partner","Tenant","Loan officer","Bank relationship manager","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Other"];
+  const roleOptions=contactRoleOptions;
   const initialRoles=initial?.roles?.length ? initial.roles : initial?.role ? [initial.role] : ["Client"];
   const [form,setForm]=useState({name:initial?.name ?? "",phone:initial?.phone ?? "",role:initial?.role ?? initialRoles[0] ?? "Client",roles:initialRoles,customRoles:initial?.customRoles ?? "",email:initial?.email ?? "",address:initial?.address ?? "",profession:initial?.profession ?? "",employer:initial?.employer ?? "",designation:initial?.designation ?? "",businessType:initial?.businessType ?? "",incomeSources:initial?.incomeSources ?? "",associatedCompany:initial?.associatedCompany ?? "",relationshipNotes:initial?.relationshipNotes ?? "",notes:initial?.notes ?? ""});
   const update=(k:string,v:string)=>setForm(p=>({...p,[k]:v}));
