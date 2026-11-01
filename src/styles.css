@@ -2323,3 +2323,44 @@ h2,h3{color:#e5f2fc}
 .ax-followup-register__add-contact-results button:hover{background:#14384f}
 .ax-followup-register__add-contact-results small{color:#8aaabd;font-size:8px}
 .ax-followup-register__add-contact-results p{margin:5px;padding:6px;color:#91aabd;font-size:9px}
+
+
+/* Follow-up Register executive overview */
+.ax-followup-register__summary-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 10px;padding:0 2px}
+.ax-followup-register__summary-heading>div{display:grid;gap:3px}
+.ax-followup-register__summary-heading strong{font:700 15px "Manrope",sans-serif;color:#173d69}
+.ax-followup-register__summary-heading span{font-size:11px;color:#78869a}
+.ax-followup-register__summary-wrap{overflow-x:auto;border:1px solid #d8e1ed;border-radius:13px;background:#fff}
+.ax-followup-register__summary-table{width:100%;min-width:760px;border-collapse:collapse;font-size:13px}
+.ax-followup-register__summary-table thead th{padding:13px 14px;background:#123968;color:#fff;text-align:left;font-size:12px;font-weight:700;letter-spacing:.15px}
+.ax-followup-register__summary-table thead th:first-child{width:44px;text-align:center}
+.ax-followup-register__summary-table tbody td{padding:12px 14px;border-bottom:1px solid #dce4ef;vertical-align:middle;color:#1d2c40}
+.ax-followup-register__summary-row:nth-child(4n+1){background:#f1f6fd}
+.ax-followup-register__summary-row:nth-child(4n+3){background:#f8fbff}
+.ax-followup-register__summary-row>td:first-child{text-align:center;font-weight:700}
+.ax-followup-register__summary-row td strong{display:block;font-size:13px;color:#152c49}
+.ax-followup-register__summary-row td small{display:block;margin-top:4px;color:#6e7f94;font-size:10px;line-height:1.45}
+.ax-followup-register__status{display:inline-flex;padding:6px 10px;border-radius:8px;background:#e6f3e9;color:#21643c;font-weight:700;font-size:11px;white-space:nowrap}
+.ax-followup-register__status--awaiting-response,.ax-followup-register__status--overdue{background:#fff0d7;color:#9a5a08}
+.ax-followup-register__status--on-hold{background:#eee7ff;color:#6240a2}
+.ax-followup-register__status--cancelled{background:#fce8e8;color:#a42e2e}
+.ax-followup-register__status--reached-back,.ax-followup-register__status--completed{background:#ddf4e3;color:#17653a}
+.ax-followup-register__summary-detail-row>td{padding:0!important;background:#f7faff}
+.ax-followup-register__summary-detail-row details{padding:0 14px 10px}
+.ax-followup-register__summary-detail-row summary{padding:8px 0;color:#315b87;font-size:11px;font-weight:700;cursor:pointer}
+.ax-followup-register__summary-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:10px 0}
+.ax-followup-register__summary-detail-grid>div{min-width:0;padding:10px;border:1px solid #e0e8f1;border-radius:8px;background:#fff}
+.ax-followup-register__summary-detail-grid label{display:block;margin-bottom:5px;color:#718198;font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+.ax-followup-register__summary-detail-grid strong,.ax-followup-register__summary-detail-grid span{display:block;overflow-wrap:anywhere;font-size:11px;color:#263c56}
+.ax-followup-register__summary-detail-grid span{margin-top:4px;color:#718198;font-size:10px}
+.ax-followup-register__filter-dropdown{position:relative;min-width:150px}
+.ax-followup-register__filter-dropdown>summary{display:flex;align-items:center;gap:5px;list-style:none;padding:10px 11px;border:1px solid #dfe6ed;border-radius:8px;background:#fff;color:#38516c;font-size:10px;font-weight:650;cursor:pointer;white-space:nowrap}
+.ax-followup-register__filter-dropdown>summary::-webkit-details-marker{display:none}
+.ax-followup-register__filter-dropdown>summary:after{content:"⌄";margin-left:auto;font-size:13px}
+.ax-followup-register__filter-options{position:absolute;z-index:20;top:calc(100% + 5px);left:0;min-width:220px;max-height:260px;overflow:auto;padding:8px;border:1px solid #dce5ef;border-radius:10px;background:#fff;box-shadow:0 12px 28px #17304a1c}
+.ax-followup-register__filter-options label{display:flex;align-items:center;gap:8px;padding:7px;border-radius:6px;color:#344b63;font-size:11px;cursor:pointer}
+.ax-followup-register__filter-options label:hover{background:#f0f5fb}
+.ax-followup-register__filter-options input{accent-color:#174c7c}
+.ax-followup-register__filter-options small{display:block;padding:8px;color:#8290a0;font-size:10px}
+@media(max-width:850px){.ax-followup-register__summary-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.ax-followup-register__summary-detail-grid{grid-template-columns:1fr}.ax-followup-register__summary-heading{align-items:flex-start;flex-direction:column}}
