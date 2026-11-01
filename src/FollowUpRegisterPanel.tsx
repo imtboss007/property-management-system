@@ -26,7 +26,7 @@ type RecordRow = {
   contact: string; primaryContactId?: string; moduleData: Record<string,string>;
 };
 type GroupRow = { id: string; name: string; jid?: string; size?: number };
-type DraftRow = { contactId: string; item: FollowUpRegisterItem; isNew: boolean };
+type DraftRow = { contactId: string; item: FollowUpRegisterItem; isNew: boolean; dirty?: boolean };
 type Props = {
   contacts: ContactRow[];
   properties: RecordRow[];
@@ -44,7 +44,7 @@ const channels = ["Call", "WhatsApp", "Email", "Meeting", "Site visit", "Documen
 const rowKey = (contactId: string, rowId: string) => contactId + "::" + rowId;
 const emptyRows = (contacts: ContactRow[]): Record<string,DraftRow> => Object.fromEntries(
   contacts.flatMap(contact => (contact.followUps || []).map(item => [
-    rowKey(contact.id,item.id), { contactId: contact.id, item: { ...item, amount: String(item.amount ?? "") }, isNew: false }
+    rowKey(contact.id,item.id), { contactId: contact.id, item: { ...item, amount: String(item.amount ?? "") }, isNew: false, dirty: false }
   ]))
 );
 const contactLinksRecord = (contact: ContactRow, record: RecordRow) => {
@@ -66,9 +66,6 @@ const createFollowUp = (contact: ContactRow): FollowUpRegisterItem => {
     createdAt: now, updatedAt: now
   };
 };
-    parsed.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:time?"short":undefined});
-};
-
 export default function FollowUpRegisterPanel(props: Props) {
   const [drafts,setDrafts] = useState<Record<string,DraftRow>>(() => emptyRows(props.contacts));
   const [query,setQuery] = useState("");
@@ -77,7 +74,21 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [addContactId,setAddContactId] = useState(props.contacts[0]?.id || "");
   const deferredQuery = useDeferredValue(query);
 
-  useEffect(() => setDrafts(emptyRows(props.contacts)),[props.contacts]);
+  useEffect(() => {
+    const saved = emptyRows(props.contacts);
+    setDrafts(current => {
+      const next = { ...current };
+      for (const [key,row] of Object.entries(current)) {
+        if (saved[key]) {
+          if (!row.dirty) next[key] = saved[key];
+        } else if (!row.isNew && !row.dirty) {
+          delete next[key];
+        }
+      }
+      for (const [key,row] of Object.entries(saved)) if (!next[key]) next[key] = row;
+      return next;
+    });
+  },[props.contacts]);
   useEffect(() => {
     if (!props.contacts.some(contact => contact.id === addContactId)) setAddContactId(props.contacts[0]?.id || "");
   },[props.contacts,addContactId]);
@@ -126,7 +137,7 @@ export default function FollowUpRegisterPanel(props: Props) {
   const patch = (key:string, field:keyof FollowUpRegisterItem, value:string|boolean) => {
     setDrafts(current => {
       const row = current[key];
-      return row ? {...current,[key]:{...row,item:{...row.item,[field]:value}}} : current;
+      return row ? {...current,[key]:{...row,item:{...row.item,[field]:value},dirty:true}} : current;
     });
   };
   const chooseRecord = (key:string,recordId:string) => {
@@ -145,7 +156,7 @@ export default function FollowUpRegisterPanel(props: Props) {
         promisedDate:record?(draft.item.promisedDate||""):draft.item.promisedDate,
         promisedTime:record?(draft.item.promisedTime||""):draft.item.promisedTime,
         isPrimary:Boolean(record&&contact&&!hasPrimary)
-      }}};
+      },dirty:true}};
     });
   };
   const setPrimary = (key:string,checked:boolean) => {
@@ -153,9 +164,9 @@ export default function FollowUpRegisterPanel(props: Props) {
     setDrafts(current => Object.fromEntries(Object.entries(current).map(([otherKey,draft]) => [
       otherKey,
       otherKey===key
-        ? {...draft,item:{...draft.item,isPrimary:checked}}
+        ? {...draft,item:{...draft.item,isPrimary:checked},dirty:true}
         : checked && target?.contactId===draft.contactId && target.item.linkedRecordId && target.item.linkedRecordId===draft.item.linkedRecordId
-          ? {...draft,item:{...draft.item,isPrimary:false}}
+          ? {...draft,item:{...draft.item,isPrimary:false},dirty:true}
           : draft
     ])));
   };
@@ -163,7 +174,7 @@ export default function FollowUpRegisterPanel(props: Props) {
     const contact = contactIndex.get(contactId);
     if (!contact) return;
     const item = createFollowUp(contact);
-    setDrafts(current=>({...current,[rowKey(contactId,item.id)]:{contactId,item,isNew:true}}));
+    setDrafts(current=>({...current,[rowKey(contactId,item.id)]:{contactId,item,isNew:true,dirty:true}}));
   };
   const save = (key:string) => {
     const draft = drafts[key];
@@ -175,7 +186,7 @@ export default function FollowUpRegisterPanel(props: Props) {
       ? previous.map(item=>item.id===saved.id?saved:item)
       : [...previous,saved];
     props.onUpdateFollowUps(contact.id,next);
-    setDrafts(current=>({...current,[key]:{contactId:contact.id,item:saved,isNew:false}}));
+    setDrafts(current=>({...current,[key]:{contactId:contact.id,item:saved,isNew:false,dirty:false}}));
   };
   const remove = (key:string) => {
     const draft = drafts[key];
