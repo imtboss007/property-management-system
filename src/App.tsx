@@ -1454,6 +1454,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
   const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
+  const assetModuleNames = new Set(["Property Sale", "Agricultural Land", "Commercial Land", "House Purchase"]);
+  const assetRecords = properties.filter(item => assetModuleNames.has(item.module));
   const loanModuleNames = new Set(["Property Loans", "Unsecured Company Loan", "Personal Loan", "Housing Loan"]);
   const dealModuleNames = new Set(["Property Sale", "JV / JDA / JD", "SR Rate Settlement", "House Purchase", "Startup", "Equity"]);
   const loanRecords = properties.filter(item => loanModuleNames.has(item.module) && !["Completed", "Closed", "Settled"].includes(item.status));
@@ -2232,7 +2234,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               <button type="button" onClick={()=>setDashboardLayout({analytics:true,insightPanels:true,moduleDirectory:true,followups:true,whatsApp:true,recentActivity:true})}>Reset layout</button>
             </div></details>
             <div className="stats-grid institutional-stats ax-dashboard-kpis">
-              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("All Properties")}><span className="ax-dashboard-kpi-icon cyan"><LandPlot size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Total properties & assets</small><strong>{properties.length}</strong><em>{activeRecordCount} active records</em></span><ArrowUpRight size={16}/></button>
+              <button type="button" className="ax-dashboard-kpi" onClick={()=>go("All Properties")}><span className="ax-dashboard-kpi-icon cyan"><LandPlot size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Total property assets</small><strong>{assetRecords.length}</strong><em>{assetRecords.filter(item=>!["Completed","Closed","Settled"].includes(item.status)).length} active assets</em></span><ArrowUpRight size={16}/></button>
               <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Property Loans")}><span className="ax-dashboard-kpi-icon amber"><HandCoins size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Active loans</small><strong>{loanRecords.length}</strong><em>{loanOutstanding ? "₹"+loanOutstanding.toLocaleString("en-IN",{maximumFractionDigits:0})+" outstanding" : "Outstanding not fully entered"}</em></span><ArrowUpRight size={16}/></button>
               <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Property Sale")}><span className="ax-dashboard-kpi-icon violet"><Handshake size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Active deals</small><strong>{activeDealRecords.length}</strong><em>{startupCount} startup · {equityCount} equity records</em></span><ArrowUpRight size={16}/></button>
               <button type="button" className="ax-dashboard-kpi" onClick={()=>go("Schedule & Tasks")}><span className="ax-dashboard-kpi-icon blue"><CalendarClock size={20}/></span><span className="ax-dashboard-kpi-copy"><small>Pending tasks</small><strong>{upcomingTasks.length}</strong><em>{overdueTaskCount} overdue · {Math.max(0,upcomingTasks.length-overdueTaskCount)} upcoming</em></span><ArrowUpRight size={16}/></button>
