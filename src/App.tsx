@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, ReactNode, ComponentType } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -26,7 +26,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck, History,
-  Layers, Layers3, Landmark, Wallet, Coins, Banknote, Activity, CircleDollarSign, FlaskConical, BarChart3
+  Layers, Layers3, Landmark, Wallet, Coins, Banknote, Activity, CircleDollarSign, FlaskConical, BarChart3, type LucideIcon
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -664,7 +664,7 @@ function printModuleReport(moduleName: string, records: PropertyRecord[], fields
   window.setTimeout(() => { try { target.focus(); target.print(); } catch { onBlocked(); } finally { window.setTimeout(() => targetFrame.remove(), 1500); } }, 700);
 }
 
-const customModuleIconRegistry: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
+const customModuleIconRegistry: Record<string, LucideIcon> = {
   Building2, Landmark, Wallet, Coins, Banknote, BarChart3, BriefcaseBusiness, Scale, ShieldCheck,
   Users, FileText, Handshake, CalendarDays, House, Wheat, Layers, Layers3, Activity, ClipboardCheck,
   FlaskConical, CircleDollarSign, Rocket, PieChart, Calculator, Store
@@ -1453,7 +1453,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
-  const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
   const assetModuleNames = new Set(["Property Sale", "Agricultural Land", "Commercial Land", "House Purchase"]);
   const assetRecords = properties.filter(item => assetModuleNames.has(item.module));
   const loanModuleNames = new Set(["Property Loans", "Unsecured Company Loan", "Personal Loan", "Housing Loan"]);
@@ -2506,7 +2505,6 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
   </section>;
 }
 
-function Stat({label,value,icon}:{label:string;value:number|string;icon:ReactNode}) { return <div className="stat-card"><span>{icon}</span><div><strong>{value}</strong><small>{label}</small></div></div>; }
 function Empty({icon,title,text,action,onClick}:{icon:ReactNode;title:string;text:string;action:string;onClick:()=>void}) { return <div className="empty-state"><div className="empty-icon">{icon}</div><strong>{title}</strong><p>{text}</p><button className="secondary-button" onClick={onClick}><Plus size={15}/>{action}</button></div>; }
 function TaskList({tasks,toggle,remove,edit,onWhatsApp}:{tasks:TaskRecord[];toggle:(id:string)=>void;remove:(id:string)=>void;edit?:(task:TaskRecord)=>void;onWhatsApp?:(contactId?:string,propertyId?:string,taskId?:string,taskTitle?:string)=>void}) {
   return <div className="task-list">{tasks.map(t=><article className={`task-row ${t.done?"task-done":""}`} key={t.id}><button className="task-check" onClick={()=>toggle(t.id)} aria-label={t.done?"Mark incomplete":"Mark complete"}><CircleCheck size={20}/></button><div className="task-details"><strong>{t.title}</strong><p><CalendarDays size={14}/>{t.date} <span>•</span> {t.time} <span>•</span> {t.type}</p>{t.property&&<small>Deal: {t.property}</small>}{t.contactName&&<small>Contact: {t.contactName}</small>}{t.notes&&<small>{t.notes}</small>}</div>{edit && <button className="edit-button" onClick={()=>edit(t)} aria-label={`Edit ${t.title}`}><Pencil size={15}/></button>}{onWhatsApp && t.contactId && <button className="edit-button" onClick={()=>onWhatsApp(t.contactId,t.propertyId,t.id,t.title)} aria-label={`Schedule WhatsApp for ${t.title}`} title="Schedule WhatsApp"><MessageCircle size={15}/></button>}<button className="delete-button" onClick={()=>remove(t.id)} aria-label="Delete task"><Trash2 size={15}/></button></article>)}</div>;
