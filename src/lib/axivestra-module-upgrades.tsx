@@ -166,6 +166,10 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     number("marketPricePerShare", "Market price per share (₹)"),
     money("investmentGain", "Investment gain (₹)"),
     money("investmentCost", "Investment cost (₹)"),
+    text("equityCompanyName", "Company / entity legal name"),
+    text("equityRegistrationNumber", "CIN / LLPIN / registration number"),
+    text("equityIndustry", "Industry / sector"),
+    number("promoterSharesBefore", "Promoter shares before funding"),
     number("fullyDilutedShares", "Fully diluted additional shares (options / warrants / convertibles)"),
     number("esopPoolPercent", "ESOP pool (%)"),
     number("esopAllocatedPercent", "ESOP allocated (%)"),
@@ -196,7 +200,10 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     money("expectedUnsecuredLoan", "Expected unsecured loan amount (₹)"),
     text("loanPurpose", "Loan purpose", "Working capital / expansion / machinery / other"),
     number("preferredTenureMonths", "Preferred loan tenure (months)"),
-    money("availableMonthlyCashflow", "Available monthly cash flow (₹)")
+    money("availableMonthlyCashflow", "Available monthly cash flow (₹)"),
+    money("monthlyNetIncome", "Monthly net business income (₹)"),
+    money("monthlyOperatingExpenses", "Monthly operating expenses (₹)"),
+    money("ownerCapital", "Owner / partner capital (₹)")
   ],
   "Personal Loan": [
     money("monthlyIncome", "Monthly salary / income (₹)"),
@@ -423,7 +430,7 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
       rf("location", "Location"), rf("extent", "Extent / built-up area", "Size", "number"),
       rf("unit", "Area unit", "", "select", ["sq ft", "sq yd", "sq m", "acre", "gunta", "hectare", "cent"]),
       rMoney("srValue", "SR value"), rMoney("guidelineValue", "Guideline value"), rMoney("marketValue", "Market value"),
-      rMoney("mortgageOutstanding", "Existing mortgage outstanding"), rf("ownership", "Ownership / title holder"), rf("documentStatus", "Documents available")
+      rMoney("mortgageOutstanding", "Existing mortgage outstanding"), rf("ownership", "Ownership / title holder"), rf("collateralProvider", "Collateral provider"), rf("expectedReleaseDate", "Expected collateral release / return date", "", "date"), rf("releaseConditions", "Release / return conditions"), rf("documentStatus", "Documents available")
     ] }
   ],
   "Equity": [
@@ -470,6 +477,10 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     ] }
   ],
   "Personal Loan": [
+    { key: "personalLenderCriteria", title: "Lender-wise eligibility criteria", description: "Enter the lender's published or confirmed minimum CIBIL, maximum FOIR, rate and tenure. Eligibility remains N/A until a matching lender rule and applicant data are entered.", addLabel: "Add lender criteria", fields: [
+      rf("lender", "Lender name"), rf("minimumCibil", "Minimum CIBIL score", "Score", "number"), rf("maximumFoir", "Maximum FOIR (%)", "%", "number"),
+      rf("interestRate", "Annual interest rate (%)", "%", "number"), rf("maximumTenureMonths", "Maximum tenure (months)", "Months", "number"), rMoney("maximumLoanAmount", "Maximum lender loan amount")
+    ] },
     { key: "personalExistingLoans", title: "Existing loans", description: "Add each existing bank / NBFC / private loan separately.", addLabel: "Add another existing loan", fields: [
       rf("lender", "Bank / NBFC"), rf("loanType", "Loan type"), rMoney("originalAmount", "Original amount"), rMoney("outstanding", "Outstanding amount"),
       rMoney("monthlyEmi", "Monthly EMI"), rf("remainingTenure", "Remaining tenure (months)", "Months", "number"), rMoney("overdue", "Pending overdue")
@@ -485,6 +496,11 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
     ] }
   ],
   "Housing Loan": [
+    { key: "housingLenderCriteria", title: "Lender-wise eligibility criteria", description: "Enter the chosen lender's configured minimum CIBIL, maximum FOIR, maximum LTV, interest rate and tenure. No generic lender thresholds are assumed.", addLabel: "Add lender criteria", fields: [
+      rf("lender", "Lender name"), rf("minimumCibil", "Minimum CIBIL score", "Score", "number"), rf("maximumFoir", "Maximum FOIR (%)", "%", "number"),
+      rf("maximumLtv", "Maximum LTV (%)", "%", "number"), rf("interestRate", "Annual interest rate (%)", "%", "number"),
+      rf("maximumTenureMonths", "Maximum tenure (months)", "Months", "number"), rMoney("maximumLoanAmount", "Maximum lender loan amount")
+    ] },
     { key: "housingCollateralProperties", title: "Applicant's multiple properties / collateral", description: "Add every property. Valuation, mortgage and rental income are tracked separately to avoid double counting.", addLabel: "Add another property", fields: [
       rf("propertyName", "Property name / ID"), rf("propertyType", "Property type", "", "select", ["Residential", "Commercial", "Agricultural", "Industrial", "Other"]),
       rf("address", "Address / location"), rf("ownership", "Owner / ownership share"), rf("extent", "Extent / built-up area", "Size", "number"),
@@ -607,6 +623,37 @@ export function RepeatableModuleEditor({ config, value, onChange }: {
     </div>)}
     <button type="button" className="secondary-button ax-repeatable-add" onClick={addRow}>＋ {config.addLabel}</button>
   </section>;
+}
+
+function presentNumber(value: number | null, kind: "money" | "number" | "percent" = "money"): string {
+  if (value === null || !Number.isFinite(value)) return "N/A";
+  return kind === "money" ? fmt(value) : kind === "percent" ? value.toFixed(2) + "%" : value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+}
+
+function principalFromEmi(emi: number, annualRate: number, months: number): number | null {
+  if (![emi, annualRate, months].every(Number.isFinite) || emi < 0 || annualRate < 0 || months <= 0) return null;
+  const monthlyRate = annualRate / 1200;
+  if (monthlyRate === 0) return emi * months;
+  const factor = Math.pow(1 + monthlyRate, months);
+  return emi * (factor - 1) / (monthlyRate * factor);
+}
+
+function xirr(cashflows: Array<{ date: string; amount: number }>): number | null {
+  const valid = cashflows.filter(item => item.date && Number.isFinite(item.amount) && item.amount !== 0)
+    .map(item => ({ time: new Date(item.date + "T00:00:00").getTime(), amount: item.amount }))
+    .filter(item => Number.isFinite(item.time)).sort((a,b)=>a.time-b.time);
+  if (valid.length < 2 || !valid.some(item=>item.amount<0) || !valid.some(item=>item.amount>0)) return null;
+  const origin = valid[0].time;
+  const npv = (rate:number) => valid.reduce((sum,item)=>sum+item.amount/Math.pow(1+rate,(item.time-origin)/(365.25*86400000)),0);
+  let low = -0.9999, high = 10, lowValue = npv(low), highValue = npv(high);
+  if (!Number.isFinite(lowValue) || !Number.isFinite(highValue) || lowValue * highValue > 0) return null;
+  for(let i=0;i<180;i++){
+    const mid=(low+high)/2, midValue=npv(mid);
+    if(!Number.isFinite(midValue)) return null;
+    if(Math.abs(midValue)<0.000001) return mid*100;
+    if(lowValue*midValue<=0){high=mid;highValue=midValue;}else{low=mid;lowValue=midValue;}
+  }
+  return ((low+high)/2)*100;
 }
 
 function parseNumber(value: unknown): number | null {
@@ -750,16 +797,56 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     const income = val("monthlyIncome");
     add("Total existing monthly EMI", emi);
     add("FOIR (existing EMI / monthly income)", income && emi !== null ? emi / income * 100 : null, "percent");
-    add("Available monthly income after EMI", income !== null ? income - (emi || 0) : null);
+    add("Available monthly income after EMI", income !== null && emi !== null ? income - emi : null);
     add("Total existing loan outstanding", sumRows(data.personalExistingLoans, "outstanding") ?? val("totalExistingOutstanding"));
     add("Credit card outstanding total", sumRows(data.personalCreditCards, "outstanding") ?? val("creditCardOutstandingTotal"));
+    add("Year-wise EMI bounces", sumRows(data.personalBounceHistory, "emiBounceCount"), "number");
+    add("Year-wise cheque bounces", sumRows(data.personalBounceHistory, "chequeBounceCount"), "number");
+    const principal = val("principal"), annualRate = val("interestRate"), months = val("tenureMonths");
+    const monthlyRate = annualRate !== null ? annualRate / 1200 : null;
+    const calculatedEmi = principal !== null && monthlyRate !== null && months !== null && months > 0
+      ? (monthlyRate === 0 ? principal / months : principal * monthlyRate * Math.pow(1+monthlyRate,months) / (Math.pow(1+monthlyRate,months)-1))
+      : null;
+    add("Calculated proposed EMI", calculatedEmi);
+    const requestedLender = String(data.lender || "").trim().toLowerCase();
+    const rule = readRows(data.personalLenderCriteria).find(row=>String(row.lender||"").trim().toLowerCase()===requestedLender);
+    const minimumCibil = rule ? parseNumber(rule.minimumCibil) : null;
+    const maxFoir = rule ? parseNumber(rule.maximumFoir) : null;
+    const lenderRate = rule ? parseNumber(rule.interestRate) : null;
+    const lenderTenure = rule ? parseNumber(rule.maximumTenureMonths) : null;
+    const cibil = val("cibilScore");
+    const currentEmi = emi;
+    const eligibleEmi = income !== null && maxFoir !== null && currentEmi !== null ? Math.max(0,income*maxFoir/100-currentEmi) : null;
+    const eligibilityPrincipal = eligibleEmi !== null && lenderRate !== null && lenderTenure !== null ? principalFromEmi(eligibleEmi,lenderRate,lenderTenure) : null;
+    const lenderCap = rule ? parseNumber(rule.maximumLoanAmount) : null;
+    const criteriaMatch = Boolean(rule && minimumCibil !== null && cibil !== null && cibil >= minimumCibil);
+    add("Configured lender minimum CIBIL", minimumCibil, "number");
+    add("Estimated loan eligibility (configured lender)", criteriaMatch && eligibilityPrincipal !== null ? Math.min(eligibilityPrincipal,lenderCap ?? Infinity) : null);
   }
   if (moduleName === "Housing Loan") {
     add("Total property monthly rental income", sumRows(data.housingCollateralProperties, "monthlyRent"));
+    const collateralMarket = sumRows(data.housingCollateralProperties, "marketValue");
     add("Total existing monthly EMI", sumRows(data.housingExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi"));
     add("Total existing loan outstanding", sumRows(data.housingExistingLoans, "outstanding") ?? val("totalExistingLoanOutstanding"));
     const income = val("monthlyIncome"), emi = sumRows(data.housingExistingLoans, "monthlyEmi") ?? val("totalExistingMonthlyEmi");
     add("FOIR (existing EMI / monthly income)", income && emi !== null ? emi / income * 100 : null, "percent");
+    const requestedLender = String(data.lender || "").trim().toLowerCase();
+    const rule = readRows(data.housingLenderCriteria).find(row=>String(row.lender||"").trim().toLowerCase()===requestedLender);
+    const minCibil = rule ? parseNumber(rule.minimumCibil) : null;
+    const maxFoir = rule ? parseNumber(rule.maximumFoir) : null;
+    const maxLtv = rule ? parseNumber(rule.maximumLtv) : null;
+    const cibil = val("cibilScore");
+    const currentEmi = emi;
+    const emiCapacity = income !== null && maxFoir !== null && currentEmi !== null ? Math.max(0,income*maxFoir/100-currentEmi) : null;
+    const rate = rule ? parseNumber(rule.interestRate) : null;
+    const tenure = rule ? parseNumber(rule.maximumTenureMonths) : null;
+    const byIncome = emiCapacity !== null && rate !== null && tenure !== null ? principalFromEmi(emiCapacity,rate,tenure) : null;
+    const byLtv = collateralMarket !== null && maxLtv !== null ? collateralMarket * maxLtv / 100 : null;
+    const cap = rule ? parseNumber(rule.maximumLoanAmount) : null;
+    const eligible = byIncome !== null && byLtv !== null && minCibil !== null && cibil !== null && cibil >= minCibil
+      ? Math.min(byIncome,byLtv,...(cap !== null ? [cap] : [])) : null;
+    add("Configured lender minimum CIBIL", minCibil, "number");
+    add("Estimated housing loan eligibility (configured lender)", eligible);
   }
   if (moduleName === "House Purchase") {
     const price = val("totalAgreedPurchaseAmount") ?? val("agreedPrice");
@@ -790,8 +877,22 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Portfolio unrealised / realised value", current);
     add("Portfolio MOIC", deployed && current !== null ? current / deployed : null, "number");
     add("Portfolio ROI", deployed && current !== null ? (current - deployed) / deployed * 100 : null, "percent");
-    const liabilities = val("fundOutstandingLoans") ?? 0;
-    add("Net portfolio value after fund borrowings", current !== null ? current - liabilities : null);
+    const liabilities = val("fundOutstandingLoans");
+    add("Net portfolio value after fund borrowings", current !== null && liabilities !== null ? current - liabilities : null);
+    const transactions = readRows(data.fundTransactions);
+    const investorCashflows = transactions.flatMap(row => {
+      const type = String(row.transactionType || "");
+      const amount = parseNumber(row.amount);
+      if (amount === null) return [];
+      if (["Capital received","Additional contribution"].includes(type)) return [{date:String(row.transactionDate||""),amount:-amount}];
+      if (["Investor distribution","Withdrawal","Interest / dividend"].includes(type)) return [{date:String(row.transactionDate||""),amount}];
+      return [];
+    });
+    const terminalValue = val("nav") ?? current;
+    const terminalDate = String(data.fundEndDate || data.reportingDate || "");
+    const irrFlows = terminalValue !== null && terminalDate ? [...investorCashflows,{date:terminalDate,amount:terminalValue}] : investorCashflows;
+    add("Investor cash-flow IRR (XIRR)", xirr(irrFlows), "percent");
+
   }
   if (moduleName === "Investor Relations") {
     add("Previous investment total", sumRows(data.investorPastInvestments, "investmentAmount"));
