@@ -47,8 +47,9 @@ export async function exportHtmlReportAsPdf(html: string, title: string): Promis
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait", compress: true },
       pagebreak: { mode: ["css", "legacy"], avoid: [".pdf-avoid-break", ".record-head", "tr"] }
     }).from(wrapper);
-    await worker.toCanvas();
-    const canvas = await worker.get("canvas") as HTMLCanvasElement;
+    const inspectionWorker = worker as unknown as { toCanvas: () => unknown; get: (key: string) => Promise<unknown> };
+    await inspectionWorker.toCanvas();
+    const canvas = await inspectionWorker.get("canvas") as HTMLCanvasElement;
     if (!canvas || canvas.width < 100 || canvas.height < 100) throw new Error("PDF renderer returned an empty page canvas.");
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) throw new Error("PDF renderer could not inspect the rendered page.");

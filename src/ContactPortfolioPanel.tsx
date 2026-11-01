@@ -159,7 +159,6 @@ export default function ContactPortfolioPanel(props: Props) {
   };
   const chooseFollowUpRecord=(rowId:string,recordId:string)=>{
     const record=linked.find(item=>item.id===recordId);
-    const existing=followUpDrafts.find(item=>item.id===rowId);
     const hasPrimary=Boolean(record&&followUpDrafts.some(item=>item.id!==rowId&&item.linkedRecordId===recordId&&item.isPrimary));
     setFollowUpDrafts(current=>current.map(row=>row.id===rowId?{
       ...row,linkedRecordId:recordId,
