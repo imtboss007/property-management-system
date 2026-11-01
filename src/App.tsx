@@ -309,7 +309,9 @@ const baseModuleFields: Record<string, ModuleField[]> = {
 };
 const moduleFields: Record<string, ModuleField[]> = Object.fromEntries(
   Array.from(new Set([...Object.keys(baseModuleFields), ...Object.keys(axivestraModuleFields)])).map(moduleName => {
-    const fields = [...(baseModuleFields[moduleName] ?? []), ...(axivestraModuleFields[moduleName] ?? [])];
+    const upgradeFields = axivestraModuleFields[moduleName] ?? [];
+    const baseFields = baseModuleFields[moduleName] ?? [];
+    const fields = moduleName === "Litigation" || moduleName === "Equity" ? [...upgradeFields, ...baseFields] : [...baseFields, ...upgradeFields];
     const byKey = new Map<string, ModuleField>();
     fields.forEach(field => byKey.set(field.key, field));
     return [moduleName, Array.from(byKey.values())];
@@ -2418,7 +2420,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
-  const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost"]);
+  const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost","caseNumber","court","parties","counsel","caseType","claimExposure"]);
   const nonShareEquityStructure = ["LLP","Partnership","Proprietorship"].includes(form.moduleData.equityLegalStructure || "");
   const visibleSelectedFields = form.module === "Litigation"
     ? (form.moduleData.courtCaseAvailable === "Yes" ? selectedFields : form.moduleData.courtCaseAvailable === "No" ? selectedFields.filter(field=>!courtOnlyFieldKeys.has(field.key)) : selectedFields.filter(field=>field.key === "courtCaseAvailable"))
