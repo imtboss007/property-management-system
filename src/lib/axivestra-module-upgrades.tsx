@@ -144,6 +144,7 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     text("companyDocumentStatus", "Document availability / missing documents")
   ],
   "Equity": [
+    select("equityLegalStructure", "Entity legal structure", ["Private Limited", "Public Limited", "LLP", "Partnership", "Proprietorship", "Other"]),
     money("authorisedShareCapital", "Authorised share capital (₹)"),
     money("issuedShareCapital", "Issued share capital (₹)"),
     money("subscribedShareCapital", "Subscribed share capital (₹)"),
@@ -168,8 +169,7 @@ export const axivestraModuleFields: Record<string, UpgradeField[]> = {
     number("fullyDilutedShares", "Fully diluted additional shares (options / warrants / convertibles)"),
     number("esopPoolPercent", "ESOP pool (%)"),
     number("esopAllocatedPercent", "ESOP allocated (%)"),
-    text("shareClasses", "Share classes / instruments", "Equity / preference / convertible / options / warrants"),
-    text("equityLegalStructure", "Entity legal structure", "Company / LLP / partnership / other")
+    text("shareClasses", "Share classes / instruments", "Equity / preference / convertible / options / warrants")
   ],
   "Unsecured Company Loan": [
     select("businessType", "Business constitution", ["Proprietorship", "Partnership", "LLP", "Private Limited", "Public Limited", "Other"]),
@@ -349,6 +349,13 @@ const rf = (key: string, label: string, placeholder = "", type: RepeatableField[
 const rMoney = (key: string, label: string): RepeatableField => rf(key, label, "Amount in ₹", "number");
 
 export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
+  "Property Sale": [
+    { key: "saleConversionParcels", title: "Conversion portions", description: "Add one, two or all three land-use conversion portions. Record each type and extent separately.", addLabel: "Add conversion portion", fields: [
+      rf("conversionType", "Conversion type", "", "select", ["Agricultural", "Commercial", "Industrial", "Residential"]),
+      rf("extent", "Extent", "Area", "number"), rf("unit", "Area unit", "", "select", ["acre", "gunta", "sq ft", "sq yd", "sq m", "hectare", "cent"]),
+      rf("status", "Status", "", "select", ["Already converted", "Pending", "Partly pending"]), rMoney("conversionAmountNeeded", "Amount needed for conversion")
+    ] }
+  ],
   "Property Loans": [
     { key: "loanCollateralProperties", title: "Collateral properties", description: "Add every property offered by the borrower. Values and mortgages are maintained separately for each property.", addLabel: "Add another property", fields: [
       rf("propertyName", "Property name / ID"), rf("propertyType", "Property type", "", "select", ["Residential", "Commercial", "Agricultural", "Industrial", "Other"]),
@@ -422,7 +429,9 @@ export const axivestraRepeatableGroups: Record<string, RepeatableGroup[]> = {
   "Equity": [
     { key: "equityShareholders", title: "Cap table / shareholding", description: "Add every promoter, founder, investor, ESOP holder or other shareholder. Calculations use the saved share counts.", addLabel: "Add another shareholder", fields: [
       rf("shareholderName", "Shareholder / investor name"), rf("category", "Category", "", "select", ["Promoter", "Founder", "Co-founder", "Investor", "Employee / ESOP", "Other"]),
-      rf("shareClass", "Share class"), rf("shares", "Number of shares", "Quantity", "number"), rf("faceValue", "Face value per share (₹)", "₹", "number"),
+      rf("shareClass", "Share class"), rf("ownershipPercent", "Ownership / profit share (%)", "%", "number"),
+      rMoney("capitalContribution", "Capital contribution (LLP / partnership)"),
+      rf("shares", "Number of shares", "Quantity", "number"), rf("faceValue", "Face value per share (₹)", "₹", "number"),
       rf("sharePrice", "Issue / purchase price per share (₹)", "₹", "number"), rMoney("investmentAmount", "Investment amount"),
       rf("issueDate", "Issue / allotment date", "", "date")
     ] },
@@ -672,33 +681,44 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Total requested project working capital", sumRows(data.startupProjects, "workingCapital"));
   }
   if (moduleName === "Equity") {
-    const totalShares = sumRows(data.equityShareholders, "shares");
-    const promoterShares = ["Promoter", "Founder", "Co-founder"].reduce((sum, category) => sum + readRows(data.equityShareholders).filter(row => row.category === category).reduce((inner, row) => inner + (parseNumber(row.shares) || 0), 0), 0);
-    const investorShares = readRows(data.equityShareholders).filter(row => row.category === "Investor").reduce((sum, row) => sum + (parseNumber(row.shares) || 0), 0);
-    add("Total issued / captured shares", totalShares, "number");
-    add("Promoter / founder holding", totalShares ? promoterShares / totalShares * 100 : null, "percent");
-    add("Investor holding", totalShares ? investorShares / totalShares * 100 : null, "percent");
-    const dilutionShares = val("newInvestorShares");
-    add("New investor dilution", dilutionShares !== null && totalShares !== null && totalShares + dilutionShares > 0 ? dilutionShares / (totalShares + dilutionShares) * 100 : null, "percent");
+    const rows = readRows(data.equityShareholders);
+    const nonShareStructure = ["LLP","Partnership","Proprietorship"].includes(data.equityLegalStructure || "");
     const pre = val("preMoneyValuation"), investment = val("equityFundingRequired");
     add("Calculated post-money valuation", pre !== null && investment !== null ? pre + investment : val("postMoneyValuation"));
-    const otherShares = readRows(data.equityShareholders).filter(row => !["Promoter","Founder","Co-founder","Investor"].includes(row.category || "")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
-    const founderShares = readRows(data.equityShareholders).filter(row => ["Founder","Co-founder"].includes(row.category || "")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
-    add("Founder ownership", totalShares ? founderShares / totalShares * 100 : null, "percent");
-    add("Other shareholder ownership", totalShares ? otherShares / totalShares * 100 : null, "percent");
-    const fullyDiluted = totalShares !== null ? totalShares + (val("fullyDilutedShares") || 0) : null;
-    add("Fully diluted share count", fullyDiluted, "number");
-    add("Fully diluted investor ownership", fullyDiluted && investorShares ? investorShares / fullyDiluted * 100 : null, "percent");
-    const debt = val("totalDebt"), equity = val("shareholdersEquity");
-    add("Debt-to-equity ratio", debt !== null && equity ? debt / equity : null, "number");
-    const profit = val("netProfitForRatios");
-    const averageEquity = val("averageShareholdersEquity");
+    if (nonShareStructure) {
+      const contributions = sumRows(data.equityShareholders, "capitalContribution");
+      const partnerContributions = rows.reduce((sum,row)=>sum+(parseNumber(row.capitalContribution)||0),0);
+      add("Total partner / owner capital contributions", contributions);
+      rows.forEach(row => {
+        const amount = parseNumber(row.capitalContribution);
+        if (row.shareholderName) add("Ownership — " + row.shareholderName, amount !== null && partnerContributions ? amount / partnerContributions * 100 : parseNumber(row.ownershipPercent), "percent");
+      });
+    } else {
+      const totalShares = sumRows(data.equityShareholders, "shares");
+      const promoterShares = rows.filter(row=>["Promoter","Founder","Co-founder"].includes(row.category||"")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+      const founderShares = rows.filter(row=>["Founder","Co-founder"].includes(row.category||"")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+      const investorShares = rows.filter(row=>row.category==="Investor").reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+      const otherShares = rows.filter(row=>!["Promoter","Founder","Co-founder","Investor"].includes(row.category||"")).reduce((sum,row)=>sum+(parseNumber(row.shares)||0),0);
+      add("Total issued / captured shares", totalShares, "number");
+      add("Promoter / founder holding", totalShares ? promoterShares / totalShares * 100 : null, "percent");
+      add("Founder ownership", totalShares ? founderShares / totalShares * 100 : null, "percent");
+      add("Investor holding", totalShares ? investorShares / totalShares * 100 : null, "percent");
+      add("Other shareholder ownership", totalShares ? otherShares / totalShares * 100 : null, "percent");
+      const dilutionShares = val("newInvestorShares");
+      add("New investor dilution", dilutionShares !== null && totalShares !== null && totalShares + dilutionShares > 0 ? dilutionShares / (totalShares + dilutionShares) * 100 : null, "percent");
+      const fullyDiluted = totalShares !== null ? totalShares + (val("fullyDilutedShares") || 0) : null;
+      add("Fully diluted share count", fullyDiluted, "number");
+      add("Fully diluted investor ownership", fullyDiluted && investorShares ? investorShares / fullyDiluted * 100 : null, "percent");
+      const debt = val("totalDebt"), equity = val("shareholdersEquity");
+      add("Debt-to-equity ratio", debt !== null && equity ? debt / equity : null, "number");
+      const earnings = val("earningsAvailableToEquity"), weightedShares = val("weightedAverageShares");
+      const eps = earnings !== null && weightedShares ? earnings / weightedShares : null;
+      add("Earnings per share (EPS)", eps, "money");
+      const marketPrice = val("marketPricePerShare");
+      add("Price-to-earnings ratio (P/E)", marketPrice !== null && eps ? marketPrice / eps : null, "number");
+    }
+    const profit = val("netProfitForRatios"), averageEquity = val("averageShareholdersEquity");
     add("Return on equity (ROE)", profit !== null && averageEquity ? profit / averageEquity * 100 : null, "percent");
-    const earnings = val("earningsAvailableToEquity"), weightedShares = val("weightedAverageShares");
-    const eps = earnings !== null && weightedShares ? earnings / weightedShares : null;
-    add("Earnings per share (EPS)", eps, "money");
-    const marketPrice = val("marketPricePerShare");
-    add("Price-to-earnings ratio (P/E)", marketPrice !== null && eps ? marketPrice / eps : null, "number");
     const gain = val("investmentGain"), cost = val("investmentCost");
     add("Return on investment (ROI)", gain !== null && cost ? gain / cost * 100 : null, "percent");
   }
