@@ -1,4 +1,4 @@
-import { Fragment, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ClipboardList, Download, ExternalLink, FileText, MessageCircle, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
 import { calculateMonthlyInterest, calculateGiftAmount, formatINR, parseDealNumber, dealTransactionTypes, loanDirections, getTransactionAmount } from "./lib/deal-structure";
 
