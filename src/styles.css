@@ -2464,3 +2464,64 @@ h2,h3{color:#e5f2fc}
   .ax-followup-register__field textarea{min-height:35px!important}
   .ax-followup-register__card-actions{display:none!important}
 }
+
+
+/* Follow-up Register: one editable, horizontally scrollable field grid per person. */
+.ax-followup-register__grid-wrap{width:100%;overflow-x:auto;border:1px solid #254b64;border-radius:10px;background:#091d2c}
+.ax-followup-register__grid{width:100%;min-width:1190px;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.ax-followup-register__grid thead th{position:sticky;top:0;z-index:2;padding:11px 10px;background:#123b55;color:#e8f7ff;text-align:left;font-size:10px;font-weight:800;letter-spacing:.35px;white-space:nowrap;border-bottom:1px solid #315c73}
+.ax-followup-register__grid thead th:nth-child(1){width:190px}
+.ax-followup-register__grid thead th:nth-child(2){width:285px}
+.ax-followup-register__grid thead th:nth-child(3){width:140px}
+.ax-followup-register__grid thead th:nth-child(4){width:105px}
+.ax-followup-register__grid thead th:nth-child(5){width:155px}
+.ax-followup-register__grid thead th:nth-child(6){width:170px}
+.ax-followup-register__grid thead th:nth-child(7){width:145px}
+.ax-followup-register__grid tbody td{padding:10px;vertical-align:top;border-bottom:1px solid #203f54;border-right:1px solid #18364a;background:#0b2030}
+.ax-followup-register__grid tbody tr:nth-child(even) td{background:#0d2537}
+.ax-followup-register__grid tbody tr:last-child td{border-bottom:0}
+.ax-followup-register__grid tbody td:last-child{border-right:0}
+.ax-followup-register__grid-control{display:flex;flex-direction:column;gap:5px;min-width:0;color:#91b1c4;font-size:9px}
+.ax-followup-register__grid-control input,.ax-followup-register__grid-control select,.ax-followup-register__grid-control textarea{display:block;width:100%;min-width:0;min-height:36px;padding:8px;border:1px solid #2a5069;border-radius:7px;background:#071724;color:#e8f5fc;font:10px "DM Sans",sans-serif;color-scheme:dark}
+.ax-followup-register__grid-control textarea{min-height:72px;resize:vertical;line-height:1.4}
+.ax-followup-register__grid-control input:focus,.ax-followup-register__grid-control select:focus,.ax-followup-register__grid-control textarea:focus{border-color:#45c9dc;outline:0;box-shadow:0 0 0 2px #45c9dc1c}
+.ax-followup-register__grid-control input:disabled,.ax-followup-register__grid-control select:disabled,.ax-followup-register__grid-control textarea:disabled{opacity:.72;cursor:not-allowed}
+.ax-followup-register__grid-mobile-label{display:none}
+.ax-followup-register__grid-record-title{display:block;margin-top:7px;color:#e2f2fa;font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+.ax-followup-register__grid-hint{display:block;margin-top:4px;color:#80cedb;font-size:8px}
+.ax-followup-register__grid-module .ax-followup-register__inline-link{margin-top:6px}
+.ax-followup-register__grid-status{display:inline-block;margin-top:7px;color:#9bc7d7;font-size:9px}
+.ax-followup-register__grid-status--overdue,.ax-followup-register__grid-status--awaiting-response{color:#ffc66e}
+.ax-followup-register__grid-status--completed,.ax-followup-register__grid-status--reached-back{color:#83e0a5}
+.ax-followup-register__row-more{margin-top:8px;padding-top:6px;border-top:1px solid #24465b}
+.ax-followup-register__row-more>summary{color:#8ed3e1;font-size:9px;font-weight:750;cursor:pointer}
+.ax-followup-register__row-more-fields{display:grid;gap:8px;margin-top:8px}
+.ax-followup-register__row-more-fields>label{display:flex;flex-direction:column;gap:4px;color:#91b1c4;font-size:9px}
+.ax-followup-register__row-more-fields input:not([type=checkbox]),.ax-followup-register__row-more-fields select,.ax-followup-register__row-more-fields textarea{width:100%;min-width:0;min-height:32px;padding:7px;border:1px solid #2a5069;border-radius:7px;background:#071724;color:#e8f5fc;font:10px "DM Sans",sans-serif;color-scheme:dark}
+.ax-followup-register__row-more-fields textarea{resize:vertical;min-height:58px}
+.ax-followup-register__row-more-fields .ax-followup-register__primary{display:flex;flex-direction:row;align-items:center;gap:6px}
+.ax-followup-register__row-more-fields .ax-followup-register__primary span{color:#b7d3e2;font-size:9px}
+.ax-followup-register__grid-actions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px}
+.ax-followup-register__grid-actions button{min-height:32px;padding:7px 9px;font-size:9px}
+.ax-followup-register__grid-actions button:first-child{flex:1 1 100%;justify-content:center}
+@media(max-width:720px){
+  .ax-followup-register__grid-wrap{max-width:calc(100vw - 44px)}
+  .ax-followup-register__grid{min-width:1190px}
+  .ax-followup-register__grid-mobile-label{display:block;color:#8db4c8;font-size:9px;font-weight:750}
+}
+@media print{
+  .ax-followup-register__grid-wrap{overflow:visible;border:1px solid #cbd6de;background:#fff}
+  .ax-followup-register__grid{width:100%;min-width:0;table-layout:fixed}
+  .ax-followup-register__grid thead th{position:static;padding:5px;background:#eaf0f4!important;color:#172b3b!important;font-size:7px}
+  .ax-followup-register__grid thead th:nth-child(1){width:15%}
+  .ax-followup-register__grid thead th:nth-child(2){width:24%}
+  .ax-followup-register__grid thead th:nth-child(3){width:12%}
+  .ax-followup-register__grid thead th:nth-child(4){width:8%}
+  .ax-followup-register__grid thead th:nth-child(5){width:13%}
+  .ax-followup-register__grid thead th:nth-child(6){width:13%}
+  .ax-followup-register__grid thead th:nth-child(7){width:15%}
+  .ax-followup-register__grid tbody td{padding:4px;border:1px solid #d5dee5;background:#fff!important;color:#172b3b!important}
+  .ax-followup-register__grid-control input,.ax-followup-register__grid-control select,.ax-followup-register__grid-control textarea,.ax-followup-register__row-more-fields select,.ax-followup-register__row-more-fields textarea{min-height:0;padding:3px;border:1px solid #cbd6de;background:#fff!important;color:#172b3b!important;font-size:7px}
+  .ax-followup-register__row-more>summary{color:#315b87}
+  .ax-followup-register__grid-actions,.ax-followup-register__grid-module .ax-followup-register__inline-link{display:none!important}
+}
