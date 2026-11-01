@@ -1,0 +1,269 @@
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { CalendarClock, ClipboardList, Download, ExternalLink, FileText, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, Users, X } from "lucide-react";
+
+export type FollowUpRegisterItem = {
+  id: string;
+  person: string;
+  role: string;
+  linkedRecordId: string;
+  description: string;
+  amount: string;
+  promisedDate: string;
+  promisedTime: string;
+  responseType: string;
+  status: string;
+  notes: string;
+  isPrimary: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+type ContactRow = {
+  id: string; name: string; phone: string; role: string; roles?: string[];
+  email?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
+};
+type RecordRow = {
+  id: string; title: string; module: string; value: string; status: string;
+  contact: string; primaryContactId?: string; moduleData: Record<string,string>;
+};
+type GroupRow = { id: string; name: string; jid?: string; size?: number };
+type DraftRow = { contactId: string; item: FollowUpRegisterItem; isNew: boolean };
+type Props = {
+  contacts: ContactRow[];
+  properties: RecordRow[];
+  groups: GroupRow[];
+  readOnly?: boolean;
+  onUpdateFollowUps: (contactId: string, rows: FollowUpRegisterItem[]) => void;
+  onOpenContact360: (contactId: string) => void;
+  onEditRecord: (record: RecordRow) => void;
+  onDownloadRecord: (record: RecordRow) => void;
+  onExportPdf: () => void;
+};
+
+const statuses = ["Awaiting response", "Reached back", "Completed", "Overdue", "On hold", "Cancelled"];
+const channels = ["Call", "WhatsApp", "Email", "Meeting", "Site visit", "Document", "Payment update", "Other"];
+const rowKey = (contactId: string, rowId: string) => contactId + "::" + rowId;
+const emptyRows = (contacts: ContactRow[]): Record<string,DraftRow> => Object.fromEntries(
+  contacts.flatMap(contact => (contact.followUps || []).map(item => [
+    rowKey(contact.id,item.id), { contactId: contact.id, item: { ...item, amount: String(item.amount ?? "") }, isNew: false }
+  ]))
+);
+const contactLinksRecord = (contact: ContactRow, record: RecordRow) => {
+  const data = record.moduleData || {};
+  const linkedIds = [
+    record.primaryContactId || "",
+    ...(data.__linkedContactIds || "").split(","),
+    ...Object.entries(data).filter(([key,value]) => key.startsWith("__contact_") && Boolean(value)).map(([,value]) => String(value))
+  ].filter(Boolean);
+  return linkedIds.includes(contact.id) || (record.contact || "").trim().toLocaleLowerCase() === contact.name.trim().toLocaleLowerCase();
+};
+const createFollowUp = (contact: ContactRow): FollowUpRegisterItem => {
+  const now = new Date().toISOString();
+  return {
+    id: "contact-followup-" + Date.now() + "-" + Math.random().toString(36).slice(2,8),
+    person: contact.name, role: contact.role || contact.roles?.[0] || "Client",
+    linkedRecordId: "", description: "", amount: "", promisedDate: "", promisedTime: "",
+    responseType: "Call", status: "Awaiting response", notes: "", isPrimary: false,
+    createdAt: now, updatedAt: now
+  };
+};
+const formatDate = (date: string, time: string) => {
+  if (!date) return "Not scheduled";
+  const parsed = new Date(date + "T" + (time || "00:00"));
+  return Number.isNaN(parsed.getTime()) ? [date,time].filter(Boolean).join(" · ") :
+    parsed.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:time?"short":undefined});
+};
+
+export default function FollowUpRegisterPanel(props: Props) {
+  const [drafts,setDrafts] = useState<Record<string,DraftRow>>(() => emptyRows(props.contacts));
+  const [query,setQuery] = useState("");
+  const [statusFilter,setStatusFilter] = useState("All statuses");
+  const [moduleFilter,setModuleFilter] = useState("All modules");
+  const [addContactId,setAddContactId] = useState(props.contacts[0]?.id || "");
+  const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => setDrafts(emptyRows(props.contacts)),[props.contacts]);
+  useEffect(() => {
+    if (!props.contacts.some(contact => contact.id === addContactId)) setAddContactId(props.contacts[0]?.id || "");
+  },[props.contacts,addContactId]);
+
+  const contactIndex = useMemo(() => new Map(props.contacts.map(contact => [contact.id,contact])),[props.contacts]);
+  const recordIndex = useMemo(() => new Map(props.properties.map(record => [record.id,record])),[props.properties]);
+  const rows = useMemo(() => Object.entries(drafts).flatMap(([key,draft]) => {
+    const contact = contactIndex.get(draft.contactId);
+    if (!contact) return [];
+    const record = recordIndex.get(draft.item.linkedRecordId);
+    const linkedGroups = new Set([
+      ...(contact.whatsappGroupIds || []),
+      ...props.properties.filter(item => contactLinksRecord(contact,item))
+        .flatMap(item => (item.moduleData?.__linkedWhatsAppGroupIds || "").split(",").filter(Boolean))
+    ]);
+    const groupNames = props.groups.filter(group => linkedGroups.has(group.id)).map(group => group.name);
+    const linkedRecords = props.properties.filter(item => contactLinksRecord(contact,item));
+    const searchText = [
+      contact.name,contact.phone,contact.role,...(contact.roles || []),draft.item.person,draft.item.role,
+      draft.item.description,draft.item.amount,draft.item.promisedDate,draft.item.promisedTime,
+      draft.item.responseType,draft.item.status,draft.item.notes,record?.module,record?.title,
+      ...groupNames
+    ].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+    return [{key,contact,item:draft.item,record,linkedRecords,groupNames,searchText}];
+  }).sort((a,b) => {
+    const byDate = (a.item.promisedDate || "9999-12-31").localeCompare(b.item.promisedDate || "9999-12-31");
+    return byDate || a.contact.name.localeCompare(b.contact.name) || a.item.person.localeCompare(b.item.person);
+  }),[drafts,contactIndex,recordIndex,props.properties,props.groups]);
+  const visibleRows = useMemo(() => {
+    const term = deferredQuery.trim().normalize("NFKC").toLocaleLowerCase();
+    return rows.filter(row =>
+      (!term || row.searchText.includes(term)) &&
+      (statusFilter === "All statuses" || row.item.status === statusFilter) &&
+      (moduleFilter === "All modules" || (row.record?.module || "Contact-level") === moduleFilter)
+    );
+  },[rows,deferredQuery,statusFilter,moduleFilter]);
+  const visibleByContact = useMemo(() => {
+    const grouped = new Map<string,typeof visibleRows>();
+    for (const row of visibleRows) grouped.set(row.contact.id,[...(grouped.get(row.contact.id)||[]),row]);
+    return grouped;
+  },[visibleRows]);
+  const moduleOptions = useMemo(() => Array.from(new Set(rows.map(row=>row.record?.module || "Contact-level"))).sort(),[rows]);
+  const overdueCount = rows.filter(row => row.item.promisedDate && row.item.promisedDate < new Date().toISOString().slice(0,10) && !["Completed","Cancelled","Reached back"].includes(row.item.status)).length;
+  const primaryCount = rows.filter(row=>row.item.isPrimary).length;
+
+  const patch = (key:string, field:keyof FollowUpRegisterItem, value:string|boolean) => {
+    setDrafts(current => {
+      const row = current[key];
+      return row ? {...current,[key]:{...row,item:{...row.item,[field]:value}}} : current;
+    });
+  };
+  const chooseRecord = (key:string,recordId:string) => {
+    setDrafts(current => {
+      const draft = current[key];
+      if (!draft) return current;
+      const record = props.properties.find(item=>item.id===recordId);
+      const contact = contactIndex.get(draft.contactId);
+      const hasPrimary = Object.entries(current).some(([otherKey,row]) =>
+        otherKey!==key && row.contactId===draft.contactId && row.item.linkedRecordId===recordId && row.item.isPrimary
+      );
+      return {...current,[key]:{...draft,item:{
+        ...draft.item,linkedRecordId:recordId,
+        amount:record?(draft.item.amount||record.value||""):draft.item.amount,
+        description:record?(draft.item.description||""):draft.item.description,
+        promisedDate:record?(draft.item.promisedDate||""):draft.item.promisedDate,
+        promisedTime:record?(draft.item.promisedTime||""):draft.item.promisedTime,
+        isPrimary:Boolean(record&&contact&&!hasPrimary)
+      }}};
+    });
+  };
+  const setPrimary = (key:string,checked:boolean) => {
+    const target = drafts[key];
+    setDrafts(current => Object.fromEntries(Object.entries(current).map(([otherKey,draft]) => [
+      otherKey,
+      otherKey===key
+        ? {...draft,item:{...draft.item,isPrimary:checked}}
+        : checked && target?.contactId===draft.contactId && target.item.linkedRecordId && target.item.linkedRecordId===draft.item.linkedRecordId
+          ? {...draft,item:{...draft.item,isPrimary:false}}
+          : draft
+    ])));
+  };
+  const addForContact = (contactId:string) => {
+    const contact = contactIndex.get(contactId);
+    if (!contact) return;
+    const item = createFollowUp(contact);
+    setDrafts(current=>({...current,[rowKey(contactId,item.id)]:{contactId,item,isNew:true}}));
+  };
+  const save = (key:string) => {
+    const draft = drafts[key];
+    const contact = draft && contactIndex.get(draft.contactId);
+    if (!draft || !contact || props.readOnly) return;
+    const saved = {...draft.item,amount:String(draft.item.amount??""),updatedAt:new Date().toISOString()};
+    const previous = contact.followUps || [];
+    const next = previous.some(item=>item.id===saved.id)
+      ? previous.map(item=>item.id===saved.id?saved:item)
+      : [...previous,saved];
+    props.onUpdateFollowUps(contact.id,next);
+    setDrafts(current=>({...current,[key]:{contactId:contact.id,item:saved,isNew:false}}));
+  };
+  const remove = (key:string) => {
+    const draft = drafts[key];
+    const contact = draft && contactIndex.get(draft.contactId);
+    if (!draft || !contact || props.readOnly) return;
+    const savedRows = contact.followUps || [];
+    if (savedRows.some(item=>item.id===draft.item.id)) {
+      props.onUpdateFollowUps(contact.id,savedRows.filter(item=>item.id!==draft.item.id));
+    }
+    setDrafts(current=>{const next={...current};delete next[key];return next;});
+  };
+
+  return <section className="data-panel ax-followup-register">
+    <header className="ax-followup-register__header">
+      <div>
+        <span className="section-kicker">CONNECTED CONTACT OPERATIONS</span>
+        <h2>Follow-up Register</h2>
+        <p>One editable register for every person, role, commitment and WhatsApp group linked through Contact 360.</p>
+        <small>Edits saved here update the Contact 360 entry and its primary linked module record. Changes to a primary response in the linked record flow back here.</small>
+      </div>
+      <div className="ax-followup-register__actions">
+        <button type="button" className="secondary-button" onClick={props.onExportPdf} disabled={!rows.length}><Download size={14}/> Download full PDF</button>
+        <button type="button" className="secondary-button" onClick={()=>window.print()}><FileText size={14}/> Print / Save as PDF</button>
+      </div>
+    </header>
+    <div className="ax-followup-register__metrics">
+      <div><span>Follow-up lines</span><strong>{rows.length}</strong></div>
+      <div><span>Contacts involved</span><strong>{new Set(rows.map(row=>row.contact.id)).size}</strong></div>
+      <div><span>Overdue reach-backs</span><strong>{overdueCount}</strong></div>
+      <div><span>Primary module links</span><strong>{primaryCount}</strong></div>
+    </div>
+    <div className="ax-followup-register__toolbar">
+      <label className="ax-followup-register__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search contact, person, role, group, module, amount or description…"/></label>
+      <label><span>Status</span><select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option>All statuses</option>{statuses.map(value=><option key={value}>{value}</option>)}</select></label>
+      <label><span>Module type</span><select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option>All modules</option>{moduleOptions.map(value=><option key={value}>{value}</option>)}</select></label>
+      <label><span>Add to contact</span><select value={addContactId} onChange={event=>setAddContactId(event.target.value)}><option value="">Choose contact</option>{props.contacts.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role||"Contact"}</option>)}</select></label>
+      <button type="button" className="primary-button" disabled={!addContactId||props.readOnly} onClick={()=>addForContact(addContactId)}><Plus size={14}/> Add follow-up</button>
+    </div>
+    <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Changes are per-row; select Save to synchronize.</span></div>
+    {Array.from(visibleByContact.entries()).map(([contactId,contactRows])=>{
+      const contact = contactIndex.get(contactId);
+      if(!contact)return null;
+      const groups = Array.from(new Set(contactRows.flatMap(row=>row.groupNames)));
+      const linkedRecordCount = new Set(contactRows.flatMap(row=>row.linkedRecords.map(record=>record.id))).size;
+      return <article className="ax-followup-register__contact" key={contactId}>
+        <header className="ax-followup-register__contact-head">
+          <div className="ax-followup-register__avatar">{contact.name.split(/\s+/).map(part=>part[0]).join("").slice(0,2).toUpperCase()}</div>
+          <div className="ax-followup-register__contact-meta">
+            <strong>{contact.name}</strong>
+            <span>{[contact.role,...(contact.roles||[]),contact.phone,contact.email].filter(Boolean).join(" · ")}</span>
+            <small>{contactRows.length} follow-up line(s) · {linkedRecordCount} linked workstream(s)</small>
+            <div className="ax-followup-register__groups"><MessageCircle size={12}/>{groups.length?groups.map(group=><span key={group}>{group}</span>):<em>No WhatsApp groups linked</em>}</div>
+          </div>
+          <div className="ax-followup-register__contact-actions">
+            <button type="button" className="secondary-button" onClick={()=>props.onOpenContact360(contactId)}><Users size={13}/> Open Contact 360</button>
+            <button type="button" className="primary-button" disabled={props.readOnly} onClick={()=>addForContact(contactId)}><Plus size={13}/> Add line</button>
+          </div>
+        </header>
+        <div className="ax-followup-register__table-wrap">
+          <table>
+            <thead><tr><th>Person</th><th>Role</th><th>Module type / linked record</th><th>Description / item</th><th>Amount (INR)</th><th>Will reach back</th><th>Time</th><th>Channel</th><th>Status</th><th>Notes / outcome</th><th>Primary</th><th>Actions</th></tr></thead>
+            <tbody>{contactRows.map(row=>{
+              const record = row.record;
+              const item = row.item;
+              return <tr key={row.key}>
+                <td><input aria-label="Follow-up person" disabled={props.readOnly} value={item.person} onChange={event=>patch(row.key,"person",event.target.value)} placeholder="Person name"/></td>
+                <td><input aria-label="Follow-up role" disabled={props.readOnly} value={item.role} onChange={event=>patch(row.key,"role",event.target.value)} placeholder="Client / lawyer / agent"/></td>
+                <td><select aria-label="Linked module record" disabled={props.readOnly} value={item.linkedRecordId} onChange={event=>chooseRecord(row.key,event.target.value)}><option value="">Contact-level item</option>{row.linkedRecords.map(linked=><option key={linked.id} value={linked.id}>{linked.module} · {linked.title}</option>)}</select><small className="ax-followup-register__module">{record?record.module+" · "+record.title:"Contact-level item"}</small>{record&&<button type="button" className="ax-followup-register__inline-link" onClick={()=>props.onEditRecord(record)}><ExternalLink size={11}/> Open linked record</button>}</td>
+                <td><textarea aria-label="Follow-up description" rows={2} disabled={props.readOnly} value={item.description} onChange={event=>patch(row.key,"description",event.target.value)} placeholder="What is pending / promised?"/></td>
+                <td><input aria-label="Follow-up amount" type="number" min="0" step="any" disabled={props.readOnly} value={item.amount} onChange={event=>patch(row.key,"amount",event.target.value)} placeholder={record?.value||"0"}/></td>
+                <td><input aria-label="Expected reach-back date" type="date" disabled={props.readOnly} value={item.promisedDate} onChange={event=>patch(row.key,"promisedDate",event.target.value)}/></td>
+                <td><input aria-label="Expected reach-back time" type="time" disabled={props.readOnly} value={item.promisedTime} onChange={event=>patch(row.key,"promisedTime",event.target.value)}/></td>
+                <td><select aria-label="Follow-up channel" disabled={props.readOnly} value={item.responseType} onChange={event=>patch(row.key,"responseType",event.target.value)}>{channels.map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><select aria-label="Follow-up status" disabled={props.readOnly} value={item.status} onChange={event=>patch(row.key,"status",event.target.value)}>{statuses.map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><textarea aria-label="Follow-up notes" rows={2} disabled={props.readOnly} value={item.notes} onChange={event=>patch(row.key,"notes",event.target.value)} placeholder="Outcome / next step"/></td>
+                <td><label className="ax-followup-register__primary"><input type="checkbox" checked={item.isPrimary} disabled={props.readOnly||!item.linkedRecordId} onChange={event=>setPrimary(row.key,event.target.checked)}/><span>{item.isPrimary?"Primary":"—"}</span></label></td>
+                <td><div className="ax-followup-register__row-actions"><button type="button" className="primary-button" disabled={props.readOnly} onClick={()=>save(row.key)}><RefreshCw size={12}/> Save</button><button type="button" className="secondary-button" disabled={props.readOnly} onClick={()=>remove(row.key)} title="Remove follow-up line"><Trash2 size={13}/></button>{record&&<button type="button" className="secondary-button" onClick={()=>props.onDownloadRecord(record)} title="Download linked record PDF"><Download size={13}/></button>}</div></td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </article>;
+    })}
+    {!visibleRows.length&&<div className="ax-followup-register__empty"><ClipboardList size={28}/><strong>{rows.length?"No follow-ups match these filters":"No follow-up lines have been recorded yet"}</strong><p>{rows.length?"Clear the search or filters to see the other saved commitments.":"Choose a contact above and add the first line. The same saved entry will appear in that person's Contact 360 workspace."}</p></div>}
+    <p className="ax-followup-register__footnote">The module type and record title are read from the linked workstream. One person may have multiple follow-up lines and roles. Only the row marked Primary writes its amount and response schedule into the linked module's summary fields; all other rows remain separate commitments.</p>
+  </section>;
+}
