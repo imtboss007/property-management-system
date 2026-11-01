@@ -177,6 +177,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const documentFilesDir = path.join(userData, "axivestra-document-vault");
   let dataSyncWrite = Promise.resolve();
   let dataSyncTransaction = Promise.resolve();
+  let dataSyncStoreCache = null;
   let documentIndexWrite = Promise.resolve();
   let documentIndexTransaction = Promise.resolve();
   const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
@@ -1111,17 +1112,20 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   }
 
   async function readDataSyncStore() {
+    if (dataSyncStoreCache) return dataSyncStoreCache;
     try {
       const value = JSON.parse(await fs.readFile(dataSyncPath, "utf8"));
-      return {
+      dataSyncStoreCache = {
         schemaVersion: 1,
         revision: Number.isSafeInteger(value.revision) && value.revision >= 0 ? value.revision : 0,
         updatedAt: String(value.updatedAt || ""),
         snapshot: value.snapshot && typeof value.snapshot === "object" ? value.snapshot : {}
       };
+      return dataSyncStoreCache;
     } catch (error) {
       if (error && error.code !== "ENOENT") throw new Error("Could not read the saved AXIVESTRA sync store: " + error.message);
-      return { schemaVersion: 1, revision: 0, updatedAt: "", snapshot: {} };
+      dataSyncStoreCache = { schemaVersion: 1, revision: 0, updatedAt: "", snapshot: {} };
+      return dataSyncStoreCache;
     }
   }
 
@@ -1132,6 +1136,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       // materially reduces serialization time and disk I/O for large workspaces.
       await fs.writeFile(tempPath, JSON.stringify(value), { encoding: "utf8", mode: 0o600 });
       await fs.rename(tempPath, dataSyncPath);
+      dataSyncStoreCache = value;
     });
     await dataSyncWrite;
   }
