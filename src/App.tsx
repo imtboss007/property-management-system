@@ -975,15 +975,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         const synced = await syncCompanyWorkspace(company, userId, collections);
         if (disposed || cloudSyncSequenceRef.current !== sequence) return;
 
-        if (JSON.stringify(collections.properties) !== JSON.stringify(synced.properties)) setProperties(synced.properties as PropertyRecord[]);
-        if (JSON.stringify(collections.contacts) !== JSON.stringify(synced.contacts)) setContacts(synced.contacts as ContactRecord[]);
-        if (JSON.stringify(collections.whatsappGroups) !== JSON.stringify(synced.whatsappGroups)) setSavedWhatsAppGroups(synced.whatsappGroups as SavedWhatsAppGroup[]);
-        if (JSON.stringify(collections.tasks) !== JSON.stringify(synced.tasks)) setTasks(synced.tasks as TaskRecord[]);
-        if (JSON.stringify(collections.financials) !== JSON.stringify(synced.financials)) setFinancials(synced.financials as FinancialRecord[]);
-        if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
-        if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
-        if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
-        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
+        if (!deviceSyncCollectionsEqual(collections.properties, synced.properties)) setProperties(synced.properties as PropertyRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.contacts, synced.contacts)) setContacts(synced.contacts as ContactRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.whatsappGroups, synced.whatsappGroups)) setSavedWhatsAppGroups(synced.whatsappGroups as SavedWhatsAppGroup[]);
+        if (!deviceSyncCollectionsEqual(collections.tasks, synced.tasks)) setTasks(synced.tasks as TaskRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.financials, synced.financials)) setFinancials(synced.financials as FinancialRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.riskRecords, synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.approvalRequests, synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
+        if (!deviceSyncCollectionsEqual(collections.auditEvents, synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
+        if (!deviceSyncCollectionsEqual(collections.customModules, synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
