@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, ChartNoAxesCombined,
-  Check, ChevronDown, CircleDollarSign, ClipboardCheck, FileText, FlaskConical,
+  Activity, Banknote, BriefcaseBusiness, Building2, CalendarDays, BarChart3,
+  Check, CircleDollarSign, ClipboardCheck, FileText, FlaskConical,
   Handshake, House, Landmark, Layers3, Plus, Scale, ShieldCheck, Trash2,
   Users, Wallet, Wheat, X, type LucideIcon
 } from "lucide-react";
@@ -11,7 +11,7 @@ import { customModuleFieldKey, validateCustomModule } from "./lib/custom-modules
 const ICONS: Array<{ id: string; label: string; Icon: LucideIcon }> = [
   { id: "Building2", label: "Building", Icon: Building2 }, { id: "Landmark", label: "Institution", Icon: Landmark },
   { id: "Wallet", label: "Wallet", Icon: Wallet }, { id: "Banknote", label: "Finance", Icon: Banknote },
-  { id: "ChartNoAxesCombined", label: "Analytics", Icon: ChartNoAxesCombined }, { id: "BriefcaseBusiness", label: "Business", Icon: BriefcaseBusiness },
+  { id: "BarChart3", label: "Analytics", Icon: BarChart3 }, { id: "BriefcaseBusiness", label: "Business", Icon: BriefcaseBusiness },
   { id: "Scale", label: "Legal", Icon: Scale }, { id: "ShieldCheck", label: "Compliance", Icon: ShieldCheck },
   { id: "Users", label: "People", Icon: Users }, { id: "FileText", label: "Documents", Icon: FileText },
   { id: "Handshake", label: "Partnership", Icon: Handshake }, { id: "CalendarDays", label: "Calendar", Icon: CalendarDays },
