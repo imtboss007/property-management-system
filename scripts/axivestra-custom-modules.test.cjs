@@ -8,6 +8,8 @@ const sync = fs.readFileSync("src/lib/device-sync.ts", "utf8");
 const cloud = fs.readFileSync("src/lib/supabase.ts", "utf8");
 const workbench = fs.readFileSync("src/ModuleWorkbench.tsx", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
+const windowsSync = fs.readFileSync("electron/whatsapp-service.cjs", "utf8");
+const commandCenter = fs.readFileSync("src/WorkspaceCommandCenter.tsx", "utf8");
 
 for (const token of [
   'load("axivestra.customModules", [])',
@@ -34,6 +36,8 @@ for (const token of [
 ]) assert.ok(schema.includes(token), "Missing custom module schema feature: " + token);
 
 assert.ok(sync.includes('"customModules"'), "Custom modules must be included in PC/phone sync.");
+assert.equal((windowsSync.match(/"customModules"/g) || []).length, 2, "Windows HTTP and desktop sync allow custom module records.");
+assert.ok(commandCenter.includes('"module"') && commandCenter.includes("props.modules"), "Universal search must include module definitions.");
 assert.ok(cloud.includes('recordType: "custom_module"'), "Custom modules must be included in company cloud records.");
 for (const type of ["currency", "percent", "date", "select", "textarea", "email", "phone", "url", "checkbox"]) {
   assert.ok(studio.includes(type), "Module Studio should offer field type: " + type);
@@ -41,7 +45,7 @@ for (const type of ["currency", "percent", "date", "select", "textarea", "email"
 for (const token of [
   ".ax-dashboard-kpis", ".ax-dashboard-insights", ".ax-dashboard-bottom-grid",
   ".ax-dashboard-whatsapp", ".ax-dashboard-activity", ".ax-module-add-card",
-  ".ax-module-studio", ".ax-studio-field-builder", "@media(max-width:780px)"
+  ".ax-module-studio", ".ax-studio-field-builder", ".ax-dashboard-customize", "@media(max-width:780px)"
 ]) assert.ok(styles.includes(token), "Missing responsive dashboard / studio style: " + token);
 
 assert.ok(workbench.includes("Search all ") && workbench.includes("Print / Save PDF"), "Custom modules must reuse the search and PDF workbench.");
