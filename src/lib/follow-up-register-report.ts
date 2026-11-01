@@ -10,7 +10,7 @@ const esc=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&am
 const dateTime=(date?:string,time?:string)=>date?[date,time].filter(Boolean).join(" · "):"Not scheduled";
 const linkedTo=(contact:Contact,record:RecordRow)=>{
   const data=record.moduleData||{};
-  const ids=[record.primaryContactId||" ",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
+  const ids=["record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
   return ids.includes(contact.id)||(record.contact||"").trim().toLowerCase()===contact.name.trim().toLowerCase();
 };
 export function buildContactFollowUpRegisterHtml(contacts:Contact[],records:RecordRow[],groups:Group[]=[]):string{
