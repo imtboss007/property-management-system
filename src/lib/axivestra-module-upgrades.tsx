@@ -641,12 +641,17 @@ export function RepeatableModuleEditor({ config, value, onChange }: {
                 <option value="">{field.placeholder || "Select"}</option>
                 {(field.options || []).map(option => <option key={option} value={option}>{option}</option>)}
               </select>
-            : <input type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-                min={field.type === "number" ? "0" : undefined}
-                step={field.type === "number" ? "any" : undefined}
-                value={row[field.key] || ""}
-                onChange={event => updateRow(index, field.key, event.target.value)}
-                placeholder={field.placeholder}/>}
+            : field.type === "date"
+              ? <div className="ax-date-time-pair">
+                  <input type="date" value={row[field.key] || ""} onChange={event => updateRow(index, field.key, event.target.value)} placeholder={field.placeholder}/>
+                  <label>Time<input type="time" value={row[field.key + "Time"] || ""} onChange={event => updateRow(index, field.key + "Time", event.target.value)}/></label>
+                </div>
+              : <input type={field.type === "number" ? "number" : "text"}
+                  min={field.type === "number" ? "0" : undefined}
+                  step={field.type === "number" ? "any" : undefined}
+                  value={row[field.key] || ""}
+                  onChange={event => updateRow(index, field.key, event.target.value)}
+                  placeholder={field.placeholder}/>}
         </label>)}
       </div>
     </div>)}

@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - "feat/axivestra-requested-module-upgrades-validated"
   workflow_dispatch:
 permissions:
   contents: read
