@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { ArrowUpRight, CalendarClock, Download, FileText, MessageCircle, Pencil, Plus, RefreshCw, Search, Users, X } from "lucide-react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 
@@ -16,12 +17,23 @@ type RecordRow = {
 type Task = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
 type Field = { key: string; label: string; placeholder?: string; type?: string; options?: string[] };
 type SchedulePatch = Pick<RecordRow,"nextResponseDate"|"nextResponseTime"|"nextResponseType"|"nextResponseDescription"|"nextFollowUpDate"|"nextFollowUpTime"|"nextAction">;
+type Financial = { id:string; propertyId:string; property:string; contactId?:string; type:string; amount:string; date:string; party:string; reference:string; notes:string };
+type Document = { id:string; propertyId:string; property:string; contactId?:string; name:string; category:string; expiresOn:string; notes:string; createdAt:string };
+type Risk = { id:string; title:string; category:string; severity:string; status:string; owner:string; dueDate:string; entity:string; propertyId?:string; contactId?:string; mitigation:string; createdAt:string };
+type Approval = { id:string; title:string; area:string; entity:string; propertyId?:string; contactId?:string; requestedBy:string; approver:string; priority:string; status:string; rationale:string; decisionNotes:string; requestedAt:string; decidedAt:string };
+type AuditEntry = { id:string; at:string; action:"created"|"updated"|"deleted"; entity:string; recordId:string; label:string; activityType?:string; description?:string; relatedRecordId?:string };
+type TimelineEntry = { id:string; at:string; category:string; title:string; details?:string; status?:string; source:string };
 type Draft = SchedulePatch;
 type Props = {
   contact: Contact;
   properties: RecordRow[];
   savedGroups: SavedGroup[];
   tasks: Task[];
+  financials: Financial[];
+  documents: Document[];
+  risks: Risk[];
+  approvals: Approval[];
+  auditEvents: AuditEntry[];
   fieldsByModule: Record<string,Field[]>;
   onClose: () => void;
   onAddRecord: () => void;
@@ -32,6 +44,7 @@ type Props = {
   onDownloadRecord: (record: RecordRow) => void;
   onUpdateSchedule: (recordId: string, patch: SchedulePatch) => void;
   onUpdateWhatsAppGroups: (contactId: string, groupIds: string[]) => void;
+  onLogInteraction: (contactId:string, activityType:string, title:string, description:string, at:string, relatedRecordId?:string) => void;
 };
 
 const pretty = (key: string) => key.replace(/^__/,"").replace(/([A-Z])/g," $1").replace(/[_-]+/g," ").replace(/^./,value=>value.toUpperCase());
@@ -54,17 +67,21 @@ const relatedTo = (record: RecordRow,contact: Contact) => {
 };
 
 export default function ContactPortfolioPanel(props: Props) {
-  const {contact,properties,tasks,fieldsByModule,savedGroups}=props;
+  const {contact,properties,tasks,financials,documents,risks,approvals,auditEvents,fieldsByModule,savedGroups}=props;
   const [drafts,setDrafts]=useState<Record<string,Draft>>({});
   const [expanded,setExpanded]=useState<string[]>([]);
+  const [showInteractionForm,setShowInteractionForm]=useState(false);
+  const [timelineFilter,setTimelineFilter]=useState("All");
+  const [activityDraft,setActivityDraft]=useState({type:"Call",title:"",description:"",at:new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16),relatedRecordId:""});
   const linked=useMemo(()=>properties.filter(record=>relatedTo(record,contact)).sort((a,b)=>(`${a.nextResponseDate||a.nextFollowUpDate||"9999-12-31"}T${a.nextResponseTime||a.nextFollowUpTime||"23:59"}`).localeCompare(`${b.nextResponseDate||b.nextFollowUpDate||"9999-12-31"}T${b.nextResponseTime||b.nextFollowUpTime||"23:59"}`)),[properties,contact]);
-  const linkedIds=new Set(linked.map(record=>record.id));
-  const openTasks=tasks.filter(task=>(task.contactId===contact.id||(task.propertyId&&linkedIds.has(task.propertyId)))&&!task.done).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time));
-  const moduleCounts=Array.from(new Set(linked.map(record=>record.module))).map(module=>({module,count:linked.filter(record=>record.module===module).length}));
+  const linkedIds=useMemo(()=>new Set(linked.map(record=>record.id)),[linked]);
+  const linkedTasks=useMemo(()=>tasks.filter(task=>task.contactId===contact.id||(task.propertyId&&linkedIds.has(task.propertyId))).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time)),[tasks,contact.id,linkedIds]);
+  const openTasks=useMemo(()=>linkedTasks.filter(task=>!task.done),[linkedTasks]);
+  const moduleCounts=useMemo(()=>{const counts=new Map<string,number>();linked.forEach(record=>counts.set(record.module,(counts.get(record.module)||0)+1));return Array.from(counts,([module,count])=>({module,count}));},[linked]);
   const [groupSearch,setGroupSearch]=useState("");
   const directlyLinkedGroupIds=contact.whatsappGroupIds||[];
   const recordLinkedGroupIds=Array.from(new Set(linked.flatMap(record=>(record.moduleData?.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean))));
-  const groupMatches=savedGroups.filter(group=>!groupSearch.trim()||[group.name,group.description,group.jid].filter(Boolean).join(" ").toLocaleLowerCase().includes(groupSearch.trim().toLocaleLowerCase()));
+  const groupMatches=useMemo(()=>{const term=groupSearch.trim().toLocaleLowerCase();return savedGroups.filter(group=>!term||[group.name,group.description,group.jid].filter(Boolean).join(" ").toLocaleLowerCase().includes(term));},[savedGroups,groupSearch]);
   const linkedGroupIds=new Set([...directlyLinkedGroupIds,...recordLinkedGroupIds]);
   const today=new Date().toISOString().slice(0,10);
   const overdue=linked.filter(record=>record.nextResponseDate&&record.nextResponseDate<today).length;
@@ -76,6 +93,53 @@ export default function ContactPortfolioPanel(props: Props) {
   const change=(record:RecordRow,key:keyof Draft,value:string)=>setDrafts(current=>({...current,[record.id]:{...getDraft(record),[key]:value}}));
   const save=(record:RecordRow)=>{props.onUpdateSchedule(record.id,getDraft(record));setDrafts(current=>{const next={...current};delete next[record.id];return next;});};
   const toggle=(id:string)=>setExpanded(current=>current.includes(id)?current.filter(value=>value!==id):[...current,id]);
+  const timeline=useMemo<TimelineEntry[]>(()=>{
+    const entries:TimelineEntry[]=[];
+    const linkedRecordIds=linkedIds;
+    const add=(entry:TimelineEntry)=>{if(entry.at&&Number.isFinite(Date.parse(entry.at)))entries.push(entry);};
+    for(const event of auditEvents){
+      if(event.entity==="Interaction"&&event.recordId===contact.id){
+        add({id:event.id,at:event.at,category:event.activityType||"Interaction",title:event.label,details:event.description,status:"Logged",source:event.relatedRecordId?linked.find(record=>record.id===event.relatedRecordId)?.title||"Related record":"Contact"});
+      }else if((event.entity==="Contact"&&event.recordId===contact.id)||(["Property","Task","Financial","Risk","Approval"].includes(event.entity)&&linkedRecordIds.has(event.recordId))){
+        add({id:event.id,at:event.at,category:"Records",title:event.action.toUpperCase()+" · "+event.entity+" · "+event.label,details:event.entity==="Contact"?"Contact profile history":"Workstream record history",status:event.action,source:event.entity});
+      }
+    }
+    for(const task of linkedTasks){
+      add({id:"task-"+task.id,at:task.date+"T"+(task.time||"00:00")+":00",category:"Schedule",title:task.title,details:[task.type,task.property,task.notes].filter(Boolean).join(" · "),status:task.done?"Completed":"Scheduled",source:"Task"});
+    }
+    for(const record of linked){
+      if(record.createdAt)add({id:"record-created-"+record.id,at:record.createdAt,category:"Records","title":"Record created · "+record.title,details:record.module+" · "+(record.status||"Status not set"),status:record.status,source:record.module});
+      if(record.nextResponseDate)add({id:"response-"+record.id,at:record.nextResponseDate+"T"+(record.nextResponseTime||"00:00")+":00",category:"Schedule",title:"Expected response · "+record.title,details:[record.nextResponseType,record.nextResponseDescription||record.nextAction].filter(Boolean).join(" · "),status:"Upcoming",source:record.module});
+      if(record.nextFollowUpDate)add({id:"followup-"+record.id,at:record.nextFollowUpDate+"T"+(record.nextFollowUpTime||"00:00")+":00",category:"Schedule",title:"Next follow-up · "+record.title,details:record.nextAction||"",status:"Scheduled",source:record.module});
+    }
+    for(const item of financials.filter(item=>item.contactId===contact.id||(item.propertyId&&linkedRecordIds.has(item.propertyId)))){
+      add({id:"financial-"+item.id,at:item.date+"T12:00:00",category:"Money",title:item.type+" · ₹"+Number(item.amount||0).toLocaleString("en-IN"),details:[item.party,item.property,item.reference,item.notes].filter(Boolean).join(" · "),status:"Recorded",source:"Financial"});
+    }
+    for(const item of documents.filter(item=>item.contactId===contact.id||(item.propertyId&&linkedRecordIds.has(item.propertyId)))){
+      add({id:"document-"+item.id,at:item.createdAt||item.expiresOn,category:"Documents",title:"Document added · "+item.name,details:[item.category,item.property,item.notes].filter(Boolean).join(" · "),status:item.expiresOn?"Renewal "+item.expiresOn:"Stored",source:"Document"});
+      if(item.expiresOn)add({id:"document-expiry-"+item.id,at:item.expiresOn+"T09:00:00",category:"Documents",title:"Document expiry / renewal · "+item.name,details:item.category+" · "+item.property,status:"Deadline",source:"Document"});
+    }
+    for(const item of risks.filter(item=>item.contactId===contact.id||(item.propertyId&&linkedRecordIds.has(item.propertyId)))){
+      add({id:"risk-"+item.id,at:item.createdAt,category:"Risk",title:"Risk recorded · "+item.title,details:[item.category,item.severity,item.owner,item.mitigation].filter(Boolean).join(" · "),status:item.status,source:"Risk"});
+      if(item.dueDate)add({id:"risk-due-"+item.id,at:item.dueDate+"T09:00:00",category:"Risk",title:"Risk mitigation due · "+item.title,details:item.owner+" · "+item.mitigation,status:item.status,source:"Risk"});
+    }
+    for(const item of approvals.filter(item=>item.contactId===contact.id||(item.propertyId&&linkedRecordIds.has(item.propertyId)))){
+      add({id:"approval-request-"+item.id,at:item.requestedAt,category:"Approvals",title:"Approval requested · "+item.title,details:[item.area,item.entity,item.approver,item.rationale].filter(Boolean).join(" · "),status:item.status,source:"Approval"});
+      if(item.decidedAt)add({id:"approval-decision-"+item.id,at:item.decidedAt,category:"Approvals",title:"Approval decision · "+item.title,details:item.decisionNotes,status:item.status,source:"Approval"});
+    }
+    return entries.sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+  },[auditEvents,contact.id,linked,linkedIds,linkedTasks,financials,documents,risks,approvals]);
+  const timelineCategories=["All","Interaction","Call","WhatsApp","Email","Meeting","Site visit","Schedule","Records","Money","Documents","Risk","Approvals"];
+  const filteredTimeline=useMemo(()=>timeline.filter(item=>timelineFilter==="All"||item.category===timelineFilter||(timelineFilter==="Interaction"&&["Call","WhatsApp","Email","Meeting","Site visit","Other interaction"].includes(item.category))),[timeline,timelineFilter]);
+  const saveInteraction=(event:FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();
+    if(!activityDraft.title.trim()||!activityDraft.at)return;
+    const instant=new Date(activityDraft.at);
+    if(Number.isNaN(instant.getTime()))return;
+    props.onLogInteraction(contact.id,activityDraft.type,activityDraft.title.trim(),activityDraft.description.trim(),instant.toISOString(),activityDraft.relatedRecordId||undefined);
+    setActivityDraft(current=>({...current,title:"",description:"",relatedRecordId:""}));
+    setShowInteractionForm(false);
+  };
 
   return <section className="ax-contact-portfolio">
     <header className="ax-contact-portfolio__header">
@@ -125,6 +189,20 @@ export default function ContactPortfolioPanel(props: Props) {
         </div>}
       </article>;
     })}</div>
+    <div className="ax-contact-portfolio__section-heading ax-contact-timeline-heading"><div><h3>Relationship timeline</h3><p>Calls, WhatsApp and email notes, meetings, documents, money movements, responses and scheduled actions in one chronological history.</p></div><button type="button" className="primary-button" onClick={()=>setShowInteractionForm(current=>!current)}><Plus size={14}/>{showInteractionForm?"Close log form":"Log interaction"}</button></div>
+    {showInteractionForm&&<form className="ax-contact-activity-form" onSubmit={saveInteraction}>
+      <div className="ax-contact-activity-form__top"><strong>Record an interaction</strong><span>Stored in the contact timeline and shared activity history.</span></div>
+      <div className="ax-contact-activity-form__grid">
+        <label>Interaction type<select value={activityDraft.type} onChange={event=>setActivityDraft(current=>({...current,type:event.target.value}))}>{["Call","WhatsApp","Email","Meeting","Site visit","Document","Payment update","Other interaction"].map(type=><option key={type}>{type}</option>)}</select></label>
+        <label>Date and time<input required type="datetime-local" value={activityDraft.at} onChange={event=>setActivityDraft(current=>({...current,at:event.target.value}))}/></label>
+        <label className="wide">Subject / outcome<input required value={activityDraft.title} onChange={event=>setActivityDraft(current=>({...current,title:event.target.value}))} placeholder="e.g. Spoke with lender; awaiting sanction letter"/></label>
+        <label className="wide">Details / next commitment<textarea rows={3} value={activityDraft.description} onChange={event=>setActivityDraft(current=>({...current,description:event.target.value}))} placeholder="What happened, what was agreed, who will act next, and any reference…"/></label>
+        <label className="wide">Related workstream (optional)<select value={activityDraft.relatedRecordId} onChange={event=>setActivityDraft(current=>({...current,relatedRecordId:event.target.value}))}><option value="">Contact-level interaction</option>{linked.map(record=><option key={record.id} value={record.id}>{record.module} · {record.title}</option>)}</select></label>
+      </div>
+      <div className="ax-contact-activity-form__actions"><button type="button" className="secondary-button" onClick={()=>setShowInteractionForm(false)}>Cancel</button><button type="submit" className="primary-button"><Plus size={13}/> Save to timeline</button></div>
+    </form>}
+    <div className="ax-contact-timeline-toolbar"><label>Show<select value={timelineFilter} onChange={event=>setTimelineFilter(event.target.value)}>{timelineCategories.map(category=><option key={category}>{category}</option>)}</select></label><span>{filteredTimeline.length} timeline event(s)</span></div>
+    <div className="ax-contact-timeline">{filteredTimeline.length?filteredTimeline.map(item=><article className="ax-contact-timeline__item" key={item.id}><span className="ax-contact-timeline__dot"/><div className="ax-contact-timeline__body"><div className="ax-contact-timeline__meta"><span>{item.category}</span><time>{new Date(item.at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</time></div><strong>{item.title}</strong>{item.details&&<p>{item.details}</p>}<small>{item.source}{item.status?" · "+item.status:""}</small></div></article>):<div className="ax-contact-timeline__empty"><CalendarClock size={22}/><strong>No timeline activity for this filter</strong><p>Log the first call, WhatsApp conversation, email or meeting. Linked records and scheduled actions will also appear here.</p></div>}</div>
     <div className="ax-contact-portfolio__section-heading"><div><h3>Scheduled activities</h3><p>Open tasks linked to this contact or to any of their module records.</p></div><span>{openTasks.length} open</span></div>
     <div className="ax-contact-portfolio__tasks">{openTasks.length?openTasks.map(task=><div key={task.id}><span><CalendarClock size={14}/></span><section><strong>{task.title}</strong><small>{task.type} · {dateTimeLabel(task.date,task.time)}{task.property?" · "+task.property:""}</small>{task.notes&&<p>{task.notes}</p>}</section></div>):<p>No open tasks are linked to this contact.</p>}</div>
   </section>;

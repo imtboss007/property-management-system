@@ -58,4 +58,24 @@ assert.ok(pdf.includes('clonedRoot.style.cssText'), "PDF clone must be moved int
 assert.ok(pdf.includes("empty or invalid PDF file"), "PDF helper must reject blank or invalid PDFs.");
 assert.ok(report.includes("Linked WhatsApp groups"), "Complete PDF must include linked group names.");
 
-console.log("AXIVESTRA Contact 360, standalone module, group linking, fast search and PDF export contracts passed.");
+
+for (const token of [
+  "Relationship timeline", "Log interaction", "onLogInteraction", "activityDraft",
+  "Financial", "Document", "Approval", "Risk", "Schedule", "filteredTimeline",
+  "timelineFilter", "relatedRecordId", "Save to timeline"
+]) assert.ok(contact.includes(token), "Missing contact timeline capability: " + token);
+
+for (const token of [
+  'entity:"Interaction"', "activityType", "description", "relatedRecordId",
+  "deferredSearch", "contact360Directory", "visibleContact360Directory"
+]) assert.ok(app.includes(token), "Missing saved activity or indexed search capability: " + token);
+
+for (const token of [
+  "useDeferredValue(query)", "searchIndex", "const metrics=useMemo", "contactIndex"
+]) assert.ok(workbench.includes(token), "Missing module performance optimization: " + token);
+
+
+assert.ok(app.includes("previousById.get(id)"), "Audit snapshot should reuse unchanged record rows.");
+assert.ok(app.includes("prior.source===record"), "Audit snapshot should skip deep serialization for unchanged rows.");
+assert.ok(app.includes("source: record"), "Audit snapshot should track immutable source row identity.");
+console.log("AXIVESTRA Contact 360 timeline, interactions, group linking, faster search and PDF export contracts passed.");
