@@ -61,8 +61,11 @@ function makeClient(rows, options = {}) {
     "pagination must preserve deterministic server page order without duplication or omissions");
   assert.deepEqual(fixture.ranges, [[0, 499], [500, 999], [1000, 1499]],
     "pages must be fetched in bounded, non-overlapping ranges");
-  assert.deepEqual(fixture.orders, [["record_type", true], ["record_key", true]],
-    "each page must use stable ordering");
+  assert.deepEqual(fixture.orders, [
+    ["record_type", true], ["record_key", true],
+    ["record_type", true], ["record_key", true],
+    ["record_type", true], ["record_key", true]
+  ], "every page must use stable ordering");
   assert.deepEqual(fixture.filters, [["company_id", "company-abc"]],
     "every page must remain scoped to the requested company");
 
