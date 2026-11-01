@@ -24,3 +24,11 @@ assert.ok(!blank.includes("Asha Rao"));
 assert.ok(!blank.includes("+91 98765 43210"));
 assert.ok(blank.includes("₹10,00,000"),"Privacy export must preserve transaction values.");
 console.log("AXIVESTRA WhatsApp commitment extraction and PDF identity privacy tests passed.");
+
+import fs from "node:fs";
+const app=fs.readFileSync(new URL("../src/App.tsx",import.meta.url),"utf8");
+const hub=fs.readFileSync(new URL("../src/IntelligenceHub.tsx",import.meta.url),"utf8");
+for (const token of ["Intelligence Hub","createFollowUpFromWhatsApp","applyPdfIdentityPrivacy","pendingPdfExport","Name + Number","Name only","Blank — hide name and number"])
+  assert.ok(app.includes(token), "Missing App integration: "+token);
+for (const token of ["DEAL COPILOT","WHATSAPP → AXIVESTRA","Review before saving","onCreateFollowUp","Nothing is changed automatically"])
+  assert.ok(hub.includes(token), "Missing Intelligence Hub workflow: "+token);
