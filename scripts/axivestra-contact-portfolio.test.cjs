@@ -189,7 +189,7 @@ console.log("AXIVESTRA module-originated follow-up updates, notes and last-updat
 
 for (const token of [
   "transactionFilter", "loanDirectionFilter", "monthlyInterestReceivable",
-  "monthlyInterestPayable", "calculateMonthlyInterest", "getTransactionAmount",
+  "monthlyInterestPayable", "calculateMonthlyInterest", "Amount (INR)",
   "Loan direction", "ax-followup-register__interest-metric", "__transactionType",
   "roleFilters.some", "groupFilters.some"
 ]) assert.ok(register.includes(token), "Missing Follow-up Register transaction/loan view or filters: " + token);
