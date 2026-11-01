@@ -51,7 +51,7 @@ for (const token of [
   "DEAL / TRANSACTION STRUCTURE", "__transactionType", "What is this transaction?",
   "Sale", "Loan", "Sharing", "Settlement", "Gift", "10% gift + 90% balance sharing",
   "Percentage per month", "Percentage per year", "Fixed amount per month",
-  "Monthly interest due day", "Monthly interest estimate", "transactionFilter",
+  "Monthly interest due day", "Estimated interest per month", "transactionFilter",
   "Filter by transaction type", "All transactions", "updateTransactionAmountFields"
 ]) assert.ok(app.includes(token) || workbench.includes(token), "Missing universal deal / transaction form: " + token);
 for (const token of [
