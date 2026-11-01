@@ -26,7 +26,7 @@ export type CustomModuleDefinition = {
 };
 
 export function normaliseCustomModuleName(value: string): string {
-  return value.trim().replace(/\\s+/g, " ");
+  return value.trim().replace(/\s+/g, " ");
 }
 
 export function customModuleFieldKey(label: string, index: number): string {
