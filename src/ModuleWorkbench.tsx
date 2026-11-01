@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileText, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users, X } from "lucide-react";
 
@@ -77,17 +77,27 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
   const [detailRecordId, setDetailRecordId] = useState<string|null>(null);
 
-  const filtered = useMemo(() => records.filter(record => {
-    const text = [record.id, record.title, record.module, record.location, record.value, record.status, record.contact, record.surveyNumber, record.ownershipDetails, record.areaValue, record.areaUnit, record.dimensions, record.ratePerUnit, record.targetDeadline, record.targetDeadlineTime, record.nextFollowUpDate, record.nextFollowUpTime, record.nextResponseDate, record.nextResponseTime, record.nextResponseType, record.nextResponseDescription, record.nextAction, record.notes, ...Object.entries(record.moduleData || {}).flatMap(([key, value]) => [key, String(value ?? "")])].join(" ").normalize("NFKC").toLocaleLowerCase();
-    const terms = query.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean);
-    return (filter === "All" || record.status === filter || (filter === "Follow-up set" && Boolean(record.nextFollowUpDate)) || (filter === "No follow-up" && !record.nextFollowUpDate)) && terms.every(term => text.includes(term));
-  }), [records, filter, query]);
-  const totalValue = records.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
-  const active = records.filter(row => !CLOSED.has(String(row.status).toLowerCase())).length;
-  const followups = records.filter(row => row.nextFollowUpDate).length;
-  const missingData = records.filter(row => !row.location || !row.value || (fields.length > 0 && fields.some(field => !String(row.moduleData?.[field.key] || "").trim()))).length;
-  const statuses = Array.from(new Set(records.map(row => row.status || "Unspecified")));
-  const stageCounts = statuses.map(status => ({ status, count: records.filter(row => row.status === status).length })).sort((a,b) => b.count-a.count);
+  const deferredQuery=useDeferredValue(query);
+  const searchTerms=useMemo(()=>deferredQuery.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean),[deferredQuery]);
+  const searchIndex=useMemo(()=>records.map(record=>({
+    record,
+    text:[record.id,record.title,record.module,record.location,record.value,record.status,record.contact,record.surveyNumber,record.ownershipDetails,record.areaValue,record.areaUnit,record.dimensions,record.ratePerUnit,record.targetDeadline,record.targetDeadlineTime,record.nextFollowUpDate,record.nextFollowUpTime,record.nextResponseDate,record.nextResponseTime,record.nextResponseType,record.nextResponseDescription,record.nextAction,record.notes,...Object.entries(record.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")])].join(" ").normalize("NFKC").toLocaleLowerCase()
+  })),[records]);
+  const filtered=useMemo(()=>searchIndex.filter(({record,text})=>
+    (filter==="All"||record.status===filter||(filter==="Follow-up set"&&Boolean(record.nextFollowUpDate))||(filter==="No follow-up"&&!record.nextFollowUpDate))&&searchTerms.every(term=>text.includes(term))
+  ).map(item=>item.record),[searchIndex,filter,searchTerms]);
+  const metrics=useMemo(()=>{
+    const totalValue=records.reduce((sum,row)=>sum+(Number(row.value)||0),0);
+    const active=records.filter(row=>!CLOSED.has(String(row.status).toLowerCase())).length;
+    const followups=records.filter(row=>row.nextFollowUpDate).length;
+    const missingData=records.filter(row=>!row.location||!row.value||(fields.length>0&&fields.some(field=>!String(row.moduleData?.[field.key]||"").trim()))).length;
+    const counts=new Map<string,number>();
+    records.forEach(row=>{const status=row.status||"Unspecified";counts.set(status,(counts.get(status)||0)+1);});
+    const statuses=Array.from(counts.keys());
+    const stageCounts=Array.from(counts,([status,count])=>({status,count})).sort((a,b)=>b.count-a.count);
+    return {totalValue,active,followups,missingData,statuses,stageCounts};
+  },[records,fields]);
+  const {totalValue,active,followups,missingData,statuses,stageCounts}=metrics;
   const coreDataFields: ModuleField[] = [
     { key: "location", label: "Location / collateral", placeholder: "" },
     { key: "value", label: "Value / exposure", placeholder: "" },
@@ -103,12 +113,12 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     { key: "ownershipDetails", label: "Ownership / parties", placeholder: "" },
     { key: "notes", label: "Notes / evidence", placeholder: "" }
   ];
-  const dataFields = [...coreDataFields, ...fields.filter(field => !coreDataFields.some(core => core.key === field.key))];
+  const dataFields = useMemo(() => [...coreDataFields, ...fields.filter(field => !coreDataFields.some(core => core.key === field.key))], [fields]);
   const getFieldValue = (record: ModuleRecord, key: string) => key === "location" || key === "value" || key === "targetDeadline" || key === "targetDeadlineTime" || key === "nextFollowUpDate" || key === "nextFollowUpTime" || key === "nextResponseDate" || key === "nextResponseTime" || key === "nextResponseType" || key === "nextResponseDescription" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
     ? String(record[key as keyof ModuleRecord] || "")
     : String(record.moduleData?.[key] || "");
   const presentFields = (record: ModuleRecord) => dataFields.filter(field => getFieldValue(record, field.key).trim()).length;
-  const moduleChartData = (() => {
+  const moduleChartData = useMemo(() => {
     const groups = new Map<string, { name: string; value: number; color: string; records: number }>();
     records.forEach(record => {
       const name = moduleMetric === "followup" ? (record.nextFollowUpDate ? "Follow-up set" : "No follow-up") : (record.status || "Unspecified");
@@ -118,16 +128,20 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       groups.set(name,existing);
     });
     return Array.from(groups.values()).sort((a,b)=>b.value-a.value);
-  })();
+  }, [records,moduleMetric]);
   const moduleChartTotal = moduleChartData.reduce((sum,item)=>sum+item.value,0);
-  const detailRecord = detailRecordId ? records.find(record=>record.id===detailRecordId) || null : null;
+  const detailRecord = useMemo(() => detailRecordId ? records.find(record=>record.id===detailRecordId) || null : null, [detailRecordId,records]);
   const expandedHas = (id: string) => expanded.includes(id);
   const toggleExpanded = (id: string) => setExpanded(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
+  const contactIndex = useMemo(() => ({
+    byId:new Map(contacts.map(contact=>[contact.id,contact])),
+    byName:new Map(contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact]))
+  }),[contacts]);
   const linkedContacts = (record: ModuleRecord) => {
     const ids = contactIds(record);
-    const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((item): item is Contact => Boolean(item));
+    const linked = ids.map(id => contactIndex.byId.get(id)).filter((item): item is Contact => Boolean(item));
     if (!linked.length && record.contact) {
-      const legacy = contacts.find(contact => contact.name.trim().toLowerCase() === record.contact.trim().toLowerCase());
+      const legacy = contactIndex.byName.get(record.contact.trim().toLocaleLowerCase());
       if (legacy) linked.push(legacy);
     }
     return linked.filter((contact,index) => linked.findIndex(other=>other.id===contact.id)===index);
