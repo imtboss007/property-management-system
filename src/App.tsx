@@ -1662,6 +1662,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
   const openWorkspaceResult = (kind: SearchKind, record: any) => {
     setSearch("");
+    if (kind === "module") { go(record.name); return; }
     if (kind === "property") { go(record.module || "All Properties"); openPropertyForm(record as PropertyRecord); return; }
     if (kind === "contact") { go("Contacts"); openContactForm(record as ContactRecord); return; }
     if (kind === "task") { go("Schedule & Tasks"); openTaskForm(record as TaskRecord); return; }
@@ -2153,7 +2154,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
-          <div className="top-actions"><WorkspaceCommandCenter search={search} onSearchChange={setSearch} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} groups={savedWhatsAppGroups} onOpenResult={openWorkspaceResult} onQuickCreate={quickCreate} onOpenHistory={() => go("Activity History")} />{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}</div>
+          <div className="top-actions"><WorkspaceCommandCenter search={search} onSearchChange={setSearch} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} groups={savedWhatsAppGroups} modules={modules.map(item=>({name:item.name,description:item.description,group:item.group}))} onOpenResult={openWorkspaceResult} onQuickCreate={quickCreate} onOpenHistory={() => go("Activity History")} />{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}</div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
