@@ -20,7 +20,7 @@ type Props = {
   onDelete: (id: string) => void;
   onSchedule: (record: ModuleRecord, contact?: Contact) => void;
   onWhatsApp: (contactId?: string, propertyId?: string) => void;
-  onExportReport: () => void;
+  onExportReport: (records: ModuleRecord[]) => void;
 };
 
 const CLOSED = new Set(["completed", "closed", "settled", "rejected", "cancelled"]);
@@ -192,6 +192,6 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         <div className="ax-record-quick-actions"><button onClick={()=>onSchedule(record,linked[0])}><CalendarClock size={13}/>Follow-up</button>{linked.length ? linked.map(contact=><button key={contact.id} onClick={()=>onWhatsApp(contact.id,record.id)}><MessageCircle size={13}/>Message {contact.name.split(" ")[0]}</button>) : <button onClick={()=>onWhatsApp(undefined,record.id)}><MessageCircle size={13}/>WhatsApp</button>}<button onClick={()=>toggleExpanded(record.id)}><ArrowUpRight size={13}/> {expandedRow?"Collapse":"Open record"}</button></div>
       </article>;
     })}</div>}
-    <div className="ax-module-footer"><span><CheckCircle2 size={14}/> Live module view · {filtered.length} shown of {records.length} saved records</span><div className="ax-module-footer__actions"><button className="secondary-button" onClick={onExportReport}><Download size={15}/> Print / Save PDF</button><button onClick={onAdd}><Plus size={15}/> Add another {moduleName.toLowerCase()} record</button></div></div>
+    <div className="ax-module-footer"><span><CheckCircle2 size={14}/> Live module view · {filtered.length} shown of {records.length} saved records</span><div className="ax-module-footer__actions"><button className="secondary-button" onClick={()=>onExportReport(filtered)}><Download size={15}/> Print / Save PDF</button><button onClick={onAdd}><Plus size={15}/> Add another {moduleName.toLowerCase()} record</button></div></div>
   </section>;
 }
