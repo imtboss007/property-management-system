@@ -1131,34 +1131,46 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       Risk: riskRecords,
       Approval: approvalRequests
     };
-    const snapshot: Record<string, Array<{ id: string; fingerprint: string; label: string }>> = {};
+    const snapshot: Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown }>> = {};
     for (const [entity, rawRecords] of Object.entries(collections)) {
       const records = rawRecords as Array<{ id: string; [key: string]: unknown }>;
       snapshot[entity] = records.map(record => ({
         id: String(record.id),
         fingerprint: JSON.stringify(record),
-        label: String(record.title || record.name || record.type || record.module || record.id).slice(0, 160)
+        label: String(record.title || record.name || record.type || record.module || record.id).slice(0, 160),
+        record: JSON.parse(JSON.stringify(record))
       }));
     }
     const previous = auditSnapshot.current;
     auditSnapshot.current = snapshot;
     if (!previous) return;
+    if (suppressAuditRef.current) { suppressAuditRef.current = false; return; }
 
     const changes: AuditEvent[] = [];
+    const undoChanges: UndoEntry[] = [];
     const now = new Date().toISOString();
     for (const [entity, records] of Object.entries(snapshot)) {
       const before = new Map((previous[entity] || []).map(record => [record.id, record]));
       const after = new Map(records.map(record => [record.id, record]));
       for (const record of records) {
         const prior = before.get(record.id);
-        if (!prior) changes.push({ id: uid(), at: now, action: "created", entity, recordId: record.id, label: record.label });
-        else if (prior.fingerprint !== record.fingerprint) changes.push({ id: uid(), at: now, action: "updated", entity, recordId: record.id, label: record.label });
+        if (!prior) {
+          changes.push({ id: uid(), at: now, action: "created", entity, recordId: record.id, label: record.label });
+          undoChanges.push({ id: uid(), at: now, entity, recordId: record.id, label: record.label, hadPrevious: false });
+        } else if (prior.fingerprint !== record.fingerprint) {
+          changes.push({ id: uid(), at: now, action: "updated", entity, recordId: record.id, label: record.label });
+          undoChanges.push({ id: uid(), at: now, entity, recordId: record.id, label: record.label, hadPrevious: true, beforeRecord: prior.record });
+        }
       }
       for (const record of previous[entity] || []) {
-        if (!after.has(record.id)) changes.push({ id: uid(), at: now, action: "deleted", entity, recordId: record.id, label: record.label });
+        if (!after.has(record.id)) {
+          changes.push({ id: uid(), at: now, action: "deleted", entity, recordId: record.id, label: record.label });
+          undoChanges.push({ id: uid(), at: now, entity, recordId: record.id, label: record.label, hadPrevious: true, beforeRecord: record.record });
+        }
       }
     }
     if (changes.length) setAuditEvents(current => [...changes.reverse(), ...current].slice(0, 1000));
+    if (undoChanges.length) setUndoHistory(current => [...undoChanges.reverse(), ...current].slice(0, 30));
   }, [properties, contacts, tasks, financials, riskRecords, approvalRequests]);
 
   const syncWithPc = async () => {
