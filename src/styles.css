@@ -2225,3 +2225,54 @@ h2,h3{color:#e5f2fc}
 .ax-contact-followup__hint{margin:9px 0 0;color:#7293a8;font-size:8px;line-height:1.5}
 .ax-contact-followup-heading{align-items:center}
 @media(max-width:620px){.ax-contact-followup{padding:9px}.ax-contact-followup__summary{align-items:flex-start;flex-direction:column}.ax-contact-followup-heading{align-items:flex-start}.ax-contact-followup-heading .primary-button{flex:none}}
+
+/* AXIVESTRA — standalone Contact 360 follow-up register */
+.ax-followup-register{position:relative;overflow:hidden;border:1px solid #20435b;border-radius:18px;background:radial-gradient(ellipse at 12% 0%,#16476455,transparent 42%),linear-gradient(145deg,#0a1d2d,#071624 76%);box-shadow:inset 0 1px 0 #ffffff08,0 14px 38px #00000016;padding:20px;color:#e7f2fb}
+.ax-followup-register__header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid #1b3b52}
+.ax-followup-register__header h2{margin:7px 0 5px;color:#f0f8ff;font:800 22px "Manrope",sans-serif;letter-spacing:-.45px}
+.ax-followup-register__header p{margin:0;color:#a5bdcf;font-size:11px;line-height:1.6}
+.ax-followup-register__header small{display:block;margin-top:6px;color:#6f99b1;font-size:9px;line-height:1.5}
+.ax-followup-register__actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ax-followup-register__metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0}
+.ax-followup-register__metrics>div{display:flex;flex-direction:column;gap:6px;padding:12px 13px;border:1px solid #22455e;border-radius:11px;background:linear-gradient(145deg,#102c42,#0b2235)}
+.ax-followup-register__metrics span{color:#83a5bb;font-size:9px}
+.ax-followup-register__metrics strong{color:#dffaff;font:800 20px "Manrope",sans-serif}
+.ax-followup-register__toolbar{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(3,minmax(130px,.8fr)) auto;align-items:end;gap:9px;margin:15px 0 9px;padding:12px;border:1px solid #1c4058;border-radius:12px;background:#0a1b2a}
+.ax-followup-register__toolbar>label{display:flex;flex-direction:column;gap:5px;min-width:0;color:#8eacbf;font-size:9px}
+.ax-followup-register__toolbar input,.ax-followup-register__toolbar select{width:100%;min-width:0;height:36px;padding:7px 9px;border:1px solid #2a5069;border-radius:8px;background:#071724;color:#e6f2fa;font:10px "DM Sans",sans-serif;color-scheme:dark}
+.ax-followup-register__search{position:relative;display:flex!important;flex-direction:row!important;align-items:center;gap:7px!important;padding:0 9px;border:1px solid #2a5069;border-radius:8px;background:#071724}
+.ax-followup-register__search input{border:0!important;padding-left:0!important;outline:0!important;box-shadow:none!important}
+.ax-followup-register__toolbar input:focus,.ax-followup-register__toolbar select:focus,.ax-followup-register td input:focus,.ax-followup-register td select:focus,.ax-followup-register td textarea:focus{border-color:#45c9dc;outline:0;box-shadow:0 0 0 2px #45c9dc1c}
+.ax-followup-register__result-line{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:8px 2px 13px;color:#6f91a8;font-size:9px}
+.ax-followup-register__contact{margin:0 0 15px;border:1px solid #254b64;border-radius:13px;background:linear-gradient(145deg,#0d2436,#0a1b2b);overflow:hidden}
+.ax-followup-register__contact-head{display:flex;align-items:center;gap:11px;padding:13px 14px;border-bottom:1px solid #1d4057;background:linear-gradient(100deg,#12344b,#0d273b)}
+.ax-followup-register__avatar{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border:1px solid #49a9c1;border-radius:11px;background:linear-gradient(140deg,#b9fbff,#277ca4);color:#062238;font:900 11px "Manrope",sans-serif}
+.ax-followup-register__contact-meta{display:flex;flex:1;min-width:180px;flex-direction:column;gap:3px}
+.ax-followup-register__contact-meta strong{color:#effaff;font:800 13px "Manrope",sans-serif}
+.ax-followup-register__contact-meta>span{color:#9bb6c9;font-size:9px;line-height:1.45}
+.ax-followup-register__contact-meta small{color:#68c6d6;font-size:8px}
+.ax-followup-register__groups{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:3px;color:#66bfd1;font-size:8px}
+.ax-followup-register__groups span{padding:3px 6px;border:1px solid #28566c;border-radius:20px;background:#0c2e43;color:#a9dae4}
+.ax-followup-register__groups em{color:#7794a8;font-style:normal}
+.ax-followup-register__contact-actions{display:flex;gap:6px;flex-wrap:wrap}
+.ax-followup-register__contact-actions .primary-button,.ax-followup-register__contact-actions .secondary-button{min-height:30px;padding:7px 9px;font-size:9px}
+.ax-followup-register__table-wrap{width:100%;overflow:auto;overscroll-behavior-inline:contain}
+.ax-followup-register table{width:100%;min-width:1740px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:9px}
+.ax-followup-register th{position:sticky;top:0;z-index:2;padding:10px 8px;border-bottom:1px solid #2d5d76;background:#14384f;color:#a1e6ef;text-align:left;font-size:8px;font-weight:800;white-space:nowrap}
+.ax-followup-register td{min-width:0;padding:7px;border-bottom:1px solid #1b3c52;background:#0a2031;color:#d5e6f1;vertical-align:top}
+.ax-followup-register tbody tr:last-child td{border-bottom:0}
+.ax-followup-register tbody tr:hover td{background:#102b40}
+.ax-followup-register td input,.ax-followup-register td select,.ax-followup-register td textarea{display:block;width:100%;min-width:0;min-height:33px;padding:7px 8px;border:1px solid #2a5069;border-radius:7px;background:#071724;color:#e8f5fc;font:9px "DM Sans",sans-serif;color-scheme:dark}
+.ax-followup-register td textarea{min-height:52px;resize:vertical;line-height:1.45}
+.ax-followup-register__module{display:block;margin-top:5px;color:#80cedb;font-size:8px;line-height:1.4;overflow-wrap:anywhere}
+.ax-followup-register__inline-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 5px;border:1px solid #28546c;border-radius:6px;background:#0c2a3d;color:#a3dbe6;font-size:8px;cursor:pointer}
+.ax-followup-register__primary{display:grid;justify-items:center;gap:4px;color:#9bb7c9;font-size:8px}
+.ax-followup-register__primary input{width:15px!important;min-height:15px!important;accent-color:#31c5d9}
+.ax-followup-register__row-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ax-followup-register__row-actions button{min-height:29px;padding:6px 7px;font-size:8px}
+.ax-followup-register__empty{display:grid;justify-items:center;gap:8px;margin:14px 0;padding:35px 18px;border:1px dashed #315a71;border-radius:12px;background:#0a1e2e;text-align:center;color:#78b8c8}
+.ax-followup-register__empty strong{color:#e4f4fc;font:800 13px "Manrope",sans-serif}
+.ax-followup-register__empty p{max-width:510px;margin:0;color:#87a6bb;font-size:10px;line-height:1.6}
+.ax-followup-register__footnote{margin:11px 2px 0;color:#7193a9;font-size:8px;line-height:1.6}
+@media(max-width:1180px){.ax-followup-register__toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-followup-register__search{grid-column:span 2}}
+@media(max-width:720px){.ax-followup-register{padding:12px;border-radius:13px}.ax-followup-register__header h2{font-size:19px}.ax-followup-register__metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.ax-followup-register__metrics>div{padding:10px}.ax-followup-register__metrics strong{font-size:17px}.ax-followup-register__toolbar{grid-template-columns:1fr;padding:9px}.ax-followup-register__search{grid-column:auto}.ax-followup-register__contact-head{align-items:flex-start;flex-wrap:wrap}.ax-followup-register__contact-actions{width:100%;padding-left:49px}.ax-followup-register__contact-actions>*{flex:1}.ax-followup-register__result-line{align-items:flex-start;flex-direction:column}}
