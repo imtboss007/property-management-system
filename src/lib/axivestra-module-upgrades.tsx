@@ -617,8 +617,9 @@ function parseNumber(value: unknown): number | null {
 
 function sumRows(value: string | undefined, key: string): number | null {
   const rows = readRows(value);
-  if (!rows.length) return null;
-  return rows.reduce((sum, row) => sum + (parseNumber(row[key]) || 0), 0);
+  const entered = rows.map(row => parseNumber(row[key])).filter((item): item is number => item !== null);
+  if (!entered.length) return null;
+  return entered.reduce((sum, item) => sum + item, 0);
 }
 
 const fmt = (value: number | null) => value === null || !Number.isFinite(value)
@@ -656,13 +657,26 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     if (sr !== null && market !== null) add("Market rate vs SR rate difference", market - sr);
     if (negotiated !== null && market !== null) add("Settlement rate vs market difference", market - negotiated);
   }
-  if (moduleName === "Agricultural Land") add("Conversion amount required", val("conversionCostEstimate"));
+  if (moduleName === "Property Sale") {
+    add("Converted extent total", sumRows(data.saleConversionParcels, "extent"), "number");
+    add("Conversion amount required", sumRows(data.saleConversionParcels, "conversionAmountNeeded") ?? val("conversionCostEstimate"));
+  }
+  if (moduleName === "Agricultural Land") {
+    add("Converted / conversion parcel extent", sumRows(data.agriConversionParcels, "extent"), "number");
+    add("Conversion amount required", sumRows(data.agriConversionParcels, "conversionFee") ?? val("conversionCostEstimate"));
+    add("Party settlement balance", sumRows(data.agriSettlementParties, "balanceAmount"));
+  }
   if (moduleName === "Commercial Land") {
-    add("Annual current rent", val("annualCurrentRent") ?? ((val("monthlyCurrentRent") ?? 0) * 12));
-    add("Annual projected rent", val("annualProjectedRent") ?? ((val("monthlyProjectedRent") ?? 0) * 12));
-    const annual = val("annualProjectedRent") ?? (val("monthlyProjectedRent") !== null ? (val("monthlyProjectedRent") as number) * 12 : null);
+    const currentMonthly = sumRows(data.commercialRentRoll, "currentMonthlyRent") ?? val("monthlyCurrentRent");
+    const projectedMonthly = sumRows(data.commercialRentRoll, "projectedMonthlyRent") ?? val("monthlyProjectedRent");
+    const currentAnnual = val("annualCurrentRent") ?? (currentMonthly !== null ? currentMonthly * 12 : null);
+    const projectedAnnual = val("annualProjectedRent") ?? (projectedMonthly !== null ? projectedMonthly * 12 : null);
+    add("Current monthly rent total", currentMonthly);
+    add("Projected monthly rent total", projectedMonthly);
+    add("Annual current rent", currentAnnual);
+    add("Annual projected rent", projectedAnnual);
     const market = val("marketValue");
-    add("Projected rental yield", annual !== null && market ? annual / market * 100 : null, "percent");
+    add("Projected rental yield", projectedAnnual !== null && market ? projectedAnnual / market * 100 : null, "percent");
   }
   if (moduleName === "Property Loans" || moduleName === "Housing Loan" || moduleName === "Startup") {
     const groupKey = moduleName === "Property Loans" ? "loanCollateralProperties" : moduleName === "Housing Loan" ? "housingCollateralProperties" : "startupCollateral";
@@ -796,13 +810,15 @@ export function buildModuleSummary(moduleName: string, data: Record<string, stri
     add("Calculated final USDT rate", finalRate);
     add("Calculated total transaction value", total);
     const payments = readRows(data.usdtPayments);
-    const cash = payments.filter(row => row.mode === "Cash").reduce((sum, row) => sum + (parseNumber(row.amount) || 0), 0);
-    const rtgs = payments.filter(row => row.mode === "RTGS").reduce((sum, row) => sum + (parseNumber(row.amount) || 0), 0);
-    if (payments.length) {
-      add("Cash payment total", cash);
-      add("RTGS payment total", rtgs);
-      add("Payment total", payments.reduce((sum, row) => sum + (parseNumber(row.amount) || 0), 0));
-      add("Payment difference / balance", total !== null ? total - payments.reduce((sum, row) => sum + (parseNumber(row.amount) || 0), 0) : null);
+    const enteredPayments = payments.map(row => parseNumber(row.amount)).filter((amount): amount is number => amount !== null);
+    const cashValues = payments.filter(row => row.mode === "Cash").map(row => parseNumber(row.amount)).filter((amount): amount is number => amount !== null);
+    const rtgsValues = payments.filter(row => row.mode === "RTGS").map(row => parseNumber(row.amount)).filter((amount): amount is number => amount !== null);
+    const paymentTotal = enteredPayments.length ? enteredPayments.reduce((sum, amount) => sum + amount, 0) : null;
+    if (enteredPayments.length) {
+      add("Cash payment total", cashValues.length ? cashValues.reduce((sum, amount) => sum + amount, 0) : null);
+      add("RTGS payment total", rtgsValues.length ? rtgsValues.reduce((sum, amount) => sum + amount, 0) : null);
+      add("Payment total", paymentTotal);
+      add("Payment difference / balance", total !== null && paymentTotal !== null ? total - paymentTotal : null);
     }
   }
   return result;
