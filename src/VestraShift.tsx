@@ -121,6 +121,32 @@ export default function VestraShift(props:Props){
     return ()=>window.removeEventListener("keydown",handleWorkspaceShortcut);
   },[atelierCopilotOpen]);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
+  const handleMagneticPointerMove=(event:React.PointerEvent<HTMLElement>)=>{
+    if(event.pointerType!=="mouse")return;
+    const root=event.currentTarget;
+    const target=(event.target as HTMLElement).closest<HTMLElement>("[data-vs-magnetic='true']");
+    const previous=root.querySelector<HTMLElement>("[data-vs-magnetic-active='true']");
+    if(previous&&previous!==target){
+      previous.style.setProperty("--vs-magnetic-x","0px");
+      previous.style.setProperty("--vs-magnetic-y","0px");
+      delete previous.dataset.vsMagneticActive;
+    }
+    if(!target)return;
+    const rect=target.getBoundingClientRect();
+    const x=Math.max(-6,Math.min(6,(event.clientX-(rect.left+rect.width/2))*.11));
+    const y=Math.max(-5,Math.min(5,(event.clientY-(rect.top+rect.height/2))*.11));
+    target.style.setProperty("--vs-magnetic-x",x.toFixed(1)+"px");
+    target.style.setProperty("--vs-magnetic-y",y.toFixed(1)+"px");
+    target.dataset.vsMagneticActive="true";
+  };
+  const resetMagneticPointer=(event:React.PointerEvent<HTMLElement>)=>{
+    const root=event.currentTarget;
+    root.querySelectorAll<HTMLElement>("[data-vs-magnetic-active='true']").forEach(target=>{
+      target.style.setProperty("--vs-magnetic-x","0px");
+      target.style.setProperty("--vs-magnetic-y","0px");
+      delete target.dataset.vsMagneticActive;
+    });
+  };
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
     const target=event.target as HTMLElement;
     const blocked=Boolean(target.closest("button,input,select,textarea,a,summary,details,[draggable='true'],.vs-calendar-grid,.vs-timeline-list,.vs-3d-histogram-scroll,.ax-3d-histogram-scroll,.vs-intent-search-control,.vs-module-filters"));
@@ -371,10 +397,10 @@ export default function VestraShift(props:Props){
     onOpenTasks();
   };
 
-  return <section className="vs-shift" data-theme={theme} data-density={displayDensity} data-motion={motionMode} onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
+  return <section className="vs-shift" data-theme={theme} data-density={displayDensity} data-motion={motionMode} onPointerMove={handleMagneticPointerMove} onPointerLeave={resetMagneticPointer} onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
     <header className="vs-shift-hero">
       <div className="vs-shift-brand">
-        <button type="button" className="vs-prism-emblem" aria-label="Drag to rotate the VESTRA prismatic core" title="Drag to rotate · click to activate" onPointerDown={event=>{const el=event.currentTarget;el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.setPointerCapture(event.pointerId);}} onPointerMove={event=>{const el=event.currentTarget;if(el.hasPointerCapture(event.pointerId)){const dx=event.clientX-Number(el.dataset.lastX||event.clientX);const dy=event.clientY-Number(el.dataset.lastY||event.clientY);const x=Number(el.dataset.rotateX||0)+dy*.65;const y=Number(el.dataset.rotateY||0)+dx*.65;el.dataset.rotateX=String(x);el.dataset.rotateY=String(y);el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.style.setProperty("--vs-prism-rotate-x",x+"deg");el.style.setProperty("--vs-prism-rotate-y",y+"deg");}else{const rect=el.getBoundingClientRect();el.style.setProperty("--vs-prism-hover-x",(((event.clientY-rect.top)/rect.height)-.5)*-12+"deg");el.style.setProperty("--vs-prism-hover-y",(((event.clientX-rect.left)/rect.width)-.5)*16+"deg");}}} onPointerUp={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onClick={event=>event.currentTarget.classList.toggle("is-activated")}><i/><i/><i/><i/><i/></button>
+        <button type="button" className="vs-prism-emblem" data-vs-magnetic="true" aria-label="Drag to rotate the VESTRA prismatic core" title="Drag to rotate · click to activate" onPointerDown={event=>{const el=event.currentTarget;el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.setPointerCapture(event.pointerId);}} onPointerMove={event=>{const el=event.currentTarget;if(el.hasPointerCapture(event.pointerId)){const dx=event.clientX-Number(el.dataset.lastX||event.clientX);const dy=event.clientY-Number(el.dataset.lastY||event.clientY);const x=Number(el.dataset.rotateX||0)+dy*.65;const y=Number(el.dataset.rotateY||0)+dx*.65;el.dataset.rotateX=String(x);el.dataset.rotateY=String(y);el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.style.setProperty("--vs-prism-rotate-x",x+"deg");el.style.setProperty("--vs-prism-rotate-y",y+"deg");}else{const rect=el.getBoundingClientRect();el.style.setProperty("--vs-prism-hover-x",(((event.clientY-rect.top)/rect.height)-.5)*-12+"deg");el.style.setProperty("--vs-prism-hover-y",(((event.clientX-rect.left)/rect.width)-.5)*16+"deg");}}} onPointerUp={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onClick={event=>event.currentTarget.classList.toggle("is-activated")}><i/><i/><i/><i/><i/></button>
         <div><span className="vs-eyebrow"><Sparkles size={13}/> VESTRA SHIFT · ADAPTIVE INTELLIGENCE OPERATING SYSTEM</span>
           <h2>Your workspace shifts with the work.</h2>
           <p>Assemble live information, explore relationships, inspect time and simulate decisions—without changing your saved records.</p>
@@ -385,12 +411,12 @@ export default function VestraShift(props:Props){
         </div>
       </div>
       <div className="vs-hero-actions">
-        <button type="button" className="vs-focus-launch" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
+        <button type="button" className="vs-focus-launch" data-vs-magnetic="true" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
         <button type="button" className="vs-personalization-launch" aria-expanded={personalizationOpen} aria-controls="vs-personalization-panel" onClick={()=>setPersonalizationOpen(value=>!value)}><SlidersHorizontal size={14}/> Experience</button>
         <button type="button" onClick={onOpenTasks}><CalendarClock size={14}/> Schedule</button>
         <button type="button" onClick={onUndo} disabled={!undoAvailable} title="Undo last supported workspace change">Undo</button>
-        <button type="button" className="vs-hero-primary" onClick={onOpenContacts}><Users size={14}/> People</button>
+        <button type="button" className="vs-hero-primary" data-vs-magnetic="true" onClick={onOpenContacts}><Users size={14}/> People</button>
       </div>
     </header>
 
@@ -409,7 +435,7 @@ export default function VestraShift(props:Props){
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
     {space==="desk"&&<VestraSpatialDesk workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
-    {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" aria-keyshortcuts="Control+K Meta+K" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>Ctrl / ⌘ K</kbd></button>}
+    {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" data-vs-magnetic="true" aria-keyshortcuts="Control+K Meta+K" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>Ctrl / ⌘ K</kbd></button>}
     {atelierCopilotOpen&&<div className="vs-atelier-ai-backdrop" onClick={()=>setAtelierCopilotOpen(false)}>
       <section className="vs-atelier-ai-panel" role="dialog" aria-modal="true" aria-label="VESTRA command composer and intelligence companion" onClick={event=>event.stopPropagation()}>
         <header><div><span className="vs-eyebrow">ATELIER · COMMAND + INTELLIGENCE</span><strong>Bring intelligence into this workspace.</strong><small>Search saved records, ask for an operational view or inspect a contextual suggestion.</small></div><button type="button" onClick={()=>setAtelierCopilotOpen(false)} aria-label="Close Command and AI"><X size={16}/></button></header>
