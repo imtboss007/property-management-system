@@ -161,6 +161,7 @@ export default function RecordFollowUpTracker(props: Props) {
   };
 
   const downloadTable = () => {
+    Object.values(drafts).filter(row => row.dirty).forEach(row => save(row.recordId, row.entry.id));
     const exportRecords = visibleRecords.map(record => ({ ...record, followUpEntries: entriesForRecord(record.id) }));
     const csv = buildRecordFollowUpCsv(exportRecords, props.contacts);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
