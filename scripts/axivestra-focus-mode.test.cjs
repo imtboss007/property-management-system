@@ -20,4 +20,7 @@ for (const token of [
   "env(safe-area-inset-bottom","@media(prefers-reduced-motion:reduce)"
 ]) assert.ok(styles.includes(token),"Missing Focus responsive/accessibility styling: "+token);
 assert.ok(pkg.scripts.test.includes("axivestra-focus-mode.test.cjs"),"Focus regression contract must run in npm test.");
+assert.ok(shift.includes('window.innerWidth<=760?"intent":"desk"'),"Desktop must default to the multi-panel Atelier desk while mobile defaults to the touch-first Intent Canvas.");
+for (const token of ["ATELIER","DESKTOP WORKSPACE","MOTION","TOUCH WORKSPACE","vs-environment-indicator"]) assert.ok(shift.includes(token),"Missing adaptive operating environment marker: "+token);
+for (const token of [".vs-environment-indicator",".vs-environment-atelier",".vs-environment-motion","@media(max-width:760px)"]) assert.ok(styles.includes(token),"Missing responsive Atelier/Motion environment styling: "+token);
 console.log("AXIVESTRA Focus environment contracts passed.");
