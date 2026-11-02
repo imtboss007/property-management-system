@@ -42,7 +42,7 @@ const csv = buildRecordFollowUpCsv([{
 }], [
   { id: "contact-1", name: "Anita" }, { id: "contact-2", name: "Bharath" }
 ]);
-assert.ok(csv.startsWith("\\uFEFF"), "CSV must include a UTF-8 BOM for Excel");
+assert.ok(csv.startsWith("\uFEFF"), "CSV must include a UTF-8 BOM for Excel");
 assert.ok(csv.includes('"Plot 12, ""North"""'), "CSV must quote commas and escape embedded quotes");
 assert.ok(csv.includes('"Updated, with ""quoted"" details"'), "remarks must remain intact in CSV");
 assert.ok(csv.includes("Bharath"), "follow person must resolve through the linked contact ID");
