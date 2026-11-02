@@ -4542,3 +4542,19 @@ h2,h3{color:#e5f2fc}
 @media(prefers-reduced-motion:reduce){
   .vs-focus-backdrop,.vs-focus-panel{animation:none}
 }
+
+
+/* VESTRA SHIFT — device-native Atelier and Motion environments */
+.vs-environment-indicator{display:flex;align-items:center;gap:8px;margin-top:13px}
+.vs-environment-indicator>span{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(137,185,170,.2);border-radius:999px;background:rgba(255,255,255,.035);color:#b9d6ca}
+.vs-environment-indicator svg{color:#b79ce9}
+.vs-environment-indicator b{font-size:9px;letter-spacing:.13em}
+.vs-environment-indicator small{font-size:8px;letter-spacing:.09em;color:#91a9a3}
+.vs-environment-motion{display:none!important}
+.vs-shift[data-theme="light"] .vs-environment-indicator>span{background:rgba(255,255,255,.7);border-color:rgba(59,113,87,.18);color:#315748}
+.vs-shift[data-theme="light"] .vs-environment-indicator small{color:#72877c}
+@media(max-width:760px){
+  .vs-environment-indicator{margin-top:10px}
+  .vs-environment-atelier{display:none!important}
+  .vs-environment-motion{display:inline-flex!important}
+}
