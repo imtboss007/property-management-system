@@ -2674,7 +2674,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             </div>
             {dashboardLayout.analytics && <PortfolioAnalytics
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
-              financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
+              financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date, property: item.property, party: item.party, reference: item.reference }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
               modules={modules.map(item => ({ name: item.name, value: properties.filter(property => property.module === item.name).reduce((sum, property) => sum + Number(property.value || 0), 0), count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
