@@ -4784,3 +4784,29 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-alert-item small{color:#657a6e}
 .vs-shift[data-theme="light"] .vs-alert-center>header>button{border-color:#cbd7cf;background:#fff;color:#20382f}
 @media(max-width:600px){.vs-alert-center{padding:11px;border-radius:14px}.vs-alert-item{grid-template-columns:9px minmax(0,1fr);gap:8px}.vs-alert-item>button{grid-column:2;justify-self:start}.vs-alert-list{max-height:52vh}}
+
+/* Signature spherical command hub with seven functional orbiting workspace controls */
+.vs-orbit-system{position:relative;isolation:isolate;flex:0 0 150px;width:150px;height:150px;perspective:720px;transform-style:preserve-3d}
+.vs-orbit-rings{position:absolute;inset:8px;border:1px solid #8ecbb266;border-radius:50%;transform:rotateX(72deg) rotateZ(-18deg);box-shadow:0 0 30px #78c7a022,inset 0 0 20px #9ccfb015;pointer-events:none}
+.vs-orbit-rings:before,.vs-orbit-rings:after{content:"";position:absolute;inset:12px -7px;border:1px solid #c4937066;border-radius:50%;transform:rotateY(62deg) rotateX(12deg)}
+.vs-orbit-rings:after{inset:20px -13px;border-color:#9b90c66b;transform:rotateY(-54deg) rotateX(-15deg)}
+.vs-orbit-system .vs-prism-emblem{position:absolute;left:34px;top:34px;z-index:2;flex:none;width:82px;height:82px;margin:0;transform-style:preserve-3d}
+.vs-core-sphere{position:absolute;left:18px;top:17px;z-index:0;width:46px;height:46px;border:1px solid #e2f0dfb8;border-radius:50%;background:radial-gradient(circle at 27% 24%,#fff8e9 0 3%,#bde9d5 9%,#6da994 32%,#3d6680 59%,#242b52 83%,#101927 100%);box-shadow:inset -7px -8px 15px #09162f99,inset 4px 5px 12px #f1ffeb77,0 0 25px #75d2b866,0 0 55px #8495d333;transform:translateZ(9px)}
+.vs-core-sphere:before{content:"";position:absolute;inset:5px 8px 20px 5px;border-radius:50%;background:linear-gradient(145deg,#ffffff9c,transparent 70%);filter:blur(2px)}
+.vs-orbit-nodes{position:absolute;inset:0;z-index:4;transform-style:preserve-3d;animation:vsSatelliteOrbit 38s linear infinite;pointer-events:none}
+.vs-orbit-node{position:absolute;display:grid!important;place-items:center;width:31px;min-height:31px;height:31px;padding:0!important;border:1px solid #86bda6!important;border-radius:50%!important;background:radial-gradient(circle at 30% 20%,#375a57,#102a34 70%)!important;color:#e4f2e7!important;box-shadow:0 4px 14px #020a1c88,0 0 13px #7bd0ae22,inset 0 1px #ffffff26;pointer-events:auto;cursor:pointer;transform:translateZ(18px);transition:scale .2s ease,box-shadow .2s ease,border-color .2s ease}
+.vs-orbit-node span{display:grid;place-items:center;animation:vsSatelliteCounter 38s linear infinite}
+.vs-orbit-node:hover,.vs-orbit-node:focus-visible{scale:1.16;border-color:#f0d0a4!important;box-shadow:0 0 0 3px #deb88c25,0 0 22px #9ce0bf55,inset 0 1px #ffffff44}
+.vs-orbit-node:nth-child(1){left:60px;top:-1px}
+.vs-orbit-node:nth-child(2){left:104px;top:23px}
+.vs-orbit-node:nth-child(3){left:119px;top:65px}
+.vs-orbit-node:nth-child(4){left:82px;top:118px}
+.vs-orbit-node:nth-child(5){left:28px;top:118px}
+.vs-orbit-node:nth-child(6){left:-2px;top:65px}
+.vs-orbit-node:nth-child(7){left:16px;top:19px}
+@keyframes vsSatelliteOrbit{to{transform:rotate(360deg)}}
+@keyframes vsSatelliteCounter{to{transform:rotate(-360deg)}}
+.ax-modern-shell[data-ax-motion="balanced"] .vs-orbit-nodes,.ax-modern-shell[data-ax-motion="balanced"] .vs-orbit-node span{animation-duration:38s}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-orbit-nodes,.ax-modern-shell[data-ax-motion="expressive"] .vs-orbit-node span{animation-duration:18s}
+@media(max-width:760px){.vs-orbit-system{flex-basis:126px;width:150px;height:126px;transform:scale(.82);transform-origin:top left;margin-right:-25px;margin-bottom:-22px}.vs-orbit-system .vs-prism-emblem{transform:scale(.9);transform-origin:center}}
+@media(prefers-reduced-motion:reduce){.vs-orbit-nodes,.vs-orbit-node span{animation:none!important}.vs-orbit-system .vs-prism-emblem{animation:none!important}}
