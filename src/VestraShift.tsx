@@ -486,7 +486,7 @@ export default function VestraShift(props:Props){
       <small className="vs-data-truth">Dependency links are stored as workspace preferences only. They do not change or invent dependencies in your business records.</small>
       <button type="button" className="vs-open-schedule" onClick={onOpenTasks}>Open and manage tasks <ArrowUpRight size={14}/></button>
     </section>}
-    {focusOpen&&<VestraFocusMode properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onClose={()=>setFocusOpen(false)} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks}/>}
+    {focusOpen&&<VestraFocusMode properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} onClose={()=>setFocusOpen(false)} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks}/>}
 
   </section>;
 }
