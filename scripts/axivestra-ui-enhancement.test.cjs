@@ -109,3 +109,11 @@ assert.ok(vestra.includes('className="vs-atelier-ai-launch"'), "Atelier must hav
 assert.ok(vestra.includes("atelierCopilotOpen&&<div className=\"vs-atelier-ai-backdrop\""), "Atelier must open its contextual command/assistant surface.");
 assert.ok(vestra.includes("<VestraIntentCanvas properties={properties}"), "Atelier assistant must reuse the real-record Intent Canvas, not a mock chat.");
 for (const token of [".vs-atelier-ai-launch",".vs-atelier-ai-backdrop",".vs-atelier-ai-panel","@media(max-width:760px)"]) assert.ok(styles.includes(token), "Missing responsive Atelier assistant surface: "+token);
+
+assert.ok(app.includes("workspacePreferencesReady"), "VESTRA preferences must wait for the initial device/company sync before hydrating shared UI state.");
+assert.ok(app.includes('recordType: "workspace_preference"'), "Shared company records must include the VESTRA preference collection.");
+assert.ok(shift.includes("workspacePreferencesReady:boolean"), "VESTRA SHIFT must gate preference writes until its first sync finishes.");
+assert.ok(shift.includes('hydratedPreferenceKeysRef.current.delete("views")'), "Saved VESTRA views must hydrate before local defaults are written back.");
+assert.ok(desk.includes("hydratedPreferenceRef.current=false"), "Atelier layouts must not overwrite a remote layout during initial hydration.");
+assert.ok(canvas.includes('hydratedPreferenceKeysRef.current.delete("canvas")'), "Motion saved canvases must hydrate before local defaults are written back.");
+assert.ok(service.includes('"workspacePreferences"'), "Windows PC companion must accept the new shared preference collection.");
