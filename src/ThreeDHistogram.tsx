@@ -16,6 +16,8 @@ type Props = {
   onSelect: (value: string) => void;
   showLabels?: boolean;
   formatValue?: (value: number) => string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
 };
 
 const DEFAULT_COLORS = ["#35d5e8", "#4c8cff", "#9a85ff", "#39d6a2", "#f0bd69", "#ff829d", "#66b6db", "#9fb7d5"];
@@ -38,7 +40,9 @@ export default function ThreeDHistogram({
   selected = "",
   onSelect,
   showLabels = true,
-  formatValue = fallbackFormat
+  formatValue = fallbackFormat,
+  primaryLabel = "Value / count",
+  secondaryLabel = "Secondary series"
 }: Props) {
   const visible = items.slice(0, 9);
   const max = Math.max(1, ...visible.flatMap(item => [Number(item.value) || 0, Number(item.secondaryValue) || 0]));
@@ -59,8 +63,8 @@ export default function ThreeDHistogram({
 
   return <div className="ax-3d-histogram-wrap">
     <div className="ax-3d-histogram-meta">
-      <span><i className="ax-3d-key-front"/> Value / count</span>
-      {visible.some(item => Number(item.secondaryValue) > 0) && <span><i className="ax-3d-key-side"/> Secondary series</span>}
+      <span><i className="ax-3d-key-front"/> {primaryLabel}</span>
+      {visible.some(item => Number(item.secondaryValue) > 0) && <span><i className="ax-3d-key-side"/> {secondaryLabel}</span>}
       <span className="ax-3d-histogram-hint">Select a column to inspect its record group</span>
     </div>
     <div className="ax-3d-histogram-scroll">
