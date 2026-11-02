@@ -715,6 +715,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [active, setActive] = useState<Section>("Overview");
   const [appTheme,setAppTheme] = useState<"dark"|"light">(()=>load("estateflow.vestraTheme","dark"));
   useEffect(()=>{saveLocal("estateflow.vestraTheme",appTheme);},[appTheme]);
+  const [showVestraIntro,setShowVestraIntro]=useState(()=>!load("axivestra.vestraIntroSeen",false));
+  useEffect(()=>{if(!showVestraIntro)return;const timer=window.setTimeout(()=>{saveLocal("axivestra.vestraIntroSeen",true);setShowVestraIntro(false);},1600);return ()=>window.clearTimeout(timer);},[showVestraIntro]);
+  const skipVestraIntro=()=>{saveLocal("axivestra.vestraIntroSeen",true);setShowVestraIntro(false);};
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
@@ -2616,6 +2619,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         }
       }}
     >
+      {showVestraIntro&&<div className="vs-startup-intro" role="dialog" aria-modal="true" aria-label="VESTRA SHIFT startup"><div className="vs-startup-intro-art"><div className="vs-startup-prism"><i/><i/><i/><i/><i/></div><span>AXI VESTRA / ADAPTIVE INTELLIGENCE</span><h2>VESTRA SHIFT</h2><p>Every relationship. Every decision. One adaptive workspace.</p></div><button type="button" onClick={skipVestraIntro}>Skip introduction <span>↗</span></button></div>}
       <aside className={`sidebar ${mobileMenu ? "sidebar-open" : ""}`}>
         <div className="brand"><div className="brand-mark ax-brand-mark"><img src="./axivestra-mark.svg" alt="" /></div><div><strong>AXIVESTRA</strong><span>ASSET INTELLIGENCE</span></div>
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
