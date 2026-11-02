@@ -4740,3 +4740,9 @@ h2,h3{color:#e5f2fc}
 .vs-shift .vs-prism-emblem:active{scale:.97}
 @media(prefers-reduced-motion:reduce){.vs-shift [data-vs-magnetic="true"],.vs-shift [data-vs-magnetic="true"]:hover svg{translate:0 0;rotate:0;transition:none}.vs-shift button{transition:none}}
 @media(hover:none),(pointer:coarse){.vs-shift [data-vs-magnetic="true"]{translate:0 0}}
+
+/* Frame-efficient spatial gestures settle with a spring after pointer release. */
+.vs-desk-panel{transition:transform .38s cubic-bezier(.18,1,.32,1),box-shadow .32s ease}
+.vs-desk-panel.is-gesturing{transform:translateZ(0) scale(1.008);box-shadow:0 22px 54px #020b1740,0 0 0 1px #79c7ac55}
+.vs-desk-panel.is-gesturing>header{cursor:grabbing}
+@media(prefers-reduced-motion:reduce){.vs-desk-panel{transition:none}.vs-desk-panel.is-gesturing{transform:none}}
