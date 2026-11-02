@@ -4659,11 +4659,19 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-module-identity-object>i{animation:vsModuleFacet 7s ease-in-out infinite}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem{animation-duration:10s}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem:after{animation-duration:5.8s}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i{animation:vsFacetFold 6.8s cubic-bezier(.2,.75,.25,1) infinite;}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(2){animation-delay:-1.3s}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(3){animation-delay:-2.6s}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(4){animation-delay:-3.9s}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(5){animation-delay:-5.2s}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-module-identity-object>i:nth-child(2){animation-delay:-2.3s}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-module-identity-object>i:nth-child(3){animation-delay:-4.6s}
 .ax-modern-shell[data-ax-motion="reduced"] *,
 .ax-modern-shell[data-ax-motion="reduced"] *::before,
 .ax-modern-shell[data-ax-motion="reduced"] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important;filter:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+@keyframes vsFacetFold{0%,100%{translate:0 0 0;rotate:0 1 0 0deg}50%{translate:0 -2px 5px;rotate:0 1 0 9deg}}
+.ax-3d-histogram{cursor:grab;touch-action:pan-y}
+.ax-3d-histogram:active{cursor:grabbing}
 @media(hover:none),(pointer:coarse){
  .ax-modern-shell .ax-module-record-card.vs-magnetic-card,.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{transform:none!important;transition:transform .15s ease-out}
  .ax-modern-shell .vs-module-identity-object>i{animation:none}
