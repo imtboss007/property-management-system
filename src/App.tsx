@@ -2678,6 +2678,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
               modules={modules.map(item => ({ name: item.name, value: properties.filter(property => property.module === item.name).reduce((sum, property) => sum + Number(property.value || 0), 0), count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
+              onOpenRecord={recordId=>{const record=properties.find(item=>item.id===recordId);if(record){go(record.module);openPropertyForm(record);}}}
+              onOpenTransaction={transactionId=>{const transaction=financials.find(item=>item.id===transactionId);go("Financials");if(transaction)openFinancialForm(transaction);}}
+              onOpenFinancials={()=>go("Financials")}
             />}
             {dashboardLayout.insightPanels && <section className="ax-dashboard-insights">
               <article className="ax-dashboard-insight-panel"><div className="ax-dashboard-insight-heading"><div><span className="section-kicker">CREDIT INTELLIGENCE</span><h3>Loan status</h3><p>Live status distribution across open loan records.</p></div><HandCoins size={20}/></div>
