@@ -4834,3 +4834,24 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-favourite-module-rail>button{background:#fff;color:#365746;border-color:#b9d0c0}
 @media(max-width:720px){.vs-personalization-favourite-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:220px}.vs-favourite-module-rail{gap:5px;padding:8px}.vs-favourite-module-rail>span{flex-basis:100%}}
 @media(prefers-reduced-motion:reduce){.vs-favourite-module-rail>button{transition:none}}
+
+.vs-quick-actions-launch{display:inline-flex;align-items:center;gap:7px}
+.vs-quick-actions-launch[aria-expanded="true"]{border-color:#b9d9bd;background:linear-gradient(110deg,#e1eadb,#a9d4bd);color:#1b382b}
+.vs-quick-actions-menu{display:grid;gap:12px;margin:10px 0 14px;padding:15px;border:1px solid #52766c;border-radius:17px;background:radial-gradient(ellipse at 6% 4%,#31554d55,transparent 45%),linear-gradient(135deg,#142a32,#182d37 62%,#282a37);box-shadow:0 18px 42px #020a1755;color:#ecf2e7}
+.vs-quick-actions-menu>header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.vs-quick-actions-menu>header>div{display:grid;gap:4px}
+.vs-quick-actions-menu>header strong{font-size:13px}
+.vs-quick-actions-menu>header>button{display:grid;place-items:center;width:30px;height:30px;border:1px solid #617b70;border-radius:9px;background:#203b3e;color:#edf4e9;cursor:pointer}
+.vs-quick-actions-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.vs-quick-actions-grid>button{display:grid;grid-template-columns:20px minmax(0,1fr) 12px;align-items:center;gap:8px;min-width:0;min-height:62px;padding:9px 10px;border:1px solid #45665f;border-radius:11px;background:linear-gradient(145deg,#1d3a3b,#172d3b);color:#b5d7c5;text-align:left;cursor:pointer;transition:transform .2s ease,border-color .2s ease,background .2s ease}
+.vs-quick-actions-grid>button:hover{transform:translateY(-2px);border-color:#a1cfaf;background:linear-gradient(145deg,#264a42,#1d3641)}
+.vs-quick-actions-grid>button>span{display:grid;gap:3px;min-width:0}
+.vs-quick-actions-grid>button strong{overflow:hidden;color:#eef4e9;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.vs-quick-actions-grid>button small{overflow:hidden;color:#9eb6aa;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.vs-shift[data-theme="light"] .vs-quick-actions-menu{background:linear-gradient(135deg,#fffdf6,#edf3ea 65%,#ecebf4);border-color:#d0ded1;color:#263f33}
+.vs-shift[data-theme="light"] .vs-quick-actions-menu>header>button{background:#fff;color:#294638;border-color:#cbd7cb}
+.vs-shift[data-theme="light"] .vs-quick-actions-grid>button{background:#fff;border-color:#d4e0d6;color:#557c66}
+.vs-shift[data-theme="light"] .vs-quick-actions-grid>button strong{color:#274536}
+.vs-shift[data-theme="light"] .vs-quick-actions-grid>button small{color:#6c8375}
+@media(max-width:760px){.vs-quick-actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.vs-quick-actions-menu{padding:11px}}
+@media(prefers-reduced-motion:reduce){.vs-quick-actions-grid>button{transition:none}}
