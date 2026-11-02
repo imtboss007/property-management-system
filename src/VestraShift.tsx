@@ -464,7 +464,7 @@ export default function VestraShift(props:Props){
       {relationshipView==="network"&&<section className="vs-relationship-network" aria-label="Interactive person and record relationship map">
         <div className="vs-relationship-network__legend"><span><i className="person"/> Saved person</span><span><i className="record"/> Linked record</span><span>Showing up to 7 people and 2 linked records per person</span></div>
         <div className="vs-relationship-network__canvas">
-          <svg viewBox={`0 0 920 ${Math.max(250,Math.min(connections.length,7)*116+26)}`} role="group" aria-label="Relationship map; connected nodes open their saved source records">
+          <svg viewBox={`0 0 1160 ${Math.max(250,Math.min(connections.length,7)*116+26)}`} role="group" aria-label="Relationship map; connected nodes open their saved source records">
             {connections.slice(0,7).map((item,index)=>{
               const y=68+index*116;
               const linked=item.records.slice(0,2);
@@ -482,6 +482,13 @@ export default function VestraShift(props:Props){
                     </g>
                   </g>;
                 })}
+                <path className="vs-relationship-network__edge vs-relationship-network__edge--activity" d={`M 250 ${y} C 520 ${y-8}, 670 ${y-8}, 900 ${y}`}/>
+                <g className="vs-relationship-network__activity" role="button" tabIndex={0} aria-label={`Open Contact 360 activity for ${item.contact.name}`} onClick={()=>onOpenContact(item.contact.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onOpenContact(item.contact.id);}}}>
+                  <rect x="900" y={y-29} width="242" height="58" rx="13"/>
+                  <text x="914" y={y-11} className="vs-relationship-network__activity-title">LINKED ACTIVITY</text>
+                  <text x="914" y={y+4} className="vs-relationship-network__activity-meta">{item.followUps.length} follow-ups · {item.linkedTasks.length} tasks · {item.linkedFinancials.length} transactions</text>
+                  <text x="914" y={y+19} className="vs-relationship-network__activity-meta">{item.linkedDocuments.length} documents · {item.linkedRisks.length+item.linkedApprovals.length} risk / approvals · {item.linkedHistory.length} history</text>
+                </g>
                 <g className="vs-relationship-network__person" role="button" tabIndex={0} aria-label={`Open Contact 360 for ${item.contact.name}`} onClick={()=>onOpenContact(item.contact.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onOpenContact(item.contact.id);}}}>
                   <circle cx="119" cy={y} r="26"/>
                   <text x="119" y={y+5} textAnchor="middle" className="vs-relationship-network__initials">{item.contact.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()}</text>
