@@ -20,7 +20,7 @@ export function applyPdfIdentityPrivacy(html, contacts = [], mode = "name-number
   let result = String(html ?? "");
   for (const contact of contacts || []) {
     if (mode === "name-only" || mode === "blank") result = replaceIdentity(result, contact.phone);
-    if (mode === "blank") result = replaceIdentity(result, contact.name);
+    if (mode === "number-only" || mode === "blank") result = replaceIdentity(result, contact.name);
   }
   return result;
 }
