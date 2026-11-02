@@ -112,7 +112,7 @@ export default function VestraShift(props:Props){
         setAtelierCopilotOpen(false);
         return;
       }
-      if((event.altKey||event.metaKey)&&/^[1-7]$/.test(event.key)&&!typing){
+      if(event.altKey&&/^[1-7]$/.test(event.key)&&!typing){
         event.preventDefault();
         setSpace(SPACES[Number(event.key)-1].id);
       }
