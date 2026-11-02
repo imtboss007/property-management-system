@@ -1227,9 +1227,13 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         setWorkspacePreferencesReady(true);
         if (!disposed) {
           const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-          setSyncStatus(alreadyCurrent
-            ? "Connected · up to date " + time
-            : desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
+          if (alreadyCurrent) {
+            // Unchanged revision-only polls must not force the app-wide React tree to re-render.
+            const stableStatus = desktopTransport ? "PC ready · up to date" : "Connected · up to date";
+            setSyncStatus(current => current.startsWith(stableStatus) ? current : stableStatus);
+          } else {
+            setSyncStatus(desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
+          }
         }
       } catch (error) {
         if (!disposed) {
@@ -2646,6 +2650,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   return (
     <main
       className={(company?.role === "read_only" ? "app-shell ax-modern-shell workspace-readonly" : "app-shell ax-modern-shell")+(appTheme==="light"?" ax-theme-light":"")}
+      data-ax-motion={vestraWorkspacePreferences.motionMode === "expressive" ? "expressive" : vestraWorkspacePreferences.motionMode === "reduced" ? "reduced" : "balanced"}
       onClickCapture={event => {
         if (!company) return;
         const target = event.target instanceof Element ? event.target : null;
