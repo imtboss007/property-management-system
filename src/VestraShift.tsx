@@ -46,6 +46,7 @@ type TimelineEvent = {
   recordId?:string;contactId?:string;module?:string;
 };
 type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:string;label:string;activityType?:string;description?:string;relatedRecordId?:string};
+type MissionMeta = {priority:"Low"|"Normal"|"High"|"Urgent";ownerContactId:string};
 type Props = {
   properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];documents:ShiftDocument[];riskRecords:ShiftRisk[];approvalRequests:ShiftApproval[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
@@ -115,6 +116,8 @@ export default function VestraShift(props:Props){
   const [calendarMonth,setCalendarMonth]=useState(today.slice(0,7));
   const [calendarFocusDate,setCalendarFocusDate]=useState(today);
   const [missionSelectedId,setMissionSelectedId]=useState("");
+  const missionMetaKey="axivestra.vestraShift.missionMeta."+workspaceScope;
+  const [missionMeta,setMissionMeta]=useState<Record<string,MissionMeta>>(()=>{try{const value=JSON.parse(window.localStorage.getItem(missionMetaKey)||"{}");return value&&typeof value==="object"?value:{};}catch{return {};}});
   const [missionLinks,setMissionLinks]=useState<Array<{fromId:string;toId:string}>>(()=>{try{const value=JSON.parse(window.localStorage.getItem("axivestra.vestraShift.missionLinks."+workspaceScope)||"[]");return Array.isArray(value)?value:[];}catch{return [];}});
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [scenarioInput,setScenarioInput]=useState("");
@@ -129,6 +132,7 @@ export default function VestraShift(props:Props){
   });
   useEffect(()=>{try{window.localStorage.setItem(contextKey,JSON.stringify(savedViews));}catch{/* optional local preference */}},[contextKey,savedViews]);
   useEffect(()=>{try{window.localStorage.setItem("axivestra.vestraShift.missionLinks."+workspaceScope,JSON.stringify(missionLinks));}catch{/* optional local preference */}},[missionLinks,workspaceScope]);
+  useEffect(()=>{try{window.localStorage.setItem(missionMetaKey,JSON.stringify(missionMeta));}catch{/* optional workflow preference */}},[missionMetaKey,missionMeta]);
 
   const loanRecords=useMemo(()=>properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"),[properties]);
   const selectedLoan=loanRecords.find(record=>record.id===selectedLoanId)||loanRecords[0];
@@ -416,7 +420,7 @@ export default function VestraShift(props:Props){
           <span className="vs-workflow-copy"><strong>{step.title}</strong><small>{step.detail||step.kind}</small></span>
           <span className="vs-workflow-date">{step.date?dateText(step.date):"No date"}<small>{step.status}</small></span><ChevronRight size={15}/>
         </button>
-        <div className="vs-workflow-step-meta"><span>{owner?"Responsible: "+owner:"Responsible person not assigned"}</span>{dependencies.map(link=><button type="button" key={link.fromId} onClick={()=>setMissionLinks(current=>current.filter(item=>!(item.fromId===link.fromId&&item.toId===link.toId)))}>Depends on {missions.find(item=>item.id===link.fromId)?.title||"another step"} ×</button>)}{missionSelectedId&&missionSelectedId!==step.id&&<button type="button" onClick={()=>{setMissionLinks(current=>current.some(link=>link.fromId===missionSelectedId&&link.toId===step.id)?current:[...current,{fromId:missionSelectedId,toId:step.id}]);setMissionSelectedId("");}}>Connect after selected</button>}<button type="button" className={missionSelectedId===step.id?"active":""} onClick={()=>setMissionSelectedId(current=>current===step.id?"":step.id)}>{missionSelectedId===step.id?"Selected as predecessor":"Select dependency source"}</button></div>
+        <div className="vs-workflow-step-meta"><label>Priority<select aria-label={"Priority for "+step.title} value={missionMeta[step.id]?.priority||"Normal"} onChange={event=>setMissionMeta(current=>({...current,[step.id]:{priority:event.target.value as MissionMeta["priority"],ownerContactId:current[step.id]?.ownerContactId||""}}))}>{["Low","Normal","High","Urgent"].map(value=><option key={value}>{value}</option>)}</select></label><label>Responsible person<select aria-label={"Owner for "+step.title} value={missionMeta[step.id]?.ownerContactId||""} onChange={event=>setMissionMeta(current=>({...current,[step.id]:{priority:current[step.id]?.priority||"Normal",ownerContactId:event.target.value}}))}><option value="">Use source assignment{owner?" · "+owner:" · not assigned"}</option>{contacts.map(contact=><option key={contact.id} value={contact.id}>{contact.name} · {contact.role||contact.roles?.[0]||"Contact"}</option>)}</select></label>{missionMeta[step.id]?.ownerContactId&&<button type="button" onClick={()=>onOpenContact(missionMeta[step.id].ownerContactId)}>Open owner</button>}{dependencies.map(link=><button type="button" key={link.fromId} onClick={()=>setMissionLinks(current=>current.filter(item=>!(item.fromId===link.fromId&&item.toId===link.toId)))}>Depends on {missions.find(item=>item.id===link.fromId)?.title||"another step"} ×</button>)}{missionSelectedId&&missionSelectedId!==step.id&&<button type="button" onClick={()=>{setMissionLinks(current=>current.some(link=>link.fromId===missionSelectedId&&link.toId===step.id)?current:[...current,{fromId:missionSelectedId,toId:step.id}]);setMissionSelectedId("");}}>Connect after selected</button>}<button type="button" className={missionSelectedId===step.id?"active":""} onClick={()=>setMissionSelectedId(current=>current===step.id?"":step.id)}>{missionSelectedId===step.id?"Selected as predecessor":"Select dependency source"}</button></div>
       </article>;})}{!missions.length&&<div className="vs-empty-state"><GitBranch size={23}/><strong>No active mission steps are recorded.</strong><small>Add a task or enter a next action/deadline on a saved record.</small></div>}</div>
       <small className="vs-data-truth">Dependency links are stored as workspace preferences only. They do not change or invent dependencies in your business records.</small>
       <button type="button" className="vs-open-schedule" onClick={onOpenTasks}>Open and manage tasks <ArrowUpRight size={14}/></button>
