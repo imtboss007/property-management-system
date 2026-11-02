@@ -35,6 +35,7 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
   const [selectedMonth,setSelectedMonth]=useState("");
   const [selectedInterestMonth,setSelectedInterestMonth]=useState("");
   const [projectionMonths,setProjectionMonths]=useState<3|6|12>(6);
+  const [showPortfolioBreakdown,setShowPortfolioBreakdown]=useState(false);
   const selectedLoan=loans.find(row=>row.id===selectedLoanId)||loans[0];
   const loanTransactions=useMemo(()=>selectedLoan?financials.filter(item=>linkedToRecord(item,selectedLoan)).sort((a,b)=>b.date.localeCompare(a.date)):[],[financials,selectedLoan]);
   const recentMonths=useMemo(()=>{
@@ -83,10 +84,11 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
     <header className="vs-space-page-header"><div><span className="vs-eyebrow">FINANCIAL INTELLIGENCE ENGINE</span><h3>Capital, interest and recorded movement</h3><p>Every amount below comes from saved loan terms or financial transactions. A missing balance remains unreported instead of being inferred.</p></div><Landmark size={23}/></header>
     <div className="vs-finance-metrics">
       <button type="button" onClick={onOpenLoans}><span>Loans tracked</span><strong>{loans.length}</strong><small>Existing loan modules</small></button>
-      <button type="button"><span>Current monthly loan interest</span><strong>{formatINR(portfolioInterest)}</strong><small>Calculated from saved loan terms</small></button>
+      <button type="button" aria-expanded={showPortfolioBreakdown} onClick={()=>setShowPortfolioBreakdown(value=>!value)}><span>Current monthly loan interest</span><strong>{formatINR(portfolioInterest)}</strong><small>{showPortfolioBreakdown?"Hide loan-by-loan calculation":"Click to inspect each saved loan"}</small></button>
       <button type="button" onClick={onOpenFinancials}><span>Recorded inflows</span><strong>{formatINR(totalInflow)}</strong><small>All saved inflow categories</small></button>
       <button type="button" onClick={onOpenFinancials}><span>Recorded outflows</span><strong>{formatINR(totalOutflow)}</strong><small>All saved outflow categories</small></button>
     </div>
+    {showPortfolioBreakdown&&<section className="vs-finance-panel vs-finance-breakdown"><header><div><span className="vs-eyebrow">TRACEABLE CALCULATION BREAKDOWN</span><h4>Monthly interest by source loan</h4><p>Each row uses the current saved principal, interest method and rate. Select a row to open its source record.</p></div></header><div className="vs-finance-transactions">{loans.map(row=><button type="button" key={row.id} onClick={()=>onOpenRecord(row.id)}><span className="vs-finance-up"><Landmark size={13}/></span><span><strong>{row.title||row.module}</strong><small>{row.module} · Principal {formatINR(principalOf(row))} · Rate {rateOf(row)}%</small></span><em>{formatINR(interestOf(row))} / month</em><ArrowUpRight size={13}/></button>)}</div></section>}
     <section className="vs-finance-panel">
       <header><div><span className="vs-eyebrow">KINETIC CASHFLOW</span><h4>Recorded monthly movement</h4><p>Blue-green bars are saved inflows; coral bars are saved outflows. Empty months show no matching transaction in the register.</p></div><CircleDollarSign size={20}/></header>
       <ThreeDHistogram items={cashflow} selected={visibleMonth} onSelect={setSelectedMonth} showLabels={false} formatValue={value=>value>=10000000?"₹"+(value/10000000).toFixed(1)+"Cr":value>=100000?"₹"+(value/100000).toFixed(1)+"L":"₹"+Math.round(value).toLocaleString("en-IN")}/>
@@ -103,7 +105,7 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
             <article><span>Principal</span><strong>{formatINR(principal)}</strong><small>Source: saved loan principal</small></article>
             <article><span>Rate</span><strong>{rateOf(selectedLoan)}{method==="Fixed amount per month"?" ₹":" %"}</strong><small>{method}</small></article>
             <article><span>Monthly interest</span><strong>{formatINR(monthlyInterest)}</strong><small>Existing AXIVESTRA formula</small></article>
-            <article><span>Outstanding balance</span><strong>{outstanding?formatINR(amount(outstanding)):"Not entered"}</strong><small>{outstanding?"Source: saved outstanding field":"No supported outstanding figure saved"}</small></article>
+            <button type="button" className="vs-finance-fact-button" onClick={()=>onOpenRecord(selectedLoan.id)}><span>Outstanding balance</span><strong>{outstanding?formatINR(amount(outstanding)):"Not entered"}</strong><small>{outstanding?"Open source record · saved outstanding field":"Open source record · no supported outstanding figure saved"}</small></button>
             <article><span>Recorded receipts</span><strong>{formatINR(received)}</strong><small>Directly linked inflow transactions</small></article>
             <article><span>Recorded payments</span><strong>{formatINR(paid)}</strong><small>Directly linked outflow transactions</small></article>
           </div>
