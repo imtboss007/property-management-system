@@ -4617,3 +4617,28 @@ h2,h3{color:#e5f2fc}
 @media(prefers-reduced-motion:reduce){
   .vs-atelier-ai-launch,.vs-atelier-ai-backdrop{animation:none;transition:none}
 }
+
+
+/* VESTRA per-user visual personalisation controls */
+.vs-personalization-launch{display:inline-flex;align-items:center;gap:7px}
+.vs-personalization-panel{display:grid;gap:13px;margin:12px 0;padding:16px;border:1px solid #56756a;border-radius:16px;background:linear-gradient(120deg,#10252c,#18312f 56%,#24263a);box-shadow:0 14px 35px #020b1738;color:#ecf3e9}
+.vs-personalization-panel>header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.vs-personalization-panel>header>div{display:grid;gap:5px}
+.vs-personalization-panel>header strong{font-size:14px}
+.vs-personalization-panel>header small,.vs-personalization-note{color:#a6bdb2;font-size:10px}
+.vs-personalization-panel>header>button{display:grid;place-items:center;width:32px;height:32px;border:1px solid #638078;border-radius:9px;background:#193336;color:#edf3e8;cursor:pointer}
+.vs-personalization-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.vs-personalization-controls label{display:grid;gap:6px;color:#bed2c7;font-size:10px;font-weight:800}
+.vs-personalization-controls select{width:100%;min-height:39px;padding:0 10px;border:1px solid #57756b;border-radius:9px;background:#10252b;color:#f1f2e9;font-size:11px}
+.vs-personalization-controls select:disabled{opacity:.55;cursor:wait}
+.vs-personalization-note{margin:0}
+.vs-shift[data-density="compact"] .vs-space-page{gap:9px;padding:13px}
+.vs-shift[data-density="compact"] .vs-relationship-card{gap:8px;padding:11px}
+.vs-shift[data-density="compact"] .vs-desk-heading{padding:12px}
+.vs-shift[data-density="compact"] .vs-desk-grid{gap:8px}
+.vs-shift[data-motion="reduced"] *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+.vs-shift[data-theme="light"] .vs-personalization-panel{background:linear-gradient(120deg,#fffdf6,#e8eee7 60%,#e4e5f1);border-color:#cad7ce;color:#19322d;box-shadow:0 12px 30px #283f3612}
+.vs-shift[data-theme="light"] .vs-personalization-panel>header small,.vs-shift[data-theme="light"] .vs-personalization-note{color:#60766b}
+.vs-shift[data-theme="light"] .vs-personalization-panel>header>button,.vs-shift[data-theme="light"] .vs-personalization-controls select{background:#f7f6ef;color:#213b32;border-color:#c8d3c7}
+.vs-shift[data-theme="light"] .vs-personalization-controls label{color:#526c60}
+@media(max-width:600px){.vs-personalization-controls{grid-template-columns:1fr}.vs-personalization-panel{padding:12px}}
