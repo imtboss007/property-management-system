@@ -4581,3 +4581,10 @@ h2,h3{color:#e5f2fc}
 .ax-pdf-filename-preview span{color:#6b8796;font-size:9px;font-weight:800;letter-spacing:.12em}
 .ax-pdf-filename-preview strong{overflow-wrap:anywhere;color:#173e50;font:700 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
 @media(max-width:520px){.ax-pdf-filename-fields{grid-template-columns:1fr}.ax-pdf-filename-modes{grid-template-columns:1fr 1fr}}
+
+
+/* Keep existing Motion navigation and add a direct VESTRA entry without replacing Home, Assets, Contacts, Tasks or Menu. */
+@media (max-width: 720px) {
+  .ax-mobile-dock { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .ax-mobile-dock button { font-size: 7.5px; }
+}
