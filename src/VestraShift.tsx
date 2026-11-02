@@ -92,6 +92,9 @@ export default function VestraShift(props:Props){
   const [dateTo,setDateTo]=useState("");
   const [timelineZoom,setTimelineZoom]=useState(1);
   const [selectedEventId,setSelectedEventId]=useState("");
+  const [temporalView,setTemporalView]=useState<"timeline"|"calendar">("timeline");
+  const [calendarMonth,setCalendarMonth]=useState(today.slice(0,7));
+  const [calendarFocusDate,setCalendarFocusDate]=useState(today);
   const [missionSelectedId,setMissionSelectedId]=useState("");
   const [missionLinks,setMissionLinks]=useState<Array<{fromId:string;toId:string}>>(()=>{try{const value=JSON.parse(window.localStorage.getItem("axivestra.vestraShift.missionLinks."+workspaceScope)||"[]");return Array.isArray(value)?value:[];}catch{return [];}});
   const [selectedLoanId,setSelectedLoanId]=useState("");
@@ -197,6 +200,21 @@ export default function VestraShift(props:Props){
     (!timelineSearch||[event.title,event.detail,event.status,event.kind].join(" ").toLowerCase().includes(timelineSearch.toLowerCase()))
   );
   const selectedEvent=timeline.find(event=>event.id===selectedEventId);
+  const calendarCells=useMemo(()=>{
+    const [year,month]=calendarMonth.split("-").map(Number);
+    const first=new Date(year,month-1,1);
+    const start=new Date(year,month-1,1-first.getDay());
+    return Array.from({length:42},(_,index)=>{
+      const date=new Date(start.getFullYear(),start.getMonth(),start.getDate()+index);
+      const key=[date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");
+      return {date:key,currentMonth:date.getMonth()===month-1,events:visibleTimeline.filter(event=>event.date===key)};
+    });
+  },[calendarMonth,visibleTimeline]);
+  const calendarMonthLabel=useMemo(()=>{
+    const [year,month]=calendarMonth.split("-").map(Number);
+    return new Date(year,month-1,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+  },[calendarMonth]);
+  const calendarDayEvents=timeline.filter(event=>event.date===calendarFocusDate);
 
   const connections=useMemo(()=>contacts.map(contact=>{
     const records=properties.filter(record=>linkedToContact(contact,record));
@@ -284,15 +302,34 @@ export default function VestraShift(props:Props){
     {space==="timeline"&&<section className="vs-space-page">
       <header><div><span className="vs-eyebrow">TEMPORAL WORKSPACE</span><h3>Past · present · upcoming</h3>
         <p>Only dates saved in tasks, record schedules, contact commitments and financial entries appear here.</p></div><CalendarDays size={22}/></header>
+      <div className="vs-temporal-view-toggle">
+        <button type="button" className={temporalView==="timeline"?"active":""} onClick={()=>setTemporalView("timeline")}>Timeline</button>
+        <button type="button" className={temporalView==="calendar"?"active":""} onClick={()=>setTemporalView("calendar")}>Calendar</button>
+      </div>
       <div className="vs-temporal-controls"><div className="vs-filter-row">{(["past","today","upcoming","all"] as const).map(value=><button type="button" key={value} className={timeFilter===value?"active":""} onClick={()=>setTimeFilter(value)}>{value==="all"?"All dates":value==="today"?"Today":value[0].toUpperCase()+value.slice(1)}</button>)}</div><label>Type<select value={timelineKind} onChange={event=>setTimelineKind(event.target.value)}>{["All types","Task","Deadline","Follow-up","Response","Commitment","Financial","History"].map(kind=><option key={kind}>{kind}</option>)}</select></label><label>From<input type="date" value={dateFrom} onChange={event=>setDateFrom(event.target.value)}/></label><label>To<input type="date" value={dateTo} onChange={event=>setDateTo(event.target.value)}/></label><label className="vs-temporal-search">Search<input value={timelineSearch} onChange={event=>setTimelineSearch(event.target.value)} placeholder="Event or person"/></label><label>Zoom<input type="range" min="0.8" max="1.4" step="0.1" value={timelineZoom} onChange={event=>setTimelineZoom(Number(event.target.value))}/></label></div>
-      <div className="vs-timeline-list" style={{zoom:timelineZoom}}>{visibleTimeline.map(event=><button type="button" key={event.id} className={"vs-timeline-item "+(selectedEventId===event.id?"active":"")} onClick={()=>setSelectedEventId(event.id)}>
+      {temporalView==="timeline"&&<div className="vs-timeline-list" style={{zoom:timelineZoom}}>{visibleTimeline.map(event=><button type="button" key={event.id} className={"vs-timeline-item "+(selectedEventId===event.id?"active":"")} onClick={()=>setSelectedEventId(event.id)}>
         <span className={"vs-timeline-node "+(event.status==="Overdue"?"is-overdue":"")}/>
         <span className="vs-timeline-date">{dateText(event.date)}<small>{event.time}</small></span>
         <span className="vs-timeline-copy"><strong>{event.title}</strong><small>{event.detail||event.kind}</small></span>
         <span className="vs-event-status">{event.status}</span><ChevronRight size={15}/>
-      </button>)}{!visibleTimeline.length&&<div className="vs-empty-state"><CalendarClock size={23}/><strong>No recorded events in this time window.</strong><small>Missing dates are not inferred.</small></div>}</div>
-      {selectedEvent&&<section className="vs-event-inspector"><span className="vs-eyebrow">EVENT INSPECTOR</span><strong>{selectedEvent.title}</strong><p>{selectedEvent.detail}</p><small>{dateText(selectedEvent.date)} · {selectedEvent.time} · {selectedEvent.kind} · {selectedEvent.status}</small><button type="button" onClick={()=>openEvent(selectedEvent)}>Open source <ArrowUpRight size={13}/></button></section>}
-      <small className="vs-data-truth">Timeline uses saved timestamps only. It does not reconstruct missing historical events or mark planned work as completed.</small>
+      </button>)}{!visibleTimeline.length&&<div className="vs-empty-state"><CalendarClock size={23}/><strong>No recorded events in this time window.</strong><small>Missing dates are not inferred.</small></div>}</div>}
+      {selectedEvent&&temporalView==="timeline"&&<section className="vs-event-inspector"><span className="vs-eyebrow">EVENT INSPECTOR</span><strong>{selectedEvent.title}</strong><p>{selectedEvent.detail}</p><small>{dateText(selectedEvent.date)} · {selectedEvent.time} · {selectedEvent.kind} · {selectedEvent.status}</small><button type="button" onClick={()=>openEvent(selectedEvent)}>Open source <ArrowUpRight size={13}/></button></section>}
+      {temporalView==="calendar"&&<section className="vs-calendar">
+        <header><div><span className="vs-eyebrow">CALENDAR · SAVED ACTIVITY</span><h4>{calendarMonthLabel}</h4><small>{calendarCells.reduce((sum,cell)=>sum+cell.events.length,0)} event(s) in visible calendar filters</small></div>
+          <div><button type="button" aria-label="Previous month" onClick={()=>{const [year,month]=calendarMonth.split("-").map(Number);const next=new Date(year,month-2,1);setCalendarMonth(next.getFullYear()+"-"+String(next.getMonth()+1).padStart(2,"0"));}}>Previous</button><button type="button" aria-label="Next month" onClick={()=>{const [year,month]=calendarMonth.split("-").map(Number);const next=new Date(year,month,1);setCalendarMonth(next.getFullYear()+"-"+String(next.getMonth()+1).padStart(2,"0"));}}>Next</button></div>
+        </header>
+        <div className="vs-calendar-grid">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day=><span className="vs-calendar-weekday" key={day}>{day}</span>)}
+          {calendarCells.map(cell=><button type="button" key={cell.date} className={"vs-calendar-day "+(!cell.currentMonth?"is-outside ":"")+(cell.date===today?"is-today ":"")+(cell.date===calendarFocusDate?"is-focused":"")} onClick={()=>{setCalendarFocusDate(cell.date);setSelectedEventId("");}}>
+            <span>{Number(cell.date.slice(8,10))}</span>{cell.events.length>0&&<small>{cell.events.length} event(s)</small>}
+            <i>{cell.events.slice(0,2).map(event=><em key={event.id} title={event.title}>{event.kind}</em>)}</i>
+          </button>)}
+        </div>
+        <div className="vs-calendar-day-detail"><strong>{dateText(calendarFocusDate)} · {calendarDayEvents.length} saved event(s)</strong>
+          {calendarDayEvents.map(event=><button type="button" key={event.id} onClick={()=>{setSelectedEventId(event.id);setTemporalView("timeline");}}><span>{event.time} · {event.title}</span><small>{event.kind} · {event.status}</small><ChevronRight size={13}/></button>)}
+          {!calendarDayEvents.length&&<small>No event is recorded for this date.</small>}
+        </div>
+      </section>}
+      <small className="vs-data-truth">Timeline and calendar use saved timestamps only. They do not reconstruct missing historical events or mark planned work as completed.</small>
     </section>}
 
     {space==="connections"&&<section className="vs-space-page">
