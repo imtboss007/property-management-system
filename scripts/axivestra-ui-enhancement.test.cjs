@@ -104,3 +104,8 @@ for (const token of [".vs-spatial-desk", ".vs-desk-grid", ".vs-desk-panel", "res
 for (const token of ["Highest amount", "Lowest amount", "amountSort", "parseDealNumber(b.item.amount)"]) assert.ok(followUpRegister.includes(token), "Missing amount-wise follow-up registry ordering: " + token);
 for (const token of ["Assigned date", "Follow-up date", "Follow-up priority", "Follow-up next action", "item.createdAt", "item.nextAction"]) assert.ok(followUpRegister.includes(token), "Missing person-wise follow-up registry field: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
+
+assert.ok(vestra.includes('className="vs-atelier-ai-launch"'), "Atelier must have a real floating command and AI entry point.");
+assert.ok(vestra.includes("atelierCopilotOpen&&<div className=\"vs-atelier-ai-backdrop\""), "Atelier must open its contextual command/assistant surface.");
+assert.ok(vestra.includes("<VestraIntentCanvas properties={properties}"), "Atelier assistant must reuse the real-record Intent Canvas, not a mock chat.");
+for (const token of [".vs-atelier-ai-launch",".vs-atelier-ai-backdrop",".vs-atelier-ai-panel","@media(max-width:760px)"]) assert.ok(styles.includes(token), "Missing responsive Atelier assistant surface: "+token);
