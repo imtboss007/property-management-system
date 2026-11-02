@@ -4440,3 +4440,12 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-deadline-scenario>div span,.vs-shift[data-theme="light"] .vs-deadline-scenario>small{color:#687e73}
 .vs-shift[data-theme="light"] .vs-deadline-scenario>div strong{color:#1c332b}
 @media(max-width:620px){.vs-deadline-scenario{grid-template-columns:1fr}.vs-deadline-scenario>small{grid-column:auto}}
+
+.vs-desk-grid.freeform{position:relative;display:block;min-height:930px;overflow:auto;padding:10px;border:1px solid #3d5b4d;border-radius:16px;background:radial-gradient(ellipse at 50% 0%,#38534635,transparent 55%),linear-gradient(145deg,#101e18,#17271f);background-image:linear-gradient(#c7d7c40b 1px,transparent 1px),linear-gradient(90deg,#c7d7c40b 1px,transparent 1px),radial-gradient(ellipse at 50% 0%,#38534635,transparent 55%),linear-gradient(145deg,#101e18,#17271f);background-size:24px 24px,24px 24px,auto,auto}
+.vs-desk-grid.freeform .vs-desk-panel{position:absolute;width:min(48%,560px);min-width:280px;max-width:92%;margin:0;resize:both;z-index:1;box-shadow:0 20px 38px #020b1688,0 0 0 1px #9bbd9a1c}
+.vs-desk-grid.freeform .vs-desk-panel>header{cursor:grab;touch-action:none}
+.vs-desk-grid.freeform .vs-desk-panel>header:active{cursor:grabbing}
+.vs-desk-grid.freeform .vs-desk-panel.expanded{z-index:5;width:min(90%,920px);grid-column:auto}
+.vs-desk-grid.freeform .vs-desk-panel.minimized{height:auto}
+.vs-shift[data-theme="light"] .vs-desk-grid.freeform{border-color:#cbd8ca;background-image:linear-gradient(#304d3c0a 1px,transparent 1px),linear-gradient(90deg,#304d3c0a 1px,transparent 1px),radial-gradient(ellipse at 50% 0%,#a9cbb222,transparent 55%),linear-gradient(145deg,#edf0e7,#f6f2e8)}
+@media(max-width:760px){.vs-desk-grid.freeform{min-height:1800px;overflow:auto}.vs-desk-grid.freeform .vs-desk-panel{width:min(90%,560px);min-width:260px;max-width:90%}.vs-desk-grid.freeform .vs-desk-panel.expanded{width:90%}}
