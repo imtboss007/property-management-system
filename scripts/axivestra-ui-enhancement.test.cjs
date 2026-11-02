@@ -209,3 +209,11 @@ for (const token of ['aria-label="Open Spatial Desk"', 'aria-label="Open Intent 
 for (const token of ["vs-orbit-rings", "vsSatelliteOrbit", "vsSatelliteCounter", ".vs-core-sphere", ".vs-orbit-node:hover", '@media(prefers-reduced-motion:reduce)']) {
   assert.ok(styles.includes(token), "Missing 3D sphere / orbital icon visual behavior: " + token);
 }
+
+assert.ok(vestra.includes('workspacePreferences["vestraShift.favoriteModules"]'), "Favourite modules must persist as per-workspace preferences.");
+assert.ok(vestra.includes('onSaveWorkspacePreference("vestraShift.favoriteModules",next)'), "Changing favourite modules must save the selected module IDs.");
+assert.ok(vestra.includes('aria-label="Favourite modules"'), "Favourite module shortcuts must be accessible.");
+assert.ok(vestra.includes('onClick={()=>onOpenModule(name)}'), "A favourite module shortcut must open its actual AXIVESTRA module.");
+for (const token of [".vs-personalization-favourites", ".vs-personalization-favourite-grid", ".vs-favourite-module-rail", "@media(max-width:720px)"]) {
+  assert.ok(styles.includes(token), "Missing responsive favourite-module personalization: " + token);
+}
