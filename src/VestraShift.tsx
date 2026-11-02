@@ -165,12 +165,22 @@ export default function VestraShift(props:Props){
       detail:[item.amount,item.property,item.reference,item.notes].filter(Boolean).join(" · "),
       kind:"Financial",status:"Recorded",recordId:item.propertyId||undefined,contactId:item.contactId||undefined
     }));
+    auditEvents.forEach(event=>add({
+      id:"audit-"+event.id,date:event.at.slice(0,10),time:event.at.slice(11,16)||"00:00",
+      title:event.action.toUpperCase()+" · "+event.entity+" · "+event.label,
+      detail:event.description||event.activityType||"Recorded workspace activity",kind:"History",status:event.action,
+      recordId:event.entity==="Property"?event.recordId:event.relatedRecordId,
+      contactId:event.entity==="Contact"?event.recordId:undefined,module:event.entity
+    }));
     return rows.sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time));
-  },[tasks,properties,contacts,financials,today]);
+  },[tasks,properties,contacts,financials,auditEvents,today]);
   const visibleTimeline=timeline.filter(event=>
-    timeFilter==="all"||(timeFilter==="past"&&event.date<today)||
-    (timeFilter==="today"&&event.date===today)||(timeFilter==="upcoming"&&event.date>today)
+    (timeFilter==="all"||(timeFilter==="past"&&event.date<today)||(timeFilter==="today"&&event.date===today)||(timeFilter==="upcoming"&&event.date>today))&&
+    (!dateFrom||event.date>=dateFrom)&&(!dateTo||event.date<=dateTo)&&
+    (timelineKind==="All types"||event.kind===timelineKind)&&
+    (!timelineSearch||[event.title,event.detail,event.status,event.kind].join(" ").toLowerCase().includes(timelineSearch.toLowerCase()))
   );
+  const selectedEvent=timeline.find(event=>event.id===selectedEventId);
 
   const connections=useMemo(()=>contacts.map(contact=>{
     const records=properties.filter(record=>linkedToContact(contact,record));
