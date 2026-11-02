@@ -4852,3 +4852,18 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell[data-ax-motion="expressive"] .vs-prism-shortcut{animation-duration:.62s}
 @media(max-width:760px){.vs-prism-command-hub{flex-basis:166px;width:204px;height:104px;transform:scale(.82);transform-origin:top left;margin-right:-37px;margin-bottom:-18px}.vs-prism-command-hub .vs-prism-emblem{width:82px;height:82px;transform:none}.vs-prism-shortcuts{gap:5px}}
 @media(prefers-reduced-motion:reduce){.vs-prism-shortcut,.vs-prism-command-hub .vs-prism-emblem{animation:none!important;transition:none!important}}
+
+/* Origami-style workspace reveal and morphing navigation states. */
+.vs-shift-tabs button{border-radius:8px;transition:border-radius .34s cubic-bezier(.2,.85,.2,1),background .22s ease,color .22s ease,border-color .22s ease,transform .26s cubic-bezier(.2,.85,.2,1),box-shadow .26s ease}
+.vs-shift-tabs button.active{border-radius:13px;transform:translateY(-1px);box-shadow:inset 0 1px #ffffff20,0 6px 15px #020a1748}
+.vs-shift-tabs button svg{transition:rotate .24s cubic-bezier(.2,.85,.2,1),scale .24s ease}
+.vs-shift-tabs button:hover svg{rotate:7deg;scale:1.08}
+@keyframes vsOrigamiUnfold{
+  0%{opacity:0;transform:perspective(1300px) rotateX(-8deg) rotateY(-1deg) translate3d(0,8px,-10px) scale(.986)}
+  62%{opacity:1;transform:perspective(1300px) rotateX(1.5deg) rotateY(.2deg) translate3d(0,-1px,0) scale(1.002)}
+  100%{opacity:1;transform:perspective(1300px) rotateX(0) rotateY(0) translate3d(0,0,0) scale(1)}
+}
+.ax-modern-shell[data-ax-motion="expressive"] .vs-space-page{transform-origin:50% 0;backface-visibility:hidden;animation:vsOrigamiUnfold .52s cubic-bezier(.18,1,.32,1) both}
+.ax-modern-shell[data-ax-motion="balanced"] .vs-space-page{transform-origin:50% 0}
+.ax-modern-shell[data-ax-motion="reduced"] .vs-space-page{animation:none!important;transform:none!important}
+@media(prefers-reduced-motion:reduce){.vs-shift-tabs button,.vs-shift-tabs button svg,.vs-space-page{transition:none!important;animation:none!important;transform:none!important}}
