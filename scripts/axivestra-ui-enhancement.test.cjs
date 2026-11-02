@@ -17,8 +17,11 @@ const styles = fs.readFileSync("src/styles.css", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
 assert.ok(app.includes("ax-modern-shell"), "The application shell must enable the refreshed design system.");
+assert.ok(app.includes('useState<Section>("Overview")'), "Preserve the original Overview as the familiar startup home.");
+assert.ok(app.includes('onClick={() => go("Intelligence Hub")}'), "Expose VESTRA directly in the mobile dock without replacing existing navigation.");
 assert.ok(app.includes('className="ax-mobile-dock"'), "The mobile quick-navigation dock must be mounted.");
-for (const label of ["Home", "Assets", "Contacts", "Tasks", "Menu"]) {
+assert.ok(styles.includes("grid-template-columns: repeat(6, minmax(0, 1fr))"), "The Motion dock must fit the added VESTRA shortcut.");
+for (const label of ["Home", "Assets", "Contacts", "Tasks", "VESTRA", "Menu"]) {
   assert.ok(app.includes("<span>" + label + "</span>"), "Missing mobile navigation destination: " + label);
 }
 assert.ok(analytics.includes('useState<"donut" | "bar" | "line" | "3d">("3d")'), "Portfolio analytics should open in 3D mode.");
