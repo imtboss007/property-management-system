@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
 
 export type ThreeDHistogramItem = {
   id?: string;
@@ -44,6 +44,9 @@ export default function ThreeDHistogram({
   primaryLabel = "Value / count",
   secondaryLabel = "Secondary series"
 }: Props) {
+  const [rotation,setRotation]=useState(0);
+  const [tilt,setTilt]=useState(0);
+  const [zoom,setZoom]=useState(1);
   const visible = items.slice(0, 9);
   const max = Math.max(1, ...visible.flatMap(item => [Number(item.value) || 0, Number(item.secondaryValue) || 0]));
   const width = Math.max(650, 148 + visible.length * 72);
@@ -62,13 +65,14 @@ export default function ThreeDHistogram({
   const colors = visible.map((item, index) => item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
 
   return <div className="ax-3d-histogram-wrap">
+<div className="ax-3d-histogram-controls" aria-label="Chart perspective controls"><button type="button" onClick={()=>setRotation(value=>value-10)} title="Rotate chart left">↶</button><button type="button" onClick={()=>setRotation(value=>value+10)} title="Rotate chart right">↷</button><button type="button" onClick={()=>setTilt(value=>Math.max(-12,value-3))} title="Tilt chart upward">Tilt −</button><button type="button" onClick={()=>setTilt(value=>Math.min(22,value+3))} title="Tilt chart downward">Tilt +</button><button type="button" onClick={()=>setZoom(value=>Math.max(.7,Number((value-.1).toFixed(1))))} title="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button type="button" onClick={()=>setZoom(value=>Math.min(1.4,Number((value+.1).toFixed(1))))} title="Zoom in">+</button><button type="button" onClick={()=>{setRotation(0);setTilt(0);setZoom(1);}}>Reset view</button></div>
     <div className="ax-3d-histogram-meta">
       <span><i className="ax-3d-key-front"/> {primaryLabel}</span>
       {visible.some(item => Number(item.secondaryValue) > 0) && <span><i className="ax-3d-key-side"/> {secondaryLabel}</span>}
       <span className="ax-3d-histogram-hint">Select a column to inspect its record group</span>
     </div>
     <div className="ax-3d-histogram-scroll">
-      <svg className="ax-3d-histogram" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Interactive three-dimensional portfolio histogram">
+      <svg className="ax-3d-histogram" style={{transform:`perspective(1100px) rotateZ(${rotation}deg) rotateX(${tilt}deg) scale(${zoom})`,transformOrigin:"center center"}}>
         <defs>
           <linearGradient id="ax-3d-floor" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#12344a"/>
