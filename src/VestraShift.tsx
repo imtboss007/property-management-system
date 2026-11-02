@@ -100,6 +100,11 @@ export default function VestraShift(props:Props){
   const motionMode=workspacePreferences.motionMode==="reduced"||workspacePreferences.motionMode==="expressive"?workspacePreferences.motionMode:"balanced";
   const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
   const [alertsOpen,setAlertsOpen]=useState(false);
+  const favouriteModules=Array.isArray(workspacePreferences["vestraShift.favoriteModules"])?(workspacePreferences["vestraShift.favoriteModules"] as string[]).filter(name=>moduleNames.includes(name)):[];
+  const toggleFavouriteModule=(name:string)=>{
+    const next=favouriteModules.includes(name)?favouriteModules.filter(value=>value!==name):[...favouriteModules,name];
+    onSaveWorkspacePreference("vestraShift.favoriteModules",next);
+  };
   const rawAlertPreferences=workspacePreferences["vestraShift.notifications"];
   const notificationPreferences:AlertPreferences={...DEFAULT_ALERT_PREFERENCES,...(rawAlertPreferences&&typeof rawAlertPreferences==="object"?rawAlertPreferences as Partial<AlertPreferences>:{})};
   const setNotificationPreference=(key:AlertPreferenceKey,value:boolean)=>{
@@ -501,6 +506,10 @@ export default function VestraShift(props:Props){
         <label>Workspace density<select aria-label="Workspace density" value={displayDensity} disabled={!workspacePreferencesReady} onChange={event=>onSaveWorkspacePreference("displayDensity",event.target.value)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
         <label>Motion intensity<select aria-label="Motion intensity" value={motionMode} disabled={!workspacePreferencesReady} onChange={event=>onSaveWorkspacePreference("motionMode",event.target.value)}><option value="reduced">Reduced</option><option value="balanced">Balanced</option><option value="expressive">Expressive</option></select></label>
       </div>
+      <div className="vs-personalization-favourites">
+        <div><strong>Favourite modules</strong><small>Choose modules for your persistent quick-launch rail.</small></div>
+        <div className="vs-personalization-favourite-grid">{moduleNames.map(name=><label key={name}><input type="checkbox" checked={favouriteModules.includes(name)} disabled={!workspacePreferencesReady||readOnly} onChange={()=>toggleFavouriteModule(name)}/><span>{name}</span></label>)}</div>
+      </div>
       <small className="vs-personalization-note">{workspacePreferencesReady?"Saved to your workspace preferences.":"Waiting for the first device sync before changing shared preferences."}</small>
     </section>}
     <nav className="vs-shift-tabs" aria-label="VESTRA SHIFT workspaces">
@@ -508,6 +517,7 @@ export default function VestraShift(props:Props){
       <button type="button" className="vs-save-context" onClick={saveView}><Bookmark size={13}/> Save workspace</button>
     </nav>
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
+    {!!favouriteModules.length&&<nav className="vs-favourite-module-rail" aria-label="Favourite modules"><span>QUICK MODULES</span>{favouriteModules.map(name=><button type="button" key={name} onClick={()=>onOpenModule(name)}>{name}<ArrowUpRight size={11}/></button>)}</nav>}
 
     {space==="desk"&&<VestraSpatialDesk workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
     {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" data-vs-magnetic="true" aria-keyshortcuts="Control+K Meta+K" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>Ctrl / ⌘ K</kbd></button>}
