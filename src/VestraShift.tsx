@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
 import VestraFinance from "./VestraFinance";
+import VestraSpatialDesk from "./VestraSpatialDesk";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 
 type FollowUp = {
@@ -39,7 +40,7 @@ type FollowUpDraft = {
   contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;
   promisedTime:string;responseType:string;notes:string;status:string;
 };
-type ShiftSpace = "intent"|"timeline"|"connections"|"finance"|"simulation"|"workflow";
+type ShiftSpace = "desk"|"intent"|"timeline"|"connections"|"finance"|"simulation"|"workflow";
 type SavedView = {id:string;space:ShiftSpace;label:string;createdAt:string};
 type TimelineEvent = {
   id:string;date:string;time:string;title:string;detail:string;kind:string;status:string;
@@ -57,6 +58,7 @@ type Props = {
 };
 type SpaceDefinition = {id:ShiftSpace;label:string};
 const SPACES:SpaceDefinition[]=[
+  {id:"desk",label:"Spatial Desk"},
   {id:"intent",label:"Intent Canvas"},
   {id:"timeline",label:"Temporal"},
   {id:"connections",label:"Relationships"},
@@ -319,6 +321,7 @@ export default function VestraShift(props:Props){
     </nav>
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
+    {space==="desk"&&<VestraSpatialDesk properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
     {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
     {space==="finance"&&<VestraFinance properties={properties} contacts={contacts} financials={financials} today={today} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks} onOpenLoans={()=>onOpenModule("Property Loans")}/>}
 
