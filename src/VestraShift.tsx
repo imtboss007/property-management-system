@@ -46,7 +46,7 @@ type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:stri
 type Props = {
   properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
-  onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;
+  onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTransaction:(id:string)=>void;
   onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowUpDraft)=>void;
   onOpenTask:(taskId:string)=>void;moduleNames:string[];auditEvents:AuditEntry[];onUndo:()=>void;undoAvailable:boolean;
   theme:"dark"|"light";onToggleTheme:()=>void;workspaceScope:string;
@@ -78,7 +78,7 @@ const dateText=(value:string)=>value?new Date(value+"T00:00:00").toLocaleDateStr
 export default function VestraShift(props:Props){
   const {
     properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,
-    onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
+    onOpenTasks,onOpenRecord,onOpenContact,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
     theme,onToggleTheme,workspaceScope
   }=props;
   const [space,setSpace]=useState<ShiftSpace>("intent");
