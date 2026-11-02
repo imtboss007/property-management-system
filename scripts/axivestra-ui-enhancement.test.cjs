@@ -30,7 +30,7 @@ assert.ok(analytics.includes('useState<"donut" | "bar" | "line" | "3d">("3d")'),
 assert.ok(analytics.includes("<ThreeDHistogram"), "Portfolio analytics must render the interactive 3D histogram.");
 assert.ok(analytics.includes("secondaryValue: row.outflow"), "Cashflow 3D mode must show the outflow as a second series.");
 assert.ok(analytics.includes("value: item.value"), "Portfolio histograms must use saved analytics values.");
-for (const token of ["role=\"button\"", "onSelect", "secondaryValue", "aria-label", "Perspective view", "floor", "depthX", "rotateZ(${rotation}deg)", "setZoom", "setTilt", "ax-3d-histogram-controls"]) {
+for (const token of ["role=\"button\"", "onSelect", "secondaryValue", "aria-label", "Perspective view", "floor", "depthX", "rotateZ(${r}deg)", "setZoom", "setTilt", "ax-3d-histogram-controls"]) {
   assert.ok(histogram.includes(token), "Missing accessible / interactive 3D histogram capability: " + token);
 }
 for (const token of [
@@ -145,6 +145,7 @@ assert.ok(motionSyncBlock.includes("setSyncStatus(current => current.startsWith(
 assert.ok(!motionSyncBlock.includes('"Connected · up to date " + time'), "Unchanged device polls must not update the displayed timestamp every five seconds.");
 for (const token of ["data-ax-motion={vestraWorkspacePreferences.motionMode", "data-ax-motion=\"balanced\"", "vsModuleFacet", "vsPrismOrbit 17s linear infinite", "content-visibility:auto", "backdrop-filter:none", "translate:0 -2px 3px"]) assert.ok(app.includes(token) || styles.includes(token), "Missing adaptive motion/performance control: " + token);
 for (const token of ["onChartPointerDown", "onChartPointerMove", "onChartPointerEnd", "Drag the chart to rotate", "useMemo(()=>items.slice(0, 9)", "useId().replace", "export default memo(ThreeDHistogram)"]) assert.ok(histogram.includes(token), "Missing lightweight, direct-manipulation 3D chart feature: " + token);
+assert.ok(histogram.includes("const chartTransform=(r:number,t:number,z:number)=>"), "Chart buttons and pointer dragging must share one stable perspective transform.");
 for (const token of ["vsLiquidEnter", "translate3d(0,7px,0)", "data-ax-motion=\"balanced\"", "data-ax-motion=\"expressive\"", "data-ax-motion=\"reduced\"", "prefers-reduced-motion:reduce"]) assert.ok(styles.includes(token), "Missing motion-performance mode: " + token);
 
 assert.ok(styles.includes("@keyframes vsFacetFold"), "Expressive mode must fold the original multi-facet prismatic identity in 3D.");
