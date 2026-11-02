@@ -31,6 +31,9 @@ type Props = {
   onOpenModule:(name:string)=>void; onOpenContacts:()=>void; onOpenTasks:()=>void;
   onOpenRecord?:(recordId:string)=>void; onOpenContact?:(contactId:string)=>void; onOpenFinancials?:()=>void;
   onCreateFollowUp:(draft:FollowUpDraft)=>void;
+  contextRecords?:PropertyRow[];
+  contextContacts?:ContactRow[];
+  contextLabel?:string;
 };
 type CopilotEntry = {title:string;detail:string;value?:string;module?:string;recordId?:string;contactId?:string;};
 type CopilotAnswer = {summary:string;entries:CopilotEntry[];empty?:string};
@@ -86,7 +89,96 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
   return {summary:`I searched saved AXIVESTRA records and contacts for “${query.trim()}”. I found ${recordMatches.length} record(s) and ${contactMatches.length} contact(s). Open a result to inspect its complete details.`,entries,empty:"No matching records or contacts were found. Try a shorter name, module, location or transaction term."};
 }
 
-export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp}:Props){
+
+function makeContextAnswer(
+  query:string,
+  contextRecords:PropertyRow[],
+  contextContacts:ContactRow[],
+  tasks:TaskRow[],
+  financials:FinancialRow[],
+  today:string
+):CopilotAnswer {
+  const recordIds=new Set(contextRecords.map(record=>record.id));
+  const contactIds=new Set(contextContacts.map(contact=>contact.id));
+  const followUps=contextContacts.flatMap(contact=>(contact.followUps||[])
+    .filter(item=>isOpen(item.status))
+    .map(item=>({contact,item,record:contextRecords.find(record=>record.id===item.linkedRecordId)})));
+  const overdue=followUps.filter(row=>row.item.promisedDate&&row.item.promisedDate<today);
+  const linkedTasks=tasks.filter(task=>
+    Boolean(task.propertyId&&recordIds.has(task.propertyId))||
+    Boolean(task.contactId&&contactIds.has(task.contactId))
+  );
+  const openTasks=linkedTasks.filter(task=>!task.done);
+  const linkedTransactions=financials.filter(item=>
+    Boolean(item.propertyId&&recordIds.has(item.propertyId))||
+    Boolean(item.contactId&&contactIds.has(item.contactId))
+  );
+  const loanRows=contextRecords.filter(record=>
+    LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"
+  ).map(record=>({
+    record,
+    interest:calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value))
+  }));
+  const monthlyInterest=loanRows.reduce((sum,row)=>sum+row.interest,0);
+  const missingLoanRate=loanRows.filter(({record})=>
+    !record.moduleData?.__loanInterestRate&&!record.moduleData?.interestRate&&!record.moduleData?.annualInterestRate
+  ).length;
+  const inflowTypes=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
+  const outflowTypes=new Set(["Purchase","Loan Repayment","Interest","Instalment","Brokerage","Expense","Settlement"]);
+  const inflows=linkedTransactions.filter(item=>inflowTypes.has(item.type))
+    .reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
+  const outflows=linkedTransactions.filter(item=>outflowTypes.has(item.type))
+    .reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
+  const entries:CopilotEntry[]=[
+    ...loanRows.slice(0,6).map(({record,interest})=>({
+      title:record.title||record.module,
+      detail:record.module+" · "+(record.moduleData?.__loanDirection||"Loan direction not set"),
+      value:localMoney(interest)+" / month",module:record.module,recordId:record.id
+    })),
+    ...followUps.slice(0,6).map(({contact,item,record})=>({
+      title:contact.name+" · "+(item.description||"Follow-up"),
+      detail:[record?.module,item.promisedDate,item.status].filter(Boolean).join(" · "),
+      value:item.amount?localMoney(parseDealNumber(item.amount)):"Amount not set",
+      recordId:record?.id,contactId:contact.id
+    })),
+    ...linkedTasks.slice(0,5).map(task=>({
+      title:task.title,
+      detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),
+      value:task.done?"Completed":task.type||"Task",
+      recordId:task.propertyId,contactId:task.contactId
+    })),
+    ...linkedTransactions.slice(0,5).map(item=>({
+      title:item.type+" · "+(item.party||item.property||"Transaction"),
+      detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),
+      value:localMoney(parseDealNumber(item.amount)),
+      recordId:item.propertyId,contactId:item.contactId
+    })),
+    ...contextRecords.filter(record=>!loanRows.some(row=>row.record.id===record.id)).slice(0,5).map(record=>({
+      title:record.title||"Untitled record",
+      detail:[record.module,record.location,record.status].filter(Boolean).join(" · "),
+      value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",
+      module:record.module,recordId:record.id
+    })),
+    ...contextContacts.slice(0,5).map(contact=>({
+      title:contact.name,
+      detail:[contact.role,contact.phone].filter(Boolean).join(" · "),
+      value:(contact.followUps||[]).filter(item=>isOpen(item.status)).length+" open follow-up(s)",
+      contactId:contact.id
+    }))
+  ];
+  return {
+    summary:"Selected context: "+query+". "+contextRecords.length+" record(s), "+contextContacts.length+
+      " person(s), "+followUps.length+" open follow-up(s), "+overdue.length+" overdue commitment(s), "+
+      openTasks.length+" open task(s), "+linkedTransactions.length+" linked transaction(s). Calculated monthly loan interest: "+
+      localMoney(monthlyInterest)+". Recorded inflows: "+localMoney(inflows)+"; recorded outflows: "+localMoney(outflows)+"."+
+      (missingLoanRate?" Interest rate is missing on "+missingLoanRate+" selected loan(s).":"")+
+      " Figures use only selected, linked saved context. No record was changed.",
+    entries:entries.slice(0,18),
+    empty:"No linked records or people are available in the selected context."
+  };
+}
+
+export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp,contextRecords=[],contextContacts=[],contextLabel=""}:Props){
   const [copilotQuery,setCopilotQuery]=useState("");
   const [copilotAnswer,setCopilotAnswer]=useState<CopilotAnswer|null>(null);
   const [whatsAppMessage,setWhatsAppMessage]=useState("");
@@ -107,7 +199,7 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
     const value=query.trim();
     if(!value)return;
     setCopilotQuery(value);
-    setCopilotAnswer(makeCopilotAnswer(value,properties,contacts,tasks,financials,today));
+    setCopilotAnswer(contextRecords.length||contextContacts.length?makeContextAnswer(value,contextRecords,contextContacts,tasks,financials,today):makeCopilotAnswer(value,properties,contacts,tasks,financials,today));
   };
   const extractMessage=()=>{
     if(!whatsAppMessage.trim())return;
@@ -162,7 +254,7 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
       </section>
 
       <section className="ax-intelligence-panel ax-deal-copilot">
-        <header><div><span className="section-kicker">DEAL COPILOT</span><h3>Ask your workspace</h3><p>Answers use saved AXIVESTRA records and calculations. Nothing is changed automatically.</p></div><Sparkles size={19}/></header>
+        <header><div><span className="section-kicker">DEAL COPILOT</span><h3>Ask your workspace</h3><p>Answers use saved AXIVESTRA records and calculations. Nothing is changed automatically.</p>{contextLabel&&<small className="ax-copilot-context">Current intent context · {contextLabel}</small>}</div><Sparkles size={19}/></header>
         <form className="ax-deal-copilot-input" onSubmit={event=>{event.preventDefault();runCopilot();}}>
           <Search size={16}/><input value={copilotQuery} onChange={event=>setCopilotQuery(event.target.value)} placeholder="e.g. Show overdue follow-ups or loan interest…"/><button type="submit" disabled={!copilotQuery.trim()}>Ask</button>
         </form>
