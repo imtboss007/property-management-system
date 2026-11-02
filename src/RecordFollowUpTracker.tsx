@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { saveBlobForUser } from "./lib/mobile-export";
 import { ClipboardList, Download, ExternalLink, Plus, Search, Trash2, Users } from "lucide-react";
 import {
   buildRecordFollowUpCsv,
@@ -28,6 +29,7 @@ type Props = {
   onUpdateRecordTitle: (recordId: string, title: string) => void;
   onOpenRecord: (record: RecordRow) => void;
   onOpenContact: (contactId: string) => void;
+  onDownloadStatus: (message: string) => void;
 };
 
 const rowKey = (recordId: string, entryId: string) => recordId + "::" + entryId;
@@ -188,20 +190,21 @@ export default function RecordFollowUpTracker(props: Props) {
     });
   };
 
-  const downloadTable = () => {
+  const downloadTable = async () => {
     Object.values(drafts).filter(row => row.dirty).forEach(row => save(row.recordId, row.entry.id));
     for (const record of visibleRecords) if (dirtyTitleIds[record.id]) saveRecordTitle(record);
     const exportRecords = visibleRecords.map(record => ({ ...record, title: titleDrafts[record.id] ?? record.title, followUpEntries: entriesForRecord(record.id) }));
     const csv = buildRecordFollowUpCsv(exportRecords, props.contacts);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "AXIVESTRA-Follow-up-Tracker-" + new Date().toISOString().slice(0, 10) + ".csv";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    const filename = "AXIVESTRA-Follow-up-Tracker-" + new Date().toISOString().slice(0, 10) + ".csv";
+    try {
+      const delivery = await saveBlobForUser(blob, filename);
+      props.onDownloadStatus(delivery === "shared"
+        ? "Android share panel opened. Choose Files, Drive or another secure destination to save the CSV."
+        : "CSV download started.");
+    } catch (error) {
+      props.onDownloadStatus("CSV export failed: " + (error instanceof Error ? error.message : String(error)));
+    }
   };
 
   const toggleModule = (module: string, checked: boolean) => {
