@@ -233,3 +233,10 @@ for (const token of [".vs-quick-actions-menu", ".vs-quick-actions-grid", "@media
 for (const token of ["@keyframes vsOrigamiUnfold", "perspective(1300px) rotateX(-8deg)", '.ax-modern-shell[data-ax-motion="expressive"] .vs-space-page', ".vs-shift-tabs button.active{border-radius:13px", "@media(prefers-reduced-motion:reduce)"]) {
   assert.ok(styles.includes(token), "Missing accessible origami / morphing transition: " + token);
 }
+
+for (const token of ["collectionRows=useMemo", 'row.moduleData?.__loanDirection==="Loan I am giving / interest receivable"', "row.followUpContactId||row.primaryContactId", "item.linkedRecordId===row.id", "item.type==="Receipt"", "collectionGroups", "item.savedOutstanding?formatINR", "No sample collection rows are generated.", "PERSON-WISE COLLECTION CONTROL"]) {
+  assert.ok(finance.includes(token), "Missing source-linked person-wise loan collection desk: " + token);
+}
+for (const token of [".vs-collection-desk", ".vs-collection-groups", ".vs-collection-owner-metrics", ".vs-collection-loan-facts", "@media(max-width:660px)"]) {
+  assert.ok(styles.includes(token), "Missing responsive person-wise collection desk styling: " + token);
+}
