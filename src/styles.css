@@ -2470,13 +2470,15 @@ h2,h3{color:#e5f2fc}
 .ax-followup-register__grid-wrap{width:100%;overflow-x:auto;border:1px solid #254b64;border-radius:10px;background:#091d2c}
 .ax-followup-register__grid{width:100%;min-width:1320px;border-collapse:separate;border-spacing:0;table-layout:fixed}
 .ax-followup-register__grid thead th{position:sticky;top:0;z-index:2;padding:11px 10px;background:#123b55;color:#e8f7ff;text-align:left;font-size:10px;font-weight:800;letter-spacing:.35px;white-space:nowrap;border-bottom:1px solid #315c73}
-.ax-followup-register__grid thead th:nth-child(1){width:190px}
-.ax-followup-register__grid thead th:nth-child(2){width:285px}
-.ax-followup-register__grid thead th:nth-child(3){width:140px}
-.ax-followup-register__grid thead th:nth-child(4){width:105px}
-.ax-followup-register__grid thead th:nth-child(5){width:155px}
-.ax-followup-register__grid thead th:nth-child(6){width:170px}
-.ax-followup-register__grid thead th:nth-child(7){width:145px}
+.ax-followup-register__grid thead th:nth-child(1){width:170px}
+.ax-followup-register__grid thead th:nth-child(2){width:245px}
+.ax-followup-register__grid thead th:nth-child(3){width:115px}
+.ax-followup-register__grid thead th:nth-child(4){width:120px}
+.ax-followup-register__grid thead th:nth-child(5){width:90px}
+.ax-followup-register__grid thead th:nth-child(6){width:140px}
+.ax-followup-register__grid thead th:nth-child(7){width:110px}
+.ax-followup-register__grid thead th:nth-child(8){width:95px}
+.ax-followup-register__grid thead th:nth-child(9){width:120px}
 .ax-followup-register__grid tbody td{padding:10px;vertical-align:top;border-bottom:1px solid #203f54;border-right:1px solid #18364a;background:#0b2030}
 .ax-followup-register__grid tbody tr:nth-child(even) td{background:#0d2537}
 .ax-followup-register__grid tbody tr:last-child td{border-bottom:0}
@@ -4397,3 +4399,4 @@ h2,h3{color:#e5f2fc}
 .vs-desk-month-inspector>span{display:grid;gap:3px;color:#778879}
 .vs-desk-month-inspector>span b{color:#385d43;font-size:10px}
 .vs-desk-month-inspector>button{display:inline-flex;align-items:center;gap:5px;margin-left:auto;min-height:29px;padding:0 8px;border:1px solid #9db9a1;border-radius:7px;background:#e1ecdf;color:#34533d;font-size:8px;font-weight:850}
+.ax-followup-register__assigned-date{display:inline-block;padding:8px 7px;border:1px solid #36576a;border-radius:7px;background:#102b3a;color:#c0d4dc;font-size:9px;white-space:nowrap}
