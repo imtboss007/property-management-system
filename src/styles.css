@@ -4270,3 +4270,50 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell .module-card.enterprise-module-card .module-footer{transform:translateZ(10px)}
 @media(hover:none){.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{transform:none!important;will-change:auto}}
 @media(prefers-reduced-motion:reduce){.vs-module-identity-object>i,.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{animation:none!important;transition:none!important;transform:none!important}}
+
+/* VESTRA SHIFT — spatial multi-dashboard surface manager */
+.vs-spatial-desk{display:grid;gap:13px;margin:0 0 25px}
+.vs-desk-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:17px;border:1px solid #49695f;border-radius:18px;background:linear-gradient(115deg,#142c31,#233b35 55%,#3c3c32);box-shadow:0 15px 34px #020b1760}
+.vs-desk-heading h3{margin:6px 0;color:#f5f0e3;font-size:20px;letter-spacing:-.6px}
+.vs-desk-heading p{max-width:700px;margin:0;color:#b0c2b3;font-size:9px;line-height:1.6}
+.vs-desk-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.vs-desk-actions select,.vs-desk-actions button{min-height:36px;padding:0 10px;border:1px solid #688276;border-radius:8px;background:#122b2b;color:#e2eee1;font-size:9px;font-weight:800}
+.vs-desk-actions button{background:linear-gradient(110deg,#f0e6d5,#a7cfb1);color:#1d3629}
+.vs-desk-saved{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-left:2px solid #c39470;background:#172c30}
+.vs-desk-saved>span{color:#c99b79;font-size:8px;font-weight:900;letter-spacing:.9px}
+.vs-desk-saved>small{padding:5px 7px;border:1px solid #4a6a60;border-radius:6px;color:#c8dccb;font-size:8px}
+.vs-desk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px}
+.vs-desk-panel{position:relative;min-width:0;min-height:175px;overflow:auto;resize:both;border:1px solid #446459;border-radius:15px;background:linear-gradient(150deg,#f5f0e5 0%,#e4e8db 100%);box-shadow:0 12px 27px #020b1740,inset 0 1px #ffffffb0;transition:box-shadow .2s,border-color .2s,transform .2s}
+.vs-desk-panel[draggable="true"]{cursor:grab}
+.vs-desk-panel:active{cursor:grabbing}
+.vs-desk-panel:hover{border-color:#9bbda3;box-shadow:0 17px 35px #020b1750,0 0 0 1px #c49a7130}
+.vs-desk-panel.expanded{grid-column:1/-1;min-height:310px}
+.vs-desk-panel.minimized{min-height:0;resize:none}
+.vs-desk-panel>header{display:flex;align-items:center;gap:8px;min-height:52px;padding:8px 10px;border-bottom:1px solid #cdd8ca;background:linear-gradient(100deg,#fffdf6,#e9ede1)}
+.vs-desk-grip{display:grid;place-items:center;width:28px;height:30px;border:1px solid #c8d5c8;border-radius:7px;background:#e8ede3;color:#557967;cursor:grab}
+.vs-desk-panel>header>div:nth-child(2){display:grid;gap:3px;flex:1;min-width:0}
+.vs-desk-panel>header>div:nth-child(2)>small{color:#8a7058;font-size:7px;font-weight:900;letter-spacing:1px}
+.vs-desk-panel>header>div:nth-child(2)>strong{overflow:hidden;color:#243c31;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.vs-desk-panel-actions{display:flex;gap:5px}
+.vs-desk-panel-actions button{display:grid;place-items:center;width:29px;height:29px;border:1px solid #c5d4c7;border-radius:7px;background:#f7f6ee;color:#395f4b}
+.vs-desk-panel-content{display:grid;gap:9px;padding:10px}
+.vs-desk-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.vs-desk-kpis button{display:grid;gap:5px;min-width:0;padding:9px;border:1px solid #d2dccc;border-radius:9px;background:#fffdf6;text-align:left}
+.vs-desk-kpis button.warning{border-color:#d4a69a;background:#f7e7df}
+.vs-desk-kpis button span{color:#708276;font-size:7px;font-weight:850}
+.vs-desk-kpis button strong{overflow:hidden;color:#243a31;font-size:13px;text-overflow:ellipsis}
+.vs-desk-list{display:grid;gap:5px;min-width:0}
+.vs-desk-list>button{display:flex;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #d5ded2;border-radius:8px;background:#f9f8f0;color:#304b3b;text-align:left}
+.vs-desk-list>button>span{display:grid;gap:3px;flex:1;min-width:0}
+.vs-desk-list>button strong{overflow:hidden;color:#263c31;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.vs-desk-list>button small{overflow:hidden;color:#788a7b;font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.vs-desk-list>button em{color:#557b61;font-size:8px;font-style:normal;font-weight:850;white-space:nowrap}
+.vs-desk-disclaimer{display:flex;align-items:center;gap:6px;color:#91aaa2;font-size:8px}
+.vs-shift[data-theme="light"] .vs-desk-heading{background:linear-gradient(115deg,#fffdf5,#e7ede3 55%,#f1e4d8);border-color:#d1dbce}
+.vs-shift[data-theme="light"] .vs-desk-heading h3{color:#233a30}
+.vs-shift[data-theme="light"] .vs-desk-heading p{color:#687e71}
+.vs-shift[data-theme="light"] .vs-desk-actions select{background:#fffdf6;color:#294638;border-color:#c7d5c8}
+.vs-shift[data-theme="light"] .vs-desk-saved{background:#f0eee3;border-color:#d9c4ac}
+.vs-shift[data-theme="light"] .vs-desk-saved>small{color:#3f5b4b;border-color:#c8d8c9}
+@media(max-width:760px){.vs-desk-heading{align-items:flex-start;flex-direction:column}.vs-desk-grid{grid-template-columns:1fr}.vs-desk-panel.expanded{grid-column:auto}.vs-desk-panel{resize:vertical}.vs-desk-kpis button strong{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.vs-desk-panel,.vs-desk-panel *{transition:none!important;animation:none!important}}
