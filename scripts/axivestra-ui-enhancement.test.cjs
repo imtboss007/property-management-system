@@ -25,7 +25,7 @@ assert.ok(analytics.includes('useState<"donut" | "bar" | "line" | "3d">("3d")'),
 assert.ok(analytics.includes("<ThreeDHistogram"), "Portfolio analytics must render the interactive 3D histogram.");
 assert.ok(analytics.includes("secondaryValue: row.outflow"), "Cashflow 3D mode must show the outflow as a second series.");
 assert.ok(analytics.includes("value: item.value"), "Portfolio histograms must use saved analytics values.");
-for (const token of ["role=\"button\"", "onSelect", "secondaryValue", "aria-label", "Perspective view", "floor", "depthX"]) {
+for (const token of ["role=\"button\"", "onSelect", "secondaryValue", "aria-label", "Perspective view", "floor", "depthX", "rotateZ(${rotation}deg)", "setZoom", "setTilt", "ax-3d-histogram-controls"]) {
   assert.ok(histogram.includes(token), "Missing accessible / interactive 3D histogram capability: " + token);
 }
 for (const token of [
