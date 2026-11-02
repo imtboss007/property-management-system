@@ -62,7 +62,7 @@ for (const token of [
 for (const token of ["People: ", "onOpenRecord(entry.recordId)", "onOpenContact(entry.contactId)", "commitments.length"]) assert.ok(intent.includes(token), "Intent Canvas must expose source-linked loan owners and result navigation: " + token);
 
 for (const token of [
-  "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(task.id)", "onOpenTransaction(item.id)",
+  "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(result.taskId)", "onOpenTransaction(result.transactionId)", "RECENTLY OPENED", "commandInputRef", "person.?wise|contact report", "overdue\\s+payments?"
   "/\\b(loan|interest|lender|borrow)\\b/.test(query)", "commandResults"
 ]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
 for (const token of [
