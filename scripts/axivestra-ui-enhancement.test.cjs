@@ -180,3 +180,13 @@ assert.ok(vestra.includes('onPointerMove={handleMagneticPointerMove}'), "The VES
 for (const token of ['.vs-shift [data-vs-magnetic="true"]', '.vs-shift button:active{translate:', '@media(hover:none),(pointer:coarse)', '@media(prefers-reduced-motion:reduce)']) {
   assert.ok(styles.includes(token), "Missing adaptive magnetic / tactile interaction styling: " + token);
 }
+
+const dragFrame = desk.slice(desk.indexOf("const moveGesture"), desk.indexOf("const endGesture"));
+const dragCommit = desk.slice(desk.indexOf("const endGesture"), desk.indexOf("const resizeWithKeyboard"));
+assert.ok(desk.includes("currentX:number;currentY:number;currentWidth:number;currentHeight:number"), "Panel gesture state must retain the latest pointer geometry outside React state.");
+assert.ok(dragFrame.includes('event.currentTarget.closest<HTMLElement>(".vs-desk-panel")'), "Panel drag should directly target the active panel DOM element.");
+assert.ok(dragFrame.includes("panel.style.left=") && dragFrame.includes("panel.style.top="), "Panel movement must update position directly during pointer movement.");
+assert.ok(dragFrame.includes("panel.style.width=") && dragFrame.includes("panel.style.height="), "Panel resizing must update dimensions directly during pointer movement.");
+assert.ok(!dragFrame.includes("setPositions(") && !dragFrame.includes("setSizes("), "Per-frame panel pointer movement must not trigger React state updates.");
+assert.ok(dragCommit.includes("setPositions(") && dragCommit.includes("setSizes("), "The final panel geometry must be committed to saved state on pointer release.");
+assert.ok(styles.includes(".vs-desk-panel.is-gesturing") && styles.includes("cubic-bezier(.18,1,.32,1)"), "Spatial panels must settle with a spring-like release response.");
