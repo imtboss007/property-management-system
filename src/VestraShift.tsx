@@ -200,8 +200,8 @@ export default function VestraShift(props:Props){
     .sort((a,b)=>(b.records.length+b.followUps.length+b.linkedTasks.length+b.linkedFinancials.length+b.linkedDocuments.length)-(a.records.length+a.followUps.length+a.linkedTasks.length+a.linkedFinancials.length+a.linkedDocuments.length)),
   [contacts,properties,tasks,financials,documents,riskRecords,approvalRequests,auditEvents]);
   const duplicateReviewPairs=useMemo(()=>{
-    const normalizeName=(value:string)=>String(value||"").trim().toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu," ").trim();
-    const normalizePhone=(value:string)=>{let digits=String(value||"").replace(/\\D/g,"");if(digits.length===10)digits="91"+digits;return digits;};
+    const normalizeName=(value:string)=>String(value||"").trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+    const normalizePhone=(value:string)=>{let digits=String(value||"").replace(/\D/g,"");if(digits.length===10)digits="91"+digits;return digits;};
     const pairs:Array<{first:ShiftContact;second:ShiftContact;reason:string}> = [];
     for(let index=0;index<contacts.length;index++)for(let next=index+1;next<contacts.length;next++){
       const first=contacts[index],second=contacts[next];
