@@ -2074,6 +2074,18 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     };
     setAuditEvents(current=>[event,...current].slice(0,1000));
   };
+  const updateRecordFollowUpTitle = (recordId:string, title:string) => {
+    if(company?.role==="read_only"){setNotice("This account has read-only company access.");return;}
+    const normalized=title.trim();
+    const existing=properties.find(record=>record.id===recordId);
+    if(!existing||!normalized||existing.title===normalized)return;
+    setProperties(current=>current.map(record=>record.id===recordId?{...record,title:normalized}:record));
+    const event:AuditEvent={
+      id:uid(),at:new Date().toISOString(),action:"updated",entity:"Record",
+      recordId,label:"Renamed record · "+normalized
+    };
+    setAuditEvents(current=>[event,...current].slice(0,1000));
+  };
   const removeRecordFollowUpEntry = (recordId:string, entryId:string) => {
     if(company?.role==="read_only"){setNotice("This account has read-only company access.");return;}
     const existing=properties.find(record=>record.id===recordId);
@@ -2771,6 +2783,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             readOnly={company?.role==="read_only"}
             onUpsertFollowUp={updateRecordFollowUpEntry}
             onRemoveFollowUp={removeRecordFollowUpEntry}
+            onUpdateRecordTitle={updateRecordFollowUpTitle}
             onOpenRecord={record=>{go(record.module);openPropertyForm(record as PropertyRecord);}}
             onOpenContact={id=>{setContactProfileId(id);go("Contact 360");}}
           />}
