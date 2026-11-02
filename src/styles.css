@@ -4408,3 +4408,13 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-finance-fact-button{background:#edf1e9;border-color:#d0dace;color:#687e73}
 .vs-shift[data-theme="light"] .vs-finance-fact-button>strong{color:#1d352e}
 .vs-finance-breakdown{border-color:#7a8c73}
+
+.ax-3d-histogram-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:8px 0;padding:6px 8px;border:1px solid #365b6b;border-radius:9px;background:#0c2230}
+.ax-3d-histogram-controls button{min-height:28px;min-width:29px;padding:0 8px;border:1px solid #466d70;border-radius:7px;background:#17383a;color:#d4e6d8;font-size:9px;font-weight:800;transition:transform .16s,background .16s}
+.ax-3d-histogram-controls button:hover{transform:translateY(-1px);background:#275146;border-color:#8dbb9a}
+.ax-3d-histogram-controls span{min-width:34px;color:#b7d4c0;font-size:8px;font-weight:850;text-align:center}
+.ax-3d-histogram{transition:transform .24s cubic-bezier(.18,.86,.23,1.12);transform-style:preserve-3d}
+.ax-modern-shell.ax-theme-light .ax-3d-histogram-controls{background:#f1f2e9;border-color:#ccd9cd}
+.ax-modern-shell.ax-theme-light .ax-3d-histogram-controls button{background:#e4ece2;border-color:#c3d5c7;color:#345541}
+.ax-modern-shell.ax-theme-light .ax-3d-histogram-controls span{color:#496b54}
+@media(prefers-reduced-motion:reduce){.ax-3d-histogram{transition:none!important}.ax-3d-histogram-controls button{transition:none!important}}
