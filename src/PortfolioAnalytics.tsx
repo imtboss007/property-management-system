@@ -3,7 +3,7 @@ import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkl
 import ThreeDHistogram from "./ThreeDHistogram";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
-type FinancialRow = { id: string; type: string; amount: string; date: string };
+type FinancialRow = { id: string; type: string; amount: string; date: string; property?: string; party?: string; reference?: string };
 type TaskRow = { id: string; date: string; done: boolean; type: string };
 type ModuleRow = { name: string; value: number; count: number };
 
@@ -13,6 +13,9 @@ type Props = {
   tasks: TaskRow[];
   modules: ModuleRow[];
   onOpenModule: (name: string) => void;
+  onOpenRecord: (recordId: string) => void;
+  onOpenTransaction: (transactionId: string) => void;
+  onOpenFinancials: () => void;
 };
 
 const PALETTE = ["#20d9ef", "#2578ff", "#7a6dff", "#28c78a", "#ffbf68", "#fc7796", "#57b4d4", "#a7b8cd"];
@@ -21,7 +24,7 @@ const OUTFLOW = new Set(["Purchase", "Loan Repayment", "Interest", "Instalment",
 const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const compact = (value: number) => value >= 10000000 ? "₹" + (value / 10000000).toFixed(1) + " Cr" : value >= 100000 ? "₹" + (value / 100000).toFixed(1) + " L" : INR.format(value);
 
-export default function PortfolioAnalytics({ properties, financials, tasks, modules, onOpenModule }: Props) {
+export default function PortfolioAnalytics({ properties, financials, tasks, modules, onOpenModule, onOpenRecord, onOpenTransaction, onOpenFinancials }: Props) {
   const [focus, setFocus] = useState<"allocation" | "pipeline" | "cashflow">("allocation");
   const [chartType, setChartType] = useState<"donut" | "bar" | "line" | "3d">("3d");
   const [metric, setMetric] = useState<"value" | "count">("value");
@@ -56,7 +59,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       const rows = financials.filter(row => String(row.date || "").slice(0, 7) === key);
       const inflow = rows.filter(row => INFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
       const outflow = rows.filter(row => OUTFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length };
+      return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length, transactions: rows };
     });
   }, [financials, period]);
 
@@ -71,6 +74,9 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
   const title = focus === "allocation" ? metric === "value" ? "Asset allocation" : "Records by workspace" : focus === "pipeline" ? "Portfolio status mix" : "Cashflow movement";
   const subtitle = focus === "allocation" ? "Select any segment to open that module." : focus === "pipeline" ? "Real status values from your saved records." : "Recorded inflows and outflows by month; no forecast is fabricated.";
   const activeModuleName = selected && moduleRows.some(row => row.name === selected) ? selected : "";
+  const activeCashflow = cashflowRows.find(row => row.key === selected);
+  const activePipeline = stageRows.find(row => row.name === selected);
+  const selectedRecords = focus === "allocation" && activeModuleName ? properties.filter(row => row.module === activeModuleName) : focus === "pipeline" && activePipeline ? properties.filter(row => (String(row.status||"Unspecified").trim()||"Unspecified") === activePipeline.name) : [];
 
   const setFocusView = (next: "allocation" | "pipeline" | "cashflow") => {
     setFocus(next);
@@ -130,6 +136,25 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
           <div className="ax-inspector-pair"><span>Missing value</span><strong>{properties.filter(row => !(Number(row.value) > 0)).length}</strong></div>
           <div className="ax-inspector-pair"><span>Modules available</span><strong>{modules.length}</strong></div>
         </>}
+        {(focus==="allocation"&&activeModuleName)&&<div className="ax-analytics-source-inspector">
+          <strong>{activeModuleName} · {selectedRecords.length} saved record(s)</strong>
+          {selectedRecords.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenRecord(row.id)}><span>{row.title||row.module}</span><small>{row.status||"Status not set"} · {compact(Number(row.value)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!selectedRecords.length&&<small>No saved source record matches this module.</small>}
+        </div>}
+        {(focus==="pipeline"&&activePipeline)&&<div className="ax-analytics-source-inspector">
+          <strong>{activePipeline.name} · {selectedRecords.length} record(s)</strong>
+          {selectedRecords.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenRecord(row.id)}><span>{row.title||row.module}</span><small>{row.module} · {compact(Number(row.value)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!selectedRecords.length&&<small>No record matches this status.</small>}
+        </div>}
+        {(focus==="cashflow"&&activeCashflow)&&<div className="ax-analytics-source-inspector">
+          <strong>{activeCashflow.fullName} · {activeCashflow.count} transaction(s)</strong>
+          <div className="ax-inspector-pair"><span>Recorded inflows</span><strong>{compact(activeCashflow.inflow)}</strong></div>
+          <div className="ax-inspector-pair"><span>Recorded outflows</span><strong>{compact(activeCashflow.outflow)}</strong></div>
+          <div className="ax-inspector-pair"><span>Net recorded movement</span><strong>{compact(activeCashflow.net)}</strong></div>
+          {activeCashflow.transactions.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenTransaction(row.id)}><span>{row.type} · {row.party||row.property||"Transaction"}</span><small>{row.date} · {compact(Number(row.amount)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!activeCashflow.transactions.length&&<small>No transactions are recorded for this month.</small>}
+          <button type="button" className="ax-inspector-open-financials" onClick={onOpenFinancials}>Open financial register <ArrowUpRight size={12}/></button>
+        </div>}
         <div className="ax-inspector-divider"/>
         <label className="ax-toggle-row"><input type="checkbox" checked={showLabels} onChange={event => setShowLabels(event.target.checked)}/> Show chart labels</label>
         <button className="ax-inspector-action" onClick={() => {
