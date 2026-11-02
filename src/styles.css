@@ -2468,7 +2468,7 @@ h2,h3{color:#e5f2fc}
 
 /* Follow-up Register: one editable, horizontally scrollable field grid per person. */
 .ax-followup-register__grid-wrap{width:100%;overflow-x:auto;border:1px solid #254b64;border-radius:10px;background:#091d2c}
-.ax-followup-register__grid{width:100%;min-width:1190px;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.ax-followup-register__grid{width:100%;min-width:1320px;border-collapse:separate;border-spacing:0;table-layout:fixed}
 .ax-followup-register__grid thead th{position:sticky;top:0;z-index:2;padding:11px 10px;background:#123b55;color:#e8f7ff;text-align:left;font-size:10px;font-weight:800;letter-spacing:.35px;white-space:nowrap;border-bottom:1px solid #315c73}
 .ax-followup-register__grid thead th:nth-child(1){width:190px}
 .ax-followup-register__grid thead th:nth-child(2){width:285px}
