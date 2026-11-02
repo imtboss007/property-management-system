@@ -306,7 +306,7 @@ export default function FollowUpRegisterPanel(props: Props) {
             <thead>
               <tr>
                 <th scope="col">Module</th>
-                <th scope="col">Description / Next action</th>
+                <th scope="col">Description</th>
                 <th scope="col">Assigned date</th>
                 <th scope="col">Follow-up date</th>
                 <th scope="col">Time</th>
