@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight, X,
+  ArrowUpRight, Bookmark, Bell, CalendarClock, CalendarDays, ChevronRight, X,
   GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow, SlidersHorizontal
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
@@ -49,6 +49,10 @@ type TimelineEvent = {
 };
 type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:string;label:string;activityType?:string;description?:string;relatedRecordId?:string};
 type MissionMeta = {priority:"Low"|"Normal"|"High"|"Urgent";ownerContactId:string};
+type AlertPreferenceKey="tasks"|"followUps"|"deadlines"|"risks"|"approvals";
+type AlertPreferences=Record<AlertPreferenceKey,boolean>;
+type WorkspaceAlert={id:string;title:string;detail:string;dueDate:string;time:string;kind:string;priority:"urgent"|"warning"|"normal";recordId?:string;contactId?:string;taskId?:string;module?:string};
+const DEFAULT_ALERT_PREFERENCES:AlertPreferences={tasks:true,followUps:true,deadlines:true,risks:true,approvals:true};
 type Props = {
   properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];documents:ShiftDocument[];riskRecords:ShiftRisk[];approvalRequests:ShiftApproval[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
@@ -95,6 +99,12 @@ export default function VestraShift(props:Props){
   const displayDensity=workspacePreferences.displayDensity==="compact"?"compact":"comfortable";
   const motionMode=workspacePreferences.motionMode==="reduced"||workspacePreferences.motionMode==="expressive"?workspacePreferences.motionMode:"balanced";
   const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
+  const [alertsOpen,setAlertsOpen]=useState(false);
+  const rawAlertPreferences=workspacePreferences["vestraShift.notifications"];
+  const notificationPreferences:AlertPreferences={...DEFAULT_ALERT_PREFERENCES,...(rawAlertPreferences&&typeof rawAlertPreferences==="object"?rawAlertPreferences as Partial<AlertPreferences>:{})};
+  const setNotificationPreference=(key:AlertPreferenceKey,value:boolean)=>{
+    onSaveWorkspacePreference("vestraShift.notifications",{...notificationPreferences,[key]:value});
+  };
   const [relationshipView,setRelationshipView]=useState<"network"|"cards">("network");
   useEffect(()=>{
     const handleWorkspaceShortcut=(event:KeyboardEvent)=>{
@@ -230,6 +240,44 @@ export default function VestraShift(props:Props){
     }
   },[missionMetaKey,missionMeta,workspacePreferencesReady,onSaveWorkspacePreference]);
 
+  const workspaceAlerts=useMemo<WorkspaceAlert[]>(()=>{
+    const rows:WorkspaceAlert[]=[];
+    const horizon=new Date(today+"T00:00:00");
+    horizon.setDate(horizon.getDate()+7);
+    const horizonKey=horizon.getFullYear()+"-"+String(horizon.getMonth()+1).padStart(2,"0")+"-"+String(horizon.getDate()).padStart(2,"0");
+    const inWindow=(date:string)=>Boolean(date)&&date<=horizonKey;
+    const priorityFor=(date:string,extraUrgent=false):WorkspaceAlert["priority"]=>extraUrgent||Boolean(date&&date<today)?"urgent":date===today?"warning":"normal";
+    if(notificationPreferences.tasks)tasks.forEach(task=>{
+      if(task.done||!inWindow(task.date))return;
+      rows.push({id:"task:"+task.id,title:task.title||"Scheduled task",detail:[task.type,task.contactName,task.property,task.notes].filter(Boolean).join(" · "),dueDate:task.date,time:task.time||"",kind:"Task",priority:priorityFor(task.date),taskId:task.id,recordId:task.propertyId,contactId:task.contactId});
+    });
+    if(notificationPreferences.followUps)contacts.forEach(contact=>(contact.followUps||[]).forEach(item=>{
+      if(!isOpen(item.status)||!inWindow(item.promisedDate))return;
+      const record=properties.find(row=>row.id===item.linkedRecordId);
+      rows.push({id:"followup:"+item.id,title:item.description||"Contact follow-up",detail:[contact.name,record?.module,item.amount?"₹"+parseDealNumber(item.amount).toLocaleString("en-IN"):"",item.status].filter(Boolean).join(" · "),dueDate:item.promisedDate,time:item.promisedTime||"",kind:"Follow-up",priority:priorityFor(item.promisedDate),recordId:record?.id,contactId:contact.id,module:record?.module});
+    }));
+    if(notificationPreferences.deadlines)properties.forEach(record=>{
+      if(!isOpen(record.status))return;
+      if(record.targetDeadline&&inWindow(record.targetDeadline))rows.push({id:"deadline:"+record.id,title:"Target deadline · "+(record.title||record.module),detail:[record.module,record.status,record.nextAction].filter(Boolean).join(" · "),dueDate:record.targetDeadline,time:record.targetDeadlineTime||"",kind:"Deadline",priority:priorityFor(record.targetDeadline),recordId:record.id,module:record.module});
+      if(record.nextFollowUpDate&&inWindow(record.nextFollowUpDate))rows.push({id:"record-followup:"+record.id,title:"Record follow-up · "+(record.title||record.module),detail:[record.module,record.nextAction].filter(Boolean).join(" · "),dueDate:record.nextFollowUpDate,time:record.nextFollowUpTime||"",kind:"Follow-up",priority:priorityFor(record.nextFollowUpDate),recordId:record.id,module:record.module});
+    });
+    if(notificationPreferences.risks)riskRecords.forEach(risk=>{
+      if(!isOpen(risk.status))return;
+      const critical=/critical|very high/i.test(risk.severity);
+      const high=/high/i.test(risk.severity);
+      if(!critical&&!high&&!inWindow(risk.dueDate))return;
+      rows.push({id:"risk:"+risk.id,title:risk.title||"Risk review",detail:[risk.category,risk.severity,risk.owner,risk.mitigation].filter(Boolean).join(" · "),dueDate:risk.dueDate,time:"",kind:"Risk",priority:priorityFor(risk.dueDate,critical),recordId:risk.propertyId,contactId:risk.contactId,module:"Risk & Compliance"});
+    });
+    if(notificationPreferences.approvals)approvalRequests.forEach(item=>{
+      if(/approved|rejected|cancelled|completed/i.test(item.status))return;
+      rows.push({id:"approval:"+item.id,title:item.title||"Approval pending",detail:[item.area,item.approver,item.priority,item.status].filter(Boolean).join(" · "),dueDate:"",time:"",kind:"Approval",priority:/urgent|critical/i.test(item.priority)?"urgent":"warning",recordId:item.propertyId,contactId:item.contactId,module:"Approvals"});
+    });
+    return rows.sort((a,b)=>{
+      const weight={urgent:0,warning:1,normal:2};
+      return weight[a.priority]-weight[b.priority]||(a.dueDate||"9999-12-31").localeCompare(b.dueDate||"9999-12-31")||a.title.localeCompare(b.title);
+    }).slice(0,60);
+  },[today,tasks,contacts,properties,riskRecords,approvalRequests,notificationPreferences.tasks,notificationPreferences.followUps,notificationPreferences.deadlines,notificationPreferences.risks,notificationPreferences.approvals]);
+  const overdueWorkspaceAlerts=workspaceAlerts.filter(item=>item.dueDate&&item.dueDate<today).length;
   const loanRecords=useMemo(()=>properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"),[properties]);
   const selectedLoan=loanRecords.find(record=>record.id===selectedLoanId)||loanRecords[0];
   const method=selectedLoan?.moduleData?.__loanInterestMethod||(selectedLoan?.moduleData?.annualInterestRate?"Percentage per year":"Percentage per month");
@@ -411,6 +459,7 @@ export default function VestraShift(props:Props){
         </div>
       </div>
       <div className="vs-hero-actions">
+        <button type="button" className={"vs-alert-launch "+(alertsOpen?"active":"")} aria-expanded={alertsOpen} aria-controls="vs-alert-center" onClick={()=>setAlertsOpen(value=>!value)}><Bell size={14}/> Alerts <span className="vs-alert-count">{workspaceAlerts.length}</span>{overdueWorkspaceAlerts>0&&<i aria-label={overdueWorkspaceAlerts+" overdue alert(s)"}>{overdueWorkspaceAlerts}</i>}</button>
         <button type="button" className="vs-focus-launch" data-vs-magnetic="true" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
         <button type="button" className="vs-personalization-launch" aria-expanded={personalizationOpen} aria-controls="vs-personalization-panel" onClick={()=>setPersonalizationOpen(value=>!value)}><SlidersHorizontal size={14}/> Experience</button>
@@ -420,6 +469,20 @@ export default function VestraShift(props:Props){
       </div>
     </header>
 
+    {alertsOpen&&<section id="vs-alert-center" className="vs-alert-center" aria-label="VESTRA in-app notification centre">
+      <header><div><span className="vs-eyebrow">LIVE WORKSPACE SIGNALS</span><strong>{workspaceAlerts.length} item(s) need attention</strong><small>{overdueWorkspaceAlerts} overdue · Based on saved records only</small></div><button type="button" onClick={()=>setAlertsOpen(false)} aria-label="Close alerts"><X size={15}/></button></header>
+      <div className="vs-alert-preferences">
+        <span>Show</span>
+        {([["tasks","Tasks"],["followUps","Follow-ups"],["deadlines","Deadlines"],["risks","Risks"],["approvals","Approvals"]] as const).map(([key,label])=><label key={key}><input type="checkbox" checked={notificationPreferences[key]} disabled={!workspacePreferencesReady} onChange={event=>setNotificationPreference(key,event.target.checked)}/>{label}</label>)}
+      </div>
+      <div className="vs-alert-list">{workspaceAlerts.map(item=><article key={item.id} className={"vs-alert-item is-"+item.priority}>
+        <span className="vs-alert-marker"><i/></span>
+        <div><span className="vs-alert-kind">{item.kind}{item.dueDate?" · "+dateText(item.dueDate)+(item.time?" · "+item.time:""):""}</span><strong>{item.title}</strong><small>{item.detail||"No additional details saved."}</small></div>
+        <button type="button" onClick={()=>{setAlertsOpen(false);if(item.taskId)onOpenTask(item.taskId);else if(item.recordId)onOpenRecord(item.recordId);else if(item.contactId)onOpenContact(item.contactId);else if(item.module)onOpenModule(item.module);else onOpenTasks();}}>Open <ArrowUpRight size={12}/></button>
+      </article>)}
+      {!workspaceAlerts.length&&<div className="vs-empty-state"><Bell size={22}/><strong>No matching workspace alerts.</strong><small>New alerts appear when a saved task, follow-up, deadline, risk or approval matches the filters.</small></div>}</div>
+      <small className="vs-alert-disclaimer">In-app alert centre only. Background or operating-system notifications still require a separately deployed scheduler and explicit device permission.</small>
+    </section>}
     {personalizationOpen&&<section id="vs-personalization-panel" className="vs-personalization-panel" aria-label="VESTRA visual personalisation">
       <header><div><span className="vs-eyebrow">PERSONALISATION STUDIO</span><strong>Shape the feel of your workspace.</strong><small>These preferences follow your account between compatible devices.</small></div><button type="button" onClick={()=>setPersonalizationOpen(false)} aria-label="Close personalisation"><X size={15}/></button></header>
       <div className="vs-personalization-controls">
