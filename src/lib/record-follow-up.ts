@@ -7,6 +7,12 @@ export type RecordFollowUpEntry = {
   remarks: string;
   nextFollowUpDate: string;
   nextFollowUpTime: string;
+  description?: string;
+  amount?: string;
+  priority?: string;
+  status?: string;
+  nextAction?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,16 +57,17 @@ export function buildRecordFollowUpCsv(
 ): string {
   const contactNames = new Map(contacts.map(contact => [contact.id, contact.name]));
   const rows: unknown[][] = [[
-    "Record Name", "Module", "Follow Person", "Follow-up Date", "Follow-up Time",
-    "Remarks", "Next Follow-up Date", "Next Follow-up Time"
+    "Record Name", "Module", "Follow Person", "Description", "Amount", "Assigned At", "Follow-up Date", "Follow-up Time",
+    "Remarks", "Priority", "Status", "Next Action", "Next Follow-up Date", "Next Follow-up Time", "Notes"
   ]];
   for (const record of records) {
     for (const entry of record.followUpEntries || []) {
       rows.push([
         record.title, record.module,
         contactNames.get(entry.followPersonId) || entry.followPersonName || "",
-        entry.followDate, entry.followTime, entry.remarks,
-        entry.nextFollowUpDate, entry.nextFollowUpTime
+        entry.description || "", entry.amount || "", entry.createdAt || "",
+        entry.followDate, entry.followTime, entry.remarks, entry.priority || "Normal", entry.status || "Open",
+        entry.nextAction || "", entry.nextFollowUpDate, entry.nextFollowUpTime, entry.notes || ""
       ]);
     }
   }
