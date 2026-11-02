@@ -996,7 +996,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
         auditEvents: auditEvents as WorkspaceCollections["auditEvents"],
         customModules: customModules as WorkspaceCollections["customModules"],
-        workspacePreferences: workspacePreferences as WorkspaceCollections["workspacePreferences"]
+        workspacePreferences: workspacePreferences.filter(item=>item.scope===workspacePreferenceScope) as WorkspaceCollections["workspacePreferences"]
       };
       const currentKeys: Record<string, Set<string>> = {
         property: new Set(properties.map(record => record.id)),
@@ -1008,7 +1008,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         approval: new Set(approvalRequests.map(record => record.id)),
         audit_event: new Set(auditEvents.map(record => record.id)),
         custom_module: new Set(customModules.map(record => record.id)),
-        workspace_preference: new Set(workspacePreferences.map(record => record.id))
+        workspace_preference: new Set(workspacePreferences.filter(item=>item.scope===workspacePreferenceScope).map(record => record.id))
       };
       try {
         const previousKeys = cloudPreviousRef.current;
@@ -1031,7 +1031,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         if (!deviceSyncCollectionsEqual(collections.approvalRequests, synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (!deviceSyncCollectionsEqual(collections.auditEvents, synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
         if (!deviceSyncCollectionsEqual(collections.customModules, synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
-        if (!deviceSyncCollectionsEqual(collections.workspacePreferences,synced.workspacePreferences)) setWorkspacePreferences(synced.workspacePreferences as WorkspacePreferenceRecord[]);
+        if (!deviceSyncCollectionsEqual(collections.workspacePreferences,synced.workspacePreferences)) setWorkspacePreferences(current=>[...current.filter(item=>item.scope!==workspacePreferenceScope),...(synced.workspacePreferences as WorkspacePreferenceRecord[])]);
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
@@ -1117,7 +1117,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
       properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
-      riskRecords, approvalRequests, auditEvents, customModules, workspacePreferences
+      riskRecords, approvalRequests, auditEvents, customModules, workspacePreferences:workspacePreferences.filter(item=>item.scope===workspacePreferenceScope)
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
       setProperties(current => deviceSyncCollectionsEqual(current, snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
@@ -1129,7 +1129,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       setApprovalRequests(current => deviceSyncCollectionsEqual(current, snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
       setAuditEvents(current => deviceSyncCollectionsEqual(current, snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
       setCustomModules(current => deviceSyncCollectionsEqual(current, snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
-      setWorkspacePreferences(current=>deviceSyncCollectionsEqual(current,snapshot.workspacePreferences||[])?current:(snapshot.workspacePreferences||[]) as WorkspacePreferenceRecord[]);
+      setWorkspacePreferences(current=>{const active=current.filter(item=>item.scope===workspacePreferenceScope);const remote=(snapshot.workspacePreferences||[]) as WorkspacePreferenceRecord[];return deviceSyncCollectionsEqual(active,remote)?current:[...current.filter(item=>item.scope!==workspacePreferenceScope),...remote];});
     };
     const rememberSyncedLocalReferences = (snapshot: SyncSnapshot) => {
       const references = {} as Partial<SyncSnapshot>;
