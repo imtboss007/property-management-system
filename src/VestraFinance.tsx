@@ -60,7 +60,7 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
   return <section className="vs-finance-space">
     <header className="vs-space-page-header"><div><span className="vs-eyebrow">FINANCIAL INTELLIGENCE ENGINE</span><h3>Capital, interest and recorded movement</h3><p>Every amount below comes from saved loan terms or financial transactions. A missing balance remains unreported instead of being inferred.</p></div><Landmark size={23}/></header>
     <div className="vs-finance-metrics">
-      <button type="button" onClick={()=>onOpenRecord(selectedLoan?.id||"")}><span>Loans tracked</span><strong>{loans.length}</strong><small>Existing loan modules</small></button>
+      <button type="button" onClick={onOpenLoans}><span>Loans tracked</span><strong>{loans.length}</strong><small>Existing loan modules</small></button>
       <button type="button"><span>Current monthly loan interest</span><strong>{formatINR(portfolioInterest)}</strong><small>Calculated from saved loan terms</small></button>
       <button type="button" onClick={onOpenFinancials}><span>Recorded inflows</span><strong>{formatINR(totalInflow)}</strong><small>All saved inflow categories</small></button>
       <button type="button" onClick={onOpenFinancials}><span>Recorded outflows</span><strong>{formatINR(totalOutflow)}</strong><small>All saved outflow categories</small></button>
