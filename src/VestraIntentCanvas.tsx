@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Bookmark, ChevronRight, Pin, PinOff, Search, Users, X } from "lucide-react";
+import { ArrowUpRight, Bookmark, ChevronRight, Pin, PinOff, Play, Search, Sparkles, Users, X } from "lucide-react";
+import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 import IntelligenceHub from "./IntelligenceHub";
 
 type FollowUp={id:string;description:string;amount:string;promisedDate:string;status:string;linkedRecordId:string};
@@ -7,15 +8,16 @@ type RecordRow={id:string;title:string;module:string;location:string;value:strin
 type ContactRow={id:string;name:string;phone:string;role:string;followUps?:FollowUp[]};
 type TaskRow={id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;contactId?:string;contactName?:string;notes:string;done:boolean};
 type FinancialRow={id:string;propertyId?:string;contactId?:string;property:string;type:string;amount:string;date:string;party:string;reference:string;notes:string};
+type CommandResult={id:string;title:string;detail:string;value:string;kind:"record"|"contact"|"task"|"transaction";recordId?:string;contactId?:string;taskId?:string;transactionId?:string};
 type FollowDraft={contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;promisedTime:string;responseType:string;notes:string;status:string};
 type SavedCanvas={id:string;label:string;search:string;moduleFilter:string;recordIds:string[];contactIds:string[];pinnedIds:string[];createdAt:string};
 type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;readOnly?:boolean;
  moduleNames:string[];workspaceScope:string;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;onOpenTasks:()=>void;
- onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowDraft)=>void;};
+ onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowDraft)=>void;};
 const LOANS=new Set(["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"]);
 const safeIds=(value:unknown)=>Array.isArray(value)?value.filter((item):item is string=>typeof item==="string"):[];
 export default function VestraIntentCanvas(props:Props){
- const {properties,contacts,tasks,financials,today,readOnly,moduleNames,workspaceScope,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp}=props;
+ const {properties,contacts,tasks,financials,today,readOnly,moduleNames,workspaceScope,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenFinancials,onCreateFollowUp}=props;
  const storageKey="axivestra.vestraShift.canvas."+workspaceScope;
  const [search,setSearch]=useState("");
  const [moduleFilter,setModuleFilter]=useState("All modules");
@@ -23,10 +25,16 @@ export default function VestraIntentCanvas(props:Props){
  const [selectedContactIds,setSelectedContactIds]=useState<string[]>([]);
  const [pinnedIds,setPinnedIds]=useState<string[]>([]);
  const [dragRecordId,setDragRecordId]=useState("");
+ const commandStorageKey="axivestra.vestraShift.commands."+workspaceScope;
+ const [command,setCommand]=useState("");
+ const [commandSummary,setCommandSummary]=useState("");
+ const [commandResults,setCommandResults]=useState<CommandResult[]>([]);
+ const [savedCommands,setSavedCommands]=useState<string[]>(()=>{try{const value=JSON.parse(window.localStorage.getItem(commandStorageKey)||"[]");return Array.isArray(value)?value.filter((item):item is string=>typeof item==="string"):[];}catch{return [];}});
  const [savedCanvases,setSavedCanvases]=useState<SavedCanvas[]>(()=>{
   try{const value=JSON.parse(window.localStorage.getItem(storageKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
  });
  useEffect(()=>{try{window.localStorage.setItem(storageKey,JSON.stringify(savedCanvases));}catch{/* local canvas preferences are optional */}},[storageKey,savedCanvases]);
+ useEffect(()=>{try{window.localStorage.setItem(commandStorageKey,JSON.stringify(savedCommands));}catch{/* optional saved command preference */}},[commandStorageKey,savedCommands]);
  const query=search.trim().toLocaleLowerCase();
  const recordMatches=useMemo(()=>properties.filter(record=>{
   const moduleOkay=moduleFilter==="All modules"||record.module===moduleFilter;
@@ -45,6 +53,43 @@ export default function VestraIntentCanvas(props:Props){
   setSelectedRecordIds(current=>{const next=[...current];const from=next.indexOf(dragRecordId),to=next.indexOf(targetId);if(from<0||to<0)return current;next.splice(from,1);next.splice(to,0,dragRecordId);return next;});
   setDragRecordId("");
  };
+ const runCommand=(input=command)=>{
+  const query=input.trim().toLocaleLowerCase();
+  if(!query)return;
+  setCommand(input);
+  const results:CommandResult[]=[];
+  if(/\\b(loan|interest|lender|borrow)\\b/.test(query)){
+   const rows=properties.filter(record=>LOANS.has(record.module)||record.moduleData?.__transactionType==="Loan");
+   for(const record of rows){const interest=calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value));const owner=contacts.find(contact=>contact.id===(record.followUpContactId||record.primaryContactId));results.push({id:"loan-"+record.id,title:record.title||record.module,detail:[record.module,owner?.name?"Owner: "+owner.name:"No follow-up owner saved"].join(" · "),value:formatINR(interest)+" / month",kind:"record",recordId:record.id});}
+   setCommandSummary("Found "+rows.length+" saved loan record(s). Monthly interest uses AXIVESTRA's existing calculation method; it is not a bank-confirmed balance.");
+  }else if(/\\b(overdue|follow.?up|commitment|pending response)\\b/.test(query)){
+   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLocaleLowerCase())&&(!/\\boverdue\\b/.test(query)||(item.promisedDate&&item.promisedDate<today))).map(item=>({contact,item})));
+   rows.forEach(({contact,item})=>results.push({id:"follow-"+item.id,title:contact.name,detail:[item.description,item.promisedDate,item.status].filter(Boolean).join(" · "),value:item.amount?formatINR(parseDealNumber(item.amount)):"Amount not entered",kind:"contact",contactId:contact.id,recordId:item.linkedRecordId||undefined} as CommandResult));
+   setCommandSummary("Found "+rows.length+" saved "+(/\\boverdue\\b/.test(query)?"overdue":"open")+" follow-up commitment(s). Open a person to inspect their linked records and history.");
+  }else if(/\\b(today|task|schedule|deadline|meeting)\\b/.test(query)){
+   const rows=tasks.filter(task=>!task.done&&((/\\btoday\\b/.test(query)&&task.date===today)||(/\\boverdue\\b/.test(query)&&task.date<today)||(!/\\b(today|overdue)\\b/.test(query))));
+   rows.forEach(task=>results.push({id:"task-"+task.id,title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task",kind:"task",taskId:task.id}));
+   setCommandSummary("Found "+rows.length+" saved task(s) matching this schedule request.");
+  }else if(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/.test(query)){
+   const rows=financials.filter(item=>[item.type,item.party,item.property,item.notes,item.reference].join(" ").toLocaleLowerCase().includes(query.replace(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/g,"").trim())||!query.replace(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/g,"").trim());
+   rows.slice(0,30).forEach(item=>results.push({id:"transaction-"+item.id,title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.reference].filter(Boolean).join(" · "),value:formatINR(parseDealNumber(item.amount)),kind:"transaction",transactionId:item.id}));
+   const total=rows.reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
+   setCommandSummary("Found "+rows.length+" saved financial transaction(s), totalling "+formatINR(total)+" across the matching rows.");
+  }else{
+   const recordRows=properties.filter(record=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLocaleLowerCase().includes(query));
+   recordRows.slice(0,20).forEach(record=>results.push({id:"record-"+record.id,title:record.title||record.module,detail:[record.module,record.location,record.status].filter(Boolean).join(" · "),value:record.value||"Value not entered",kind:"record",recordId:record.id}));
+   contacts.filter(contact=>[contact.name,contact.phone,contact.role].join(" ").toLocaleLowerCase().includes(query)).slice(0,10).forEach(contact=>results.push({id:"contact-"+contact.id,title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact",kind:"contact",contactId:contact.id}));
+   setCommandSummary("Searched saved records and people. Found "+recordRows.length+" record(s) and "+results.filter(item=>item.kind==="contact").length+" contact(s). No data was changed.");
+  }
+  setCommandResults(results.slice(0,30));
+ };
+ const saveCommand=()=>{const value=command.trim();if(value)setSavedCommands(current=>[value,...current.filter(item=>item.toLowerCase()!==value.toLowerCase())].slice(0,12));};
+ const openCommandResult=(result:CommandResult)=>{
+  if(result.kind==="record"&&result.recordId){onOpenRecord(result.recordId);return;}
+  if(result.kind==="contact"&&result.contactId){onOpenContact(result.contactId);return;}
+  if(result.kind==="task"&&result.taskId){onOpenTask(result.taskId);return;}
+  if(result.kind==="transaction"&&result.transactionId){onOpenTransaction(result.transactionId);return;}
+ };
  const saveCanvas=()=>{
   const item:SavedCanvas={id:"canvas-"+Date.now(),label:search.trim()||"My working canvas",search,moduleFilter,recordIds:selectedRecordIds,contactIds:selectedContactIds,pinnedIds,createdAt:new Date().toISOString()};
   setSavedCanvases(current=>[item,...current].slice(0,12));
@@ -58,6 +103,13 @@ export default function VestraIntentCanvas(props:Props){
  const adaptiveCaption=adaptiveKind==="loan"?"Loan context · principal, monthly interest, assigned people and deadlines":adaptiveKind==="legal"?"Legal context · case status, counsel, obligations and deadlines":adaptiveKind==="asset"?"Asset context · location, value, counterparties and closing actions":"Record context · saved status, relationships and next action";
  const compareFields:Array<{label:string;getValue:(row:RecordRow)=>string}>=[{label:"Module",getValue:row=>row.module},{label:"Status",getValue:row=>row.status||"Not entered"},{label:"Value",getValue:row=>row.value||"Not entered"},{label:"Location",getValue:row=>row.location||"Not entered"},{label:"Counterparty",getValue:row=>row.contact||"Not entered"},{label:"Next action",getValue:row=>row.nextAction||"Not entered"},{label:"Next follow-up",getValue:row=>row.nextFollowUpDate||"Not scheduled"},{label:"Target deadline",getValue:row=>row.targetDeadline||"Not scheduled"}];
  return <div className="vs-intent-canvas">
+  <section className="vs-command-composer">
+   <header><div><span className="vs-eyebrow">COMMAND COMPOSER · LOCAL DATA</span><h3>Ask for an operational view.</h3><p>Commands run against saved AXIVESTRA records. Results open their source item; no silent changes are made.</p></div><Sparkles size={21}/></header>
+   <form onSubmit={event=>{event.preventDefault();runCommand();}}><input value={command} onChange={event=>setCommand(event.target.value)} placeholder="e.g. Show overdue follow-ups, calculate loan interest, show today's tasks…"/><button type="submit" disabled={!command.trim()}><Play size={13}/> Run</button><button type="button" className="vs-command-save" disabled={!command.trim()} onClick={saveCommand}><Bookmark size={13}/> Save command</button></form>
+   <div className="vs-command-suggestions">{["Show overdue follow-ups","Calculate monthly loan interest","Show today's tasks","Summarise collections"].map(item=><button type="button" key={item} onClick={()=>runCommand(item)}>{item}</button>)}</div>
+   {savedCommands.length>0&&<div className="vs-command-saved"><span>FAVOURITE COMMANDS</span>{savedCommands.map(item=><button type="button" key={item} onClick={()=>runCommand(item)}><Play size={10}/>{item}</button>)}</div>}
+   {commandSummary&&<div className="vs-command-result"><p>{commandSummary}</p>{commandResults.map(result=><button type="button" key={result.id} onClick={()=>openCommandResult(result)}><span><strong>{result.title}</strong><small>{result.detail}</small></span><em>{result.value}</em><ChevronRight size={14}/></button>)}{!commandResults.length&&<small>No matching saved items were found.</small>}</div>}
+  </section>
   <section className="vs-intent-search-panel">
    <div className="vs-intent-search-heading"><div><span className="vs-eyebrow">INTENT CANVAS · BUILD A WORKING CONTEXT</span><h3>Bring the right records into one space.</h3><p>Search actual AXIVESTRA data, choose modules and people, then pin, compare and reopen this arrangement.</p></div><button type="button" onClick={saveCanvas}><Bookmark size={14}/> Save canvas</button></div>
    <div className="vs-intent-search-control"><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setSearch("");}} placeholder="Search by person, record, module, location, status or loan field…"/>{search&&<button type="button" onClick={()=>setSearch("")} aria-label="Clear search"><X size={14}/></button>}</div>
