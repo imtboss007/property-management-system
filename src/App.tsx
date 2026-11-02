@@ -792,6 +792,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const suppressAuditRef = useRef(false);
   const auditSnapshot = useRef<Record<string, Array<{ id: string; fingerprint: string; label: string; record: unknown; source: unknown }>> | null>(null);
   const cloudPreviousRef = useRef<Record<string, Set<string>> | null>(null);
+  const cloudPreviousScopeRef=useRef("");
   const cloudSyncSequenceRef = useRef(0);
   const cloudSyncInFlightRef = useRef(false);
   const cloudSyncPendingRef = useRef<(() => void) | null>(null);
@@ -974,6 +975,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   // Documents and WhatsApp linked-device credentials remain device-local.
   useEffect(() => {
     if (!company || !userId || !supabase) return;
+    const activeCloudScope=company.id+":"+userId;
+    if(cloudPreviousScopeRef.current!==activeCloudScope){
+      cloudPreviousScopeRef.current=activeCloudScope;
+      cloudPreviousRef.current=null;
+    }
     let disposed = false;
 
     const runSync = async () => {
