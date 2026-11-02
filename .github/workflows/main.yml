@@ -35,13 +35,32 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Windows EXE
+      - name: Build unpacked Windows app for runtime smoke check
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
           VITE_AXIVESTRA_WHATSAPP_WORKER_URL: ${{ vars.VITE_AXIVESTRA_WHATSAPP_WORKER_URL }}
-        run: npm run build && npx electron-builder --win nsis --x64 --publish never
+        run: npm run build && npx electron-builder --win dir --x64 --publish never
+
+      - name: Smoke test the packaged Windows renderer
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:GITHUB_WORKSPACE "release-dist\\win-unpacked\\AXIVESTRA.exe"
+          if (-not (Test-Path $exe)) { throw "Packaged AXIVESTRA.exe was not produced at $exe" }
+          $port = 9222
+          $profile = Join-Path $env:RUNNER_TEMP "axivestra-renderer-smoke-profile"
+          $process = Start-Process -FilePath $exe -ArgumentList @("--remote-debugging-port=$port", "--user-data-dir=$profile") -PassThru
+          try {
+            node scripts/windows-renderer-smoke.mjs $port 35
+          } finally {
+            if (-not $process.HasExited) {
+              & taskkill.exe /PID $process.Id /T /F | Out-Null
+            }
+          }
+
+      - name: Build Windows EXE
+        run: npx electron-builder --win nsis --x64 --publish never
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
