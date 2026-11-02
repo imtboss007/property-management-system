@@ -4214,3 +4214,18 @@ h2,h3{color:#e5f2fc}
 .vs-shift .vs-complete-pulse{animation:vsCompletePulse .5s var(--vs-ease-spring) both}
 @keyframes vsCompletePulse{0%{transform:scale(.96);box-shadow:0 0 0 0 #71c69c00}60%{transform:scale(1.025);box-shadow:0 0 0 8px #71c69c2c}100%{transform:scale(1);box-shadow:0 0 0 0 #71c69c00}}
 @media(prefers-reduced-motion:reduce){.vs-prism-emblem,.vs-prism-emblem i,.vs-shift-hero h2,.vs-space-page,.vs-shift-tabs button,.vs-duplicate-merge-action,.vs-loading-surface,.vs-complete-pulse{animation:none!important;transition:none!important;filter:none!important;clip-path:none!important}}
+
+.vs-projection-switch{display:flex;gap:6px;flex-wrap:wrap}
+.vs-projection-switch button{min-height:32px;padding:0 12px;border:1px solid #426473;border-radius:8px;background:#102b38;color:#a9c4bd;font-size:9px;font-weight:850}
+.vs-projection-switch button.active{border-color:#afd5bb;background:#dce9df;color:#19372b;box-shadow:0 5px 13px #6db68b20}
+.vs-projection-result{display:grid;gap:6px;padding:16px;border:1px solid #4c7564;border-radius:12px;background:linear-gradient(115deg,#173a37,#183141);color:#a9c9bf}
+.vs-projection-result span{font-size:9px;font-weight:850}
+.vs-projection-result strong{color:#eff5e9;font-size:24px;letter-spacing:-.7px}
+.vs-projection-result small{color:#9bb7b0;font-size:8px;line-height:1.5}
+.vs-shift[data-theme="light"] .vs-projection-switch button{background:#f4f5ed;border-color:#cbd9ce;color:#557064}
+.vs-shift[data-theme="light"] .vs-projection-switch button.active{background:#dcebdd;color:#1a3c2d}
+.vs-shift[data-theme="light"] .vs-projection-result{background:linear-gradient(115deg,#e3efe5,#e3ebf2);border-color:#c2d5c5;color:#425d4e}
+.vs-shift[data-theme="light"] .vs-projection-result strong{color:#1d3a2d}
+.vs-shift[data-theme="light"] .vs-projection-result small{color:#687f72}
+.vs-module-filter-caption{display:block;margin:-5px 0 5px;color:#93b0b5;font-size:8px}
+.vs-shift[data-theme="light"] .vs-module-filter-caption{color:#6e8278}
