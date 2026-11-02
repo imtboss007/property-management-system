@@ -50,6 +50,16 @@ export default function VestraIntentCanvas(props:Props){
  const taskMatches=useMemo(()=>tasks.filter(task=>!query||[task.title,task.type,task.property,task.contactName,task.notes].join(" ").toLocaleLowerCase().includes(query)).slice(0,10),[tasks,query]);
  const selectedRecords=selectedRecordIds.map(id=>properties.find(row=>row.id===id)).filter((row):row is RecordRow=>Boolean(row));
  const selectedContacts=selectedContactIds.map(id=>contacts.find(row=>row.id===id)).filter((row):row is ContactRow=>Boolean(row));
+ const contextualContacts=contacts.filter(contact=>
+  selectedContacts.some(selected=>selected.id===contact.id)||
+  selectedRecords.some(record=>
+   record.primaryContactId===contact.id||
+   record.followUpContactId===contact.id||
+   (record.moduleData?.__linkedContactIds||"").split(",").map(id=>id.trim()).includes(contact.id)||
+   (record.contact||"").trim().toLocaleLowerCase()===contact.name.trim().toLocaleLowerCase()||
+   Object.entries(record.moduleData||{}).some(([key,value])=>key.startsWith("__contact_")&&value===contact.id)
+  )
+ );
  const urgentTasks=tasks.filter(task=>!task.done&&task.date&&task.date<today);
  const overdueFollowUps=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>item.promisedDate&&item.promisedDate<today&&!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLowerCase())).map(item=>({contact,item})));
  const toggle=(id:string,values:string[],setter:(value:string[])=>void)=>setter(values.includes(id)?values.filter(value=>value!==id):[...values,id]);
@@ -170,6 +180,6 @@ export default function VestraIntentCanvas(props:Props){
    {selectedRecords.length>=2&&<section className="vs-compare-panel"><header><strong>Record comparison</strong><small>Values below are copied from the selected saved records, not recalculated.</small></header><div className="vs-compare-scroll"><table><thead><tr><th>Field</th>{selectedRecords.map(record=><th key={record.id}>{record.title||record.module}</th>)}</tr></thead><tbody>{compareFields.map(field=><tr key={field.label}><th>{field.label}</th>{selectedRecords.map(record=><td key={record.id}>{field.getValue(record)}</td>)}</tr>)}</tbody></table></div></section>}
    {!selectedRecords.length&&!selectedContacts.length&&<div className="vs-empty-state"><Bookmark size={22}/><strong>Nothing pinned to this canvas yet.</strong><small>Use search above to assemble records and people; you can compare two or more saved records side by side.</small></div>}
   </section>
-  <section className="vs-local-assistant"><IntelligenceHub properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/></section>
+  <section className="vs-local-assistant"><IntelligenceHub properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp} contextRecords={selectedRecords} contextContacts={contextualContacts} contextLabel={selectedRecords.length+" selected record(s) · "+contextualContacts.length+" linked person(s)"}/></section>
  </div>;
 }
