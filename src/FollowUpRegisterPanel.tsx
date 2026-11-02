@@ -78,6 +78,8 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [drafts,setDrafts] = useState<Record<string,DraftRow>>(() => emptyRows(props.contacts));
   const [query,setQuery] = useState("");
   const [statusFilter,setStatusFilter] = useState("All statuses");
+  const [priorityFilter,setPriorityFilter] = useState("All priorities");
+  const [dateFilter,setDateFilter] = useState("All dates");
   const [moduleFilter,setModuleFilter] = useState("All modules");
   const [roleFilters,setRoleFilters] = useState<string[]>([]);
   const [groupFilters,setGroupFilters] = useState<string[]>([]);
@@ -142,13 +144,19 @@ export default function FollowUpRegisterPanel(props: Props) {
     return rows.filter(row =>
       (!term || row.searchText.includes(term)) &&
       (statusFilter === "All statuses" || row.item.status === statusFilter) &&
+      (priorityFilter === "All priorities" || (row.item.priority || "Normal") === priorityFilter) &&
+      (dateFilter === "All dates" ||
+        (dateFilter === "Today" && row.item.promisedDate === new Date().toISOString().slice(0,10)) ||
+        (dateFilter === "Overdue" && Boolean(row.item.promisedDate) && row.item.promisedDate < new Date().toISOString().slice(0,10) && !["Completed","Reached back","Cancelled"].includes(row.item.status)) ||
+        (dateFilter === "Upcoming" && Boolean(row.item.promisedDate) && row.item.promisedDate >= new Date().toISOString().slice(0,10) && !["Completed","Reached back","Cancelled"].includes(row.item.status)) ||
+        (dateFilter === "Completed" && ["Completed","Reached back"].includes(row.item.status))) &&
       (moduleFilter === "All modules" || (row.record?.module || "Contact-level") === moduleFilter) &&
       (transactionFilter === "All transaction types" || row.transactionType === transactionFilter) &&
       (loanDirectionFilter === "All loan directions" || (row.transactionType === "Loan" && row.loanDirection === loanDirectionFilter)) &&
       (!roleFilters.length || roleFilters.some(role => [row.item.role,row.contact.role,...(row.contact.roles||[])].filter(Boolean).includes(role))) &&
       (!groupFilters.length || groupFilters.some(groupId => row.groupIds.includes(groupId)))
     );
-  },[rows,deferredQuery,statusFilter,moduleFilter,transactionFilter,loanDirectionFilter,roleFilters,groupFilters]);
+  },[rows,deferredQuery,statusFilter,priorityFilter,dateFilter,moduleFilter,transactionFilter,loanDirectionFilter,roleFilters,groupFilters]);
   const visibleByContact = useMemo(() => {
     const grouped = new Map<string,typeof visibleRows>();
     for (const row of visibleRows) grouped.set(row.contact.id,[...(grouped.get(row.contact.id)||[]),row]);
@@ -253,6 +261,8 @@ export default function FollowUpRegisterPanel(props: Props) {
     <div className="ax-followup-register__toolbar">
       <label className="ax-followup-register__search"><Search size={15}/><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search contact, person, role, group, module, amount or description…"/></label>
       <label><span>Status</span><select value={statusFilter} onChange={event=>setStatusFilter(event.target.value)}><option>All statuses</option>{statuses.map(value=><option key={value}>{value}</option>)}</select></label>
+      <label><span>Priority</span><select value={priorityFilter} onChange={event=>setPriorityFilter(event.target.value)}><option>All priorities</option>{["Low","Normal","High","Urgent"].map(value=><option key={value}>{value}</option>)}</select></label>
+      <label><span>Time window</span><select value={dateFilter} onChange={event=>setDateFilter(event.target.value)}>{["All dates","Today","Overdue","Upcoming","Completed"].map(value=><option key={value}>{value}</option>)}</select></label>
       <label><span>Module type</span><select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option>All modules</option>{moduleOptions.map(value=><option key={value}>{value}</option>)}</select></label>
       <label><span>Transaction</span><select value={transactionFilter} onChange={event=>setTransactionFilter(event.target.value)}><option>All transaction types</option>{transactionOptions.map(value=><option key={value}>{value}</option>)}</select></label>
       <label><span>Loan direction</span><select value={loanDirectionFilter} onChange={event=>setLoanDirectionFilter(event.target.value)}><option>All loan directions</option>{loanDirections.map(value=><option key={value}>{value}</option>)}</select></label>
@@ -266,7 +276,7 @@ export default function FollowUpRegisterPanel(props: Props) {
       </div>
       <button type="button" className="primary-button" disabled={!addContactId||props.readOnly} onClick={()=>addForContact(addContactId)}><Plus size={14}/> Add follow-up</button>
     </div>
-    <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s)</span><span>Each person has one section. Module, Description, Date, Time, Final Amount and Status are separate editable columns.</span></div>
+    <div className="ax-followup-register__result-line"><span>{visibleRows.length} of {rows.length} follow-up line(s) · {priorityFilter} · {dateFilter}</span><span>Each person has one section. Module, Description, Date, Time, Final Amount and Status are separate editable columns.</span></div>
     <div className="ax-followup-register__summary-heading"><div><strong>People-wise follow-up overview</strong><span>Each person appears once. Every assignment stays linked to its module record and can be edited directly in its row.</span></div><span>{visibleByContact.size} person group(s) · {visibleRows.length} module / contact follow-up(s)</span></div>
 
     <div className="ax-followup-register__board" aria-label="Follow-up people columns">
