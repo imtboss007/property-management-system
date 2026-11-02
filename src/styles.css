@@ -4735,8 +4735,8 @@ h2,h3{color:#e5f2fc}
   .vs-shift [data-vs-magnetic="true"]:hover svg{rotate:-7deg;transition:rotate .24s cubic-bezier(.2,.8,.2,1)}
 }
 .vs-shift button{transform-origin:center;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
-.vs-shift button:active{transform:translateY(1px) scale(.985)}
+.vs-shift button:active{translate:var(--vs-magnetic-x,0px) calc(var(--vs-magnetic-y,0px) + 1px);scale:.985}
 .vs-shift button:focus-visible{outline:2px solid var(--vs-color-cobalt,#83a5db);outline-offset:3px}
-.vs-shift .vs-prism-emblem:active{transform:scale(.97)}
+.vs-shift .vs-prism-emblem:active{scale:.97}
 @media(prefers-reduced-motion:reduce){.vs-shift [data-vs-magnetic="true"],.vs-shift [data-vs-magnetic="true"]:hover svg{translate:0 0;rotate:0;transition:none}.vs-shift button{transition:none}}
 @media(hover:none),(pointer:coarse){.vs-shift [data-vs-magnetic="true"]{translate:0 0}}
