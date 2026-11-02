@@ -120,3 +120,8 @@ assert.ok(vestra.includes('hydratedPreferenceKeysRef.current.delete("views")'), 
 assert.ok(desk.includes("hydratedPreferenceRef.current=false"), "Atelier layouts must not overwrite a remote layout during initial hydration.");
 assert.ok(canvas.includes('hydratedPreferenceKeysRef.current.delete("canvas")'), "Motion saved canvases must hydrate before local defaults are written back.");
 assert.ok(desktopService.includes('"workspacePreferences"'), "Windows PC companion must accept the new shared preference collection.");
+
+assert.ok(vestra.includes('workspacePreferencesReady:boolean'), "Focus must receive cross-device preference readiness through VESTRA.");
+const focus = fs.readFileSync("src/VestraFocusMode.tsx","utf8");
+assert.ok(focus.includes('onSaveWorkspacePreference("vestraFocus.selection"'), "Focus context must persist across PC and mobile.");
+assert.ok(focus.includes('hydratedPreferenceRef.current=false'), "Focus context must hydrate before writing local defaults.");
