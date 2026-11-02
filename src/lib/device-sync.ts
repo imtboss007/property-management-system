@@ -1,6 +1,6 @@
 export const DEVICE_SYNC_COLLECTIONS = [
   "properties", "contacts", "whatsappGroups", "tasks",
-  "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules"
+  "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules", "workspacePreferences"
 ] as const;
 
 export type DeviceSyncCollection = typeof DEVICE_SYNC_COLLECTIONS[number];
@@ -108,6 +108,10 @@ function localEditTime(
     const rowTime = String((row as Record<string, unknown> | undefined)?.lastSyncedAt || "");
     if (timestamp(rowTime)) return rowTime;
   }
+  if (collection === "workspacePreferences") {
+    const rowTime = String((row as Record<string, unknown> | undefined)?.updatedAt || "");
+    if (timestamp(rowTime)) return rowTime;
+  }
   const entity = entityByType[collection];
   if (entity) {
     const matching = auditTimeIndex.get(entity + "\u0000" + id) || "";
@@ -134,6 +138,7 @@ export function reconcileDeviceSync(
 
   for (const collection of DEVICE_SYNC_COLLECTIONS) {
     const localRows = rowsFor(localInput, collection);
+    const remoteCollectionAvailable = Array.isArray(remoteInput[collection]);
     const remoteRows = rowsFor(remoteInput, collection);
     const localById = new Map(localRows.map(row => [row.id, row]));
     const remoteById = new Map(remoteRows.map(row => [row.id, row]));
@@ -144,6 +149,38 @@ export function reconcileDeviceSync(
       ...localById.keys(), ...remoteById.keys(),
       ...Object.keys(baseById), ...Object.keys(remoteMetaById)
     ]);
+    // Older paired-device clients may return a snapshot without a collection they do not
+    // know yet. Treat an omitted field as "unsupported", not as an empty collection:
+    // preserve local rows and deletion tombstones until both devices run a compatible build.
+    if (!remoteCollectionAvailable) {
+      const resultRows: DeviceSyncRow[] = [...localRows];
+      const collectionMeta: Record<string, DeviceSyncMeta> = emptyObject();
+      const collectionBaseline: Record<string, string> = emptyObject();
+      for (const id of ids) {
+        const localRow = localById.get(id);
+        const previous = validMeta(remoteMetaById[id]) || validMeta(baseMetaById[id]);
+        const baseText = typeof baseById[id] === "string" ? baseById[id] : "";
+        if (localRow) {
+          const text = jsonOf(localRow);
+          const changed = !Object.prototype.hasOwnProperty.call(baseById,id) || text !== baseText;
+          collectionMeta[id] = {
+            updatedAt: changed ? localEditTime(collection,id,localRow,auditTimeIndex,now) : previous?.updatedAt || now,
+            deletedAt: ""
+          };
+          collectionBaseline[id] = text;
+        } else if (baseText || previous?.deletedAt) {
+          const stamp = localEditTime(collection,id,undefined,auditTimeIndex,now);
+          collectionMeta[id] = previous?.deletedAt
+            ? previous
+            : { updatedAt: stamp, deletedAt: stamp };
+          collectionBaseline[id] = "";
+        }
+      }
+      (merged as unknown as Record<string,unknown>)[collection] = resultRows;
+      nextMetadata[collection] = collectionMeta;
+      nextPayloads[collection] = collectionBaseline;
+      continue;
+    }
     const resultRows: DeviceSyncRow[] = [];
     const collectionMeta: Record<string, DeviceSyncMeta> = emptyObject();
     const collectionBaseline: Record<string, string> = emptyObject();
