@@ -4328,3 +4328,24 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-prism-emblem i{border-color:#456c5b99;box-shadow:0 0 20px #547c5a30}
 .vs-desk-saved>button{min-height:26px;padding:4px 7px;border:1px solid #4a6a60;border-radius:6px;background:#17352f;color:#c8dccb;font-size:8px}
 .vs-shift[data-theme="light"] .vs-desk-saved>button{background:#fffdf6;color:#3f5b4b;border-color:#c8d8c9}
+
+/* First-launch VESTRA reveal — skippable, non-blocking on repeat visits */
+.vs-startup-intro{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#2e443c 0%,#142923 34%,#081713 78%);animation:vsStartupReveal .65s cubic-bezier(.2,.8,.2,1) both}
+.vs-startup-intro:before,.vs-startup-intro:after{content:"";position:absolute;width:min(68vw,650px);aspect-ratio:1;border:1px solid #b7d2b333;border-radius:36%;transform:rotate(32deg);animation:vsStartupOrbit 9s linear infinite}
+.vs-startup-intro:after{width:min(46vw,440px);border-color:#c4937044;transform:rotate(-25deg);animation-direction:reverse}
+.vs-startup-intro-art{position:relative;z-index:1;display:grid;justify-items:center;gap:12px;padding:30px;text-align:center}
+.vs-startup-prism{position:relative;width:120px;height:120px;perspective:700px;transform-style:preserve-3d;animation:vsStartupPrism 2.2s cubic-bezier(.2,.8,.2,1) infinite}
+.vs-startup-prism i{position:absolute;inset:20px;border:1px solid #e7eee0a0;clip-path:polygon(50% 0,100% 28%,80% 100%,20% 100%,0 28%);background:linear-gradient(145deg,#f5e8d3b8,#72b79666 52%,#9b86d477);box-shadow:0 0 34px #9bc8a844}
+.vs-startup-prism i:nth-child(2){transform:rotateY(72deg) translateZ(25px);background:linear-gradient(145deg,#d4e8d8aa,#5d9e7c77)}
+.vs-startup-prism i:nth-child(3){transform:rotateY(144deg) translateZ(25px);background:linear-gradient(145deg,#ded2f4aa,#8e79c777)}
+.vs-startup-prism i:nth-child(4){transform:rotateY(216deg) translateZ(25px);background:linear-gradient(145deg,#d1ddf5aa,#6689c777)}
+.vs-startup-prism i:nth-child(5){transform:rotateY(288deg) translateZ(25px);background:linear-gradient(145deg,#f2d5c5aa,#bd886977)}
+.vs-startup-intro-art>span{color:#c49a76;font-size:9px;font-weight:900;letter-spacing:2.4px}
+.vs-startup-intro-art h2{margin:0;color:#f4f0e3;font-size:clamp(29px,6vw,52px);font-weight:850;letter-spacing:.14em;text-shadow:0 8px 30px #0008}
+.vs-startup-intro-art p{margin:0;color:#b3c7b7;font-size:12px;letter-spacing:.04em}
+.vs-startup-intro>button{position:absolute;right:clamp(18px,4vw,46px);bottom:clamp(18px,4vw,38px);z-index:2;display:flex;align-items:center;gap:9px;min-height:40px;padding:0 14px;border:1px solid #91ad9a77;border-radius:999px;background:#ffffff0c;color:#e8eddf;font-size:10px;font-weight:800;backdrop-filter:blur(12px)}
+.vs-startup-intro>button:hover{background:#ffffff18;border-color:#c49370}
+@keyframes vsStartupReveal{from{opacity:0;clip-path:inset(10% 10% 10% 10% round 36px)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@keyframes vsStartupOrbit{to{rotate:360deg}}
+@keyframes vsStartupPrism{0%,100%{transform:rotateX(-10deg) rotateY(0deg) translateY(0)}50%{transform:rotateX(18deg) rotateY(180deg) translateY(-9px)}}
+@media(prefers-reduced-motion:reduce){.vs-startup-intro,.vs-startup-intro:before,.vs-startup-intro:after,.vs-startup-prism{animation:none!important;clip-path:none!important}}
