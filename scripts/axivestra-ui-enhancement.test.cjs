@@ -62,6 +62,10 @@ for (const token of [
 for (const token of ["People: ", "onOpenRecord(entry.recordId)", "onOpenContact(entry.contactId)", "commitments.length"]) assert.ok(intent.includes(token), "Intent Canvas must expose source-linked loan owners and result navigation: " + token);
 
 for (const token of [
+  "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(task.id)", "onOpenTransaction(item.id)",
+  "/\\b(loan|interest|lender|borrow)\\b/.test(query)", "commandResults"
+]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
+for (const token of [
   "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields",
   "draggable onDragStart", "setSavedCanvases", "vs-canvas-pins",
   "onOpenRecord(record.id)", "onOpenContact(contact.id)", "moduleNames.map"
@@ -75,7 +79,7 @@ for (const token of [
   "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
   "Same name, different or missing phone", "Same phone, different name",
   "auditEvents.forEach", "timelineKind", "dateFrom", "dateTo",
-  "scenarioFullSchedule", "scenarioMode==="compound"", "missionLinks",
+  "scenarioFullSchedule", "scenarioMode===\"compound\"", "missionLinks",
   "onOpenTask(taskId)"
 ]) assert.ok(vestra.includes(token), "Missing relationship / temporal / simulation / mission feature: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
