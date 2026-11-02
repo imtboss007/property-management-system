@@ -4109,3 +4109,45 @@ h2,h3{color:#e5f2fc}
 @keyframes vsOrigamiReveal{from{opacity:0;transform:perspective(700px) rotateX(-8deg) translateY(-7px) scaleY(.94)}to{opacity:1;transform:perspective(700px) rotateX(0) translateY(0) scaleY(1)}}
 @media(hover:none){.ax-modern-shell .ax-module-record-card.vs-magnetic-card{transform:none!important;will-change:auto}}
 @media(prefers-reduced-motion:reduce){.ax-modern-shell .ax-module-record-card.vs-magnetic-card,.ax-modern-shell .ax-module-record-card.vs-magnetic-card *{animation:none!important;transition:none!important}}
+
+/* Temporal calendar and adaptive motion controls */
+.vs-temporal-view-toggle{display:flex;gap:5px;justify-content:flex-end;margin:10px 0}
+.vs-temporal-view-toggle button{min-height:31px;padding:0 11px;border:1px solid #3c6070;border-radius:8px;background:#102936;color:#9cb8b7;font-size:9px;font-weight:800}
+.vs-temporal-view-toggle button.active{background:#dce9df;border-color:#bad7c3;color:#19362b;box-shadow:0 5px 14px #6db68b22}
+.vs-calendar{display:grid;gap:11px;margin:12px 0;padding:14px;border:1px solid #365b68;border-radius:14px;background:linear-gradient(145deg,#122c39,#0b202e);box-shadow:0 12px 28px #020a1670}
+.vs-calendar>header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vs-calendar>header h4{margin:4px 0;color:#f1f0e6;font-size:16px}
+.vs-calendar>header small{color:#92afb0;font-size:8px}
+.vs-calendar>header>div:last-child{display:flex;gap:5px}
+.vs-calendar>header button{min-height:30px;padding:0 9px;border:1px solid #41616b;border-radius:7px;background:#173340;color:#c7dcd3;font-size:8px;font-weight:800}
+.vs-calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.vs-calendar-weekday{padding:6px 2px;color:#90b9a7;font-size:8px;font-weight:850;text-align:center;letter-spacing:.5px;text-transform:uppercase}
+.vs-calendar-day{display:grid;align-content:start;gap:4px;min-height:83px;min-width:0;padding:7px;border:1px solid #2c4c5c;border-radius:8px;background:#0b202d;color:#e3ebe1;text-align:left;transition:transform .16s,border-color .16s,background .16s}
+.vs-calendar-day:hover{transform:translateY(-2px);border-color:#79b89b;background:#15323a}
+.vs-calendar-day>span{font-size:10px;font-weight:850}
+.vs-calendar-day>small{color:#9bc8ac;font-size:7px}
+.vs-calendar-day i{display:grid;gap:2px;min-width:0;font-style:normal}
+.vs-calendar-day em{overflow:hidden;padding:2px 4px;border-radius:4px;background:#1f3d43;color:#b6d9c1;font-size:7px;font-style:normal;text-overflow:ellipsis;white-space:nowrap}
+.vs-calendar-day.is-outside{opacity:.38}
+.vs-calendar-day.is-today{border-color:#9fc9a8;box-shadow:inset 0 0 0 1px #8fc3a133}
+.vs-calendar-day.is-focused{border-color:#d8b28b;background:#2e3433;box-shadow:0 0 0 1px #d8b28b55}
+.vs-calendar-day.is-focused>span{color:#f4d1a9}
+.vs-calendar-day.is-focused em{background:#5a4435;color:#f5ddbf}
+.vs-calendar-day-detail{display:grid;gap:6px;padding:10px;border-top:1px solid #355565}
+.vs-calendar-day-detail>strong{color:#e6eee3;font-size:10px}
+.vs-calendar-day-detail>button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;padding:8px;border:1px solid #315364;border-radius:7px;background:#102a37;color:#d5e6dc;text-align:left}
+.vs-calendar-day-detail>button>span{overflow:hidden;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.vs-calendar-day-detail>button>small{color:#91b1ad;font-size:8px}
+.vs-calendar-day-detail>button>svg{grid-column:2;grid-row:1/3;align-self:center}
+.vs-calendar-day-detail>small{color:#8fa9ae;font-size:8px}
+.vs-shift[data-theme="light"] .vs-temporal-view-toggle button{background:#f5f5ed;border-color:#cbd9ce;color:#61776a}
+.vs-shift[data-theme="light"] .vs-temporal-view-toggle button.active{background:#dcebdd;color:#1b3b2e}
+.vs-shift[data-theme="light"] .vs-calendar{background:#f5f4ec;border-color:#cbd9ce}
+.vs-shift[data-theme="light"] .vs-calendar>header h4,.vs-shift[data-theme="light"] .vs-calendar-day,.vs-shift[data-theme="light"] .vs-calendar-day-detail>strong{color:#1f372e}
+.vs-shift[data-theme="light"] .vs-calendar>header small,.vs-shift[data-theme="light"] .vs-calendar-day-detail>small{color:#6c8174}
+.vs-shift[data-theme="light"] .vs-calendar>header button,.vs-shift[data-theme="light"] .vs-calendar-day-detail>button{background:#edf1e9;border-color:#cbd8ce;color:#2c493b}
+.vs-shift[data-theme="light"] .vs-calendar-day{background:#fffdf7;border-color:#d1dcd2}
+.vs-shift[data-theme="light"] .vs-calendar-day em{background:#e0ece1;color:#38634a}
+.vs-shift[data-theme="light"] .vs-calendar-day.is-focused{background:#f0e4d3;border-color:#b9916d}
+@media(max-width:680px){.vs-calendar{padding:8px}.vs-calendar-grid{gap:3px}.vs-calendar-day{min-height:66px;padding:4px}.vs-calendar-day em{font-size:6px}.vs-calendar-weekday{font-size:7px}.vs-calendar>header{align-items:flex-start}.vs-calendar>header h4{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.vs-calendar-day,.vs-temporal-view-toggle button{transition:none!important}}
