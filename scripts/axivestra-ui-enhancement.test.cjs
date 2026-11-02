@@ -78,11 +78,11 @@ for (const token of [
 ]) assert.ok(canvas.includes(token), "Missing interactive Intent Canvas capability: " + token);
 for (const token of [
   "ThreeDHistogram", "calculateMonthlyInterest", "outstandingPrincipal", "loanTransactions",
-  "linkedFinancials", "onOpenTransaction(item.id)", "recentMonths", "selectedMonth",
+  "onOpenTransaction(item.id)", "recentMonths", "selectedMonth",
   "No supported outstanding figure saved", "TRACEABLE CALCULATION BREAKDOWN", "showPortfolioBreakdown", "vs-finance-fact-button"
 ]) assert.ok(finance.includes(token), "Missing source-traceable Financial Intelligence: " + token);
 for (const token of [
-  "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
+  "linkedFinancials", "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
   "Same name, different or missing phone", "Same phone, different name",
   "auditEvents.forEach", "timelineKind", "dateFrom", "dateTo",
   "scenarioFullSchedule", "scenarioMode===\"compound\"", "missionLinks",
