@@ -6,6 +6,8 @@ const analytics = fs.readFileSync("src/PortfolioAnalytics.tsx", "utf8");
 const histogram = fs.readFileSync("src/ThreeDHistogram.tsx", "utf8");
 const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
 const intent = fs.readFileSync("src/IntelligenceHub.tsx", "utf8");
+const canvas = fs.readFileSync("src/VestraIntentCanvas.tsx", "utf8");
+const finance = fs.readFileSync("src/VestraFinance.tsx", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
@@ -50,7 +52,7 @@ assert.ok(pkg.scripts.test.includes("axivestra-ui-enhancement.test.cjs"), "The n
 
 for (const token of [
   'space==="timeline"', 'space==="connections"', 'space==="simulation"', 'space==="workflow"',
-  'calculateMonthlyInterest({...selectedLoan.moduleData,__loanInterestRate:scenarioInput||"0"}',
+  'calculateMonthlyInterest({...selectedLoan.moduleData,__loanPrincipal:scenarioPrincipal||"0",__loanInterestRate:scenarioInput||"0"}',
   'window.localStorage.setItem(contextKey', 'vs-prism-emblem', 'onOpenRecord(event.recordId)'
 ]) assert.ok(vestra.includes(token), "Missing VESTRA SHIFT workspace feature: " + token);
 for (const token of [
@@ -58,4 +60,22 @@ for (const token of [
   'onOpenContact={contactId=>', 'ax-theme-light'
 ]) assert.ok(app.includes(token), "Missing VESTRA SHIFT activation in App: " + token);
 for (const token of ["People: ", "onOpenRecord(entry.recordId)", "onOpenContact(entry.contactId)", "commitments.length"]) assert.ok(intent.includes(token), "Intent Canvas must expose source-linked loan owners and result navigation: " + token);
+
+for (const token of [
+  "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields",
+  "draggable onDragStart", "setSavedCanvases", "vs-canvas-pins",
+  "onOpenRecord(record.id)", "onOpenContact(contact.id)", "moduleNames.map"
+]) assert.ok(canvas.includes(token), "Missing interactive Intent Canvas capability: " + token);
+for (const token of [
+  "ThreeDHistogram", "calculateMonthlyInterest", "outstandingPrincipal", "loanTransactions",
+  "linkedFinancials", "onOpenTransaction(item.id)", "recentMonths", "selectedMonth",
+  "No supported outstanding figure saved"
+]) assert.ok(finance.includes(token), "Missing source-traceable Financial Intelligence: " + token);
+for (const token of [
+  "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
+  "Same name, different or missing phone", "Same phone, different name",
+  "auditEvents.forEach", "timelineKind", "dateFrom", "dateTo",
+  "scenarioFullSchedule", "scenarioMode==="compound"", "missionLinks",
+  "onOpenTask(taskId)"
+]) assert.ok(vestra.includes(token), "Missing relationship / temporal / simulation / mission feature: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
