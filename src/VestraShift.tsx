@@ -278,7 +278,7 @@ export default function VestraShift(props:Props){
     </nav>
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
-    {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
+    {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
     {space==="finance"&&<VestraFinance properties={properties} contacts={contacts} financials={financials} today={today} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks} onOpenLoans={()=>onOpenModule("Property Loans")}/>}
 
     {space==="timeline"&&<section className="vs-space-page">
