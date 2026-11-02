@@ -807,9 +807,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   useEffect(()=>{
     const desktop=Boolean(window.estateflowWhatsApp?.getDataSync&&window.estateflowWhatsApp?.saveDataSync);
     const paired=Boolean(syncHost.trim()&&syncToken.trim());
-    if(!company&&!supabase&&!desktop&&!paired)setWorkspacePreferencesReady(true);
-    else if((company&&supabase)||desktop||paired)setWorkspacePreferencesReady(false);
-  },[company?.id,syncHost,syncToken]);
+    const cloud=Boolean(company&&userId&&supabase);
+    setWorkspacePreferencesReady(!(cloud||desktop||paired));
+  },[company?.id,userId,syncHost,syncToken]);
   useEffect(()=>{
     if(!workspacePreferencesReady)return;
     const remoteTheme=vestraWorkspacePreferences.appTheme;
