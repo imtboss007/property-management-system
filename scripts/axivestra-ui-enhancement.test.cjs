@@ -68,6 +68,7 @@ for (const token of [
   "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(result.taskId)", "onOpenTransaction(result.transactionId)", "RECENTLY OPENED", "commandInputRef", "person.?wise|contact report", "overdue\\s+payments?",
   "/\\b(loan|interest|lender|borrow)\\b/.test(query)", "commandResults"
 ]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
+for (const token of ["makeContextAnswer", "contextRecords", "contextContacts", "ax-copilot-context", "Current intent context"]) assert.ok(intent.includes(token), "Missing selected-record contextual companion: " + token);
 for (const token of [
   "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields", "mergeMasterContactsById",
   "draggable onDragStart", "setSavedCanvases", "vs-canvas-pins",
