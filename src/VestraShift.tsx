@@ -3,7 +3,8 @@ import {
   ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
   GitBranch, Landmark, Moon, Network, Sparkles, Sun, TrendingUp, Users, Wallet, Workflow
 } from "lucide-react";
-import IntelligenceHub from "./IntelligenceHub";
+import VestraIntentCanvas from "./VestraIntentCanvas";
+import VestraFinance from "./VestraFinance";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 
 type FollowUp = {
@@ -35,17 +36,19 @@ type FollowUpDraft = {
   contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;
   promisedTime:string;responseType:string;notes:string;status:string;
 };
-type ShiftSpace = "intent"|"timeline"|"connections"|"simulation"|"workflow";
+type ShiftSpace = "intent"|"timeline"|"connections"|"finance"|"simulation"|"workflow";
 type SavedView = {id:string;space:ShiftSpace;label:string;createdAt:string};
 type TimelineEvent = {
   id:string;date:string;time:string;title:string;detail:string;kind:string;status:string;
   recordId?:string;contactId?:string;module?:string;
 };
+type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:string;label:string;activityType?:string;description?:string;relatedRecordId?:string};
 type Props = {
   properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
   onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;
   onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowUpDraft)=>void;
+  onOpenTask:(taskId:string)=>void;moduleNames:string[];auditEvents:AuditEntry[];onUndo:()=>void;undoAvailable:boolean;
   theme:"dark"|"light";onToggleTheme:()=>void;workspaceScope:string;
 };
 type SpaceDefinition = {id:ShiftSpace;label:string};
@@ -53,6 +56,7 @@ const SPACES:SpaceDefinition[]=[
   {id:"intent",label:"Intent Canvas"},
   {id:"timeline",label:"Temporal"},
   {id:"connections",label:"Relationships"},
+  {id:"finance",label:"Financial Studio"},
   {id:"simulation",label:"Simulation"},
   {id:"workflow",label:"Mission workflow"}
 ];
@@ -74,11 +78,19 @@ const dateText=(value:string)=>value?new Date(value+"T00:00:00").toLocaleDateStr
 export default function VestraShift(props:Props){
   const {
     properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,
-    onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp,
+    onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
     theme,onToggleTheme,workspaceScope
   }=props;
   const [space,setSpace]=useState<ShiftSpace>("intent");
   const [timeFilter,setTimeFilter]=useState<"past"|"today"|"upcoming"|"all">("upcoming");
+  const [timelineKind,setTimelineKind]=useState("All types");
+  const [timelineSearch,setTimelineSearch]=useState("");
+  const [dateFrom,setDateFrom]=useState("");
+  const [dateTo,setDateTo]=useState("");
+  const [timelineZoom,setTimelineZoom]=useState(1);
+  const [selectedEventId,setSelectedEventId]=useState("");
+  const [missionSelectedId,setMissionSelectedId]=useState("");
+  const [missionLinks,setMissionLinks]=useState<Array<{fromId:string;toId:string}>>(()=>{try{const value=JSON.parse(window.localStorage.getItem("axivestra.vestraShift.missionLinks."+workspaceScope)||"[]");return Array.isArray(value)?value:[];}catch{return [];}});
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [scenarioInput,setScenarioInput]=useState("");
   const contextKey="axivestra.vestraShift.views."+workspaceScope;
@@ -86,6 +98,7 @@ export default function VestraShift(props:Props){
     try{const value=JSON.parse(window.localStorage.getItem(contextKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
   });
   useEffect(()=>{try{window.localStorage.setItem(contextKey,JSON.stringify(savedViews));}catch{/* optional local preference */}},[contextKey,savedViews]);
+  useEffect(()=>{try{window.localStorage.setItem("axivestra.vestraShift.missionLinks."+workspaceScope,JSON.stringify(missionLinks));}catch{/* optional local preference */}},[missionLinks,workspaceScope]);
 
   const loanRecords=useMemo(()=>properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"),[properties]);
   const selectedLoan=loanRecords.find(record=>record.id===selectedLoanId)||loanRecords[0];
