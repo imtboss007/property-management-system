@@ -319,30 +319,34 @@ export default function VestraShift(props:Props){
     </section>}
 
     {space==="simulation"&&<section className="vs-space-page vs-simulation-page">
-      <header><div><span className="vs-eyebrow">PREDICTIVE SIMULATION STUDIO</span><h3>Test an interest-rate scenario</h3>
-        <p>Adjust one input and compare the result with saved loan terms. The simulation never writes to a loan record.</p></div><TrendingUp size={22}/></header>
+      <header><div><span className="vs-eyebrow">PREDICTIVE SIMULATION STUDIO</span><h3>Explore a loan scenario</h3>
+        <p>Change principal, rate, term, payment or start date. Compare assumptions and inspect an illustrative repayment path. Nothing is written to the saved loan.</p></div><TrendingUp size={22}/></header>
       {loanRecords.length?<>
         <label className="vs-loan-picker">Select a saved loan
-          <select value={selectedLoan?.id||""} onChange={event=>{setSelectedLoanId(event.target.value);const next=loanRecords.find(record=>record.id===event.target.value);if(next)setScenarioInput(String(loanRate(next)));}}>
+          <select value={selectedLoan?.id||""} onChange={event=>setSelectedLoanId(event.target.value)}>
             {loanRecords.map(record=><option key={record.id} value={record.id}>{record.module} · {record.title||"Untitled loan"}</option>)}
           </select>
         </label>
-        {selectedLoan&&<><div className="vs-simulation-inputs">
-          <div><span>Principal from saved record</span><strong>{formatINR(parseDealNumber(selectedLoan.moduleData?.__loanPrincipal||selectedLoan.value))}</strong><small>{selectedLoan.moduleData?.__loanDirection||"Loan direction not set"}</small></div>
-          <label>{method==="Fixed amount per month"?"Scenario interest amount per month (₹)":method==="Percentage per year"?"Scenario annual rate (%)":"Scenario monthly rate (%)"}
-            <input type="number" min="0" step="0.01" value={scenarioInput} onChange={event=>setScenarioInput(event.target.value)}/>
-            <small>Saved input: {currentRate}{method==="Fixed amount per month"?" ₹":" %"}</small>
-          </label>
+        {selectedLoan&&<><div className="vs-simulation-inputs vs-simulation-inputs-wide">
+          <label>Scenario principal (₹)<input type="number" min="0" step="1000" value={scenarioPrincipal} onChange={event=>setScenarioPrincipal(event.target.value)}/><small>Saved principal: {formatINR(parseDealNumber(selectedLoan.moduleData?.__loanPrincipal||selectedLoan.value))}</small></label>
+          <label>{method==="Fixed amount per month"?"Interest per month (₹)":method==="Percentage per year"?"Annual rate (%)":"Monthly rate (%)"}<input type="number" min="0" step="0.01" value={scenarioInput} onChange={event=>setScenarioInput(event.target.value)}/><small>Saved rate: {currentRate}{method==="Fixed amount per month"?" ₹":" %"}</small></label>
+          <label>Term (months)<input type="number" min="1" max="600" step="1" value={scenarioMonths} onChange={event=>setScenarioMonths(event.target.value)}/><small>Scenario duration is capped at 600 months.</small></label>
+          <label>Monthly payment (₹)<input type="number" min="0" step="100" value={scenarioPayment} onChange={event=>setScenarioPayment(event.target.value)} placeholder="Optional payment amount"/><small>Saved EMI: {selectedLoan.moduleData?.emi?formatINR(parseDealNumber(selectedLoan.moduleData.emi)):"Not entered"}</small></label>
+          <label>Scenario start date<input type="date" value={scenarioStartDate} onChange={event=>setScenarioStartDate(event.target.value)}/><small>Used only to label the illustrative schedule.</small></label>
+          <div className="vs-scenario-method"><span>Interest projection method</span><div><button type="button" className={scenarioMode==="simple"?"active":""} onClick={()=>setScenarioMode("simple")}>Simple</button><button type="button" className={scenarioMode==="compound"?"active":""} disabled={method==="Fixed amount per month"||method==="Interest-free"} onClick={()=>setScenarioMode("compound")}>Compound</button></div><small>{method==="Fixed amount per month"||method==="Interest-free"?"Compound mode is not supported by this saved rate method.":"Compound mode applies the scenario periodic rate to the growing balance."}</small></div>
         </div>
         <div className="vs-simulation-results">
-          <article><span>Current monthly interest</span><strong>{formatINR(currentInterest)}</strong><small>Calculated from saved loan terms</small></article>
-          <article><span>Scenario monthly interest</span><strong>{formatINR(scenarioInterest)}</strong><small>Calculated from scenario input</small></article>
-          <article className={scenarioInterest>currentInterest?"is-warning":"is-positive"}><span>Monthly difference</span><strong>{scenarioInterest-currentInterest>0?"+":""}{formatINR(scenarioInterest-currentInterest)}</strong><small>{scenarioInterest>currentInterest?"Increase":"Decrease or unchanged"} versus current terms</small></article>
+          <article><span>Saved monthly interest</span><strong>{formatINR(currentInterest)}</strong><small>Current saved loan convention</small></article>
+          <article><span>Scenario monthly interest</span><strong>{formatINR(scenarioInterest)}</strong><small>{formatINR(scenarioPrincipalValue)} principal · {scenarioInput||"0"} rate input</small></article>
+          <article className={scenarioInterest>currentInterest?"is-warning":"is-positive"}><span>Monthly change</span><strong>{scenarioInterest-currentInterest>0?"+":""}{formatINR(scenarioInterest-currentInterest)}</strong><small>Against the saved monthly calculation</small></article>
+          <article><span>Projected interest for term</span><strong>{formatINR(scenarioTotalInterest)}</strong><small>{scenarioMode==="compound"?"Compound scenario":"Simple monthly projection"} · {scenarioTerm} months</small></article>
+          <article><span>Scenario payment total</span><strong>{scenarioPayment?formatINR(parseDealNumber(scenarioPayment)*scenarioTerm):"Not calculated"}</strong><small>Assumes the entered payment repeats each month</small></article>
+          <article><span>Balance after preview</span><strong>{scenarioSchedule.length?formatINR(scenarioSchedule[scenarioSchedule.length-1].balance):"Payment not entered"}</strong><small>{scenarioSchedule.length?"After "+scenarioSchedule.length+" preview month(s)":"Enter a monthly payment to preview allocation"}</small></article>
         </div>
-        <div className="vs-formula-note"><Landmark size={16}/><span><strong>Calculation method: {method}</strong><small>Uses AXIVESTRA's existing monthly-interest formula. This is a scenario, not a lender quote, verified balance or forecast.</small></span></div></>}
+        <div className="vs-formula-note"><Landmark size={16}/><span><strong>Source convention: {method} · projection: {scenarioMode}</strong><small>Uses AXIVESTRA's saved monthly-interest calculation for the baseline. Simple and compound scenarios are estimates from the inputs shown. The payment preview assumes monthly payment allocation to interest first, then principal; it is not a lender's amortization schedule, quote or confirmed balance.</small></span></div>
+        <section className="vs-simulation-schedule"><header><div><span className="vs-eyebrow">ILLUSTRATIVE PAYMENT PATH</span><h4>Month-by-month allocation</h4><p>Only the first 12 months are shown. The full term remains in the scenario totals above.</p></div></header>{scenarioSchedule.length?<div className="vs-simulation-table-wrap"><table><thead><tr><th>Month</th><th>Interest</th><th>Payment</th><th>Principal paid</th><th>Remaining balance</th></tr></thead><tbody>{scenarioSchedule.map(row=><tr key={row.month}><td>{scenarioStartDate?new Date(new Date(scenarioStartDate+"T00:00:00").getFullYear(),new Date(scenarioStartDate+"T00:00:00").getMonth()+row.month-1,1).toLocaleDateString("en-IN",{month:"short",year:"numeric"}):"Month "+row.month}</td><td>{formatINR(row.interest)}</td><td>{formatINR(row.payment)}</td><td>{formatINR(row.principal)}</td><td>{formatINR(row.balance)}</td></tr>)}</tbody></table></div>:<div className="vs-empty-state"><Wallet size={21}/><strong>No payment allocation preview.</strong><small>Enter a monthly payment amount to see a projected allocation.</small></div>}</section></>}
       </>:<div className="vs-empty-state"><Wallet size={23}/><strong>No saved loan records found.</strong><small>Add a loan in its existing module to activate interest scenarios.</small><button type="button" onClick={()=>onOpenModule("Property Loans")}>Open Property Loans <ArrowUpRight size={14}/></button></div>}
     </section>}
-
     {space==="workflow"&&<section className="vs-space-page">
       <header><div><span className="vs-eyebrow">MISSION WORKFLOWS</span><h3>Operational path and next actions</h3>
         <p>Tasks and record milestones are assembled from saved status, next-action and date fields.</p></div><Workflow size={22}/></header>
