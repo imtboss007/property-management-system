@@ -20,7 +20,7 @@ type PropertyRow = {
 };
 type ContactRow = {id:string;name:string;phone:string;role:string;roles?:string[];followUps?:FollowUpRow[]};
 type TaskRow = {id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;contactId?:string;contactName?:string;notes:string;done:boolean};
-type FinancialRow = {id:string;property:string;type:string;amount:string;date:string;party:string;notes:string};
+type FinancialRow = {id:string;propertyId?:string;contactId?:string;property:string;type:string;amount:string;date:string;party:string;notes:string};
 type FollowUpDraft = {
   contactId:string; linkedRecordId:string; description:string; amount:string;
   promisedDate:string; promisedTime:string; responseType:string; notes:string; status:string;
@@ -86,7 +86,7 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
   return {summary:`I searched saved AXIVESTRA records and contacts for “${query.trim()}”. I found ${recordMatches.length} record(s) and ${contactMatches.length} contact(s). Open a result to inspect its complete details.`,entries,empty:"No matching records or contacts were found. Try a shorter name, module, location or transaction term."};
 }
 
-export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onCreateFollowUp}:Props){
+export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp}:Props){
   const [copilotQuery,setCopilotQuery]=useState("");
   const [copilotAnswer,setCopilotAnswer]=useState<CopilotAnswer|null>(null);
   const [whatsAppMessage,setWhatsAppMessage]=useState("");
@@ -167,7 +167,7 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
           <Search size={16}/><input value={copilotQuery} onChange={event=>setCopilotQuery(event.target.value)} placeholder="e.g. Show overdue follow-ups or loan interest…"/><button type="submit" disabled={!copilotQuery.trim()}>Ask</button>
         </form>
         <div className="ax-deal-copilot-prompts">{["Show overdue follow-ups","Calculate monthly loan interest","Show today's tasks","Summarise collections"].map(prompt=><button type="button" key={prompt} onClick={()=>runCopilot(prompt)}>{prompt}</button>)}</div>
-        {copilotAnswer&&<div className="ax-deal-copilot-answer" aria-live="polite"><p>{copilotAnswer.summary}</p>{copilotAnswer.entries.length?copilotAnswer.entries.map((entry,index)=><button type="button" key={entry.title+"-"+index} onClick={()=>entry.recordId&&props.onOpenRecord?props.onOpenRecord(entry.recordId):entry.contactId&&props.onOpenContact?props.onOpenContact(entry.contactId):entry.module?onOpenModule(entry.module):props.onOpenFinancials?props.onOpenFinancials():onOpenContacts()}><span><strong>{entry.title}</strong><small>{entry.detail}</small></span><em>{entry.value||"Open"}</em></button>):<small>{copilotAnswer.empty}</small>}</div>}
+        {copilotAnswer&&<div className="ax-deal-copilot-answer" aria-live="polite"><p>{copilotAnswer.summary}</p>{copilotAnswer.entries.length?copilotAnswer.entries.map((entry,index)=><button type="button" key={entry.title+"-"+index} onClick={()=>entry.recordId&&onOpenRecord?onOpenRecord(entry.recordId):entry.contactId&&onOpenContact?onOpenContact(entry.contactId):entry.module?onOpenModule(entry.module):onOpenFinancials?onOpenFinancials():onOpenContacts()}><span><strong>{entry.title}</strong><small>{entry.detail}</small></span><em>{entry.value||"Open"}</em></button>):<small>{copilotAnswer.empty}</small>}</div>}
         <small className="ax-deal-copilot-disclaimer">Local, explainable workspace assistant · No outside AI service or data sharing is required.</small>
       </section>
 
