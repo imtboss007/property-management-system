@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowUpRight, Bookmark, CalendarClock, CalendarDays, CheckCircle2, ChevronRight,
+  ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
   GitBranch, Landmark, Moon, Network, Sparkles, Sun, TrendingUp, Users, Wallet, Workflow
 } from "lucide-react";
 import IntelligenceHub from "./IntelligenceHub";
