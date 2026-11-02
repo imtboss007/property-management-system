@@ -4449,3 +4449,96 @@ h2,h3{color:#e5f2fc}
 .vs-desk-grid.freeform .vs-desk-panel.minimized{height:auto}
 .vs-shift[data-theme="light"] .vs-desk-grid.freeform{border-color:#cbd8ca;background-image:linear-gradient(#304d3c0a 1px,transparent 1px),linear-gradient(90deg,#304d3c0a 1px,transparent 1px),radial-gradient(ellipse at 50% 0%,#a9cbb222,transparent 55%),linear-gradient(145deg,#edf0e7,#f6f2e8)}
 @media(max-width:760px){.vs-desk-grid.freeform{min-height:1800px;overflow:auto}.vs-desk-grid.freeform .vs-desk-panel{width:min(90%,560px);min-width:260px;max-width:90%}.vs-desk-grid.freeform .vs-desk-panel.expanded{width:90%}}
+
+
+/* VESTRA SHIFT — Focus environment */
+.vs-focus-backdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;padding:clamp(10px,2.5vw,30px);background:rgba(5,12,23,.74);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);animation:vsFocusBackdropIn .22s ease both}
+.vs-focus-panel{width:min(1120px,100%);max-height:min(92dvh,940px);overflow:auto;border:1px solid rgba(145,181,190,.27);border-radius:28px;padding:clamp(18px,3vw,34px);background:radial-gradient(circle at 90% 0%,rgba(112,83,180,.16),transparent 32%),linear-gradient(145deg,#101e2b,#0b1420 70%);box-shadow:0 34px 110px rgba(0,0,0,.48);color:#eef7f6;animation:vsFocusPanelIn .28s cubic-bezier(.2,.75,.2,1) both}
+.vs-focus-header{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}
+.vs-focus-brand{display:flex;gap:14px;align-items:flex-start}
+.vs-focus-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;color:#b5a0ff;background:linear-gradient(145deg,rgba(143,117,218,.24),rgba(56,179,151,.13));border:1px solid rgba(177,154,255,.28);box-shadow:inset 0 1px rgba(255,255,255,.14),0 10px 25px rgba(66,51,118,.24)}
+.vs-focus-header h3{margin:5px 0 5px;font-size:clamp(19px,2.2vw,26px);letter-spacing:-.035em}
+.vs-focus-header p{margin:0;color:#9eb2b8;font-size:13px}
+.vs-focus-close,.vs-focus-open-task{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(161,190,190,.22);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,.055);color:#e7f1ed;cursor:pointer}
+.vs-focus-mode-switch{display:flex;gap:8px;margin-bottom:16px;padding:5px;width:max-content;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid rgba(164,188,188,.14)}
+.vs-focus-mode-switch button{display:flex;align-items:center;gap:8px;border:0;border-radius:10px;padding:10px 14px;background:transparent;color:#a8b9bc;cursor:pointer}
+.vs-focus-mode-switch button.active{background:linear-gradient(120deg,rgba(72,174,145,.23),rgba(144,111,214,.24));color:#fff;box-shadow:inset 0 0 0 1px rgba(185,211,200,.18)}
+.vs-focus-source-picker{margin-bottom:18px}
+.vs-focus-source-picker label{display:grid;gap:7px;max-width:680px;color:#9eb2b8;font-size:12px;font-weight:700;letter-spacing:.03em}
+.vs-focus-source-picker select{width:100%;min-height:44px;border:1px solid rgba(155,190,184,.24);border-radius:12px;padding:0 13px;background:#132331;color:#edf6f2}
+.vs-focus-main{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.8fr);gap:14px}
+.vs-focus-primary,.vs-focus-context,.vs-focus-history,.vs-focus-actions{min-width:0;border:1px solid rgba(150,185,179,.16);border-radius:19px;background:rgba(255,255,255,.035)}
+.vs-focus-primary{padding:22px;background:linear-gradient(130deg,rgba(56,154,132,.11),rgba(120,93,176,.10)),rgba(255,255,255,.025)}
+.vs-focus-primary h4{margin:9px 0;font-size:clamp(23px,3vw,34px);line-height:1.12;letter-spacing:-.04em;overflow-wrap:anywhere}
+.vs-focus-primary>p{color:#a8bcc0;font-size:13px}
+.vs-focus-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:20px}
+.vs-focus-facts span{display:grid;gap:6px;padding:12px;border-radius:12px;background:rgba(7,15,24,.36);border:1px solid rgba(165,196,188,.12);min-width:0}
+.vs-focus-facts small{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#8ca9a8}
+.vs-focus-facts strong{font-size:13px;color:#f1f7f2;overflow-wrap:anywhere}
+.vs-focus-primary blockquote{margin:16px 0 0;padding:10px 13px;border-left:2px solid #8c78cf;color:#b9c7c8;background:rgba(6,14,22,.3);font-size:13px}
+.vs-focus-context{padding:18px}
+.vs-focus-context>.vs-eyebrow{display:block;margin-bottom:14px}
+.vs-focus-person,.vs-focus-record-link{display:flex;width:100%;align-items:center;gap:10px;margin:0 0 10px;padding:11px;border-radius:13px;border:1px solid rgba(163,192,181,.14);background:rgba(255,255,255,.045);color:#eaf3ee;text-align:left;cursor:pointer}
+.vs-focus-person>span{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:rgba(104,181,153,.17);color:#95d9b9;flex-shrink:0}
+.vs-focus-person>div,.vs-focus-record-link>span{display:grid;gap:4px;min-width:0;flex:1}
+.vs-focus-person strong,.vs-focus-record-link strong{font-size:12px;overflow-wrap:anywhere}
+.vs-focus-person small,.vs-focus-record-link small{color:#93a9ad;font-size:10px}
+.vs-focus-record-link>svg:first-child{color:#c3a6ff;flex-shrink:0}
+.vs-focus-open-task{margin-top:3px;padding:8px 11px;font-size:11px}
+.vs-focus-lower{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(230px,.7fr);gap:14px;margin-top:14px}
+.vs-focus-history,.vs-focus-actions{padding:17px}
+.vs-focus-history>header{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+.vs-focus-history>header>span{display:flex;align-items:center;gap:7px;color:#b6d8ca;font-size:10px;font-weight:800;letter-spacing:.1em}
+.vs-focus-history>header small{color:#849da2;font-size:10px}
+.vs-focus-history article{display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:10px;align-items:start;padding:11px 0;border-top:1px solid rgba(159,189,179,.1)}
+.vs-focus-history-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;background:#a98ce4;box-shadow:0 0 0 4px rgba(169,140,228,.1)}
+.vs-focus-history article>div{display:grid;gap:4px;min-width:0}
+.vs-focus-history article strong{font-size:12px}
+.vs-focus-history article small,.vs-focus-history article p{margin:0;color:#91a7ab;font-size:10px}
+.vs-focus-history article p{font-size:11px;overflow-wrap:anywhere}
+.vs-focus-history article>b{font-size:11px;color:#b9dfcd;white-space:nowrap}
+.vs-focus-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.vs-focus-actions>.vs-eyebrow{margin-bottom:5px}
+.vs-focus-actions button{display:flex;align-items:center;gap:8px;width:100%;padding:11px;border-radius:12px;border:1px solid rgba(155,190,179,.15);background:rgba(255,255,255,.04);color:#eaf3ed;text-align:left;cursor:pointer;font-size:11px}
+.vs-focus-actions button svg:last-child{margin-left:auto;color:#9cbaa9}
+.vs-focus-muted{color:#91a7ab;font-size:12px;line-height:1.5}
+.vs-focus-empty{display:grid;justify-items:center;gap:10px;padding:42px 20px;text-align:center;border:1px dashed rgba(164,191,181,.24);border-radius:18px;color:#a9c4ba}
+.vs-focus-empty strong{color:#edf5ee}
+.vs-focus-empty p{max-width:460px;margin:0;color:#91a7ab;font-size:12px}
+.vs-focus-empty button{display:flex;align-items:center;gap:8px;margin-top:8px;padding:10px 14px;border:0;border-radius:999px;background:#b7a0ef;color:#171326;cursor:pointer;font-weight:800}
+.vs-focus-footer{margin-top:16px;padding-top:13px;border-top:1px solid rgba(155,185,176,.12);color:#82999e;font-size:10px;line-height:1.5}
+@keyframes vsFocusBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes vsFocusPanelIn{from{opacity:0;transform:translateY(12px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
+.vs-focus-panel button:focus-visible,.vs-focus-panel select:focus-visible{outline:2px solid #b6a0ed;outline-offset:3px}
+.vs-shift[data-theme="light"] .vs-focus-panel{background:radial-gradient(circle at 90% 0%,rgba(133,108,192,.13),transparent 32%),linear-gradient(145deg,#fffefa,#f1f5f1 70%);color:#182a27;border-color:rgba(48,97,82,.2);box-shadow:0 34px 110px rgba(20,47,39,.2)}
+.vs-shift[data-theme="light"] .vs-focus-header p,.vs-shift[data-theme="light"] .vs-focus-primary>p,.vs-shift[data-theme="light"] .vs-focus-muted{color:#627a73}
+.vs-shift[data-theme="light"] .vs-focus-primary,.vs-shift[data-theme="light"] .vs-focus-context,.vs-shift[data-theme="light"] .vs-focus-history,.vs-shift[data-theme="light"] .vs-focus-actions{background:rgba(255,255,255,.7);border-color:rgba(49,100,79,.16)}
+.vs-shift[data-theme="light"] .vs-focus-primary h4,.vs-shift[data-theme="light"] .vs-focus-history article strong,.vs-shift[data-theme="light"] .vs-focus-person strong,.vs-shift[data-theme="light"] .vs-focus-record-link strong{color:#1e3430}
+.vs-shift[data-theme="light"] .vs-focus-facts span{background:#f2f6f2;border-color:rgba(54,96,76,.12)}
+.vs-shift[data-theme="light"] .vs-focus-facts strong{color:#203c34}
+.vs-shift[data-theme="light"] .vs-focus-person,.vs-shift[data-theme="light"] .vs-focus-record-link,.vs-shift[data-theme="light"] .vs-focus-actions button,.vs-shift[data-theme="light"] .vs-focus-close,.vs-shift[data-theme="light"] .vs-focus-open-task{background:#fff;color:#25453a;border-color:rgba(45,94,73,.18)}
+.vs-shift[data-theme="light"] .vs-focus-mode-switch{background:#eaf0eb;border-color:rgba(45,94,73,.15)}
+.vs-shift[data-theme="light"] .vs-focus-mode-switch button{color:#60756e}
+.vs-shift[data-theme="light"] .vs-focus-mode-switch button.active{color:#1e493c}
+.vs-shift[data-theme="light"] .vs-focus-source-picker label{color:#5a726a}
+.vs-shift[data-theme="light"] .vs-focus-source-picker select{background:#fff;color:#243f36;border-color:rgba(45,94,73,.22)}
+.vs-shift[data-theme="light"] .vs-focus-footer{color:#6b8178}
+@media(max-width:760px){
+  .vs-focus-backdrop{padding:0;align-items:end}
+  .vs-focus-panel{width:100%;max-height:96dvh;border-radius:24px 24px 0 0;padding:18px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+  .vs-focus-header{display:grid;gap:12px}
+  .vs-focus-close{justify-content:center;width:100%}
+  .vs-focus-main,.vs-focus-lower{grid-template-columns:1fr}
+  .vs-focus-facts{grid-template-columns:1fr 1fr}
+  .vs-focus-context{padding:14px}
+}
+@media(max-width:420px){
+  .vs-focus-mode-switch{width:100%}
+  .vs-focus-mode-switch button{flex:1;justify-content:center;padding:10px 8px;font-size:11px}
+  .vs-focus-facts span:last-child{grid-column:1/-1}
+  .vs-focus-history article{grid-template-columns:9px minmax(0,1fr)}
+  .vs-focus-history article>b{grid-column:2}
+}
+@media(prefers-reduced-motion:reduce){
+  .vs-focus-backdrop,.vs-focus-panel{animation:none}
+}
