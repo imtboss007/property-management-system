@@ -4728,3 +4728,15 @@ h2,h3{color:#e5f2fc}
 .vs-relationship-network__activity-title{fill:#c4a9dc;font-size:8px;font-weight:900;letter-spacing:.13em;pointer-events:none}
 .vs-relationship-network__activity-meta{fill:#c6c3d1;font-size:7px;pointer-events:none}
 @media(prefers-reduced-motion:reduce){.vs-relationship-network__activity rect{transition:none}}
+
+/* VESTRA advanced interaction engine: magnetic response + tactile press depth */
+@media(hover:hover) and (pointer:fine){
+  .vs-shift [data-vs-magnetic="true"]{translate:var(--vs-magnetic-x,0px) var(--vs-magnetic-y,0px);transition:translate .22s cubic-bezier(.18,.82,.24,1),box-shadow .22s ease}
+  .vs-shift [data-vs-magnetic="true"]:hover svg{rotate:-7deg;transition:rotate .24s cubic-bezier(.2,.8,.2,1)}
+}
+.vs-shift button{transform-origin:center;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
+.vs-shift button:active{transform:translateY(1px) scale(.985)}
+.vs-shift button:focus-visible{outline:2px solid var(--vs-color-cobalt,#83a5db);outline-offset:3px}
+.vs-shift .vs-prism-emblem:active{transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){.vs-shift [data-vs-magnetic="true"],.vs-shift [data-vs-magnetic="true"]:hover svg{translate:0 0;rotate:0;transition:none}.vs-shift button{transition:none}}
+@media(hover:none),(pointer:coarse){.vs-shift [data-vs-magnetic="true"]{translate:0 0}}
