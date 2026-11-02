@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Download, ExternalLink, Plus, Search, Trash2, Users } from "lucide-react";
 import {
   buildRecordFollowUpCsv,
@@ -59,7 +59,7 @@ export default function RecordFollowUpTracker(props: Props) {
   const [query, setQuery] = useState("");
 
   // Reconcile saved changes without replacing an actively edited local row.
-  useMemo(() => {
+  useEffect(() => {
     const saved = buildDrafts(props.records);
     setDrafts(current => {
       const next = { ...current };
@@ -73,7 +73,6 @@ export default function RecordFollowUpTracker(props: Props) {
       for (const [key, row] of Object.entries(saved)) if (!next[key]) next[key] = row;
       return next;
     });
-    return null;
   }, [props.records]);
 
   const moduleOptions = useMemo(() => Array.from(new Set([
