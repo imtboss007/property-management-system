@@ -4233,3 +4233,40 @@ h2,h3{color:#e5f2fc}
 .ax-copilot-context{display:inline-flex;align-items:center;margin-top:7px;padding:5px 8px;border:1px solid #4c7067;border-radius:7px;background:#173631;color:#b5d6c1;font-size:8px;font-weight:800}
 .ax-intelligence-panel .ax-deal-copilot-answer{animation:vsLiquidEnter .3s ease both}
 .vs-shift[data-theme="light"] .ax-copilot-context{background:#e5efe5;border-color:#c4d6c7;color:#42614e}
+
+/* Dimensional module identity objects: one visual language, per-module accent */
+.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{
+  transform:perspective(1100px) rotateX(var(--vs-module-tilt-x,0deg)) rotateY(var(--vs-module-tilt-y,0deg));
+  transform-style:preserve-3d;
+  will-change:transform;
+  transition:transform .28s cubic-bezier(.18,.86,.23,1.12),border-color .24s,box-shadow .24s;
+}
+.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card:hover{
+  border-color:#8bc6a8;
+  box-shadow:0 24px 48px #020b178c,0 0 30px #77c69d18,inset 0 1px #ffffff12;
+}
+.vs-module-identity-object{position:relative;display:grid;place-items:center;width:62px;height:62px;margin:0 0 14px;perspective:520px;transform-style:preserve-3d;isolation:isolate}
+.vs-module-identity-object:before{content:"";position:absolute;inset:8px;border-radius:18px;transform:rotateX(62deg) rotateZ(45deg) translateZ(-9px);background:linear-gradient(145deg,#ffffff38,#ffffff03);border:1px solid #ffffff21;box-shadow:0 10px 22px #020b1748}
+.vs-module-identity-object>i{position:absolute;display:block;width:27px;height:35px;border:1px solid #ffffff52;clip-path:polygon(50% 0,100% 25%,82% 100%,18% 100%,0 25%);transform-style:preserve-3d;transform-origin:50% 50%;background:linear-gradient(145deg,#ffffff65,#ffffff05);backface-visibility:hidden;animation:vsModuleFacet 8s ease-in-out infinite}
+.vs-module-identity-object>i:nth-child(1){transform:rotateY(0deg) translateZ(12px);opacity:.92}
+.vs-module-identity-object>i:nth-child(2){transform:rotateY(120deg) translateZ(12px);opacity:.72;animation-delay:-2.5s}
+.vs-module-identity-object>i:nth-child(3){transform:rotateY(240deg) translateZ(12px);opacity:.6;animation-delay:-5s}
+.vs-module-identity-object .module-icon{position:relative;z-index:2;display:grid;place-items:center;width:39px;height:39px;border:1px solid #ffffff4a;border-radius:12px;background:linear-gradient(145deg,#ffffff35,#ffffff0a);color:#f1f5ec;box-shadow:0 9px 17px #020b1763,inset 0 1px #ffffff45;transform:translateZ(22px);backdrop-filter:blur(9px)}
+.vs-module-identity-object.mint>i{background:linear-gradient(145deg,#b9e6c7a6,#438e6d4f)}
+.vs-module-identity-object.blue>i{background:linear-gradient(145deg,#b8d9ffad,#527fc55a)}
+.vs-module-identity-object.violet>i{background:linear-gradient(145deg,#e2d4ffad,#8264c75a)}
+.vs-module-identity-object.amber>i{background:linear-gradient(145deg,#f5dbb5b5,#b27b425a)}
+.vs-module-identity-object.green>i{background:linear-gradient(145deg,#b8e7c5ad,#498c5b5a)}
+.vs-module-identity-object.rose>i{background:linear-gradient(145deg,#ffd0cdb5,#b65c705a)}
+.vs-module-identity-object.mint .module-icon{color:#d5ffe3}
+.vs-module-identity-object.blue .module-icon{color:#deebff}
+.vs-module-identity-object.violet .module-icon{color:#f0e6ff}
+.vs-module-identity-object.amber .module-icon{color:#ffe8c7}
+.vs-module-identity-object.green .module-icon{color:#ddffe3}
+.vs-module-identity-object.rose .module-icon{color:#ffe2e1}
+@keyframes vsModuleFacet{0%,100%{filter:brightness(.82);box-shadow:0 0 8px #ffffff05}50%{filter:brightness(1.32);box-shadow:0 0 18px #ffffff1b}}
+.ax-modern-shell .module-card.enterprise-module-card .module-number{transform:translateZ(18px)}
+.ax-modern-shell .module-card.enterprise-module-card h3{transform:translateZ(12px)}
+.ax-modern-shell .module-card.enterprise-module-card .module-footer{transform:translateZ(10px)}
+@media(hover:none){.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{transform:none!important;will-change:auto}}
+@media(prefers-reduced-motion:reduce){.vs-module-identity-object>i,.ax-modern-shell .module-card.enterprise-module-card.vs-module-magnetic-card{animation:none!important;transition:none!important;transform:none!important}}
