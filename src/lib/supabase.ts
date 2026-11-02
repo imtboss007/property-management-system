@@ -258,6 +258,9 @@ export async function syncCompanyWorkspace(
     }
     const payload = row.payload as SyncRow | null;
     if (!payload || typeof payload.id !== "string" || payload.id !== id) continue;
+    // User workspace settings are isolated by authenticated member even though business
+    // records remain company-scoped. Never hydrate one member's saved views/searches on another.
+    if (row.record_type === "workspace_preference" && String(payload.scope || "") !== company.id + ":" + userId) continue;
     const items = remoteByType.get(row.record_type) || new Map<string, RemoteRow>();
     items.set(id, { payload, updatedAt: String(row.updated_at || "") });
     remoteByType.set(row.record_type, items);
