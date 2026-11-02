@@ -4229,3 +4229,7 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-projection-result small{color:#687f72}
 .vs-module-filter-caption{display:block;margin:-5px 0 5px;color:#93b0b5;font-size:8px}
 .vs-shift[data-theme="light"] .vs-module-filter-caption{color:#6e8278}
+
+.ax-copilot-context{display:inline-flex;align-items:center;margin-top:7px;padding:5px 8px;border:1px solid #4c7067;border-radius:7px;background:#173631;color:#b5d6c1;font-size:8px;font-weight:800}
+.ax-intelligence-panel .ax-deal-copilot-answer{animation:vsLiquidEnter .3s ease both}
+.vs-shift[data-theme="light"] .ax-copilot-context{background:#e5efe5;border-color:#c4d6c7;color:#42614e}
