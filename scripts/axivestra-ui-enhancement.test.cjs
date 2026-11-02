@@ -8,6 +8,9 @@ const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
 const intent = fs.readFileSync("src/IntelligenceHub.tsx", "utf8");
 const canvas = fs.readFileSync("src/VestraIntentCanvas.tsx", "utf8");
 const finance = fs.readFileSync("src/VestraFinance.tsx", "utf8");
+const recordTracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
+const recordFollowUpLib = fs.readFileSync("src/lib/record-follow-up.ts", "utf8");
+const contactMerge = fs.readFileSync("src/lib/contact-directory.mjs", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
@@ -62,7 +65,7 @@ for (const token of [
 for (const token of ["People: ", "onOpenRecord(entry.recordId)", "onOpenContact(entry.contactId)", "commitments.length"]) assert.ok(intent.includes(token), "Intent Canvas must expose source-linked loan owners and result navigation: " + token);
 
 for (const token of [
-  "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(result.taskId)", "onOpenTransaction(result.transactionId)", "RECENTLY OPENED", "commandInputRef", "person.?wise|contact report", "overdue\\s+payments?"
+  "COMMAND COMPOSER", "FAVOURITE COMMANDS", "runCommand", "saveCommand", "onOpenTask(result.taskId)", "onOpenTransaction(result.transactionId)", "RECENTLY OPENED", "commandInputRef", "person.?wise|contact report", "overdue\\s+payments?",
   "/\\b(loan|interest|lender|borrow)\\b/.test(query)", "commandResults"
 ]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
 for (const token of [
@@ -82,4 +85,10 @@ for (const token of [
   "scenarioFullSchedule", "scenarioMode===\"compound\"", "missionLinks",
   "onOpenTask(taskId)"
 ]) assert.ok(vestra.includes(token), "Missing relationship / temporal / simulation / mission feature: " + token);
+for (const token of ["description?: string", "amount?: string", "priority?: string", "status?: string", "nextAction?: string", "notes?: string", "Assigned At", "Next Action"]) assert.ok(recordFollowUpLib.includes(token), "Missing record-level follow-up data field / export: " + token);
+for (const token of ['aria-label="Follow-up description"', 'aria-label="Follow-up amount"', 'aria-label="Follow-up priority"', 'aria-label="Follow-up status"', 'aria-label="Follow-up next action"', 'aria-label="Follow-up notes"']) assert.ok(recordTracker.includes(token), "Missing editable record follow-up control: " + token);
+for (const token of ["mergeMasterContactsById", 'new Set(["roles", "whatsappAliases", "followUps"])', "merged.followUps ="]) assert.ok(contactMerge.includes(token), "Missing safe merge preservation: " + token);
+for (const token of ["mergeContactsWithAuthorization", "MERGE CONTACT RECORDS", "onMergeContacts={mergeContactsWithAuthorization}"]) assert.ok(app.includes(token), "Missing user-authorized contact merge safeguard: " + token);
+for (const token of ['space==="finance"', 'temporalView==="calendar"', "calendarCells", "onMergeContacts", "scenarioFullSchedule", "missionLinks"]) assert.ok(vestra.includes(token), "Missing VESTRA temporal / finance / workflow capability: " + token);
+for (const token of ["vs-calendar-grid", "vs-duplicate-merge-action", "--vs-color-porcelain"]) assert.ok(styles.includes(token), "Missing VESTRA visual system surface: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
