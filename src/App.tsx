@@ -2937,7 +2937,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             <label><input type="radio" name="ax-pdf-identity" value="name-number" checked={pdfIdentityMode==="name-number"} onChange={()=>setPdfIdentityMode("name-number")}/><span><strong>Name + Number</strong><small>Show saved contact names and phone numbers.</small></span></label>
             <label><input type="radio" name="ax-pdf-identity" value="name-only" checked={pdfIdentityMode==="name-only"} onChange={()=>setPdfIdentityMode("name-only")}/><span><strong>Name only</strong><small>Show names, hide phone numbers.</small></span></label>
             <label><input type="radio" name="ax-pdf-identity" value="number-only" checked={pdfIdentityMode==="number-only"} onChange={()=>setPdfIdentityMode("number-only")}/><span><strong>Number only</strong><small>Show phone numbers, hide saved contact names.</small></span></label>
-            <label><input type="radio" name="ax-pdf-identity" value="blank" checked={pdfIdentityMode==="blank"} onChange={()=>setPdfIdentityMode("blank")}/><span><strong>Neither name nor number</strong><small>Hide both identity details in the report.</small></span></label>
+            <label><input type="radio" name="ax-pdf-identity" value="blank" checked={pdfIdentityMode==="blank"} onChange={()=>setPdfIdentityMode("blank")}/><span><strong>Blank — hide name and number</strong><small>Hide both identity details in the report.</small></span></label>
           </fieldset>
           <fieldset className="ax-pdf-option-group">
             <legend>Downloaded filename</legend>
