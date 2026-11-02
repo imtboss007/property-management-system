@@ -8,6 +8,7 @@ const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
 const intent = fs.readFileSync("src/IntelligenceHub.tsx", "utf8");
 const canvas = fs.readFileSync("src/VestraIntentCanvas.tsx", "utf8");
 const finance = fs.readFileSync("src/VestraFinance.tsx", "utf8");
+const desk = fs.readFileSync("src/VestraSpatialDesk.tsx", "utf8");
 const recordTracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
 const recordFollowUpLib = fs.readFileSync("src/lib/record-follow-up.ts", "utf8");
 const contactMerge = fs.readFileSync("src/lib/contact-directory.mjs", "utf8");
@@ -93,4 +94,7 @@ for (const token of ["mergeMasterContactsById", 'new Set(["roles", "whatsappAlia
 for (const token of ["mergeContactsWithAuthorization", "MERGE CONTACT RECORDS", "onMergeContacts={mergeContactsWithAuthorization}"]) assert.ok(app.includes(token), "Missing user-authorized contact merge safeguard: " + token);
 for (const token of ['space==="finance"', 'temporalView==="calendar"', "calendarCells", "onMergeContacts", "scenarioFullSchedule", "missionLinks"]) assert.ok(vestra.includes(token), "Missing VESTRA temporal / finance / workflow capability: " + token);
 for (const token of ["vs-calendar-grid", "vs-duplicate-merge-action", "--vs-color-porcelain"]) assert.ok(styles.includes(token), "Missing VESTRA visual system surface: " + token);
+for (const token of ["SPATIAL WORKSPACE", "drag to reposition", "onDragStart", "onDrop", "expanded", "minimized", "savedLayouts", "setStates({...item.states})", "ThreeDHistogram", "monthlyData"]) assert.ok(desk.includes(token), "Missing spatial dashboard manager capability: " + token);
+for (const token of ["vs-startup-intro", "Skip introduction", "axivestra.vestraIntroSeen", "1600"]) assert.ok(app.includes(token), "Missing skippable first-launch VESTRA experience: " + token);
+for (const token of [".vs-spatial-desk", ".vs-desk-grid", ".vs-desk-panel", "resize:both", ".vs-startup-intro", ".vs-startup-prism", ".vs-prism-emblem:active", "--vs-prism-rotate-y"]) assert.ok(styles.includes(token), "Missing spatial / startup / prismatic interaction styling: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
