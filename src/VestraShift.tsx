@@ -95,6 +95,31 @@ export default function VestraShift(props:Props){
   const displayDensity=workspacePreferences.displayDensity==="compact"?"compact":"comfortable";
   const motionMode=workspacePreferences.motionMode==="reduced"||workspacePreferences.motionMode==="expressive"?workspacePreferences.motionMode:"balanced";
   const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
+  const [relationshipView,setRelationshipView]=useState<"network"|"cards">("network");
+  useEffect(()=>{
+    const handleWorkspaceShortcut=(event:KeyboardEvent)=>{
+      const target=event.target as HTMLElement|null;
+      const typing=Boolean(target?.closest("input,textarea,select,[contenteditable='true']"));
+      if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){
+        if(typing)return;
+        event.preventDefault();
+        setSpace("desk");
+        setAtelierCopilotOpen(true);
+        return;
+      }
+      if(event.key==="Escape"&&atelierCopilotOpen){
+        event.preventDefault();
+        setAtelierCopilotOpen(false);
+        return;
+      }
+      if((event.altKey||event.metaKey)&&/^[1-7]$/.test(event.key)&&!typing){
+        event.preventDefault();
+        setSpace(SPACES[Number(event.key)-1].id);
+      }
+    };
+    window.addEventListener("keydown",handleWorkspaceShortcut);
+    return ()=>window.removeEventListener("keydown",handleWorkspaceShortcut);
+  },[atelierCopilotOpen]);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
     const target=event.target as HTMLElement;
@@ -384,7 +409,7 @@ export default function VestraShift(props:Props){
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
     {space==="desk"&&<VestraSpatialDesk workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
-    {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>⌘ K</kbd></button>}
+    {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" aria-keyshortcuts="Control+K Meta+K" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>Ctrl / ⌘ K</kbd></button>}
     {atelierCopilotOpen&&<div className="vs-atelier-ai-backdrop" onClick={()=>setAtelierCopilotOpen(false)}>
       <section className="vs-atelier-ai-panel" role="dialog" aria-modal="true" aria-label="VESTRA command composer and intelligence companion" onClick={event=>event.stopPropagation()}>
         <header><div><span className="vs-eyebrow">ATELIER · COMMAND + INTELLIGENCE</span><strong>Bring intelligence into this workspace.</strong><small>Search saved records, ask for an operational view or inspect a contextual suggestion.</small></div><button type="button" onClick={()=>setAtelierCopilotOpen(false)} aria-label="Close Command and AI"><X size={16}/></button></header>
@@ -431,7 +456,47 @@ export default function VestraShift(props:Props){
       <header><div><span className="vs-eyebrow">LIVING RECORDS · RELATIONSHIP INTELLIGENCE</span><h3>People connected to work</h3>
         <p>Connections are derived from saved contact IDs, linked contact fields, contact follow-ups and task assignments.</p></div><Network size={22}/></header>
       {duplicateReviewPairs.length>0&&<section className="vs-duplicate-review"><header><strong>Possible contact matches · review before any merge</strong><small>Shared phone alone is not a merge key. These pairs are not automatically combined.</small></header>{duplicateReviewPairs.map(pair=><div key={pair.first.id+"-"+pair.second.id}><span>{pair.reason}</span><button type="button" onClick={()=>onOpenContact(pair.first.id)}>{pair.first.name} · {pair.first.phone||"No phone"}</button><button type="button" onClick={()=>onOpenContact(pair.second.id)}>{pair.second.name} · {pair.second.phone||"No phone"}</button><button type="button" className="vs-duplicate-merge-action" onClick={()=>onMergeContacts(pair.first.id,pair.second.id)}>Keep {pair.first.name.split(" ")[0]} and merge second</button><button type="button" className="vs-duplicate-merge-action" onClick={()=>onMergeContacts(pair.second.id,pair.first.id)}>Keep {pair.second.name.split(" ")[0]} and merge first</button></div>)}</section>}
-      <div className="vs-relationship-grid">{connections.map(({contact,records,followUps,linkedTasks,linkedFinancials,linkedDocuments,linkedRisks,linkedApprovals,linkedHistory})=><article className="vs-relationship-card" key={contact.id}>
+      <div className="vs-relationship-view-toggle" role="group" aria-label="Relationship view">
+        <button type="button" className={relationshipView==="network"?"active":""} aria-pressed={relationshipView==="network"} onClick={()=>setRelationshipView("network")}><Network size={13}/> Connection map</button>
+        <button type="button" className={relationshipView==="cards"?"active":""} aria-pressed={relationshipView==="cards"} onClick={()=>setRelationshipView("cards")}><Users size={13}/> Detailed cards</button>
+        <small>Lines connect only people and records linked in saved AXIVESTRA data. Select a node to open its source.</small>
+      </div>
+      {relationshipView==="network"&&<section className="vs-relationship-network" aria-label="Interactive person and record relationship map">
+        <div className="vs-relationship-network__legend"><span><i className="person"/> Saved person</span><span><i className="record"/> Linked record</span><span>Showing up to 7 people and 2 linked records per person</span></div>
+        <div className="vs-relationship-network__canvas">
+          <svg viewBox={`0 0 920 ${Math.max(250,Math.min(connections.length,7)*116+26)}`} role="group" aria-label="Relationship map; connected nodes open their saved source records">
+            {connections.slice(0,7).map((item,index)=>{
+              const y=68+index*116;
+              const linked=item.records.slice(0,2);
+              return <g key={item.contact.id} className="vs-relationship-network__row">
+                {linked.map((record,recordIndex)=>{
+                  const x=455+recordIndex*220;
+                  const recordY=y+(linked.length===2?(recordIndex===0?-22:22):0);
+                  return <g key={record.id}>
+                    <path className="vs-relationship-network__edge" d={`M 250 ${y} C 330 ${y}, 360 ${recordY}, ${x} ${recordY}`}/>
+                    <g className="vs-relationship-network__record" role="button" tabIndex={0} aria-label={`Open ${record.module}: ${record.title||"Untitled record"}`} onClick={()=>onOpenRecord(record.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onOpenRecord(record.id);}}}>
+                      <rect x={x} y={recordY-29} width="196" height="58" rx="13"/>
+                      <text x={x+13} y={recordY-5} className="vs-relationship-network__record-title">{(record.title||"Untitled record").slice(0,23)}</text>
+                      <text x={x+13} y={recordY+14} className="vs-relationship-network__record-meta">{record.module}</text>
+                      <path d={`M ${x+178} ${recordY-3} l 7 7 l -7 7`} className="vs-relationship-network__chevron"/>
+                    </g>
+                  </g>;
+                })}
+                <g className="vs-relationship-network__person" role="button" tabIndex={0} aria-label={`Open Contact 360 for ${item.contact.name}`} onClick={()=>onOpenContact(item.contact.id)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();onOpenContact(item.contact.id);}}}>
+                  <circle cx="119" cy={y} r="26"/>
+                  <text x="119" y={y+5} textAnchor="middle" className="vs-relationship-network__initials">{item.contact.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()}</text>
+                  <text x="158" y={y-5} className="vs-relationship-network__person-name">{item.contact.name.slice(0,22)}</text>
+                  <text x="158" y={y+14} className="vs-relationship-network__person-meta">{item.records.length} records · {item.followUps.length} open follow-ups</text>
+                  <text x="158" y={y+31} className="vs-relationship-network__person-role">{(item.contact.role||item.contact.roles?.[0]||"Contact").slice(0,28)}</text>
+                </g>
+              </g>;
+            })}
+            {!connections.length&&<text x="460" y="125" textAnchor="middle" className="vs-relationship-network__empty">No saved relationships to map yet.</text>}
+          </svg>
+        </div>
+        <small className="vs-relationship-network__note">This is a navigable relationship view, not an inferred social graph. Contacts without a saved record link remain visible as person nodes only.</small>
+      </section>}
+      {relationshipView==="cards"&&<div className="vs-relationship-grid">{connections.map(({contact,records,followUps,linkedTasks,linkedFinancials,linkedDocuments,linkedRisks,linkedApprovals,linkedHistory})=><article className="vs-relationship-card" key={contact.id}>
         <button type="button" className="vs-person-node" onClick={()=>onOpenContact(contact.id)}>
           <span className="vs-person-monogram">{contact.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()}</span>
           <span><strong>{contact.name}</strong><small>{contact.role||contact.roles?.join(", ")||"Contact"}</small></span><ChevronRight size={14}/>
@@ -450,7 +515,7 @@ export default function VestraShift(props:Props){
         </button>)}{!records.length&&<small>Follow-up/task links exist, but no property record is linked.</small>}</div>
         {(linkedFinancials.length+linkedDocuments.length+linkedRisks.length+linkedApprovals.length)>0&&<div className="vs-linked-activity-nodes"><strong>CONNECTED ACTIVITY</strong>{linkedFinancials.slice(0,4).map(item=><button type="button" key={item.id} onClick={()=>onOpenTransaction(item.id)}><span>Transaction · {item.type}</span><em>{item.date} · ₹{Number(item.amount||0).toLocaleString("en-IN")}</em></button>)}{linkedDocuments.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Documents")}><span>Document · {item.name}</span><em>{item.category} · {item.expiresOn||"No expiry saved"}</em></button>)}{linkedRisks.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Risk & Compliance")}><span>Risk · {item.title}</span><em>{item.severity} · {item.status} · {item.dueDate||"No due date"}</em></button>)}{linkedApprovals.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Approvals")}><span>Approval · {item.title}</span><em>{item.status} · {item.approver||"No approver saved"}</em></button>)}</div>}
         <button type="button" className="vs-card-open" onClick={()=>onOpenContact(contact.id)}>Open Contact 360 <ArrowUpRight size={14}/></button>
-      </article>)}{!connections.length&&<div className="vs-empty-state"><Users size={23}/><strong>No linked relationships to display.</strong><small>Links appear when saved records, follow-ups or tasks reference contacts.</small></div>}</div>
+      </article>)}{!connections.length&&<div className="vs-empty-state"><Users size={23}/><strong>No linked relationships to display.</strong><small>Links appear when saved records, follow-ups or tasks reference contacts.</small></div>}</div>}
     </section>}
 
     {space==="simulation"&&<section className="vs-space-page vs-simulation-page">
