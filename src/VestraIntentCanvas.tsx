@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, Bookmark, ChevronRight, Pin, PinOff, Play, Search, Sparkles, Users, X } from "lucide-react";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 import IntelligenceHub from "./IntelligenceHub";
@@ -27,6 +27,9 @@ export default function VestraIntentCanvas(props:Props){
  const [dragRecordId,setDragRecordId]=useState("");
  const commandStorageKey="axivestra.vestraShift.commands."+workspaceScope;
  const [command,setCommand]=useState("");
+ const commandInputRef=useRef<HTMLInputElement>(null);
+ const recentStorageKey="axivestra.vestraShift.recent."+workspaceScope;
+ const [recentIds,setRecentIds]=useState<string[]>(()=>{try{const value=JSON.parse(window.localStorage.getItem(recentStorageKey)||"[]");return Array.isArray(value)?value.filter((item):item is string=>typeof item==="string"):[];}catch{return [];}});
  const [commandSummary,setCommandSummary]=useState("");
  const [commandResults,setCommandResults]=useState<CommandResult[]>([]);
  const [savedCommands,setSavedCommands]=useState<string[]>(()=>{try{const value=JSON.parse(window.localStorage.getItem(commandStorageKey)||"[]");return Array.isArray(value)?value.filter((item):item is string=>typeof item==="string"):[];}catch{return [];}});
@@ -35,6 +38,8 @@ export default function VestraIntentCanvas(props:Props){
  });
  useEffect(()=>{try{window.localStorage.setItem(storageKey,JSON.stringify(savedCanvases));}catch{/* local canvas preferences are optional */}},[storageKey,savedCanvases]);
  useEffect(()=>{try{window.localStorage.setItem(commandStorageKey,JSON.stringify(savedCommands));}catch{/* optional saved command preference */}},[commandStorageKey,savedCommands]);
+ useEffect(()=>{try{window.localStorage.setItem(recentStorageKey,JSON.stringify(recentIds));}catch{/* optional recent record preference */}},[recentStorageKey,recentIds]);
+ useEffect(()=>{const onShortcut=(event:KeyboardEvent)=>{if((event.ctrlKey||event.metaKey)&&event.shiftKey&&event.key.toLowerCase()==="k"){event.preventDefault();commandInputRef.current?.focus();}};window.addEventListener("keydown",onShortcut);return()=>window.removeEventListener("keydown",onShortcut);},[]);
  const query=search.trim().toLocaleLowerCase();
  const recordMatches=useMemo(()=>properties.filter(record=>{
   const moduleOkay=moduleFilter==="All modules"||record.module===moduleFilter;
@@ -54,39 +59,67 @@ export default function VestraIntentCanvas(props:Props){
   setDragRecordId("");
  };
  const runCommand=(input=command)=>{
-  const query=input.trim().toLocaleLowerCase();
+  const raw=input.trim();
+  const query=raw.toLocaleLowerCase();
   if(!query)return;
-  setCommand(input);
+  setCommand(raw);
   const results:CommandResult[]=[];
-  if(/\b(loan|interest|lender|borrow)\b/.test(query)){
+  const closedStatuses=["completed","closed","settled","rejected","cancelled","reached back"];
+  const overdue=/\boverdue\b/.test(query);
+  const todayRequest=/\btoday\b/.test(query);
+  const assignedMatch=raw.match(/(?:assigned\s+to|owner(?:\s+is)?|follow.?up\s+person(?:\s+is)?)\s+(.+?)[?.!]*$/i);
+  const assignedName=assignedMatch?.[1]?.trim().replace(/[?.!]+$/g,"")||"";
+  if(/\b(person.?wise|contact report|person report|report by person)\b/.test(query)){
+   const people=contacts.map(contact=>{
+    const rows=properties.filter(record=>record.primaryContactId===contact.id||record.followUpContactId===contact.id||(record.moduleData?.__linkedContactIds||"").split(",").includes(contact.id)||Object.entries(record.moduleData||{}).some(([key,value])=>key.startsWith("__contact_")&&value===contact.id));
+    const followUps=(contact.followUps||[]).filter(item=>!closedStatuses.includes(String(item.status||"").toLowerCase()));
+    const tx=financials.filter(item=>item.contactId===contact.id||rows.some(record=>record.id===item.propertyId));
+    return {contact,rows,followUps,tx,total:tx.reduce((sum,item)=>sum+parseDealNumber(item.amount),0)};
+   }).filter(item=>item.rows.length||item.followUps.length||item.tx.length).sort((a,b)=>(b.rows.length+b.followUps.length+b.tx.length)-(a.rows.length+a.followUps.length+a.tx.length));
+   people.slice(0,25).forEach(({contact,rows,followUps,tx,total})=>results.push({id:"person-report-"+contact.id,title:contact.name,detail:rows.length+" records · "+followUps.length+" open follow-ups · "+tx.length+" transactions",value:formatINR(total),kind:"contact",contactId:contact.id}));
+   setCommandSummary("Prepared a person-wise report from "+people.length+" contacts with actual linked records, follow-ups and financial transactions. Totals include only saved linked transactions.");
+  }else if(assignedName){
+   const person=contacts.find(contact=>contact.name.toLocaleLowerCase().includes(assignedName.toLocaleLowerCase()));
+   if(person){
+    const rows=properties.filter(record=>record.followUpContactId===person.id||record.primaryContactId===person.id||(record.moduleData?.__linkedContactIds||"").split(",").includes(person.id)||Object.entries(record.moduleData||{}).some(([key,value])=>key.startsWith("__contact_")&&value===person.id));
+    rows.slice(0,30).forEach(record=>results.push({id:"assigned-"+record.id,title:record.title||record.module,detail:record.module+" · "+record.status+" · "+person.name,value:record.value||"Value not entered",kind:"record",recordId:record.id}));
+    setCommandSummary("Found "+rows.length+" saved record(s) linked to "+person.name+". Open each exact source record to inspect its full details.");
+   }else setCommandSummary("No saved contact matched "+assignedName+". Search contacts or use the full saved contact name.");
+  }else if(/\b(overdue\s+payments?|payments?\s+overdue|overdue\s+collections?)\b/.test(query)){
+   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>item.promisedDate&&item.promisedDate<today&&!closedStatuses.includes(String(item.status||"").toLowerCase())&&Number(parseDealNumber(item.amount))>0&&/payment|collection|emi|installment|instalment|interest|repayment|receipt/i.test([item.description,item.notes,item.responseType].join(" "))).map(item=>({contact,item})));
+   rows.slice(0,30).forEach(({contact,item})=>results.push({id:"overdue-payment-"+item.id,title:contact.name,detail:[item.description,item.promisedDate,item.status].filter(Boolean).join(" · "),value:formatINR(parseDealNumber(item.amount)),kind:"contact",contactId:contact.id,recordId:item.linkedRecordId||undefined}));
+   setCommandSummary(rows.length?"Found "+rows.length+" overdue payment / collection commitment(s) with a saved amount and past promised date. These are follow-up commitments, not a bank reconciliation.":"No overdue payment commitments matched. A transaction without a saved due date or payment commitment is not labelled overdue.");
+  }else if(/\b(loan|interest|lender|borrow)\b/.test(query)){
    const rows=properties.filter(record=>LOANS.has(record.module)||record.moduleData?.__transactionType==="Loan");
    for(const record of rows){const interest=calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value));const owner=contacts.find(contact=>contact.id===(record.followUpContactId||record.primaryContactId));results.push({id:"loan-"+record.id,title:record.title||record.module,detail:[record.module,owner?.name?"Owner: "+owner.name:"No follow-up owner saved"].join(" · "),value:formatINR(interest)+" / month",kind:"record",recordId:record.id});}
    setCommandSummary("Found "+rows.length+" saved loan record(s). Monthly interest uses AXIVESTRA's existing calculation method; it is not a bank-confirmed balance.");
   }else if(/\b(overdue|follow.?up|commitment|pending response)\b/.test(query)){
-   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLocaleLowerCase())&&(!/\boverdue\b/.test(query)||(item.promisedDate&&item.promisedDate<today))).map(item=>({contact,item})));
-   rows.forEach(({contact,item})=>results.push({id:"follow-"+item.id,title:contact.name,detail:[item.description,item.promisedDate,item.status].filter(Boolean).join(" · "),value:item.amount?formatINR(parseDealNumber(item.amount)):"Amount not entered",kind:"contact",contactId:contact.id,recordId:item.linkedRecordId||undefined} as CommandResult));
-   setCommandSummary("Found "+rows.length+" saved "+(/\boverdue\b/.test(query)?"overdue":"open")+" follow-up commitment(s). Open a person to inspect their linked records and history.");
+   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>!closedStatuses.includes(String(item.status||"").toLocaleLowerCase())&&(!overdue||Boolean(item.promisedDate&&item.promisedDate<today))&&(!todayRequest||item.promisedDate===today)).map(item=>({contact,item})));
+   rows.forEach(({contact,item})=>results.push({id:"follow-"+item.id,title:contact.name,detail:[item.description,item.promisedDate,item.status].filter(Boolean).join(" · "),value:item.amount?formatINR(parseDealNumber(item.amount)):"Amount not entered",kind:"contact",contactId:contact.id,recordId:item.linkedRecordId||undefined}));
+   setCommandSummary("Found "+rows.length+" saved "+(overdue?"overdue":todayRequest?"today's":"open")+" follow-up commitment(s). Open a person to inspect the linked record and history.");
   }else if(/\b(today|task|schedule|deadline|meeting)\b/.test(query)){
-   const rows=tasks.filter(task=>!task.done&&((/\btoday\b/.test(query)&&task.date===today)||(/\boverdue\b/.test(query)&&task.date<today)||(!/\b(today|overdue)\b/.test(query))));
+   const rows=tasks.filter(task=>!task.done&&((todayRequest&&task.date===today)||(overdue&&task.date<today)||(!todayRequest&&!overdue)));
    rows.forEach(task=>results.push({id:"task-"+task.id,title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task",kind:"task",taskId:task.id}));
    setCommandSummary("Found "+rows.length+" saved task(s) matching this schedule request.");
   }else if(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/.test(query)){
-   const rows=financials.filter(item=>[item.type,item.party,item.property,item.notes,item.reference].join(" ").toLocaleLowerCase().includes(query.replace(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/g,"").trim())||!query.replace(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/g,"").trim());
+   const term=raw.toLocaleLowerCase().replace(/\b(show|find|list|open|all|my|the|payment|payments|collection|collections|inflow|outflow|cash|receipt|receipts|expense|expenses|transaction|transactions|summari[sz]e)\b/g,"").trim();
+   const rows=financials.filter(item=>!term||[item.type,item.party,item.property,item.notes,item.reference].join(" ").toLocaleLowerCase().includes(term));
    rows.slice(0,30).forEach(item=>results.push({id:"transaction-"+item.id,title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.reference].filter(Boolean).join(" · "),value:formatINR(parseDealNumber(item.amount)),kind:"transaction",transactionId:item.id}));
    const total=rows.reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
    setCommandSummary("Found "+rows.length+" saved financial transaction(s), totalling "+formatINR(total)+" across the matching rows.");
   }else{
-   const recordRows=properties.filter(record=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLocaleLowerCase().includes(query));
+   const term=raw.toLocaleLowerCase().replace(/\b(show|find|list|open|all|my|the|records?|contacts?|people|assigned|to|in|module|for|by|search)\b/g,"").trim();
+   const recordRows=properties.filter(record=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLocaleLowerCase().includes(term||query));
    recordRows.slice(0,20).forEach(record=>results.push({id:"record-"+record.id,title:record.title||record.module,detail:[record.module,record.location,record.status].filter(Boolean).join(" · "),value:record.value||"Value not entered",kind:"record",recordId:record.id}));
-   contacts.filter(contact=>[contact.name,contact.phone,contact.role].join(" ").toLocaleLowerCase().includes(query)).slice(0,10).forEach(contact=>results.push({id:"contact-"+contact.id,title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact",kind:"contact",contactId:contact.id}));
+   contacts.filter(contact=>[contact.name,contact.phone,contact.role].join(" ").toLocaleLowerCase().includes(term||query)).slice(0,10).forEach(contact=>results.push({id:"contact-"+contact.id,title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact",kind:"contact",contactId:contact.id}));
    setCommandSummary("Searched saved records and people. Found "+recordRows.length+" record(s) and "+results.filter(item=>item.kind==="contact").length+" contact(s). No data was changed.");
   }
   setCommandResults(results.slice(0,30));
  };
  const saveCommand=()=>{const value=command.trim();if(value)setSavedCommands(current=>[value,...current.filter(item=>item.toLowerCase()!==value.toLowerCase())].slice(0,12));};
  const openCommandResult=(result:CommandResult)=>{
-  if(result.kind==="record"&&result.recordId){onOpenRecord(result.recordId);return;}
-  if(result.kind==="contact"&&result.contactId){onOpenContact(result.contactId);return;}
+  if(result.kind==="record"&&result.recordId){setRecentIds(current=>[result.recordId!,...current.filter(id=>id!==result.recordId)].slice(0,8));onOpenRecord(result.recordId);return;}
+  if(result.kind==="contact"&&result.contactId){setRecentIds(current=>["contact:"+result.contactId,...current.filter(id=>id!=="contact:"+result.contactId)].slice(0,8));onOpenContact(result.contactId);return;}
   if(result.kind==="task"&&result.taskId){onOpenTask(result.taskId);return;}
   if(result.kind==="transaction"&&result.transactionId){onOpenTransaction(result.transactionId);return;}
  };
@@ -105,8 +138,9 @@ export default function VestraIntentCanvas(props:Props){
  return <div className="vs-intent-canvas">
   <section className="vs-command-composer">
    <header><div><span className="vs-eyebrow">COMMAND COMPOSER · LOCAL DATA</span><h3>Ask for an operational view.</h3><p>Commands run against saved AXIVESTRA records. Results open their source item; no silent changes are made.</p></div><Sparkles size={21}/></header>
-   <form onSubmit={event=>{event.preventDefault();runCommand();}}><input value={command} onChange={event=>setCommand(event.target.value)} placeholder="e.g. Show overdue follow-ups, calculate loan interest, show today's tasks…"/><button type="submit" disabled={!command.trim()}><Play size={13}/> Run</button><button type="button" className="vs-command-save" disabled={!command.trim()} onClick={saveCommand}><Bookmark size={13}/> Save command</button></form>
+   <form onSubmit={event=>{event.preventDefault();runCommand();}}><input ref={commandInputRef} aria-label="Natural-language command" value={command} onChange={event=>setCommand(event.target.value)} placeholder="e.g. Show overdue follow-ups, calculate loan interest, show today's tasks…"/><button type="submit" disabled={!command.trim()}><Play size={13}/> Run</button><button type="button" className="vs-command-save" disabled={!command.trim()} onClick={saveCommand}><Bookmark size={13}/> Save command</button></form>
    <div className="vs-command-suggestions">{["Show overdue follow-ups","Calculate monthly loan interest","Show today's tasks","Summarise collections"].map(item=><button type="button" key={item} onClick={()=>runCommand(item)}>{item}</button>)}</div>
+   {recentIds.length>0&&<div className="vs-command-saved"><span>RECENTLY OPENED</span>{recentIds.map(id=>{const isContact=id.startsWith("contact:");const key=isContact?id.slice(8):id;const record=properties.find(item=>item.id===key);const contact=contacts.find(item=>item.id===key);if(!record&&!contact)return null;return <button type="button" key={id} onClick={()=>isContact&&contact?onOpenContact(contact.id):record?onOpenRecord(record.id):undefined}><ArrowUpRight size={10}/>{contact?.name||record?.title||record?.module}</button>;})}</div>}
    {savedCommands.length>0&&<div className="vs-command-saved"><span>FAVOURITE COMMANDS</span>{savedCommands.map(item=><button type="button" key={item} onClick={()=>runCommand(item)}><Play size={10}/>{item}</button>)}</div>}
    {commandSummary&&<div className="vs-command-result"><p>{commandSummary}</p>{commandResults.map(result=><button type="button" key={result.id} onClick={()=>openCommandResult(result)}><span><strong>{result.title}</strong><small>{result.detail}</small></span><em>{result.value}</em><ChevronRight size={14}/></button>)}{!commandResults.length&&<small>No matching saved items were found.</small>}</div>}
   </section>
