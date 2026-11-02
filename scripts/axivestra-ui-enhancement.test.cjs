@@ -10,6 +10,7 @@ const canvas = fs.readFileSync("src/VestraIntentCanvas.tsx", "utf8");
 const finance = fs.readFileSync("src/VestraFinance.tsx", "utf8");
 const desk = fs.readFileSync("src/VestraSpatialDesk.tsx", "utf8");
 const recordTracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
+const followUpRegister = fs.readFileSync("src/FollowUpRegisterPanel.tsx", "utf8");
 const recordFollowUpLib = fs.readFileSync("src/lib/record-follow-up.ts", "utf8");
 const contactMerge = fs.readFileSync("src/lib/contact-directory.mjs", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
@@ -97,4 +98,5 @@ for (const token of ["vs-calendar-grid", "vs-duplicate-merge-action", "--vs-colo
 for (const token of ["SPATIAL WORKSPACE", "drag to reposition", "onDragStart", "onDrop", "expanded", "minimized", "savedLayouts", "setStates({...item.states})", "ThreeDHistogram", "monthlyData"]) assert.ok(desk.includes(token), "Missing spatial dashboard manager capability: " + token);
 for (const token of ["vs-startup-intro", "Skip introduction", "axivestra.vestraIntroSeen", "1600"]) assert.ok(app.includes(token), "Missing skippable first-launch VESTRA experience: " + token);
 for (const token of [".vs-spatial-desk", ".vs-desk-grid", ".vs-desk-panel", "resize:both", ".vs-startup-intro", ".vs-startup-prism", ".vs-prism-emblem:active", "--vs-prism-rotate-y"]) assert.ok(styles.includes(token), "Missing spatial / startup / prismatic interaction styling: " + token);
+for (const token of ["Assigned date", "Follow-up date", "Follow-up priority", "Follow-up next action", "item.createdAt", "item.nextAction"]) assert.ok(followUpRegister.includes(token), "Missing person-wise follow-up registry field: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
