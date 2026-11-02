@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight, Bookmark, Bell, CalendarClock, CalendarDays, ChevronRight, X,
-  GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow, SlidersHorizontal
+  GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow, SlidersHorizontal, Plus
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
 import VestraFinance from "./VestraFinance";
@@ -100,6 +100,7 @@ export default function VestraShift(props:Props){
   const motionMode=workspacePreferences.motionMode==="reduced"||workspacePreferences.motionMode==="expressive"?workspacePreferences.motionMode:"balanced";
   const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
   const [alertsOpen,setAlertsOpen]=useState(false);
+  const [quickActionsOpen,setQuickActionsOpen]=useState(false);
   const favouriteModules=Array.isArray(workspacePreferences["vestraShift.favoriteModules"])?(workspacePreferences["vestraShift.favoriteModules"] as string[]).filter(name=>moduleNames.includes(name)):[];
   const toggleFavouriteModule=(name:string)=>{
     const next=favouriteModules.includes(name)?favouriteModules.filter(value=>value!==name):[...favouriteModules,name];
@@ -122,9 +123,11 @@ export default function VestraShift(props:Props){
         setAtelierCopilotOpen(true);
         return;
       }
-      if(event.key==="Escape"&&atelierCopilotOpen){
+      if(event.key==="Escape"&&(atelierCopilotOpen||quickActionsOpen||alertsOpen)){
         event.preventDefault();
         setAtelierCopilotOpen(false);
+        setQuickActionsOpen(false);
+        setAlertsOpen(false);
         return;
       }
       if(event.altKey&&/^[1-7]$/.test(event.key)&&!typing){
@@ -134,7 +137,7 @@ export default function VestraShift(props:Props){
     };
     window.addEventListener("keydown",handleWorkspaceShortcut);
     return ()=>window.removeEventListener("keydown",handleWorkspaceShortcut);
-  },[atelierCopilotOpen]);
+  },[atelierCopilotOpen,quickActionsOpen,alertsOpen]);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleMagneticPointerMove=(event:React.PointerEvent<HTMLElement>)=>{
     if(event.pointerType!=="mouse")return;
@@ -477,6 +480,7 @@ export default function VestraShift(props:Props){
       </div>
       <div className="vs-hero-actions">
         <button type="button" className={"vs-alert-launch "+(alertsOpen?"active":"")} aria-expanded={alertsOpen} aria-controls="vs-alert-center" onClick={()=>setAlertsOpen(value=>!value)}><Bell size={14}/> Alerts <span className="vs-alert-count">{workspaceAlerts.length}</span>{overdueWorkspaceAlerts>0&&<i aria-label={overdueWorkspaceAlerts+" overdue alert(s)"}>{overdueWorkspaceAlerts}</i>}</button>
+        <button type="button" className="vs-quick-actions-launch" aria-expanded={quickActionsOpen} aria-controls="vs-quick-actions-menu" onClick={()=>setQuickActionsOpen(value=>!value)}><Plus size={14}/> Quick actions</button>
         <button type="button" className="vs-focus-launch" data-vs-magnetic="true" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
         <button type="button" className="vs-personalization-launch" aria-expanded={personalizationOpen} aria-controls="vs-personalization-panel" onClick={()=>setPersonalizationOpen(value=>!value)}><SlidersHorizontal size={14}/> Experience</button>
@@ -485,7 +489,18 @@ export default function VestraShift(props:Props){
         <button type="button" className="vs-hero-primary" data-vs-magnetic="true" onClick={onOpenContacts}><Users size={14}/> People</button>
       </div>
     </header>
-
+    {quickActionsOpen&&<section id="vs-quick-actions-menu" className="vs-quick-actions-menu" aria-label="Quick actions">
+      <header><div><span className="vs-eyebrow">QUICK LAUNCH</span><strong>Go straight to the next action.</strong></div><button type="button" onClick={()=>setQuickActionsOpen(false)} aria-label="Close quick actions"><X size={14}/></button></header>
+      <div className="vs-quick-actions-grid">
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenTasks();}}><CalendarClock size={16}/><span><strong>Tasks & schedule</strong><small>Create or update a task</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenModule("Follow-up Register");}}><Bell size={16}/><span><strong>Follow-up register</strong><small>Assign and review commitments</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenModule("All Properties");}}><Landmark size={16}/><span><strong>Property records</strong><small>Open the property register</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenFinancials();}}><Wallet size={16}/><span><strong>Financial activity</strong><small>Open transactions and balances</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenContacts();}}><Users size={16}/><span><strong>Contacts</strong><small>Open Contact 360 and assignments</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenModule("Documents");}}><Bookmark size={16}/><span><strong>Documents</strong><small>Manage linked files and dates</small></span><ArrowUpRight size={12}/></button>
+        <button type="button" onClick={()=>{setQuickActionsOpen(false);onOpenModule("Risk & Compliance");}}><Network size={16}/><span><strong>Risk & compliance</strong><small>Review active risks and approvals</small></span><ArrowUpRight size={12}/></button>
+      </div>
+    </section>}
     {alertsOpen&&<section id="vs-alert-center" className="vs-alert-center" aria-label="VESTRA in-app notification centre">
       <header><div><span className="vs-eyebrow">LIVE WORKSPACE SIGNALS</span><strong>{workspaceAlerts.length} item(s) need attention</strong><small>{overdueWorkspaceAlerts} overdue · Based on saved records only</small></div><button type="button" onClick={()=>setAlertsOpen(false)} aria-label="Close alerts"><X size={15}/></button></header>
       <div className="vs-alert-preferences">
