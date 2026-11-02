@@ -91,6 +91,8 @@ export async function prepareCompanyWorkspace(
     }
     const payload = row.payload as (Record<string, unknown> & { id?: string }) | null;
     if (!payload || typeof payload.id !== "string") continue;
+    // Preference rows are private to the signed-in member, even inside a shared company.
+    if (row.record_type === "workspace_preference" && String(payload.scope || "") !== company.id + ":" + userId) continue;
     const bucket = remoteByType.get(row.record_type) || [];
     bucket.push(payload as Record<string, unknown> & { id: string });
     remoteByType.set(row.record_type, bucket);
