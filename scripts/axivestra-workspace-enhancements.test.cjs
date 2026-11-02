@@ -22,7 +22,7 @@ for (const token of [
 for (const token of [
   ".ax-universal-search", ".ax-search-results", ".ax-reminder-menu",
   ".ax-quick-menu", ".ax-help-menu", ".ax-onboarding-card",
-  ".ax-history-page", "@media(max-width:780px)", "@media(max-width:520px)"
+  ".ax-history-page", ".ax-record-followups", ".ax-record-followups__table", "@media(max-width:780px)", "@media(max-width:520px)"
 ]) assert.ok(styles.includes(token), "Missing responsive workspace styling: " + token);
 
 assert.ok(app.includes('saveWorkspaceState("undo-history"'), "Undo snapshots must persist in IndexedDB");
