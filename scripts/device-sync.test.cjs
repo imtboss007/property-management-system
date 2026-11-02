@@ -10,7 +10,7 @@ const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
 const compiled = { exports: {} };
 vm.runInNewContext(code, { module: compiled, exports: compiled.exports, require }, { filename });
 const { reconcileDeviceSync, emptyDeviceSyncBaseline, deviceSyncCollectionsEqual, deviceSyncSnapshotsEqual } = compiled.exports;
-const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [], customModules: [] });
+const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [], customModules: [], workspacePreferences: [] });
 const pc = empty();
 pc.properties = [{ id: "p1", title: "PC property" }];
 pc.contacts = [{ id: "c1", name: "Vendor" }];
@@ -97,3 +97,34 @@ assert.equal(indexedAuditResult.snapshot.properties.find(row => row.id === "p-11
   "large audit histories must retain the correct latest-edit conflict decision");
 
 process.stdout.write("Device sync regression suite passed.\n");
+
+
+// New VESTRA preference rows travel through the same conflict-aware device sync.
+// If a paired device is still on an older build, its missing collection field is
+// treated as unsupported rather than an instruction to erase preferences.
+const preferenceLocal = empty();
+preferenceLocal.workspacePreferences = [{
+  id: "local:local:vestraShift.views",
+  scope: "local:local",
+  key: "vestraShift.views",
+  value: [{ id: "view-1", space: "desk", label: "Collections" }],
+  updatedAt: "2026-10-29T10:10:00.000Z"
+}];
+const legacyRemote = empty();
+delete legacyRemote.workspacePreferences;
+const preferenceFirst = reconcileDeviceSync(
+  preferenceLocal, legacyRemote, emptyDeviceSyncBaseline(), "2026-10-29T10:11:00.000Z"
+);
+assert.equal(preferenceFirst.snapshot.workspacePreferences.length, 1,
+  "a legacy companion must not erase a new workspace preference collection");
+const legacyRoundTrip = { ...legacyRemote, __axivestraSync: preferenceFirst.snapshot.__axivestraSync };
+const preferenceAgain = reconcileDeviceSync(
+  preferenceFirst.snapshot, legacyRoundTrip, preferenceFirst.baseline, "2026-10-29T10:12:00.000Z"
+);
+assert.equal(preferenceAgain.snapshot.workspacePreferences[0].value[0].label, "Collections",
+  "workspace preferences remain locally intact until the other device supports the collection");
+const preferenceNewDevice = reconcileDeviceSync(
+  empty(), preferenceAgain.snapshot, emptyDeviceSyncBaseline(), "2026-10-29T10:13:00.000Z"
+);
+assert.equal(preferenceNewDevice.snapshot.workspacePreferences[0].key, "vestraShift.views",
+  "a new compatible device receives the saved workspace preference");
