@@ -20,7 +20,7 @@ type PropertyRow = {
 };
 type ContactRow = {id:string;name:string;phone:string;role:string;roles?:string[];followUps?:FollowUpRow[]};
 type TaskRow = {id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;contactId?:string;contactName?:string;notes:string;done:boolean};
-type FinancialRow = {id:string;property:string;type:string;amount:string;date:string;party:string;notes:string};
+type FinancialRow = {id:string;propertyId?:string;contactId?:string;property:string;type:string;amount:string;date:string;party:string;notes:string};
 type FollowUpDraft = {
   contactId:string; linkedRecordId:string; description:string; amount:string;
   promisedDate:string; promisedTime:string; responseType:string; notes:string; status:string;
@@ -29,9 +29,13 @@ type Props = {
   properties:PropertyRow[]; contacts:ContactRow[]; tasks:TaskRow[]; financials:FinancialRow[];
   today:string; readOnly?:boolean;
   onOpenModule:(name:string)=>void; onOpenContacts:()=>void; onOpenTasks:()=>void;
+  onOpenRecord?:(recordId:string)=>void; onOpenContact?:(contactId:string)=>void; onOpenFinancials?:()=>void;
   onCreateFollowUp:(draft:FollowUpDraft)=>void;
+  contextRecords?:PropertyRow[];
+  contextContacts?:ContactRow[];
+  contextLabel?:string;
 };
-type CopilotEntry = {title:string;detail:string;value?:string;module?:string};
+type CopilotEntry = {title:string;detail:string;value?:string;module?:string;recordId?:string;contactId?:string;};
 type CopilotAnswer = {summary:string;entries:CopilotEntry[];empty?:string};
 type WhatsAppDraft = {
   contactId:string; recordId:string; description:string; amount:string;
@@ -54,18 +58,18 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
     const loans=properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan");
     const items=loans.map(record=>({record,interest:calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value))}));
     const total=items.reduce((sum,item)=>sum+item.interest,0);
-    return {summary:`I found ${loans.length} loan record(s). Their saved terms indicate ${localMoney(total)} total monthly interest. This is a calculation from the values saved in AXIVESTRA, not a bank-confirmed balance.`,entries:items.slice(0,8).map(({record,interest})=>({title:record.title||record.module,detail:record.module+" · "+(record.moduleData?.__loanDirection||"Loan direction not set"),value:localMoney(interest)+" / month",module:record.module})) ,empty:"No loan records are saved yet."};
+    return {summary:`I found ${loans.length} loan record(s). Their saved terms indicate ${localMoney(total)} total monthly interest. This is a calculation from the values saved in AXIVESTRA, not a bank-confirmed balance.`,entries:items.slice(0,8).map(({record,interest})=>{const commitments=allFollowUps.filter(row=>row.item.linkedRecordId===record.id&&isOpen(row.item.status));const linkedPeople=contacts.filter(contact=>linkedToContact(contact,record));const owners=[...new Set(commitments.map(row=>row.contact.name))];const people=owners.length?owners:linkedPeople.map(contact=>contact.name);return {title:record.title||record.module,detail:record.module+" · "+(record.moduleData?.__loanDirection||"Loan direction not set")+" · "+(people.length?"People: "+people.join(", "):"No linked person saved")+" · "+commitments.length+" open commitment(s)",value:localMoney(interest)+" / month",module:record.module,recordId:record.id,contactId:commitments[0]?.contact.id||linkedPeople[0]?.id};}) ,empty:"No loan records are saved yet."};
   }
   if(/\b(overdue|follow.?up|commitment|pending response|reach.?back)\b/.test(q)){
     const open=allFollowUps.filter(row=>isOpen(row.item.status));
     const overdue=open.filter(row=>row.item.promisedDate&&row.item.promisedDate<today);
     const selected=/\boverdue\b/.test(q)?overdue:open;
-    return {summary:`${selected.length} ${/\boverdue\b/.test(q)?"overdue":"open"} follow-up commitment(s) found across ${new Set(selected.map(row=>row.contact.id)).size} contact(s).`,entries:selected.slice(0,10).map(row=>({title:row.contact.name,detail:(row.record?.module||"Contact follow-up")+" · "+(row.item.description||"No description")+(row.item.promisedDate?" · "+row.item.promisedDate:""),value:row.item.amount?localMoney(parseDealNumber(row.item.amount)):"Amount not set",module:row.record?.module})) ,empty:"No matching follow-up commitments are saved."};
+    return {summary:`${selected.length} ${/\boverdue\b/.test(q)?"overdue":"open"} follow-up commitment(s) found across ${new Set(selected.map(row=>row.contact.id)).size} contact(s).`,entries:selected.slice(0,10).map(row=>({title:row.contact.name,detail:(row.record?.module||"Contact follow-up")+" · "+(row.item.description||"No description")+(row.item.promisedDate?" · "+row.item.promisedDate:""),value:row.item.amount?localMoney(parseDealNumber(row.item.amount)):"Amount not set",module:row.record?.module,recordId:row.record?.id,contactId:row.contact.id})) ,empty:"No matching follow-up commitments are saved."};
   }
   if(/\b(today|task|schedule|deadline|meeting)\b/.test(q)){
     const selected=tasks.filter(task=>!task.done&&(task.date===today||task.date<today||/\bupcoming\b/.test(q))).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time));
     const overdue=selected.filter(task=>task.date<today).length;
-    return {summary:`${selected.length} open task(s) match this schedule request; ${overdue} are overdue.`,entries:selected.slice(0,10).map(task=>({title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task"})),empty:"No matching open tasks are saved."};
+    return {summary:`${selected.length} open task(s) match this schedule request; ${overdue} are overdue.`,entries:selected.slice(0,10).map(task=>({title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task",recordId:task.propertyId,contactId:task.contactId})),empty:"No matching open tasks are saved."};
   }
   if(/\b(payment|collection|inflow|outflow|cash|receipt|expense)\b/.test(q)){
     const inflowTypes=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
@@ -73,19 +77,108 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
     const inflow=financials.filter(item=>inflowTypes.has(item.type)).reduce((sum,item)=>sum+Number(item.amount||0),0);
     const outflow=financials.filter(item=>outflowTypes.has(item.type)).reduce((sum,item)=>sum+Number(item.amount||0),0);
     const recent=[...financials].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
-    return {summary:`Saved financial entries total ${localMoney(inflow)} in category-based inflows and ${localMoney(outflow)} in category-based outflows. Net recorded movement: ${localMoney(inflow-outflow)}. These are entered transactions, not verified bank balances.`,entries:recent.map(item=>({title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),value:localMoney(Number(item.amount||0))})),empty:"No financial transactions are saved."};
+    return {summary:`Saved financial entries total ${localMoney(inflow)} in category-based inflows and ${localMoney(outflow)} in category-based outflows. Net recorded movement: ${localMoney(inflow-outflow)}. These are entered transactions, not verified bank balances.`,entries:recent.map(item=>({title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),value:localMoney(Number(item.amount||0)),recordId:item.propertyId,contactId:item.contactId})),empty:"No financial transactions are saved."};
   }
   const tokens=q.split(/\s+/).filter(token=>token.length>1);
   const recordMatches=properties.filter(record=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLowerCase().includes(q)||tokens.every(token=>[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLowerCase().includes(token)));
   const contactMatches=contacts.filter(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[])].join(" ").toLowerCase().includes(q)||tokens.every(token=>[contact.name,contact.phone,contact.role,...(contact.roles||[])].join(" ").toLowerCase().includes(token)));
   const entries:CopilotEntry[]=[
-    ...recordMatches.slice(0,6).map(record=>({title:record.title||"Untitled record",detail:record.module+" · "+record.location+" · "+record.status,value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",module:record.module})),
-    ...contactMatches.slice(0,4).map(contact=>({title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact"}))
+    ...recordMatches.slice(0,6).map(record=>({title:record.title||"Untitled record",detail:record.module+" · "+record.location+" · "+record.status,value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",module:record.module,recordId:record.id})),
+    ...contactMatches.slice(0,4).map(contact=>({title:contact.name,detail:[contact.role,contact.phone].filter(Boolean).join(" · "),value:"Contact",contactId:contact.id}))
   ];
   return {summary:`I searched saved AXIVESTRA records and contacts for “${query.trim()}”. I found ${recordMatches.length} record(s) and ${contactMatches.length} contact(s). Open a result to inspect its complete details.`,entries,empty:"No matching records or contacts were found. Try a shorter name, module, location or transaction term."};
 }
 
-export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onCreateFollowUp}:Props){
+
+function makeContextAnswer(
+  query:string,
+  contextRecords:PropertyRow[],
+  contextContacts:ContactRow[],
+  tasks:TaskRow[],
+  financials:FinancialRow[],
+  today:string
+):CopilotAnswer {
+  const recordIds=new Set(contextRecords.map(record=>record.id));
+  const contactIds=new Set(contextContacts.map(contact=>contact.id));
+  const followUps=contextContacts.flatMap(contact=>(contact.followUps||[])
+    .filter(item=>isOpen(item.status))
+    .map(item=>({contact,item,record:contextRecords.find(record=>record.id===item.linkedRecordId)})));
+  const overdue=followUps.filter(row=>row.item.promisedDate&&row.item.promisedDate<today);
+  const linkedTasks=tasks.filter(task=>
+    Boolean(task.propertyId&&recordIds.has(task.propertyId))||
+    Boolean(task.contactId&&contactIds.has(task.contactId))
+  );
+  const openTasks=linkedTasks.filter(task=>!task.done);
+  const linkedTransactions=financials.filter(item=>
+    Boolean(item.propertyId&&recordIds.has(item.propertyId))||
+    Boolean(item.contactId&&contactIds.has(item.contactId))
+  );
+  const loanRows=contextRecords.filter(record=>
+    LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"
+  ).map(record=>({
+    record,
+    interest:calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value))
+  }));
+  const monthlyInterest=loanRows.reduce((sum,row)=>sum+row.interest,0);
+  const missingLoanRate=loanRows.filter(({record})=>
+    !record.moduleData?.__loanInterestRate&&!record.moduleData?.interestRate&&!record.moduleData?.annualInterestRate
+  ).length;
+  const inflowTypes=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
+  const outflowTypes=new Set(["Purchase","Loan Repayment","Interest","Instalment","Brokerage","Expense","Settlement"]);
+  const inflows=linkedTransactions.filter(item=>inflowTypes.has(item.type))
+    .reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
+  const outflows=linkedTransactions.filter(item=>outflowTypes.has(item.type))
+    .reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
+  const entries:CopilotEntry[]=[
+    ...loanRows.slice(0,6).map(({record,interest})=>({
+      title:record.title||record.module,
+      detail:record.module+" · "+(record.moduleData?.__loanDirection||"Loan direction not set"),
+      value:localMoney(interest)+" / month",module:record.module,recordId:record.id
+    })),
+    ...followUps.slice(0,6).map(({contact,item,record})=>({
+      title:contact.name+" · "+(item.description||"Follow-up"),
+      detail:[record?.module,item.promisedDate,item.status].filter(Boolean).join(" · "),
+      value:item.amount?localMoney(parseDealNumber(item.amount)):"Amount not set",
+      recordId:record?.id,contactId:contact.id
+    })),
+    ...linkedTasks.slice(0,5).map(task=>({
+      title:task.title,
+      detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),
+      value:task.done?"Completed":task.type||"Task",
+      recordId:task.propertyId,contactId:task.contactId
+    })),
+    ...linkedTransactions.slice(0,5).map(item=>({
+      title:item.type+" · "+(item.party||item.property||"Transaction"),
+      detail:[item.date,item.property,item.notes].filter(Boolean).join(" · "),
+      value:localMoney(parseDealNumber(item.amount)),
+      recordId:item.propertyId,contactId:item.contactId
+    })),
+    ...contextRecords.filter(record=>!loanRows.some(row=>row.record.id===record.id)).slice(0,5).map(record=>({
+      title:record.title||"Untitled record",
+      detail:[record.module,record.location,record.status].filter(Boolean).join(" · "),
+      value:record.value?localMoney(parseDealNumber(record.value)):"Value not set",
+      module:record.module,recordId:record.id
+    })),
+    ...contextContacts.slice(0,5).map(contact=>({
+      title:contact.name,
+      detail:[contact.role,contact.phone].filter(Boolean).join(" · "),
+      value:(contact.followUps||[]).filter(item=>isOpen(item.status)).length+" open follow-up(s)",
+      contactId:contact.id
+    }))
+  ];
+  return {
+    summary:"Selected context: "+query+". "+contextRecords.length+" record(s), "+contextContacts.length+
+      " person(s), "+followUps.length+" open follow-up(s), "+overdue.length+" overdue commitment(s), "+
+      openTasks.length+" open task(s), "+linkedTransactions.length+" linked transaction(s). Calculated monthly loan interest: "+
+      localMoney(monthlyInterest)+". Recorded inflows: "+localMoney(inflows)+"; recorded outflows: "+localMoney(outflows)+"."+
+      (missingLoanRate?" Interest rate is missing on "+missingLoanRate+" selected loan(s).":"")+
+      " Figures use only selected, linked saved context. No record was changed.",
+    entries:entries.slice(0,18),
+    empty:"No linked records or people are available in the selected context."
+  };
+}
+
+export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenFinancials,onCreateFollowUp,contextRecords=[],contextContacts=[],contextLabel=""}:Props){
   const [copilotQuery,setCopilotQuery]=useState("");
   const [copilotAnswer,setCopilotAnswer]=useState<CopilotAnswer|null>(null);
   const [whatsAppMessage,setWhatsAppMessage]=useState("");
@@ -106,7 +199,7 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
     const value=query.trim();
     if(!value)return;
     setCopilotQuery(value);
-    setCopilotAnswer(makeCopilotAnswer(value,properties,contacts,tasks,financials,today));
+    setCopilotAnswer(contextRecords.length||contextContacts.length?makeContextAnswer(value,contextRecords,contextContacts,tasks,financials,today):makeCopilotAnswer(value,properties,contacts,tasks,financials,today));
   };
   const extractMessage=()=>{
     if(!whatsAppMessage.trim())return;
@@ -161,12 +254,12 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
       </section>
 
       <section className="ax-intelligence-panel ax-deal-copilot">
-        <header><div><span className="section-kicker">DEAL COPILOT</span><h3>Ask your workspace</h3><p>Answers use saved AXIVESTRA records and calculations. Nothing is changed automatically.</p></div><Sparkles size={19}/></header>
+        <header><div><span className="section-kicker">DEAL COPILOT</span><h3>Ask your workspace</h3><p>Answers use saved AXIVESTRA records and calculations. Nothing is changed automatically.</p>{contextLabel&&<small className="ax-copilot-context">Current intent context · {contextLabel}</small>}</div><Sparkles size={19}/></header>
         <form className="ax-deal-copilot-input" onSubmit={event=>{event.preventDefault();runCopilot();}}>
           <Search size={16}/><input value={copilotQuery} onChange={event=>setCopilotQuery(event.target.value)} placeholder="e.g. Show overdue follow-ups or loan interest…"/><button type="submit" disabled={!copilotQuery.trim()}>Ask</button>
         </form>
         <div className="ax-deal-copilot-prompts">{["Show overdue follow-ups","Calculate monthly loan interest","Show today's tasks","Summarise collections"].map(prompt=><button type="button" key={prompt} onClick={()=>runCopilot(prompt)}>{prompt}</button>)}</div>
-        {copilotAnswer&&<div className="ax-deal-copilot-answer" aria-live="polite"><p>{copilotAnswer.summary}</p>{copilotAnswer.entries.length?copilotAnswer.entries.map((entry,index)=><button type="button" key={entry.title+"-"+index} onClick={()=>entry.module?onOpenModule(entry.module):onOpenContacts()}><span><strong>{entry.title}</strong><small>{entry.detail}</small></span><em>{entry.value||"Open"}</em></button>):<small>{copilotAnswer.empty}</small>}</div>}
+        {copilotAnswer&&<div className="ax-deal-copilot-answer" aria-live="polite"><p>{copilotAnswer.summary}</p>{copilotAnswer.entries.length?copilotAnswer.entries.map((entry,index)=><button type="button" key={entry.title+"-"+index} onClick={()=>entry.recordId&&onOpenRecord?onOpenRecord(entry.recordId):entry.contactId&&onOpenContact?onOpenContact(entry.contactId):entry.module?onOpenModule(entry.module):onOpenFinancials?onOpenFinancials():onOpenContacts()}><span><strong>{entry.title}</strong><small>{entry.detail}</small></span><em>{entry.value||"Open"}</em></button>):<small>{copilotAnswer.empty}</small>}</div>}
         <small className="ax-deal-copilot-disclaimer">Local, explainable workspace assistant · No outside AI service or data sharing is required.</small>
       </section>
 

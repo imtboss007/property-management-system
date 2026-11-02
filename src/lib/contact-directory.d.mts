@@ -11,6 +11,14 @@ export type ContactDirectoryRecord = {
   [key: string]: unknown;
 };
 export function canonicalContactPhone(value: string | null | undefined): string;
+export function mergeMasterContactsById(records: ContactDirectoryRecord[], keepId: string, removeId: string): {
+  contacts: ContactDirectoryRecord[];
+  remap: Record<string, string>;
+  removedIds: string[];
+  duplicatesRemoved: number;
+  keptId: string;
+  removedId: string;
+};
 export function deduplicateMasterContacts(records: ContactDirectoryRecord[]): {
   contacts: ContactDirectoryRecord[];
   remap: Record<string, string>;

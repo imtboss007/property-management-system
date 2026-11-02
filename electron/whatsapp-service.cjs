@@ -1275,7 +1275,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("A valid sync revision is required.");
         const snapshot = body.snapshot;
         if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("A valid AXIVESTRA data snapshot is required.");
-        const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules"];
+        const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules", "workspacePreferences"];
         for (const key of allowed) {
           if (snapshot[key] !== undefined && !Array.isArray(snapshot[key])) throw new Error("Invalid data collection: " + key);
           if (Array.isArray(snapshot[key]) && snapshot[key].length > 50000) throw new Error("Collection exceeds the 50,000-record safety limit: " + key);

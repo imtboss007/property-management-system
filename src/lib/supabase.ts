@@ -32,6 +32,7 @@ export type WorkspaceCollections = {
   approvalRequests: Array<Record<string, unknown> & { id: string }>;
   auditEvents: Array<Record<string, unknown> & { id: string }>;
   customModules: Array<Record<string, unknown> & { id: string }>;
+  workspacePreferences: Array<Record<string, unknown> & { id: string }>;
 };
 
 export const collectionKeys: Array<{
@@ -47,7 +48,8 @@ export const collectionKeys: Array<{
   { stateKey: "riskRecords", storageKey: "estateflow.risks", recordType: "risk" },
   { stateKey: "approvalRequests", storageKey: "estateflow.approvals", recordType: "approval" },
   { stateKey: "auditEvents", storageKey: "estateflow.auditEvents", recordType: "audit_event" },
-  { stateKey: "customModules", storageKey: "axivestra.customModules", recordType: "custom_module" }
+  { stateKey: "customModules", storageKey: "axivestra.customModules", recordType: "custom_module" },
+  { stateKey: "workspacePreferences", storageKey: "axivestra.workspacePreferences", recordType: "workspace_preference" }
 ];
 
 export function scopedStorageKey(companyId: string, key: string) {
@@ -89,6 +91,8 @@ export async function prepareCompanyWorkspace(
     }
     const payload = row.payload as (Record<string, unknown> & { id?: string }) | null;
     if (!payload || typeof payload.id !== "string") continue;
+    // Preference rows are private to the signed-in member, even inside a shared company.
+    if (row.record_type === "workspace_preference" && String(payload.scope || "") !== company.id + ":" + userId) continue;
     const bucket = remoteByType.get(row.record_type) || [];
     bucket.push(payload as Record<string, unknown> & { id: string });
     remoteByType.set(row.record_type, bucket);
@@ -256,6 +260,9 @@ export async function syncCompanyWorkspace(
     }
     const payload = row.payload as SyncRow | null;
     if (!payload || typeof payload.id !== "string" || payload.id !== id) continue;
+    // User workspace settings are isolated by authenticated member even though business
+    // records remain company-scoped. Never hydrate one member's saved views/searches on another.
+    if (row.record_type === "workspace_preference" && String(payload.scope || "") !== company.id + ":" + userId) continue;
     const items = remoteByType.get(row.record_type) || new Map<string, RemoteRow>();
     items.set(id, { payload, updatedAt: String(row.updated_at || "") });
     remoteByType.set(row.record_type, items);
@@ -295,6 +302,10 @@ export async function syncCompanyWorkspace(
     }
     if (recordType === "whatsapp_group") {
       const stamp = Date.parse(String(payload.lastSyncedAt || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
+    if (recordType === "workspace_preference") {
+      const stamp = Date.parse(String(payload.updatedAt || ""));
       if (Number.isFinite(stamp)) return stamp;
     }
     const entity = auditEntityByType[recordType];

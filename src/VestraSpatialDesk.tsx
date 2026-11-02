@@ -1,0 +1,135 @@
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type KeyboardEvent } from "react";
+import { Activity, ArrowUpRight, ChevronDown, ChevronUp, Grip, LayoutGrid, Maximize2, Minimize2 } from "lucide-react";
+import ThreeDHistogram from "./ThreeDHistogram";
+import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
+type RecordRow={id:string;title:string;module:string;value:string;status:string;location?:string;followUpContactId?:string;primaryContactId?:string;moduleData:Record<string,string>};
+type ContactRow={id:string;name:string;phone:string;role:string;followUps?:Array<{id:string;description:string;amount:string;promisedDate:string;promisedTime:string;status:string;linkedRecordId:string}>};
+type TaskRow={id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;contactId?:string;contactName?:string;done:boolean};
+type FinancialRow={id:string;type:string;amount:string;date:string;party:string;property:string;propertyId?:string;contactId?:string};
+type PanelId="portfolio"|"followups"|"finance"|"schedule"|"transactions"|"people";
+type PanelState={minimized?:boolean;expanded?:boolean};
+type PanelPosition={x:number;y:number};
+type PanelSize={width:number;height:number};
+type PanelGesture={id:PanelId;pointerId:number;mode:"move"|"resize";startX:number;startY:number;originX:number;originY:number;originWidth:number;originHeight:number;currentX:number;currentY:number;currentWidth:number;currentHeight:number};
+type SavedLayout={id:string;label:string;preset:string;order:PanelId[];states:Record<string,PanelState>;layoutMode:"grid"|"freeform";positions:Record<string,PanelPosition>;sizes?:Record<string,PanelSize>};
+type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;workspaceScope:string;workspacePreferences:Record<string,unknown>;workspacePreferencesReady:boolean;onSaveWorkspacePreference:(key:string,value:unknown)=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenModule:(name:string)=>void};
+const PANEL_IDS:PanelId[]=["portfolio","followups","finance","schedule","transactions","people"];
+const PRESETS:Record<string,PanelId[]>={Overview:PANEL_IDS,Collections:["finance","followups","transactions","people","portfolio","schedule"],Operations:["schedule","followups","portfolio","people","transactions","finance"],People:["people","followups","portfolio","schedule","finance","transactions"]};
+const CLOSED=new Set(["completed","closed","settled","rejected","cancelled","reached back"]);
+const isOpen=(status:string)=>!CLOSED.has(String(status||"").trim().toLowerCase());
+const panelNames:Record<PanelId,string>={portfolio:"Portfolio pulse",followups:"Follow-up control",finance:"Interest intelligence",schedule:"Operational schedule",transactions:"Financial activity",people:"People network"};
+const normalizeSizes=(value:unknown):Record<string,PanelSize>=>{
+ if(!value||typeof value!=="object"||Array.isArray(value))return {};
+ const result:Record<string,PanelSize>={};
+ for(const [key,raw] of Object.entries(value as Record<string,unknown>)){
+  if(!PANEL_IDS.includes(key as PanelId)||!raw||typeof raw!=="object"||Array.isArray(raw))continue;
+  const item=raw as Record<string,unknown>,width=Number(item.width),height=Number(item.height);
+  result[key]={width:Number.isFinite(width)?Math.max(260,Math.min(1200,width)):520,height:Number.isFinite(height)?Math.max(220,Math.min(1000,height)):320};
+ }
+ return result;
+};
+export default function VestraSpatialDesk({properties,contacts,tasks,financials,today,workspaceScope,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenModule,workspacePreferences,workspacePreferencesReady,onSaveWorkspacePreference}:Props){
+ const storageKey="axivestra.vestraSpatialDesk."+workspaceScope;
+ const [preset,setPreset]=useState("Overview"),[order,setOrder]=useState<PanelId[]>(PANEL_IDS),[states,setStates]=useState<Record<string,PanelState>>({}),[dragged,setDragged]=useState<PanelId|null>(null),[savedLayouts,setSavedLayouts]=useState<SavedLayout[]>([]);
+ const [layoutMode,setLayoutMode]=useState<"grid"|"freeform">("grid");
+ const [positions,setPositions]=useState<Record<string,PanelPosition>>({});
+ const [sizes,setSizes]=useState<Record<string,PanelSize>>({});
+ const [activeGesture,setActiveGesture]=useState<PanelId|null>(null);
+ const canvasRef=useRef<HTMLDivElement>(null);
+ const pointerGesture=useRef<PanelGesture|null>(null);
+ const [selectedMonth,setSelectedMonth]=useState("");
+ const beginGesture=(mode:"move"|"resize",id:PanelId,event:PointerEvent<HTMLElement>,position:PanelPosition,size:PanelSize)=>{
+  if(layoutMode!=="freeform")return;
+  event.preventDefault();event.stopPropagation();
+  pointerGesture.current={id,pointerId:event.pointerId,mode,startX:event.clientX,startY:event.clientY,originX:position.x,originY:position.y,originWidth:size.width,originHeight:size.height,currentX:position.x,currentY:position.y,currentWidth:size.width,currentHeight:size.height};
+  setActiveGesture(id);
+  event.currentTarget.setPointerCapture(event.pointerId);
+ };
+ const moveGesture=(id:PanelId,event:PointerEvent<HTMLElement>)=>{
+  const gesture=pointerGesture.current;
+  if(!gesture||gesture.id!==id||gesture.pointerId!==event.pointerId)return;
+  const rect=canvasRef.current?.getBoundingClientRect();if(!rect)return;
+  const dx=event.clientX-gesture.startX,dy=event.clientY-gesture.startY;
+  const panel=event.currentTarget.closest<HTMLElement>(".vs-desk-panel");
+  if(gesture.mode==="move"){
+   gesture.currentX=Math.max(0,Math.min(Math.max(0,rect.width-220),gesture.originX+dx));
+   gesture.currentY=Math.max(0,Math.min(2400,gesture.originY+dy));
+   if(panel){panel.style.left=gesture.currentX+"px";panel.style.top=gesture.currentY+"px";}
+  }else{
+   const maxWidth=Math.max(260,Math.min(1200,rect.width-gesture.originX-12));
+   gesture.currentWidth=Math.max(260,Math.min(maxWidth,gesture.originWidth+dx));
+   gesture.currentHeight=Math.max(220,Math.min(1000,gesture.originHeight+dy));
+   if(panel){panel.style.width=gesture.currentWidth+"px";panel.style.height=gesture.currentHeight+"px";}
+  }
+ };
+ const endGesture=(id:PanelId,event:PointerEvent<HTMLElement>)=>{
+  const gesture=pointerGesture.current;
+  if(!gesture||gesture.id!==id||gesture.pointerId!==event.pointerId)return;
+  pointerGesture.current=null;
+  if(gesture.mode==="move"){
+   setPositions(current=>({...current,[id]:{x:gesture.currentX,y:gesture.currentY}}));
+  }else{
+   setSizes(current=>({...current,[id]:{width:gesture.currentWidth,height:gesture.currentHeight}}));
+  }
+  setActiveGesture(current=>current===id?null:current);
+  if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+ };
+ const resizeWithKeyboard=(id:PanelId,event:KeyboardEvent<HTMLButtonElement>)=>{
+  const step=event.shiftKey?40:12,current=sizes[id]||{width:520,height:320};
+  let next:PanelSize;
+  if(event.key==="ArrowLeft")next={...current,width:Math.max(260,current.width-step)};
+  else if(event.key==="ArrowRight")next={...current,width:Math.min(1200,current.width+step)};
+  else if(event.key==="ArrowUp")next={...current,height:Math.max(220,current.height-step)};
+  else if(event.key==="ArrowDown")next={...current,height:Math.min(1000,current.height+step)};
+  else return;
+  event.preventDefault();setSizes(value=>({...value,[id]:next}));
+ };
+ const hydratedPreferenceRef=useRef(false);
+ useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||"{}");if(saved&&typeof saved==="object"){if(PRESETS[String(saved.preset)])setPreset(String(saved.preset));if(Array.isArray(saved.order))setOrder(saved.order.filter((id:unknown):id is PanelId=>PANEL_IDS.includes(id as PanelId)));if(saved.states&&typeof saved.states==="object")setStates(saved.states);if(saved.layoutMode==="freeform"||saved.layoutMode==="grid")setLayoutMode(saved.layoutMode);if(saved.positions&&typeof saved.positions==="object")setPositions(saved.positions);if(saved.sizes&&typeof saved.sizes==="object")setSizes(normalizeSizes(saved.sizes));if(Array.isArray(saved.savedLayouts))setSavedLayouts(saved.savedLayouts.filter((v:unknown):v is SavedLayout=>Boolean(v&&typeof v==="object"&&typeof (v as SavedLayout).label==="string"&&Array.isArray((v as SavedLayout).order))));}}catch{/* optional preferences */}},[storageKey]);
+ useEffect(()=>{
+  if(!workspacePreferencesReady)return;
+  const saved=workspacePreferences["vestraSpatialDesk"];
+  if(!saved||typeof saved!=="object"||Array.isArray(saved))return;
+  hydratedPreferenceRef.current=true;
+  const value=saved as Partial<SavedLayout>&{states?:Record<string,PanelState>;savedLayouts?:SavedLayout[]};
+  if(PRESETS[String(value.preset)])setPreset(String(value.preset));
+  if(Array.isArray(value.order))setOrder(value.order.filter((id):id is PanelId=>PANEL_IDS.includes(id as PanelId)));
+  if(value.states&&typeof value.states==="object")setStates(value.states);
+  if(value.layoutMode==="freeform"||value.layoutMode==="grid")setLayoutMode(value.layoutMode);
+  if(value.positions&&typeof value.positions==="object")setPositions(value.positions);
+  if(value.sizes&&typeof value.sizes==="object")setSizes(normalizeSizes(value.sizes));
+  if(Array.isArray(value.savedLayouts))setSavedLayouts(value.savedLayouts);
+ },[workspacePreferencesReady,workspacePreferences["vestraSpatialDesk"]]);
+ useEffect(()=>{
+  const saved={preset,order,states,savedLayouts,layoutMode,positions,sizes};
+  try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{/* preferences never affect business data */}
+  if(workspacePreferencesReady){
+   if(hydratedPreferenceRef.current){hydratedPreferenceRef.current=false;return;}
+   onSaveWorkspacePreference("vestraSpatialDesk",saved);
+  }
+ },[storageKey,preset,order,states,savedLayouts,layoutMode,positions,sizes,workspacePreferencesReady,onSaveWorkspacePreference]);
+ const activeFollowUps=useMemo(()=>contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>isOpen(item.status)).map(item=>({contact,item,record:properties.find(record=>record.id===item.linkedRecordId)}))),[contacts,properties]);
+ const overdue=activeFollowUps.filter(row=>row.item.promisedDate&&row.item.promisedDate<today),dueToday=activeFollowUps.filter(row=>row.item.promisedDate===today);
+ const loanRecords=properties.filter(record=>["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"].includes(record.module)||record.moduleData?.__transactionType==="Loan");
+ const monthlyInterest=loanRecords.reduce((sum,record)=>sum+calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value)),0);
+ const openTasks=tasks.filter(task=>!task.done),overdueTasks=openTasks.filter(task=>task.date&&task.date<today);
+ const inflowTypes=new Set(["Sale","Advance","Loan Disbursal","Receipt"]),outflowTypes=new Set(["Purchase","Loan Repayment","Interest","Instalment","Brokerage","Expense","Settlement"]);
+ const monthlyData=useMemo(()=>{const months=Array.from({length:6},(_,i)=>{const d=new Date(today+"T00:00:00");d.setDate(1);d.setMonth(d.getMonth()-(5-i));return {key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString("en-IN",{month:"short"}),inflow:0,outflow:0};});financials.forEach(item=>{const bucket=months.find(row=>row.key===String(item.date||"").slice(0,7));if(!bucket)return;const amount=parseDealNumber(item.amount);if(inflowTypes.has(item.type))bucket.inflow+=amount;else if(outflowTypes.has(item.type))bucket.outflow+=amount;});return months;},[financials,today]);
+ const visibleOrder=[...(PRESETS[preset]||PANEL_IDS).filter(id=>order.includes(id)),...order.filter(id=>!(PRESETS[preset]||PANEL_IDS).includes(id))];
+ const movePanel=(target:PanelId)=>{if(!dragged||dragged===target)return;setOrder(current=>{const next=[...current],from=next.indexOf(dragged),to=next.indexOf(target);if(from<0||to<0)return current;next.splice(from,1);next.splice(to,0,dragged);return next;});setDragged(null);};
+ const saveLayout=()=>{const label=preset+" · "+new Date().toLocaleDateString("en-IN")+" "+new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});const snapshot:SavedLayout={id:"layout-"+Date.now(),label,preset,order:[...order],states:{...states},layoutMode,positions:{...positions},sizes:{...sizes}};setSavedLayouts(current=>[snapshot,...current].slice(0,8));};
+ const renderPanel=(id:PanelId)=>{
+  if(id==="portfolio")return <><div className="vs-desk-kpis"><button onClick={()=>onOpenModule("All Properties")}><span>Saved records</span><strong>{properties.length}</strong></button><button onClick={()=>onOpenModule("All Properties")}><span>Open records</span><strong>{properties.filter(row=>isOpen(row.status)).length}</strong></button><button onClick={()=>onOpenModule("All Properties")}><span>Recorded value</span><strong>{formatINR(properties.reduce((sum,row)=>sum+parseDealNumber(row.value),0))}</strong></button></div><div className="vs-desk-list">{properties.slice(0,5).map(row=><button key={row.id} onClick={()=>onOpenRecord(row.id)}><span><strong>{row.title||row.module}</strong><small>{row.module} · {row.status||"Status not set"}</small></span><em>{row.value?formatINR(parseDealNumber(row.value)):"—"}</em><ArrowUpRight size={13}/></button>)}</div></>;
+  if(id==="followups")return <><div className="vs-desk-kpis"><button onClick={()=>onOpenModule("Follow-up Register")}><span>Open commitments</span><strong>{activeFollowUps.length}</strong></button><button className={overdue.length?"warning":""} onClick={()=>onOpenModule("Follow-up Register")}><span>Overdue</span><strong>{overdue.length}</strong></button><button onClick={()=>onOpenModule("Follow-up Register")}><span>Due today</span><strong>{dueToday.length}</strong></button></div><div className="vs-desk-list">{[...overdue,...dueToday].slice(0,6).map(({contact,item,record})=><button key={item.id} onClick={()=>onOpenContact(contact.id)}><span><strong>{contact.name} · {item.description||"Follow-up"}</strong><small>{record?.module||"Contact"} · {item.promisedDate} {item.promisedTime}</small></span><em>{item.amount?formatINR(parseDealNumber(item.amount)):"No amount"}</em><ArrowUpRight size={13}/></button>)}</div></>;
+  if(id==="finance")return <><div className="vs-desk-kpis"><button onClick={()=>onOpenModule("Property Loans")}><span>Loan records</span><strong>{loanRecords.length}</strong></button><button onClick={()=>onOpenModule("Property Loans")}><span>Monthly interest</span><strong>{formatINR(monthlyInterest)}</strong></button><button onClick={()=>onOpenModule("Financials")}><span>Transactions</span><strong>{financials.length}</strong></button></div><ThreeDHistogram items={monthlyData.map(row=>({id:row.key,name:row.label,value:row.inflow,secondaryValue:row.outflow,fullName:row.key}))} selected={selectedMonth} primaryLabel="Recorded inflow" secondaryLabel="Recorded outflow" formatValue={value=>formatINR(value)} onSelect={name=>setSelectedMonth(name)}/>{selectedMonth&&(()=>{const row=monthlyData.find(item=>item.label===selectedMonth);return row?<div className="vs-desk-month-inspector"><strong>{row.key} · selected period</strong><span>Recorded inflow <b>{formatINR(row.inflow)}</b></span><span>Recorded outflow <b>{formatINR(row.outflow)}</b></span><button type="button" onClick={()=>onOpenModule("Financials")}>Open source transactions <ArrowUpRight size={12}/></button></div>:null;})()}</>;
+  if(id==="schedule")return <><div className="vs-desk-kpis"><button onClick={()=>onOpenModule("Schedule & Tasks")}><span>Open tasks</span><strong>{openTasks.length}</strong></button><button className={overdueTasks.length?"warning":""} onClick={()=>onOpenModule("Schedule & Tasks")}><span>Overdue</span><strong>{overdueTasks.length}</strong></button><button onClick={()=>onOpenModule("Schedule & Tasks")}><span>Due today</span><strong>{openTasks.filter(task=>task.date===today).length}</strong></button></div><div className="vs-desk-list">{[...openTasks].sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")).slice(0,6).map(task=><button key={task.id} onClick={()=>onOpenTask(task.id)}><span><strong>{task.title}</strong><small>{task.date} {task.time} · {task.contactName||task.property||task.type}</small></span><em>{task.date<today?"Overdue":"Open"}</em><ArrowUpRight size={13}/></button>)}</div></>;
+  if(id==="transactions")return <div className="vs-desk-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(item=><button key={item.id} onClick={()=>onOpenTransaction(item.id)}><span><strong>{item.type} · {item.party||item.property||"Transaction"}</strong><small>{item.date} · {item.property}</small></span><em>{formatINR(parseDealNumber(item.amount))}</em><ArrowUpRight size={13}/></button>)}</div>;
+  return <div className="vs-desk-list">{contacts.slice(0,8).map(contact=><button key={contact.id} onClick={()=>onOpenContact(contact.id)}><span><strong>{contact.name}</strong><small>{contact.role} · {contact.phone}</small></span><em>{(contact.followUps||[]).filter(item=>isOpen(item.status)).length} open</em><ArrowUpRight size={13}/></button>)}</div>;
+ };
+ return <section className="vs-spatial-desk">
+  <header className="vs-desk-heading"><div><span className="vs-eyebrow"><LayoutGrid size={13}/> SPATIAL WORKSPACE · LIVE SAVED DATA</span><h3>Arrange your operational surfaces.</h3><p>Reorder in Snap grid. Switch to Freeform to drag and resize panels; your panel dimensions are saved with the layout.</p></div><div className="vs-desk-actions"><select aria-label="Workspace layout" value={preset} onChange={event=>setPreset(event.target.value)}>{Object.keys(PRESETS).map(name=><option key={name}>{name}</option>)}</select><select aria-label="Panel arrangement mode" value={layoutMode} onChange={event=>setLayoutMode(event.target.value as "grid"|"freeform")}><option value="grid">Snap grid</option><option value="freeform">Freeform canvas</option></select><button type="button" onClick={saveLayout}>Save layout</button></div></header>
+  {!!savedLayouts.length&&<div className="vs-desk-saved"><span>RECENT LAYOUT SAVES</span>{savedLayouts.map(item=><button type="button" key={item.id} onClick={()=>{setPreset(item.preset);setOrder([...item.order]);setStates({...item.states});setLayoutMode(item.layoutMode||"grid");setPositions({...item.positions});setSizes(normalizeSizes(item.sizes));}}>{item.label} · Restore</button>)}</div>}
+  <div ref={canvasRef} className={"vs-desk-grid "+(layoutMode==="freeform"?"freeform":"")}>{visibleOrder.map((id,index)=>{const state=states[id]||{};const narrowViewport=typeof window!=="undefined"&&window.innerWidth<760;const defaultPosition={x:narrowViewport?0:(index%2)*600,y:narrowViewport?index*350:Math.floor(index/2)*350};const position=positions[id]||defaultPosition;const panelSize=sizes[id]||{width:520,height:320};return <article key={id} draggable={layoutMode==="grid"} style={layoutMode==="freeform"?{left:position.x,top:position.y,...(!state.expanded?{width:panelSize.width,height:panelSize.height}:{})}:undefined} onDragStart={()=>{if(layoutMode==="grid")setDragged(id);}} onDragOver={event=>event.preventDefault()} onDrop={()=>movePanel(id)} onDragEnd={()=>setDragged(null)} className={"vs-desk-panel "+(state.expanded?"expanded ":"")+(state.minimized?"minimized ":"")+(activeGesture===id?"is-gesturing":"")}><header onPointerDown={event=>{if(layoutMode!=="freeform"||(event.target as HTMLElement).closest("button"))return;beginGesture("move",id,event,position,panelSize);}} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)}><span className="vs-desk-grip" title="Drag to reposition"><Grip size={14}/></span><div><small>VESTRA / {String(index+1).padStart(2,"0")}</small><strong>{panelNames[id]}</strong></div><div className="vs-desk-panel-actions"><button type="button" title={state.expanded?"Restore panel":"Expand panel"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],expanded:!current[id]?.expanded}}))}>{state.expanded?<Minimize2 size={13}/>:<Maximize2 size={13}/>}</button><button type="button" title={state.minimized?"Restore":"Minimize"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],minimized:!current[id]?.minimized}}))}>{state.minimized?<ChevronDown size={13}/>:<ChevronUp size={13}/>}</button></div></header>{!state.minimized&&<div className="vs-desk-panel-content">{renderPanel(id)}</div>}{layoutMode==="freeform"&&!state.minimized&&<button type="button" className="vs-desk-resize" title="Drag to resize · Arrow keys also work" aria-label={"Resize "+panelNames[id]+"; use arrow keys to change width and height"} onPointerDown={event=>beginGesture("resize",id,event,position,panelSize)} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)} onKeyDown={event=>resizeWithKeyboard(id,event)}><Maximize2 size={11}/></button>}</article>;})}</div>
+  <small className="vs-desk-disclaimer"><Activity size={12}/> Panel arrangement is a saved workspace preference. It does not modify business records, calculations or permissions.</small>
+ </section>;
+}

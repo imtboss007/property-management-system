@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   canonicalContactPhone,
   deduplicateMasterContacts,
+  mergeMasterContactsById,
   remapWorkspaceContactReferences
 } = require("../src/lib/contact-directory.mjs");
 
@@ -48,5 +49,19 @@ assert.equal(rewired.properties[0].moduleData.__linkedContactIds, "keep,other");
 for (const collection of ["tasks", "financials", "riskRecords", "approvalRequests"]) {
   assert.equal(rewired[collection][0].contactId, "keep", collection + " contact reference");
 }
+
+const explicitSource = [
+  { id: "owner", name: "Preferred name", phone: "+91 99999 11111", notes: "Primary source", followUps: [{ id: "f1", description: "Call" }] },
+  { id: "alias", name: "Alternate identity", phone: "+91 99999 11111", email: "other@example.test", notes: "Secondary source", followUps: [{ id: "f2", description: "Meeting", updatedAt: "2026-11-02T05:00:00Z" }] },
+  { id: "unrelated", name: "Other person", phone: "88888 00000" }
+];
+const explicitMerge = mergeMasterContactsById(explicitSource, "owner", "alias");
+assert.equal(explicitMerge.keptId, "owner");
+assert.equal(explicitMerge.removedId, "alias");
+assert.deepEqual(explicitMerge.remap, { alias: "owner" });
+assert.equal(explicitMerge.contacts.length, 2);
+assert.equal(explicitMerge.contacts.find(item => item.id === "owner").name, "Preferred name");
+assert.deepEqual(explicitMerge.contacts.find(item => item.id === "owner").followUps.map(item => item.id).sort(), ["f1","f2"]);
+assert.throws(() => mergeMasterContactsById(explicitSource, "owner", "missing"), /must still exist/);
 
 process.stdout.write("AXIVESTRA contact deduplication and reference-preservation tests passed.\n");

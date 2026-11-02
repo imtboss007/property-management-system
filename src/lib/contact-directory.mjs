@@ -46,7 +46,7 @@ function mergeContactRecords(records) {
   const ordered = [...records].sort((a, b) => completeness(b) - completeness(a));
   const primary = ordered[0];
   const merged = { ...primary };
-  const arrayFields = new Set(["roles", "whatsappAliases"]);
+  const arrayFields = new Set(["roles", "whatsappAliases", "followUps"]);
   const textFields = new Set([
     "name", "whatsappName", "notify", "verifiedName", "email", "address",
     "profession", "employer", "designation", "businessType", "incomeSources",
@@ -59,6 +59,16 @@ function mergeContactRecords(records) {
       const roleValues = [...ordered.map(item => item.role), ...values];
       merged.roles = [...new Map(roleValues.filter(Boolean).map(value => [String(value).toLowerCase(), String(value)])).values()];
       if (merged.roles.length) merged.role = merged.roles[0];
+    } else if (field === "followUps") {
+      const byId = new Map();
+      for (const row of values.filter(value => value && typeof value === "object")) {
+        const key = String(row.id || "row-" + byId.size);
+        const existing = byId.get(key);
+        if (!existing || String(row.updatedAt || "") >= String(existing.updatedAt || "")) {
+          byId.set(key, { ...(existing || {}), ...row });
+        }
+      }
+      merged.followUps = [...byId.values()];
     } else {
       merged[field] = [...new Set(values.map(String).filter(Boolean))];
     }
@@ -81,6 +91,32 @@ function mergeContactRecords(records) {
     ...ordered.map(contactJid)
   ].filter(Boolean))];
   return merged;
+}
+
+/**
+ * Explicitly merge two contacts after the user reviews and authorizes the operation.
+ * The selected keepId remains the stable master identity. Unlike automatic dedupe,
+ * this function may merge an ambiguous pair only because the caller must obtain consent.
+ */
+export function mergeMasterContactsById(records, keepId, removeId) {
+  if (!keepId || !removeId || keepId === removeId) throw new Error("Choose two different contact records.");
+  const keep = (Array.isArray(records) ? records : []).find(item => item?.id === keepId);
+  const remove = (Array.isArray(records) ? records : []).find(item => item?.id === removeId);
+  if (!keep || !remove) throw new Error("Both contact records must still exist.");
+  const merged = mergeContactRecords([keep, remove]);
+  merged.id = keepId;
+  merged.name = String(keep.name || merged.name || "").trim();
+  merged.phone = String(keep.phone || remove.phone || "").trim();
+  merged.whatsappName = String(keep.whatsappName || remove.whatsappName || "").trim();
+  const remap = { [removeId]: keepId };
+  return {
+    contacts: (records || []).filter(item => item?.id !== keepId && item?.id !== removeId).concat(merged),
+    remap,
+    removedIds: [removeId],
+    duplicatesRemoved: 1,
+    keptId: keepId,
+    removedId: removeId
+  };
 }
 
 /**

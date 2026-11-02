@@ -48,6 +48,12 @@ const newEntry = (contact?: ContactRow): RecordFollowUpEntry => {
     followDate: "",
     followTime: "",
     remarks: "",
+    description: "",
+    amount: "",
+    priority: "Normal",
+    status: "Open",
+    nextAction: "",
+    notes: "",
     nextFollowUpDate: "",
     nextFollowUpTime: "",
     createdAt: now,
@@ -113,7 +119,7 @@ export default function RecordFollowUpTracker(props: Props) {
       const entryText = entries.flatMap(row => {
         const contact = contactsById.get(row.entry.followPersonId);
         return [row.entry.followPersonName, contact?.name, row.entry.followDate, row.entry.followTime,
-          row.entry.remarks, row.entry.nextFollowUpDate, row.entry.nextFollowUpTime];
+          row.entry.remarks, row.entry.description, row.entry.amount, row.entry.priority, row.entry.status, row.entry.nextAction, row.entry.notes, row.entry.nextFollowUpDate, row.entry.nextFollowUpTime];
       });
       return [record.title, record.module, record.contact, ...entryText]
         .filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase().includes(term);
@@ -122,7 +128,7 @@ export default function RecordFollowUpTracker(props: Props) {
 
   const visibleEntryCount = visibleRecords.reduce((sum, record) => sum + entriesForRecord(record.id).length, 0);
   const overdueCount = visibleRecords.reduce((sum, record) => sum + entriesForRecord(record.id).filter(entry =>
-    entry.nextFollowUpDate && entry.nextFollowUpDate < new Date().toISOString().slice(0, 10)
+    entry.nextFollowUpDate && entry.nextFollowUpDate < new Date().toISOString().slice(0, 10) && !["completed","closed","cancelled"].includes(String(entry.status||"").toLowerCase())
   ).length, 0);
 
   const patch = (recordId: string, entryId: string, field: keyof RecordFollowUpEntry, value: string) => {
@@ -253,15 +259,15 @@ export default function RecordFollowUpTracker(props: Props) {
     <div className="ax-record-followups__table-wrap">
       <table className="ax-record-followups__table">
         <thead><tr>
-          <th>Record name</th><th>Follow person</th><th>Follow-up date</th><th>Follow-up time</th>
-          <th>Remarks</th><th>Next follow-up date</th><th>Next follow-up time</th><th>Actions</th>
+          <th>Record name</th><th>Follow person</th><th>Description</th><th>Amount</th><th>Assigned date</th><th>Follow-up date</th><th>Follow-up time</th>
+          <th>Remarks</th><th>Priority</th><th>Status</th><th>Next action</th><th>Next follow-up date</th><th>Next follow-up time</th><th>Notes</th><th>Actions</th>
         </tr></thead>
         <tbody>
           {visibleRecords.flatMap(record => {
             const entries = entriesForRecord(record.id);
             if (!entries.length) return [<tr className="ax-record-followups__empty-row" key={record.id + "::empty"}>
               <td><input aria-label="Record name" type="text" className="ax-record-followups__name-input" value={titleDrafts[record.id] ?? record.title ?? ""} disabled={props.readOnly} onChange={event => patchRecordTitle(record.id, event.target.value)} onBlur={() => saveRecordTitle(record)}/><small>{record.module}</small><button type="button" className="ax-record-followups__open" onClick={() => props.onOpenRecord(record)}><ExternalLink size={11}/> Open record</button></td>
-              <td colSpan={6}>No follow-up entries recorded for this data.</td>
+              <td colSpan={13}>No follow-up entries recorded for this data.</td>
               <td><button type="button" className="secondary-button" disabled={props.readOnly} onClick={() => addForRecord(record)}><Plus size={13}/> Add first follow-up</button></td>
             </tr>];
             return entries.map((entry, index) => {
@@ -282,11 +288,18 @@ export default function RecordFollowUpTracker(props: Props) {
                   </select>
                   {contact && <button type="button" className="ax-record-followups__contact-link" onClick={() => props.onOpenContact(contact.id)}><Users size={11}/> Open contact</button>}
                 </td>
+                <td><input aria-label="Follow-up description" value={draft.entry.description||""} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "description", event.target.value)} onBlur={() => save(record.id, entry.id)} placeholder="What needs to happen?"/></td>
+                <td><input aria-label="Follow-up amount" type="number" min="0" step="any" value={draft.entry.amount||""} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "amount", event.target.value)} onBlur={() => save(record.id, entry.id)} placeholder="₹ amount"/></td>
+                <td><small>{draft.entry.createdAt?new Date(draft.entry.createdAt).toLocaleDateString("en-IN"):"Not recorded"}</small></td>
                 <td><input aria-label="Follow-up date" type="date" value={draft.entry.followDate} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "followDate", event.target.value)} onBlur={() => save(record.id, entry.id)}/></td>
                 <td><input aria-label="Follow-up time" type="time" value={draft.entry.followTime} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "followTime", event.target.value)} onBlur={() => save(record.id, entry.id)}/></td>
                 <td><textarea aria-label="Follow-up remarks" rows={2} value={draft.entry.remarks} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "remarks", event.target.value)} onBlur={() => save(record.id, entry.id)} placeholder="What happened / what was discussed…"/></td>
+                <td><select aria-label="Follow-up priority" value={draft.entry.priority||"Normal"} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "priority", event.target.value)} onBlur={() => save(record.id, entry.id)}>{["Low","Normal","High","Urgent"].map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><select aria-label="Follow-up status" value={draft.entry.status||"Open"} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "status", event.target.value)} onBlur={() => save(record.id, entry.id)}>{["Open","In progress","Awaiting response","Completed","On hold","Cancelled"].map(value=><option key={value}>{value}</option>)}</select></td>
+                <td><input aria-label="Follow-up next action" value={draft.entry.nextAction||""} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "nextAction", event.target.value)} onBlur={() => save(record.id, entry.id)} placeholder="Next action"/></td>
                 <td><input aria-label="Next follow-up date" type="date" value={draft.entry.nextFollowUpDate} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "nextFollowUpDate", event.target.value)} onBlur={() => save(record.id, entry.id)}/></td>
                 <td><input aria-label="Next follow-up time" type="time" value={draft.entry.nextFollowUpTime} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "nextFollowUpTime", event.target.value)} onBlur={() => save(record.id, entry.id)}/></td>
+                <td><textarea aria-label="Follow-up notes" rows={2} value={draft.entry.notes||""} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "notes", event.target.value)} onBlur={() => save(record.id, entry.id)} placeholder="Additional notes"/></td>
                 <td className="ax-record-followups__row-actions">
                   <button type="button" className="secondary-button" disabled={props.readOnly || !draft.dirty} onClick={() => save(record.id, entry.id)}>Save</button>
                   <button type="button" className="secondary-button" disabled={props.readOnly} onClick={() => remove(record.id, entry.id)} title="Delete only this follow-up"><Trash2 size={13}/></button>

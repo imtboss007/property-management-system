@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles, Box } from "lucide-react";
+import ThreeDHistogram from "./ThreeDHistogram";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
-type FinancialRow = { id: string; type: string; amount: string; date: string };
+type FinancialRow = { id: string; type: string; amount: string; date: string; property?: string; party?: string; reference?: string };
 type TaskRow = { id: string; date: string; done: boolean; type: string };
 type ModuleRow = { name: string; value: number; count: number };
 
@@ -12,6 +13,9 @@ type Props = {
   tasks: TaskRow[];
   modules: ModuleRow[];
   onOpenModule: (name: string) => void;
+  onOpenRecord: (recordId: string) => void;
+  onOpenTransaction: (transactionId: string) => void;
+  onOpenFinancials: () => void;
 };
 
 const PALETTE = ["#20d9ef", "#2578ff", "#7a6dff", "#28c78a", "#ffbf68", "#fc7796", "#57b4d4", "#a7b8cd"];
@@ -20,9 +24,9 @@ const OUTFLOW = new Set(["Purchase", "Loan Repayment", "Interest", "Instalment",
 const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const compact = (value: number) => value >= 10000000 ? "₹" + (value / 10000000).toFixed(1) + " Cr" : value >= 100000 ? "₹" + (value / 100000).toFixed(1) + " L" : INR.format(value);
 
-export default function PortfolioAnalytics({ properties, financials, tasks, modules, onOpenModule }: Props) {
+export default function PortfolioAnalytics({ properties, financials, tasks, modules, onOpenModule, onOpenRecord, onOpenTransaction, onOpenFinancials }: Props) {
   const [focus, setFocus] = useState<"allocation" | "pipeline" | "cashflow">("allocation");
-  const [chartType, setChartType] = useState<"donut" | "bar" | "line">("donut");
+  const [chartType, setChartType] = useState<"donut" | "bar" | "line" | "3d">("3d");
   const [metric, setMetric] = useState<"value" | "count">("value");
   const [period, setPeriod] = useState<3 | 6 | 12>(6);
   const [selected, setSelected] = useState("");
@@ -55,7 +59,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       const rows = financials.filter(row => String(row.date || "").slice(0, 7) === key);
       const inflow = rows.filter(row => INFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
       const outflow = rows.filter(row => OUTFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length };
+      return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length, transactions: rows };
     });
   }, [financials, period]);
 
@@ -70,11 +74,14 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
   const title = focus === "allocation" ? metric === "value" ? "Asset allocation" : "Records by workspace" : focus === "pipeline" ? "Portfolio status mix" : "Cashflow movement";
   const subtitle = focus === "allocation" ? "Select any segment to open that module." : focus === "pipeline" ? "Real status values from your saved records." : "Recorded inflows and outflows by month; no forecast is fabricated.";
   const activeModuleName = selected && moduleRows.some(row => row.name === selected) ? selected : "";
+  const activeCashflow = cashflowRows.find(row => row.key === selected);
+  const activePipeline = stageRows.find(row => row.name === selected);
+  const selectedRecords = focus === "allocation" && activeModuleName ? properties.filter(row => row.module === activeModuleName) : focus === "pipeline" && activePipeline ? properties.filter(row => (String(row.status||"Unspecified").trim()||"Unspecified") === activePipeline.name) : [];
 
   const setFocusView = (next: "allocation" | "pipeline" | "cashflow") => {
     setFocus(next);
     setSelected("");
-    if (next === "cashflow") setChartType("bar");
+    if (next === "cashflow") setChartType("3d");
   };
 
   const empty = focus === "allocation" ? properties.length === 0 || (metric === "value" && !moduleRows.some(row => row.value > 0)) : focus === "pipeline" ? properties.length === 0 : financials.length === 0;
@@ -87,6 +94,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
         <button className={chartType === "donut" ? "active" : ""} onClick={() => setChartType("donut")} title="Ring chart" aria-label="Ring chart"><PieChart size={16}/></button>
         <button className={chartType === "bar" ? "active" : ""} onClick={() => setChartType("bar")} title="Bar chart" aria-label="Bar chart"><BarChart3 size={16}/></button>
         <button className={chartType === "line" ? "active" : ""} onClick={() => setChartType("line")} title="Line chart" aria-label="Line chart"><TrendingUp size={16}/></button>
+        <button className={chartType === "3d" ? "active" : ""} onClick={() => setChartType("3d")} title="3D histogram" aria-label="3D histogram"><Box size={16}/></button>
       </div>
     </div>
     <div className="ax-analytics-tabs" role="tablist" aria-label="Analytics view">
@@ -100,6 +108,11 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       <div className="ax-chart-stage">
         <div className="ax-chart-mode-title"><strong>{title}</strong><p>{subtitle}</p></div>
         {empty ? <div className="ax-chart-empty"><PortfolioEmptyChartPreview type={chartType}/><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : focus === "pipeline" || properties.length === 0 ? "Add your first property/deal record to activate interactive charts." : "No asset values have been entered yet. Switch to Count to chart saved records, or enter value/exposure in the relevant module."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
+        : chartType === "3d" ? <ThreeDHistogram
+          items={focus === "cashflow"
+            ? cashflowRows.map(row => ({ id: row.key, name: row.name, fullName: row.fullName, value: row.inflow, secondaryValue: row.outflow, color: "#20d9ef", secondaryColor: "#fc7796" }))
+            : visibleItems.map(item => ({ id: item.name, name: item.name, value: item.value, color: item.color }))}
+          selected={selected} onSelect={setSelected} showLabels={showLabels} formatValue={compact}/>
         : focus === "cashflow" ? <CashflowChart rows={cashflowRows} type={chartType} showLabels={showLabels} onSelect={setSelected} selected={selected}/>
         : chartType === "donut" ? <DonutChart items={visibleItems} total={totalChart} selected={selected} onSelect={setSelected} centerLabel={focus === "allocation" ? "TRACKED VALUE" : "RECORDS"} centerValue={focus === "allocation" && metric === "value" ? compact(totalChart) : String(totalChart)} showLabels={showLabels}/>
         : chartType === "bar" ? <HorizontalBars items={visibleItems} selected={selected} onSelect={setSelected} showLabels={showLabels}/>
@@ -123,6 +136,25 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
           <div className="ax-inspector-pair"><span>Missing value</span><strong>{properties.filter(row => !(Number(row.value) > 0)).length}</strong></div>
           <div className="ax-inspector-pair"><span>Modules available</span><strong>{modules.length}</strong></div>
         </>}
+        {(focus==="allocation"&&activeModuleName)&&<div className="ax-analytics-source-inspector">
+          <strong>{activeModuleName} · {selectedRecords.length} saved record(s)</strong>
+          {selectedRecords.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenRecord(row.id)}><span>{row.title||row.module}</span><small>{row.status||"Status not set"} · {compact(Number(row.value)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!selectedRecords.length&&<small>No saved source record matches this module.</small>}
+        </div>}
+        {(focus==="pipeline"&&activePipeline)&&<div className="ax-analytics-source-inspector">
+          <strong>{activePipeline.name} · {selectedRecords.length} record(s)</strong>
+          {selectedRecords.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenRecord(row.id)}><span>{row.title||row.module}</span><small>{row.module} · {compact(Number(row.value)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!selectedRecords.length&&<small>No record matches this status.</small>}
+        </div>}
+        {(focus==="cashflow"&&activeCashflow)&&<div className="ax-analytics-source-inspector">
+          <strong>{activeCashflow.fullName} · {activeCashflow.count} transaction(s)</strong>
+          <div className="ax-inspector-pair"><span>Recorded inflows</span><strong>{compact(activeCashflow.inflow)}</strong></div>
+          <div className="ax-inspector-pair"><span>Recorded outflows</span><strong>{compact(activeCashflow.outflow)}</strong></div>
+          <div className="ax-inspector-pair"><span>Net recorded movement</span><strong>{compact(activeCashflow.net)}</strong></div>
+          {activeCashflow.transactions.slice(0,8).map(row=><button type="button" key={row.id} onClick={()=>onOpenTransaction(row.id)}><span>{row.type} · {row.party||row.property||"Transaction"}</span><small>{row.date} · {compact(Number(row.amount)||0)}</small><ArrowUpRight size={12}/></button>)}
+          {!activeCashflow.transactions.length&&<small>No transactions are recorded for this month.</small>}
+          <button type="button" className="ax-inspector-open-financials" onClick={onOpenFinancials}>Open financial register <ArrowUpRight size={12}/></button>
+        </div>}
         <div className="ax-inspector-divider"/>
         <label className="ax-toggle-row"><input type="checkbox" checked={showLabels} onChange={event => setShowLabels(event.target.checked)}/> Show chart labels</label>
         <button className="ax-inspector-action" onClick={() => {
@@ -142,10 +174,11 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
   </section>;
 }
 
-function PortfolioEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" }) {
+function PortfolioEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" | "3d" }) {
   if (type === "donut") return <svg className="ax-empty-chart-ring" viewBox="0 0 180 180" role="img" aria-label="Empty portfolio chart"><circle cx="90" cy="90" r="62" fill="none" stroke="#1a354a" strokeWidth="21" strokeDasharray="6 7"/><circle cx="90" cy="90" r="45" fill="#0b1d2d"/><text x="90" y="86" textAnchor="middle" fill="#69879c" fontSize="9" letterSpacing="1">NO DATA</text><text x="90" y="105" textAnchor="middle" fill="#89a7bb" fontSize="14" fontWeight="800">0</text></svg>;
   if (type === "bar") return <div className="ax-empty-chart-bars" aria-label="Empty bar chart preview">{[0,1,2,3].map(item=><span key={item}><i/><b/></span>)}</div>;
-  return <svg className="ax-empty-chart-line" viewBox="0 0 220 150" role="img" aria-label="Empty trend chart preview">{[0,1,2,3].map(n=><line key={n} x1="24" x2="208" y1={18+n*32} y2={18+n*32} stroke="#1a354a" strokeDasharray="4 6"/>)}<polyline points="24,114 80,92 136,104 208,72" fill="none" stroke="#244b61" strokeWidth="2" strokeDasharray="5 7"/><text x="116" y="139" textAnchor="middle" fill="#6b8ca2" fontSize="9">EMPTY TREND PREVIEW</text></svg>;
+  if (type === "line") return <svg className="ax-empty-chart-line" viewBox="0 0 220 150" role="img" aria-label="Empty trend chart preview">{[0,1,2,3].map(n=><line key={n} x1="24" x2="208" y1={18+n*32} y2={18+n*32} stroke="#1a354a" strokeDasharray="4 6"/>)}<polyline points="24,114 80,92 136,104 208,72" fill="none" stroke="#244b61" strokeWidth="2" strokeDasharray="5 7"/><text x="116" y="139" textAnchor="middle" fill="#6b8ca2" fontSize="9">EMPTY TREND PREVIEW</text></svg>;
+  return <div className="ax-empty-3d-chart" role="img" aria-label="Empty 3D histogram preview">{[42,76,104,59,124].map((height,index)=><span key={index} style={{height: height+"px",animationDelay:index*70+"ms"}}><i/><b/></span>)}</div>;
 }
 
 function DonutChart({ items, total, selected, onSelect, centerLabel, centerValue, showLabels }: {

@@ -17,6 +17,7 @@ const first = {
   id: "follow-1", followPersonId: "contact-1", followPersonName: "Anita",
   followDate: "2026-11-02", followTime: "10:15", remarks: "Called, asked for title copy",
   nextFollowUpDate: "2026-11-04", nextFollowUpTime: "11:30",
+  description: "Collect title copy", amount: "125000", priority: "High", status: "Open", nextAction: "Request digital copy", notes: "Client asked to email the copy",
   createdAt: "2026-11-02T04:45:00.000Z", updatedAt: "2026-11-02T04:45:00.000Z"
 };
 const second = {
@@ -47,4 +48,6 @@ assert.ok(csv.includes('"Plot 12, ""North"""'), "CSV must quote commas and escap
 assert.ok(csv.includes('"Updated, with ""quoted"" details"'), "remarks must remain intact in CSV");
 assert.ok(csv.includes("Bharath"), "follow person must resolve through the linked contact ID");
 assert.ok(csv.includes("Next Follow-up Date"), "CSV must include the next follow-up columns");
+assert.ok(csv.includes("Priority") && csv.includes("High"), "CSV must preserve follow-up priority");
+assert.ok(csv.includes("125000") && csv.includes("Request digital copy"), "CSV must preserve amount and next action");
 console.log("Record follow-up history, contact linking and CSV export tests passed.");
