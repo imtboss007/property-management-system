@@ -25,6 +25,7 @@ type Props = {
   readOnly?: boolean;
   onUpsertFollowUp: (recordId: string, entry: RecordFollowUpEntry) => void;
   onRemoveFollowUp: (recordId: string, entryId: string) => void;
+  onUpdateRecordTitle: (recordId: string, title: string) => void;
   onOpenRecord: (record: RecordRow) => void;
   onOpenContact: (contactId: string) => void;
 };
@@ -57,6 +58,8 @@ export default function RecordFollowUpTracker(props: Props) {
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
   const [showRecordsWithoutFollowUps, setShowRecordsWithoutFollowUps] = useState(false);
   const [query, setQuery] = useState("");
+  const [titleDrafts, setTitleDrafts] = useState<Record<string, string>>(() => Object.fromEntries(props.records.map(record => [record.id, record.title || ""])));
+  const [dirtyTitleIds, setDirtyTitleIds] = useState<Record<string, boolean>>({});
 
   // Reconcile saved changes without replacing an actively edited local row.
   useEffect(() => {
@@ -71,6 +74,13 @@ export default function RecordFollowUpTracker(props: Props) {
         }
       }
       for (const [key, row] of Object.entries(saved)) if (!next[key]) next[key] = row;
+      return next;
+    });
+    setTitleDrafts(current => {
+      const next = { ...current };
+      const currentIds = new Set(props.records.map(record => record.id));
+      for (const record of props.records) if (!dirtyTitleIds[record.id]) next[record.id] = record.title || "";
+      for (const id of Object.keys(next)) if (!currentIds.has(id)) delete next[id];
       return next;
     });
   }, [props.records]);
@@ -121,6 +131,24 @@ export default function RecordFollowUpTracker(props: Props) {
     });
   };
 
+  const patchRecordTitle = (recordId: string, value: string) => {
+    setTitleDrafts(current => ({ ...current, [recordId]: value }));
+    setDirtyTitleIds(current => ({ ...current, [recordId]: true }));
+  };
+
+  const saveRecordTitle = (record: RecordRow) => {
+    if (props.readOnly) return;
+    const value = (titleDrafts[record.id] ?? record.title ?? "").trim();
+    if (!value) {
+      setTitleDrafts(current => ({ ...current, [record.id]: record.title || "" }));
+      setDirtyTitleIds(current => ({ ...current, [record.id]: false }));
+      return;
+    }
+    if (value !== record.title) props.onUpdateRecordTitle(record.id, value);
+    setTitleDrafts(current => ({ ...current, [record.id]: value }));
+    setDirtyTitleIds(current => ({ ...current, [record.id]: false }));
+  };
+
   const save = (recordId: string, entryId: string) => {
     const key = rowKey(recordId, entryId);
     const draft = drafts[key];
@@ -162,7 +190,8 @@ export default function RecordFollowUpTracker(props: Props) {
 
   const downloadTable = () => {
     Object.values(drafts).filter(row => row.dirty).forEach(row => save(row.recordId, row.entry.id));
-    const exportRecords = visibleRecords.map(record => ({ ...record, followUpEntries: entriesForRecord(record.id) }));
+    for (const record of visibleRecords) if (dirtyTitleIds[record.id]) saveRecordTitle(record);
+    const exportRecords = visibleRecords.map(record => ({ ...record, title: titleDrafts[record.id] ?? record.title, followUpEntries: entriesForRecord(record.id) }));
     const csv = buildRecordFollowUpCsv(exportRecords, props.contacts);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -228,7 +257,7 @@ export default function RecordFollowUpTracker(props: Props) {
           {visibleRecords.flatMap(record => {
             const entries = entriesForRecord(record.id);
             if (!entries.length) return [<tr className="ax-record-followups__empty-row" key={record.id + "::empty"}>
-              <td><strong>{record.title || "Untitled record"}</strong><small>{record.module}</small><button type="button" className="ax-record-followups__open" onClick={() => props.onOpenRecord(record)}><ExternalLink size={11}/> Open record</button></td>
+              <td><input aria-label="Record name" type="text" className="ax-record-followups__name-input" value={titleDrafts[record.id] ?? record.title ?? ""} disabled={props.readOnly} onChange={event => patchRecordTitle(record.id, event.target.value)} onBlur={() => saveRecordTitle(record)}/><small>{record.module}</small><button type="button" className="ax-record-followups__open" onClick={() => props.onOpenRecord(record)}><ExternalLink size={11}/> Open record</button></td>
               <td colSpan={6}>No follow-up entries recorded for this data.</td>
               <td><button type="button" className="secondary-button" disabled={props.readOnly} onClick={() => addForRecord(record)}><Plus size={13}/> Add first follow-up</button></td>
             </tr>];
@@ -238,7 +267,7 @@ export default function RecordFollowUpTracker(props: Props) {
               const contact = contactsById.get(draft.entry.followPersonId);
               return <tr key={key}>
                 <td className="ax-record-followups__record-cell">
-                  <strong>{record.title || "Untitled record"}</strong><small>{record.module}</small>
+                  <input aria-label="Record name" type="text" className="ax-record-followups__name-input" value={titleDrafts[record.id] ?? record.title ?? ""} disabled={props.readOnly} onChange={event => patchRecordTitle(record.id, event.target.value)} onBlur={() => saveRecordTitle(record)}/><small>{record.module}</small>
                   <button type="button" className="ax-record-followups__open" onClick={() => props.onOpenRecord(record)}><ExternalLink size={11}/> Open record</button>
                   {index === 0 && <button type="button" className="ax-record-followups__add-another" disabled={props.readOnly} onClick={() => addForRecord(record)}><Plus size={12}/> Add another follow-up</button>}
                 </td>
