@@ -56,7 +56,7 @@ type Props = {
   onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowUpDraft)=>void;
   onOpenTask:(taskId:string)=>void;moduleNames:string[];auditEvents:AuditEntry[];onUndo:()=>void;undoAvailable:boolean;
   theme:"dark"|"light";onToggleTheme:()=>void;workspaceScope:string;
-  workspacePreferences:Record<string,unknown>;onSaveWorkspacePreference:(key:string,value:unknown)=>void;
+  workspacePreferences:Record<string,unknown>;workspacePreferencesReady:boolean;onSaveWorkspacePreference:(key:string,value:unknown)=>void;
 };
 type SpaceDefinition = {id:ShiftSpace;label:string};
 const SPACES:SpaceDefinition[]=[
@@ -87,7 +87,7 @@ export default function VestraShift(props:Props){
   const {
     properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,today,readOnly=false,onOpenModule,onOpenContacts,
     onOpenTasks,onOpenRecord,onOpenContact,onMergeContacts,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
-    theme,onToggleTheme,workspaceScope,workspacePreferences,onSaveWorkspacePreference
+    theme,onToggleTheme,workspaceScope,workspacePreferences,workspacePreferencesReady,onSaveWorkspacePreference
   }=props;
   const [space,setSpace]=useState<ShiftSpace>(()=>typeof window!=="undefined"&&window.innerWidth<=760?"intent":"desk");
   const [focusOpen,setFocusOpen]=useState(false);
@@ -135,33 +135,46 @@ export default function VestraShift(props:Props){
   const [scenarioTaskId,setScenarioTaskId]=useState(()=>tasks.find(task=>!task.done&&task.date)?.id||"");
   const [scenarioTaskDate,setScenarioTaskDate]=useState(()=>tasks.find(task=>!task.done&&task.date)?.date||"");
   const contextKey="axivestra.vestraShift.views."+workspaceScope;
+  const hydratedPreferenceKeysRef=useRef(new Set<string>());
   const [savedViews,setSavedViews]=useState<SavedView[]>(()=>{
     try{const value=JSON.parse(window.localStorage.getItem(contextKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
   });
   useEffect(()=>{
-    try{window.localStorage.setItem(contextKey,JSON.stringify(savedViews));}catch{/* optional local preference */}
-    onSaveWorkspacePreference("vestraShift.views",savedViews);
-  },[contextKey,savedViews,onSaveWorkspacePreference]);
-  useEffect(()=>{
+    if(!workspacePreferencesReady)return;
     const synced=workspacePreferences["vestraShift.views"];
-    if(Array.isArray(synced))setSavedViews(synced as SavedView[]);
-  },[workspacePreferences["vestraShift.views"]]);
+    if(Array.isArray(synced)){hydratedPreferenceKeysRef.current.add("views");setSavedViews(synced as SavedView[]);}
+  },[workspacePreferencesReady,workspacePreferences["vestraShift.views"]]);
+  useEffect(()=>{
+    try{window.localStorage.setItem(contextKey,JSON.stringify(savedViews));}catch{/* optional local preference */}
+    if(workspacePreferencesReady){
+      if(hydratedPreferenceKeysRef.current.delete("views"))return;
+      onSaveWorkspacePreference("vestraShift.views",savedViews);
+    }
+  },[contextKey,savedViews,workspacePreferencesReady,onSaveWorkspacePreference]);
+  useEffect(()=>{
+    if(!workspacePreferencesReady)return;
+    const synced=workspacePreferences["vestraShift.missionLinks"];
+    if(Array.isArray(synced)){hydratedPreferenceKeysRef.current.add("missionLinks");setMissionLinks(synced.filter((row):row is {fromId:string;toId:string}=>Boolean(row&&typeof row.fromId==="string"&&typeof row.toId==="string")));}
+  },[workspacePreferencesReady,workspacePreferences["vestraShift.missionLinks"]]);
   useEffect(()=>{
     try{window.localStorage.setItem("axivestra.vestraShift.missionLinks."+workspaceScope,JSON.stringify(missionLinks));}catch{/* optional local preference */}
-    onSaveWorkspacePreference("vestraShift.missionLinks",missionLinks);
-  },[missionLinks,workspaceScope,onSaveWorkspacePreference]);
+    if(workspacePreferencesReady){
+      if(hydratedPreferenceKeysRef.current.delete("missionLinks"))return;
+      onSaveWorkspacePreference("vestraShift.missionLinks",missionLinks);
+    }
+  },[missionLinks,workspaceScope,workspacePreferencesReady,onSaveWorkspacePreference]);
   useEffect(()=>{
-    const synced=workspacePreferences["vestraShift.missionLinks"];
-    if(Array.isArray(synced))setMissionLinks(synced.filter((row):row is {fromId:string;toId:string}=>Boolean(row&&typeof row.fromId==="string"&&typeof row.toId==="string")));
-  },[workspacePreferences["vestraShift.missionLinks"]]);
+    if(!workspacePreferencesReady)return;
+    const synced=workspacePreferences["vestraShift.missionMeta"];
+    if(synced&&typeof synced==="object"&&!Array.isArray(synced)){hydratedPreferenceKeysRef.current.add("missionMeta");setMissionMeta(synced as Record<string,MissionMeta>);}
+  },[workspacePreferencesReady,workspacePreferences["vestraShift.missionMeta"]]);
   useEffect(()=>{
     try{window.localStorage.setItem(missionMetaKey,JSON.stringify(missionMeta));}catch{/* optional workflow preference */}
-    onSaveWorkspacePreference("vestraShift.missionMeta",missionMeta);
-  },[missionMetaKey,missionMeta,onSaveWorkspacePreference]);
-  useEffect(()=>{
-    const synced=workspacePreferences["vestraShift.missionMeta"];
-    if(synced&&typeof synced==="object"&&!Array.isArray(synced))setMissionMeta(synced as Record<string,MissionMeta>);
-  },[workspacePreferences["vestraShift.missionMeta"]]);
+    if(workspacePreferencesReady){
+      if(hydratedPreferenceKeysRef.current.delete("missionMeta"))return;
+      onSaveWorkspacePreference("vestraShift.missionMeta",missionMeta);
+    }
+  },[missionMetaKey,missionMeta,workspacePreferencesReady,onSaveWorkspacePreference]);
 
   const loanRecords=useMemo(()=>properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan"),[properties]);
   const selectedLoan=loanRecords.find(record=>record.id===selectedLoanId)||loanRecords[0];
@@ -358,15 +371,15 @@ export default function VestraShift(props:Props){
     </nav>
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
-    {space==="desk"&&<VestraSpatialDesk workspacePreferences={workspacePreferences} onSaveWorkspacePreference={onSaveWorkspacePreference} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
+    {space==="desk"&&<VestraSpatialDesk workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
     {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>⌘ K</kbd></button>}
     {atelierCopilotOpen&&<div className="vs-atelier-ai-backdrop" onClick={()=>setAtelierCopilotOpen(false)}>
       <section className="vs-atelier-ai-panel" role="dialog" aria-modal="true" aria-label="VESTRA command composer and intelligence companion" onClick={event=>event.stopPropagation()}>
         <header><div><span className="vs-eyebrow">ATELIER · COMMAND + INTELLIGENCE</span><strong>Bring intelligence into this workspace.</strong><small>Search saved records, ask for an operational view or inspect a contextual suggestion.</small></div><button type="button" onClick={()=>setAtelierCopilotOpen(false)} aria-label="Close Command and AI"><X size={16}/></button></header>
-        <div className="vs-atelier-ai-content"><VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} workspacePreferences={workspacePreferences} onSaveWorkspacePreference={onSaveWorkspacePreference} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/></div>
+        <div className="vs-atelier-ai-content"><VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/></div>
       </section>
     </div>}
-    {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} workspacePreferences={workspacePreferences} onSaveWorkspacePreference={onSaveWorkspacePreference} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
+    {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} workspacePreferences={workspacePreferences} workspacePreferencesReady={workspacePreferencesReady} onSaveWorkspacePreference={onSaveWorkspacePreference} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
     {space==="finance"&&<VestraFinance properties={properties} contacts={contacts} financials={financials} today={today} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks} onOpenLoans={()=>onOpenModule("Property Loans")}/>}
 
     {space==="timeline"&&<section className="vs-space-page">
