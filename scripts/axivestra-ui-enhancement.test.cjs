@@ -190,3 +190,12 @@ assert.ok(dragFrame.includes("panel.style.width=") && dragFrame.includes("panel.
 assert.ok(!dragFrame.includes("setPositions(") && !dragFrame.includes("setSizes("), "Per-frame panel pointer movement must not trigger React state updates.");
 assert.ok(dragCommit.includes("setPositions(") && dragCommit.includes("setSizes("), "The final panel geometry must be committed to saved state on pointer release.");
 assert.ok(styles.includes(".vs-desk-panel.is-gesturing") && styles.includes("cubic-bezier(.18,1,.32,1)"), "Spatial panels must settle with a spring-like release response.");
+
+for (const token of ["workspaceAlerts=useMemo<WorkspaceAlert[]>", "notificationPreferences.tasks", "notificationPreferences.followUps", "notificationPreferences.deadlines", "notificationPreferences.risks", "notificationPreferences.approvals", "tasks.forEach", "contacts.forEach", "riskRecords.forEach", "approvalRequests.forEach", "overdueWorkspaceAlerts", "setNotificationPreference"]) {
+  assert.ok(vestra.includes(token), "Missing saved-data alert intelligence capability: " + token);
+}
+assert.ok(vestra.includes('aria-label="VESTRA in-app notification centre"'), "VESTRA must expose its operational alert centre accessibly.");
+assert.ok(vestra.includes("Background or operating-system notifications still require a separately deployed scheduler"), "In-app alerts must not be misrepresented as background push notifications.");
+for (const token of [".vs-alert-center", ".vs-alert-item.is-urgent", ".vs-alert-preferences", "@media(max-width:600px)", '.vs-shift[data-theme="light"] .vs-alert-center']) {
+  assert.ok(styles.includes(token), "Missing responsive alert centre visual styling: " + token);
+}
