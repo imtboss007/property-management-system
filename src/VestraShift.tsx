@@ -90,6 +90,7 @@ export default function VestraShift(props:Props){
   }=props;
   const [space,setSpace]=useState<ShiftSpace>(()=>typeof window!=="undefined"&&window.innerWidth<=760?"intent":"desk");
   const [focusOpen,setFocusOpen]=useState(false);
+  const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
     const target=event.target as HTMLElement;
@@ -336,6 +337,13 @@ export default function VestraShift(props:Props){
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
     {space==="desk"&&<VestraSpatialDesk properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenModule={onOpenModule}/>}
+    {space==="desk"&&<button type="button" className="vs-atelier-ai-launch" onClick={()=>setAtelierCopilotOpen(true)}><Sparkles size={15}/><span>Command + AI</span><kbd>⌘ K</kbd></button>}
+    {atelierCopilotOpen&&<div className="vs-atelier-ai-backdrop" onClick={()=>setAtelierCopilotOpen(false)}>
+      <section className="vs-atelier-ai-panel" role="dialog" aria-modal="true" aria-label="VESTRA command composer and intelligence companion" onClick={event=>event.stopPropagation()}>
+        <header><div><span className="vs-eyebrow">ATELIER · COMMAND + INTELLIGENCE</span><strong>Bring intelligence into this workspace.</strong><small>Search saved records, ask for an operational view or inspect a contextual suggestion.</small></div><button type="button" onClick={()=>setAtelierCopilotOpen(false)} aria-label="Close Command and AI"><X size={16}/></button></header>
+        <div className="vs-atelier-ai-content"><VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/></div>
+      </section>
+    </div>}
     {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}
     {space==="finance"&&<VestraFinance properties={properties} contacts={contacts} financials={financials} today={today} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTransaction={onOpenTransaction} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks} onOpenLoans={()=>onOpenModule("Property Loans")}/>}
 
