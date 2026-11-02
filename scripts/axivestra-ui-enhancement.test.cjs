@@ -85,7 +85,7 @@ for (const token of [
   "linkedFinancials", "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
   "Same name, different or missing phone", "Same phone, different name",
   "auditEvents.forEach", "timelineKind", "dateFrom", "dateTo",
-  "scenarioFullSchedule", "scenarioMode===\"compound\"", "missionLinks",
+  "scenarioFullSchedule", "scenarioMode===\"compound\"", "DEADLINE WHAT-IF", "deadlinesBefore", "deadlinesAfter", "missionLinks",
   "onOpenTask(taskId)"
 ]) assert.ok(vestra.includes(token), "Missing relationship / temporal / simulation / mission feature: " + token);
 for (const token of ["description?: string", "amount?: string", "priority?: string", "status?: string", "nextAction?: string", "notes?: string", "Assigned At", "Next Action"]) assert.ok(recordFollowUpLib.includes(token), "Missing record-level follow-up data field / export: " + token);
