@@ -160,7 +160,7 @@ assert.ok(vestra.includes('onOpenContact(item.contact.id)'), "Selecting a relati
 assert.ok(vestra.includes('event.key==="Enter"||event.key===" "'), "Relationship nodes must support keyboard activation.");
 assert.ok(vestra.includes('event.key.toLowerCase()==="k"'), "Ctrl/Cmd+K must open the global Command + AI workspace.");
 assert.ok(vestra.includes('setSpace(SPACES[Number(event.key)-1].id)'), "Alt/Meta+1–7 workspace shortcuts must navigate the seven VESTRA spaces.");
-assert.ok(vestra.includes('event.key==="Escape"&&atelierCopilotOpen'), "Escape must close the Command + AI surface.");
+assert.ok(vestra.includes('event.key==="Escape"&&(atelierCopilotOpen||quickActionsOpen||alertsOpen)'), "Escape must close the active Command + AI, quick-action and alert surfaces.");
 for (const token of [".vs-relationship-view-toggle", ".vs-relationship-network__edge", ".vs-relationship-network__person", ".vs-relationship-network__record", "@keyframes vsRelationshipTrace", "@media(prefers-reduced-motion:reduce)"]) {
   assert.ok(styles.includes(token), "Missing relationship-map visual / reduced-motion behavior: " + token);
 }
