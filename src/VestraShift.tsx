@@ -96,6 +96,11 @@ export default function VestraShift(props:Props){
   const [missionLinks,setMissionLinks]=useState<Array<{fromId:string;toId:string}>>(()=>{try{const value=JSON.parse(window.localStorage.getItem("axivestra.vestraShift.missionLinks."+workspaceScope)||"[]");return Array.isArray(value)?value:[];}catch{return [];}});
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [scenarioInput,setScenarioInput]=useState("");
+  const [scenarioPrincipal,setScenarioPrincipal]=useState("");
+  const [scenarioMonths,setScenarioMonths]=useState("12");
+  const [scenarioPayment,setScenarioPayment]=useState("");
+  const [scenarioMode,setScenarioMode]=useState<"simple"|"compound">("simple");
+  const [scenarioStartDate,setScenarioStartDate]=useState("");
   const contextKey="axivestra.vestraShift.views."+workspaceScope;
   const [savedViews,setSavedViews]=useState<SavedView[]>(()=>{
     try{const value=JSON.parse(window.localStorage.getItem(contextKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
@@ -108,8 +113,13 @@ export default function VestraShift(props:Props){
   const method=selectedLoan?.moduleData?.__loanInterestMethod||(selectedLoan?.moduleData?.annualInterestRate?"Percentage per year":"Percentage per month");
   const currentRate=selectedLoan?loanRate(selectedLoan):0;
   const currentInterest=selectedLoan?calculateMonthlyInterest(selectedLoan.moduleData,parseDealNumber(selectedLoan.value)):0;
-  const scenarioInterest=selectedLoan?calculateMonthlyInterest({...selectedLoan.moduleData,__loanInterestRate:scenarioInput||"0"},parseDealNumber(selectedLoan.value)):0;
-  useEffect(()=>{if(selectedLoan)setScenarioInput(String(loanRate(selectedLoan)));},[selectedLoan?.id]);
+  const scenarioInterest=selectedLoan?calculateMonthlyInterest({...selectedLoan.moduleData,__loanPrincipal:scenarioPrincipal||"0",__loanInterestRate:scenarioInput||"0"},parseDealNumber(selectedLoan.value)):0;
+  const scenarioPrincipalValue=Math.max(0,parseDealNumber(scenarioPrincipal));
+  const scenarioTerm=Math.max(1,Math.min(600,Math.trunc(parseDealNumber(scenarioMonths)||1)));
+  const scenarioRateFactor=method==="Percentage per year"?parseDealNumber(scenarioInput)/1200:method==="Percentage per month"?parseDealNumber(scenarioInput)/100:0;
+  const scenarioTotalInterest=method==="Interest-free"?0:scenarioMode==="compound"&&scenarioRateFactor>0?scenarioPrincipalValue*(Math.pow(1+scenarioRateFactor,scenarioTerm)-1):scenarioInterest*scenarioTerm;
+  const scenarioSchedule=(()=>{const payment=parseDealNumber(scenarioPayment);if(!selectedLoan||payment<=0)return [];let balance=scenarioPrincipalValue;const rows:Array<{month:number;interest:number;payment:number;principal:number;balance:number}>=[];for(let month=1;month<=Math.min(scenarioTerm,12)&&balance>0;month++){const interest=method==="Interest-free"?0:method==="Fixed amount per month"?scenarioInterest:scenarioMode==="compound"?balance*scenarioRateFactor:scenarioInterest;const paid=Math.min(payment,balance+interest);const principalPaid=Math.max(0,paid-interest);balance=Math.max(0,balance+interest-paid);rows.push({month,interest,payment:paid,principal:principalPaid,balance});}return rows;})();
+  useEffect(()=>{if(selectedLoan){setScenarioInput(String(loanRate(selectedLoan)));setScenarioPrincipal(String(selectedLoan.moduleData?.__loanPrincipal||selectedLoan.value||"0"));setScenarioMonths(String(selectedLoan.moduleData?.tenureMonths||"12"));setScenarioPayment(String(selectedLoan.moduleData?.emi||selectedLoan.moduleData?.__loanMonthlyPayment||""));setScenarioStartDate(selectedLoan.moduleData?.firstEmiDate||selectedLoan.moduleData?.targetDisbursementDate||"");setScenarioMode("simple");}},[selectedLoan?.id]);
 
   const timeline=useMemo<TimelineEvent[]>(()=>{
     const rows:TimelineEvent[]=[];
