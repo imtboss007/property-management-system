@@ -10,7 +10,7 @@ type TaskRow={id:string;title:string;date:string;time:string;type:string;propert
 type FinancialRow={id:string;propertyId?:string;contactId?:string;property:string;type:string;amount:string;date:string;party:string;reference:string;notes:string};
 type CommandResult={id:string;title:string;detail:string;value:string;kind:"record"|"contact"|"task"|"transaction";recordId?:string;contactId?:string;taskId?:string;transactionId?:string};
 type FollowDraft={contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;promisedTime:string;responseType:string;notes:string;status:string};
-type SavedCanvas={id:string;label:string;search:string;moduleFilter:string;recordIds:string[];contactIds:string[];pinnedIds:string[];createdAt:string};
+type SavedCanvas={id:string;label:string;search:string;moduleFilters?:string[];moduleFilter?:string;recordIds:string[];contactIds:string[];pinnedIds:string[];createdAt:string};
 type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;readOnly?:boolean;
  moduleNames:string[];workspaceScope:string;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;onOpenTasks:()=>void;
  onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowDraft)=>void;};
@@ -20,7 +20,7 @@ export default function VestraIntentCanvas(props:Props){
  const {properties,contacts,tasks,financials,today,readOnly,moduleNames,workspaceScope,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenFinancials,onCreateFollowUp}=props;
  const storageKey="axivestra.vestraShift.canvas."+workspaceScope;
  const [search,setSearch]=useState("");
- const [moduleFilter,setModuleFilter]=useState("All modules");
+ const [moduleFilters,setModuleFilters]=useState<string[]>([]);
  const [selectedRecordIds,setSelectedRecordIds]=useState<string[]>([]);
  const [selectedContactIds,setSelectedContactIds]=useState<string[]>([]);
  const [pinnedIds,setPinnedIds]=useState<string[]>([]);
@@ -42,10 +42,10 @@ export default function VestraIntentCanvas(props:Props){
  useEffect(()=>{const onShortcut=(event:KeyboardEvent)=>{if((event.ctrlKey||event.metaKey)&&event.shiftKey&&event.key.toLowerCase()==="k"){event.preventDefault();commandInputRef.current?.focus();}};window.addEventListener("keydown",onShortcut);return()=>window.removeEventListener("keydown",onShortcut);},[]);
  const query=search.trim().toLocaleLowerCase();
  const recordMatches=useMemo(()=>properties.filter(record=>{
-  const moduleOkay=moduleFilter==="All modules"||record.module===moduleFilter;
+  const moduleOkay=moduleFilters.length===0||moduleFilters.includes(record.module);
   const text=[record.title,record.module,record.location,record.status,record.contact,...Object.values(record.moduleData||{})].join(" ").toLocaleLowerCase();
   return moduleOkay&&(!query||text.includes(query));
- }).slice(0,30),[properties,moduleFilter,query]);
+ }).slice(0,30),[properties,moduleFilters,query]);
  const contactMatches=useMemo(()=>contacts.filter(contact=>!query||[contact.name,contact.phone,contact.role].join(" ").toLocaleLowerCase().includes(query)).slice(0,12),[contacts,query]);
  const taskMatches=useMemo(()=>tasks.filter(task=>!query||[task.title,task.type,task.property,task.contactName,task.notes].join(" ").toLocaleLowerCase().includes(query)).slice(0,10),[tasks,query]);
  const selectedRecords=selectedRecordIds.map(id=>properties.find(row=>row.id===id)).filter((row):row is RecordRow=>Boolean(row));
@@ -124,11 +124,11 @@ export default function VestraIntentCanvas(props:Props){
   if(result.kind==="transaction"&&result.transactionId){onOpenTransaction(result.transactionId);return;}
  };
  const saveCanvas=()=>{
-  const item:SavedCanvas={id:"canvas-"+Date.now(),label:search.trim()||"My working canvas",search,moduleFilter,recordIds:selectedRecordIds,contactIds:selectedContactIds,pinnedIds,createdAt:new Date().toISOString()};
+  const item:SavedCanvas={id:"canvas-"+Date.now(),label:search.trim()||"My working canvas",search,moduleFilters,recordIds:selectedRecordIds,contactIds:selectedContactIds,pinnedIds,createdAt:new Date().toISOString()};
   setSavedCanvases(current=>[item,...current].slice(0,12));
  };
  const restoreCanvas=(item:SavedCanvas)=>{
-  setSearch(item.search||"");setModuleFilter(item.moduleFilter||"All modules");
+  setSearch(item.search||"");setModuleFilters(safeIds(item.moduleFilters).length?safeIds(item.moduleFilters):item.moduleFilter&&item.moduleFilter!=="All modules"?[item.moduleFilter]:[]);
   setSelectedRecordIds(safeIds(item.recordIds));setSelectedContactIds(safeIds(item.contactIds));setPinnedIds(safeIds(item.pinnedIds));
  };
  const first=selectedRecords[0];
@@ -147,7 +147,7 @@ export default function VestraIntentCanvas(props:Props){
   <section className="vs-intent-search-panel">
    <div className="vs-intent-search-heading"><div><span className="vs-eyebrow">INTENT CANVAS · BUILD A WORKING CONTEXT</span><h3>Bring the right records into one space.</h3><p>Search actual AXIVESTRA data, choose modules and people, then pin, compare and reopen this arrangement.</p></div><button type="button" onClick={saveCanvas}><Bookmark size={14}/> Save canvas</button></div>
    <div className="vs-intent-search-control"><Search size={17}/><input value={search} onChange={event=>setSearch(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setSearch("");}} placeholder="Search by person, record, module, location, status or loan field…"/>{search&&<button type="button" onClick={()=>setSearch("")} aria-label="Clear search"><X size={14}/></button>}</div>
-   <div className="vs-module-filters"><button type="button" className={moduleFilter==="All modules"?"active":""} onClick={()=>setModuleFilter("All modules")}>All modules</button>{moduleNames.map(name=><button type="button" key={name} className={moduleFilter===name?"active":""} onClick={()=>setModuleFilter(name)}>{name}</button>)}</div>
+   <div className="vs-module-filters"><button type="button" className={!moduleFilters.length?"active":""} onClick={()=>setModuleFilters([])}>All modules</button>{moduleNames.map(name=><button type="button" key={name} className={moduleFilters.includes(name)?"active":""} aria-pressed={moduleFilters.includes(name)} onClick={()=>setModuleFilters(current=>current.includes(name)?current.filter(value=>value!==name):[...current,name])}>{name}</button>)}</div><small className="vs-module-filter-caption">{moduleFilters.length?moduleFilters.length+" module(s) selected · tap again to remove":"Choose one or more modules to filter the working canvas"}</small>
    {savedCanvases.length>0&&<div className="vs-canvas-saved"><span>SAVED CANVASES</span>{savedCanvases.map(item=><button type="button" key={item.id} onClick={()=>restoreCanvas(item)}><Bookmark size={11}/>{item.label}</button>)}</div>}
    <div className="vs-intent-results">
     <section><header><strong>Records</strong><small>{recordMatches.length} results</small></header>{recordMatches.map(record=><div className="vs-intent-result" key={record.id}><span><small>{record.module} · {record.status||"Status not set"}</small><strong>{record.title||"Untitled record"}</strong><em>{record.location||"Location not entered"}</em></span><button type="button" className={selectedRecordIds.includes(record.id)?"selected":""} onClick={()=>toggle(record.id,selectedRecordIds,setSelectedRecordIds)}>{selectedRecordIds.includes(record.id)?"Added":"Add to canvas"}</button></div>)}{!recordMatches.length&&<small className="vs-intent-empty">No matching saved records.</small>}</section>
