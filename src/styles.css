@@ -4418,3 +4418,9 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell.ax-theme-light .ax-3d-histogram-controls button{background:#e4ece2;border-color:#c3d5c7;color:#345541}
 .ax-modern-shell.ax-theme-light .ax-3d-histogram-controls span{color:#496b54}
 @media(prefers-reduced-motion:reduce){.ax-3d-histogram{transition:none!important}.ax-3d-histogram-controls button{transition:none!important}}
+
+.vs-prism-emblem:after{content:"";position:absolute;inset:7px 3px;border:1px solid #b7d8c38a;border-radius:50%;background:linear-gradient(100deg,transparent 18%,#d8e9d52b 45%,#c4937030 64%,transparent 82%);transform:rotateX(68deg) rotateY(28deg);box-shadow:0 0 19px #79b89b33;animation:vsRibbonFlow 5.8s linear infinite}
+@keyframes vsRibbonFlow{0%{transform:rotateX(68deg) rotateY(28deg) rotateZ(0deg)}100%{transform:rotateX(68deg) rotateY(28deg) rotateZ(360deg)}}
+.vs-prism-emblem.is-activated:after{animation-duration:1.6s;border-color:#e2c29f}
+.vs-startup-prism:before{content:"";position:absolute;inset:-14px;border:1px solid #a5cdb388;border-radius:50%;transform:rotateX(68deg) rotateY(32deg);box-shadow:0 0 28px #79b89b33;animation:vsRibbonFlow 4.2s linear infinite}
+@media(prefers-reduced-motion:reduce){.vs-prism-emblem:after,.vs-startup-prism:before{animation:none!important}}
