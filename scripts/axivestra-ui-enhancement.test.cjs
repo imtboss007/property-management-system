@@ -151,3 +151,16 @@ for (const token of ["vsLiquidEnter", "translate3d(0,7px,0)", "data-ax-motion=\"
 assert.ok(styles.includes("@keyframes vsFacetFold"), "Expressive mode must fold the original multi-facet prismatic identity in 3D.");
 assert.ok(styles.includes('.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(5)'), "Expressive mode must stagger the five prism facets rather than animate them in lockstep.");
 assert.ok(styles.includes(".ax-3d-histogram:active{cursor:grabbing}"), "Direct chart rotation must expose a tactile drag state.");
+
+assert.ok(vestra.includes('useState<"network"|"cards">("network")'), "Relationships must offer an interactive network map as well as detailed cards.");
+assert.ok(vestra.includes('aria-label="Interactive person and record relationship map"'), "The network view must expose an accessible, described map.");
+assert.ok(vestra.includes('connections.slice(0,7).map'), "Relationship nodes must be derived from saved linked contact records, not fabricated graph data.");
+assert.ok(vestra.includes('onOpenRecord(record.id)'), "Selecting a relationship record node must open its exact source record.");
+assert.ok(vestra.includes('onOpenContact(item.contact.id)'), "Selecting a relationship person node must open its saved Contact 360.");
+assert.ok(vestra.includes('event.key==="Enter"||event.key===" "'), "Relationship nodes must support keyboard activation.");
+assert.ok(vestra.includes('event.key.toLowerCase()==="k"'), "Ctrl/Cmd+K must open the global Command + AI workspace.");
+assert.ok(vestra.includes('setSpace(SPACES[Number(event.key)-1].id)'), "Alt/Meta+1–7 workspace shortcuts must navigate the seven VESTRA spaces.");
+assert.ok(vestra.includes('event.key==="Escape"&&atelierCopilotOpen'), "Escape must close the Command + AI surface.");
+for (const token of [".vs-relationship-view-toggle", ".vs-relationship-network__edge", ".vs-relationship-network__person", ".vs-relationship-network__record", "@keyframes vsRelationshipTrace", "@media(prefers-reduced-motion:reduce)"]) {
+  assert.ok(styles.includes(token), "Missing relationship-map visual / reduced-motion behavior: " + token);
+}
