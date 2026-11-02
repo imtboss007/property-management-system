@@ -4074,3 +4074,27 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-linked-activity-nodes{background:#f1f2e9;border-color:#ccd9cd}
 .vs-shift[data-theme="light"] .vs-linked-activity-nodes>strong{color:#39775a}
 .vs-shift[data-theme="light"] .vs-linked-activity-nodes button em{color:#637b70}
+
+.vs-simulation-inputs-wide{grid-template-columns:repeat(3,minmax(0,1fr))}
+.vs-scenario-method{display:flex;flex-direction:column;justify-content:center;gap:7px;padding:13px;border:1px solid #38596a;border-radius:12px;background:linear-gradient(145deg,#172f3b,#102533);color:#a7bdc0;font-size:9px;font-weight:800}
+.vs-scenario-method>div{display:flex;gap:6px}
+.vs-scenario-method button{min-height:32px;padding:0 12px;border:1px solid #456575;border-radius:8px;background:#0b2330;color:#9bbab8;font-size:9px}
+.vs-scenario-method button.active{border-color:#a4d2b1;background:#dce8dc;color:#17362a}
+.vs-scenario-method button:disabled{opacity:.4;cursor:not-allowed}
+.vs-scenario-method small{color:#91a9ad;font-size:8px;font-weight:500}
+.vs-simulation-schedule{padding:13px;border:1px solid #355668;border-radius:12px;background:#0b202d}
+.vs-simulation-schedule>header h4{margin:4px 0;color:#edf1e6;font-size:12px}
+.vs-simulation-schedule>header p{margin:0 0 9px;color:#8faab0;font-size:8px}
+.vs-simulation-table-wrap{overflow:auto}
+.vs-simulation-table-wrap table{width:100%;min-width:610px;border-collapse:collapse}
+.vs-simulation-table-wrap th,.vs-simulation-table-wrap td{padding:8px 7px;border-bottom:1px solid #2a4a59;color:#bed2cb;font-size:8px;text-align:right;white-space:nowrap}
+.vs-simulation-table-wrap th:first-child,.vs-simulation-table-wrap td:first-child{text-align:left}
+.vs-simulation-table-wrap th{color:#92c4a4;font-size:8px}
+.vs-shift[data-theme="light"] .vs-scenario-method,.vs-shift[data-theme="light"] .vs-simulation-schedule{background:#f1f2e9;border-color:#ccd9cd;color:#2e4b3f}
+.vs-shift[data-theme="light"] .vs-scenario-method small,.vs-shift[data-theme="light"] .vs-simulation-schedule>header p{color:#6b8075}
+.vs-shift[data-theme="light"] .vs-scenario-method button{background:#f8f7ef;border-color:#c4d5c8;color:#405d4f}
+.vs-shift[data-theme="light"] .vs-scenario-method button.active{background:#dcebdd;color:#17392b}
+.vs-shift[data-theme="light"] .vs-simulation-schedule>header h4{color:#1c332b}
+.vs-shift[data-theme="light"] .vs-simulation-table-wrap th,.vs-shift[data-theme="light"] .vs-simulation-table-wrap td{border-color:#d4ddd2;color:#385549}
+@media(max-width:850px){.vs-simulation-inputs-wide{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.vs-simulation-inputs-wide{grid-template-columns:1fr}.vs-scenario-method{min-height:100px}}
