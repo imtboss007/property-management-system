@@ -138,3 +138,11 @@ assert.ok(vestra.includes('onSaveWorkspacePreference("displayDensity"'), "VESTRA
 assert.ok(vestra.includes('onSaveWorkspacePreference("motionMode"'), "VESTRA must expose a working motion intensity preference.");
 assert.ok(vestra.includes('data-density={displayDensity} data-motion={motionMode}'), "Personalisation settings must affect the rendered workspace.");
 for (const token of [".vs-personalization-panel",".vs-personalization-controls",".vs-shift[data-density=\"compact\"]",".vs-shift[data-motion=\"reduced\"]"]) assert.ok(styles.includes(token), "Missing visual personalisation style: "+token);
+
+
+const motionSyncBlock = app.slice(app.indexOf("if (alreadyCurrent)"), app.indexOf("if (alreadyCurrent)") + 900);
+assert.ok(motionSyncBlock.includes("setSyncStatus(current => current.startsWith(stableStatus) ? current : stableStatus)"), "Unchanged 5-second device polls must not trigger full App re-renders.");
+assert.ok(!motionSyncBlock.includes('"Connected · up to date " + time'), "Unchanged device polls must not update the displayed timestamp every five seconds.");
+for (const token of ["data-ax-motion={vestraWorkspacePreferences.motionMode", "data-ax-motion=\"balanced\"", "vsModuleFacet", "vsPrismOrbit 17s linear infinite", "content-visibility:auto", "backdrop-filter:none", "translate:0 -2px 3px"]) assert.ok(app.includes(token) || styles.includes(token), "Missing adaptive motion/performance control: " + token);
+for (const token of ["onChartPointerDown", "onChartPointerMove", "onChartPointerEnd", "Drag the chart to rotate", "useMemo(()=>items.slice(0, 9)", "useId().replace", "export default memo(ThreeDHistogram)"]) assert.ok(histogram.includes(token), "Missing lightweight, direct-manipulation 3D chart feature: " + token);
+for (const token of ["vsLiquidEnter", "translate3d(0,7px,0)", "data-ax-motion=\"balanced\"", "data-ax-motion=\"expressive\"", "data-ax-motion=\"reduced\"", "prefers-reduced-motion:reduce"]) assert.ok(styles.includes(token), "Missing motion-performance mode: " + token);
