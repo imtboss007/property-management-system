@@ -23,7 +23,10 @@ type ShiftProperty = {
   nextResponseDescription?:string; nextAction?:string; createdAt?:string; moduleData:Record<string,string>;
   followUpEntries?:RecordFollowUp[];
 };
-type ShiftContact = {id:string;name:string;phone:string;role:string;roles?:string[];followUps?:FollowUp[]};
+type ShiftContact = {id:string;name:string;phone:string;role:string;roles?:string[];whatsappJid?:string;followUps?:FollowUp[]};
+type ShiftDocument = {id:string;name:string;category:string;propertyId:string;contactId?:string;expiresOn:string;notes:string};
+type ShiftRisk = {id:string;title:string;category:string;severity:string;status:string;contactId?:string;propertyId?:string;owner:string;dueDate:string;mitigation:string};
+type ShiftApproval = {id:string;title:string;area:string;entity:string;contactId?:string;propertyId?:string;approver:string;priority:string;status:string};
 type ShiftTask = {
   id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;
   contactId?:string;contactName?:string;notes:string;done:boolean;
@@ -44,7 +47,7 @@ type TimelineEvent = {
 };
 type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:string;label:string;activityType?:string;description?:string;relatedRecordId?:string};
 type Props = {
-  properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];
+  properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];documents:ShiftDocument[];riskRecords:ShiftRisk[];approvalRequests:ShiftApproval[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
   onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTransaction:(id:string)=>void;
   onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowUpDraft)=>void;
@@ -77,7 +80,7 @@ const dateText=(value:string)=>value?new Date(value+"T00:00:00").toLocaleDateStr
 
 export default function VestraShift(props:Props){
   const {
-    properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,
+    properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,today,readOnly=false,onOpenModule,onOpenContacts,
     onOpenTasks,onOpenRecord,onOpenContact,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
     theme,onToggleTheme,workspaceScope
   }=props;
@@ -184,12 +187,33 @@ export default function VestraShift(props:Props){
 
   const connections=useMemo(()=>contacts.map(contact=>{
     const records=properties.filter(record=>linkedToContact(contact,record));
+    const recordIds=new Set(records.map(record=>record.id));
     const followUps=(contact.followUps||[]).filter(item=>isOpen(item.status));
-    const linkedTasks=tasks.filter(task=>task.contactId===contact.id||records.some(record=>record.id===task.propertyId));
-    return {contact,records,followUps,linkedTasks};
-  }).filter(item=>item.records.length||item.followUps.length||item.linkedTasks.length)
-    .sort((a,b)=>(b.records.length+b.followUps.length+b.linkedTasks.length)-(a.records.length+a.followUps.length+a.linkedTasks.length)),
-  [contacts,properties,tasks]);
+    const linkedTasks=tasks.filter(task=>task.contactId===contact.id||(task.propertyId&&recordIds.has(task.propertyId)));
+    const linkedFinancials=financials.filter(item=>item.contactId===contact.id||(item.propertyId&&recordIds.has(item.propertyId)));
+    const linkedDocuments=documents.filter(item=>item.contactId===contact.id||(item.propertyId&&recordIds.has(item.propertyId)));
+    const linkedRisks=riskRecords.filter(item=>item.contactId===contact.id||(item.propertyId&&recordIds.has(item.propertyId)));
+    const linkedApprovals=approvalRequests.filter(item=>item.contactId===contact.id||(item.propertyId&&recordIds.has(item.propertyId)));
+    const linkedHistory=auditEvents.filter(item=>(item.entity==="Contact"&&item.recordId===contact.id)||recordIds.has(item.recordId));
+    return {contact,records,followUps,linkedTasks,linkedFinancials,linkedDocuments,linkedRisks,linkedApprovals,linkedHistory};
+  }).filter(item=>item.records.length||item.followUps.length||item.linkedTasks.length||item.linkedFinancials.length||item.linkedDocuments.length||item.linkedRisks.length||item.linkedApprovals.length)
+    .sort((a,b)=>(b.records.length+b.followUps.length+b.linkedTasks.length+b.linkedFinancials.length+b.linkedDocuments.length)-(a.records.length+a.followUps.length+a.linkedTasks.length+a.linkedFinancials.length+a.linkedDocuments.length)),
+  [contacts,properties,tasks,financials,documents,riskRecords,approvalRequests,auditEvents]);
+  const duplicateReviewPairs=useMemo(()=>{
+    const normalizeName=(value:string)=>String(value||"").trim().toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu," ").trim();
+    const normalizePhone=(value:string)=>{let digits=String(value||"").replace(/\\D/g,"");if(digits.length===10)digits="91"+digits;return digits;};
+    const pairs:Array<{first:ShiftContact;second:ShiftContact;reason:string}> = [];
+    for(let index=0;index<contacts.length;index++)for(let next=index+1;next<contacts.length;next++){
+      const first=contacts[index],second=contacts[next];
+      const sameName=Boolean(normalizeName(first.name)&&normalizeName(first.name)===normalizeName(second.name));
+      const firstPhone=normalizePhone(first.phone),secondPhone=normalizePhone(second.phone);
+      const samePhone=Boolean(firstPhone&&firstPhone===secondPhone);
+      const sameJid=Boolean(first.whatsappJid&&second.whatsappJid&&first.whatsappJid.toLowerCase()===second.whatsappJid.toLowerCase());
+      if(sameJid||(sameName&&samePhone))continue;
+      if(sameName||samePhone)pairs.push({first,second,reason:sameName?"Same name, different or missing phone":"Same phone, different name"});
+    }
+    return pairs.slice(0,20);
+  },[contacts]);
 
   const missions=useMemo(()=>[
     ...tasks.map(task=>({
@@ -261,7 +285,8 @@ export default function VestraShift(props:Props){
     {space==="connections"&&<section className="vs-space-page">
       <header><div><span className="vs-eyebrow">LIVING RECORDS · RELATIONSHIP INTELLIGENCE</span><h3>People connected to work</h3>
         <p>Connections are derived from saved contact IDs, linked contact fields, contact follow-ups and task assignments.</p></div><Network size={22}/></header>
-      <div className="vs-relationship-grid">{connections.map(({contact,records,followUps,linkedTasks})=><article className="vs-relationship-card" key={contact.id}>
+      {duplicateReviewPairs.length>0&&<section className="vs-duplicate-review"><header><strong>Possible contact matches · review before any merge</strong><small>Shared phone alone is not a merge key. These pairs are not automatically combined.</small></header>{duplicateReviewPairs.map(pair=><div key={pair.first.id+"-"+pair.second.id}><span>{pair.reason}</span><button type="button" onClick={()=>onOpenContact(pair.first.id)}>{pair.first.name} · {pair.first.phone||"No phone"}</button><button type="button" onClick={()=>onOpenContact(pair.second.id)}>{pair.second.name} · {pair.second.phone||"No phone"}</button></div>)}</section>}
+      <div className="vs-relationship-grid">{connections.map(({contact,records,followUps,linkedTasks,linkedFinancials,linkedDocuments,linkedRisks,linkedApprovals,linkedHistory})=><article className="vs-relationship-card" key={contact.id}>
         <button type="button" className="vs-person-node" onClick={()=>onOpenContact(contact.id)}>
           <span className="vs-person-monogram">{contact.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()}</span>
           <span><strong>{contact.name}</strong><small>{contact.role||contact.roles?.join(", ")||"Contact"}</small></span><ChevronRight size={14}/>
@@ -270,10 +295,15 @@ export default function VestraShift(props:Props){
           <span><strong>{records.length}</strong><small>Records</small></span>
           <span><strong>{followUps.length}</strong><small>Open follow-ups</small></span>
           <span><strong>{linkedTasks.filter(task=>!task.done).length}</strong><small>Open tasks</small></span>
+          <span><strong>{linkedFinancials.length}</strong><small>Transactions</small></span>
+          <span><strong>{linkedDocuments.length}</strong><small>Documents</small></span>
+          <span><strong>{linkedRisks.length+linkedApprovals.length}</strong><small>Risk / approvals</small></span>
+          <span><strong>{linkedHistory.length}</strong><small>History items</small></span>
         </div>
         <div className="vs-related-records">{records.slice(0,5).map(record=><button type="button" key={record.id} onClick={()=>onOpenRecord(record.id)}>
           <span>{record.module}</span><strong>{record.title||"Untitled record"}</strong><small>{record.status||"Status not set"}</small>
         </button>)}{!records.length&&<small>Follow-up/task links exist, but no property record is linked.</small>}</div>
+        {(linkedFinancials.length+linkedDocuments.length+linkedRisks.length+linkedApprovals.length)>0&&<div className="vs-linked-activity-nodes"><strong>CONNECTED ACTIVITY</strong>{linkedFinancials.slice(0,4).map(item=><button type="button" key={item.id} onClick={()=>onOpenTransaction(item.id)}><span>Transaction · {item.type}</span><em>{item.date} · ₹{Number(item.amount||0).toLocaleString("en-IN")}</em></button>)}{linkedDocuments.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Documents")}><span>Document · {item.name}</span><em>{item.category} · {item.expiresOn||"No expiry saved"}</em></button>)}{linkedRisks.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Risk & Compliance")}><span>Risk · {item.title}</span><em>{item.severity} · {item.status} · {item.dueDate||"No due date"}</em></button>)}{linkedApprovals.slice(0,3).map(item=><button type="button" key={item.id} onClick={()=>onOpenModule("Approvals")}><span>Approval · {item.title}</span><em>{item.status} · {item.approver||"No approver saved"}</em></button>)}</div>}
         <button type="button" className="vs-card-open" onClick={()=>onOpenContact(contact.id)}>Open Contact 360 <ArrowUpRight size={14}/></button>
       </article>)}{!connections.length&&<div className="vs-empty-state"><Users size={23}/><strong>No linked relationships to display.</strong><small>Links appear when saved records, follow-ups or tasks reference contacts.</small></div>}</div>
     </section>}
