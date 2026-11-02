@@ -15,7 +15,7 @@ import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
 import FollowUpRegisterPanel from "./FollowUpRegisterPanel";
-import IntelligenceHub from "./IntelligenceHub";
+import VestraShift from "./VestraShift";
 import { applyPdfIdentityPrivacy } from "./lib/pdf-privacy.mjs";
 import { exportHtmlReportAsPdf } from "./lib/pdf-export";
 import { buildAxivestraReportHtml } from "./lib/axivestra-report";
@@ -147,7 +147,7 @@ const builtInModules = [
 ];
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
-  { name: "Intelligence Hub", icon: Activity },
+  { name: "Intelligence Hub", label: "VESTRA SHIFT", icon: Activity },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
   { name: "Contact 360", icon: UserRound },
@@ -713,6 +713,8 @@ const customModuleIconRegistry: Record<string, LucideIcon> = {
 
 export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
+  const [appTheme,setAppTheme] = useState<"dark"|"light">(()=>load("estateflow.vestraTheme","dark"));
+  useEffect(()=>{saveLocal("estateflow.vestraTheme",appTheme);},[appTheme]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
@@ -2525,7 +2527,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
 
   return (
     <main
-      className={company?.role === "read_only" ? "app-shell ax-modern-shell workspace-readonly" : "app-shell ax-modern-shell"}
+      className={(company?.role === "read_only" ? "app-shell ax-modern-shell workspace-readonly" : "app-shell ax-modern-shell")+(appTheme==="light"?" ax-theme-light":"")}
       onClickCapture={event => {
         if (!company) return;
         const target = event.target instanceof Element ? event.target : null;
@@ -2568,7 +2570,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         <div className="brand"><div className="brand-mark ax-brand-mark"><img src="./axivestra-mark.svg" alt="" /></div><div><strong>AXIVESTRA</strong><span>ASSET INTELLIGENCE</span></div>
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
-        <nav className="nav-list">{navigation.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}</button>)}</nav>
+        <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}</button>)}</nav>
         <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
@@ -2577,14 +2579,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       {mobileMenu && <button className="scrim" onClick={() => setMobileMenu(false)} aria-label="Close menu" />}
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
-          <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
+          <div className="breadcrumb">Workspace <span>/</span> <strong>{active === "Intelligence Hub" ? "VESTRA SHIFT" : active}</strong></div>
           <div className="top-actions"><WorkspaceCommandCenter search={search} onSearchChange={setSearch} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} risks={riskRecords} approvals={approvalRequests} groups={savedWhatsAppGroups} modules={modules.map(item=>({name:item.name,description:item.description,group:item.group})).concat([{name:"Follow-up Register",description:"All Contact 360 people, commitments, amounts and expected reach-back dates in one editable register.",group:"Contact Operations"}])} onOpenResult={openWorkspaceResult} onQuickCreate={quickCreate} onOpenHistory={() => go("Activity History")} />{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}</div>
         </header>
         <div className="content">
-          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
+          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active === "Intelligence Hub" ? "VESTRA SHIFT" : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             {active !== "Follow-up Register" && <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Contact 360" ? (contactProfileId ? openPropertyForm(null,{contactId:contactProfileId}) : openContactForm()) : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contact 360" ? (contactProfileId ? "Add linked record" : "New contact") : active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button>}</div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
-          {active === "Intelligence Hub" && <IntelligenceHub properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={company?.role==="read_only"} onOpenModule={name=>go(name)} onOpenContacts={()=>go("Contacts")} onOpenTasks={()=>go("Schedule & Tasks")} onCreateFollowUp={createFollowUpFromWhatsApp}/>}
+          {active === "Intelligence Hub" && <VestraShift key={company?.id||userId||"local"} properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={company?.role==="read_only"} onOpenModule={name=>go(name)} onOpenContacts={()=>go("Contacts")} onOpenTasks={()=>go("Schedule & Tasks")} onOpenRecord={recordId=>{const record=properties.find(item=>item.id===recordId);if(record){setSearch(record.title||"");go(record.module);}else go("All Properties");}} onOpenContact={contactId=>{setContactProfileId(contactId);go("Contact 360");}} onOpenFinancials={()=>go("Financials")} onCreateFollowUp={createFollowUpFromWhatsApp} theme={appTheme} onToggleTheme={()=>setAppTheme(current=>current==="dark"?"light":"dark")} workspaceScope={company?.id||userId||"local"}/> }
           {active === "Activity History" && <section className="ax-history-page">
             <div className="ax-history-heading"><div><span className="section-kicker">WORKSPACE AUDIT TRAIL</span><h2>Activity history</h2><p>Recent record-level changes. Undo restores the latest saved state without clearing the workspace.</p></div><button type="button" className="secondary-button" disabled={!undoHistory.length} onClick={undoLastChange}>Undo last change{undoHistory[0] ? " · " + undoHistory[0].label : ""}</button></div>
             {undoHistory[0] && <div className="ax-undo-note"><strong>Undo available:</strong> {undoHistory[0].entity} · {undoHistory[0].label} · {new Date(undoHistory[0].at).toLocaleString("en-IN")}</div>}
