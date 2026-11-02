@@ -234,7 +234,7 @@ for (const token of ["@keyframes vsOrigamiUnfold", "perspective(1300px) rotateX(
   assert.ok(styles.includes(token), "Missing accessible origami / morphing transition: " + token);
 }
 
-for (const token of ["collectionRows=useMemo", 'row.moduleData?.__loanDirection==="Loan I am giving / interest receivable"', "row.followUpContactId||row.primaryContactId", "item.linkedRecordId===row.id", "item.type==="Receipt"", "collectionGroups", "item.savedOutstanding?formatINR", "No sample collection rows are generated.", "PERSON-WISE COLLECTION CONTROL"]) {
+for (const token of ["collectionRows=useMemo", 'row.moduleData?.__loanDirection==="Loan I am giving / interest receivable"', "row.followUpContactId||row.primaryContactId", "item.linkedRecordId===row.id", 'item.type===\"Receipt\"', "collectionGroups", "item.savedOutstanding?formatINR", "No sample collection rows are generated.", "PERSON-WISE COLLECTION CONTROL"]) {
   assert.ok(finance.includes(token), "Missing source-linked person-wise loan collection desk: " + token);
 }
 for (const token of [".vs-collection-desk", ".vs-collection-groups", ".vs-collection-owner-metrics", ".vs-collection-loan-facts", "@media(max-width:660px)"]) {
