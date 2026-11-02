@@ -468,7 +468,6 @@ export default function VestraShift(props:Props){
             <button type="button" className="vs-prism-shortcut" aria-label="Open Mission workflow" title="Mission workflow" onClick={()=>setSpace("workflow")}><Workflow size={13}/></button>
           </div>
         </div>
-        </div>
         <div><span className="vs-eyebrow"><Sparkles size={13}/> VESTRA SHIFT · ADAPTIVE INTELLIGENCE OPERATING SYSTEM</span>
           <h2>Your workspace shifts with the work.</h2>
           <p>Assemble live information, explore relationships, inspect time and simulate decisions—without changing your saved records.</p>
