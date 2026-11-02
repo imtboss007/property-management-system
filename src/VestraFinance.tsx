@@ -15,7 +15,7 @@ type Transaction = {
 };
 type Props = {
   properties:LoanRecord[]; contacts:Contact[]; financials:Transaction[];
-  today:string; onOpenRecord:(id:string)=>void; onOpenFinancials:()=>void; onOpenTasks:()=>void; onOpenLoans:()=>void;
+  today:string; onOpenRecord:(id:string)=>void; onOpenContact:(id:string)=>void; onOpenTransaction:(id:string)=>void; onOpenFinancials:()=>void; onOpenTasks:()=>void; onOpenLoans:()=>void;
 };
 const LOAN_MODULES=new Set(["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"]);
 const INFLOW=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
@@ -29,7 +29,7 @@ const amount=(value:string)=>parseDealNumber(value);
 const monthKey=(date:string)=>date.slice(0,7);
 const monthLabel=(key:string)=>{const [y,m]=key.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("en-IN",{month:"short"});};
 
-export default function VestraFinance({properties,contacts,financials,today,onOpenRecord,onOpenFinancials,onOpenTasks,onOpenLoans}:Props){
+export default function VestraFinance({properties,contacts,financials,today,onOpenRecord,onOpenContact,onOpenTransaction,onOpenFinancials,onOpenTasks,onOpenLoans}:Props){
   const loans=useMemo(()=>loansOnly(properties),[properties]);
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [selectedMonth,setSelectedMonth]=useState("");
@@ -69,7 +69,7 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
       <header><div><span className="vs-eyebrow">KINETIC CASHFLOW</span><h4>Recorded monthly movement</h4><p>Blue-green bars are saved inflows; coral bars are saved outflows. Empty months show no matching transaction in the register.</p></div><CircleDollarSign size={20}/></header>
       <ThreeDHistogram items={cashflow} selected={visibleMonth} onSelect={setSelectedMonth} showLabels={false} formatValue={value=>value>=10000000?"₹"+(value/10000000).toFixed(1)+"Cr":value>=100000?"₹"+(value/100000).toFixed(1)+"L":"₹"+Math.round(value).toLocaleString("en-IN")}/>
       <div className="vs-finance-legend"><span><i className="inflow"/> Recorded inflows</span><span><i className="outflow"/> Recorded outflows</span><strong>{new Date(Number(visibleMonth.slice(0,4)),Number(visibleMonth.slice(5,7))-1,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</strong></div>
-      <div className="vs-finance-transactions">{monthTransactions.map(item=><button type="button" key={item.id} onClick={onOpenFinancials}><span className={INFLOW.has(item.type)?"vs-finance-up":"vs-finance-down"}>{INFLOW.has(item.type)?<ArrowUpRight size={15}/>:<ArrowDownRight size={15}/>}</span><span><strong>{item.type} · {item.party||item.property||"Transaction"}</strong><small>{item.date} · {item.property||"No linked property"} · {item.reference||"No reference"}</small></span><em>{formatINR(amount(item.amount))}</em></button>)}{!monthTransactions.length&&<div className="vs-empty-state"><Wallet size={22}/><strong>No transactions recorded for this month.</strong><small>This is a true empty result, not a generated placeholder.</small></div>}</div>
+      <div className="vs-finance-transactions">{monthTransactions.map(item=><button type="button" key={item.id} onClick={()=>onOpenTransaction(item.id)}><span className={INFLOW.has(item.type)?"vs-finance-up":"vs-finance-down"}>{INFLOW.has(item.type)?<ArrowUpRight size={15}/>:<ArrowDownRight size={15}/>}</span><span><strong>{item.type} · {item.party||item.property||"Transaction"}</strong><small>{item.date} · {item.property||"No linked property"} · {item.reference||"No reference"}</small></span><em>{formatINR(amount(item.amount))}</em></button>)}{!monthTransactions.length&&<div className="vs-empty-state"><Wallet size={22}/><strong>No transactions recorded for this month.</strong><small>This is a true empty result, not a generated placeholder.</small></div>}</div>
     </section>
     <section className="vs-finance-panel">
       <header><div><span className="vs-eyebrow">LOAN INTELLIGENCE</span><h4>Loan-wise interest exposure</h4><p>Choose a saved loan to inspect its principal, interest convention, payment entries and assigned follow-up owner.</p></div><Wallet size={20}/></header>
@@ -86,8 +86,8 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
             <article><span>Recorded payments</span><strong>{formatINR(paid)}</strong><small>Directly linked outflow transactions</small></article>
           </div>
           <div className="vs-finance-loan-meta"><span><Clock3 size={14}/> Disbursement / first EMI: {selectedLoan.moduleData?.targetDisbursementDate||selectedLoan.moduleData?.firstEmiDate||"Not entered"}</span><span><CalendarClock size={14}/> Maturity: {selectedLoan.moduleData?.maturityDate||"Not entered"}</span><span><Users size={14}/> Follow-up owner: {loanContact?.name||"Not assigned"}</span></div>
-          <div className="vs-finance-followups"><strong>Open follow-up assignments</strong>{followUps.map(item=><button type="button" key={item.id} onClick={()=>onOpenTasks()}><span>{item.description||"Follow-up"}</span><small>{item.promisedDate||"No date"} {item.promisedTime||""} · {item.status}</small><em>{item.amount?formatINR(amount(item.amount)):"No amount"}</em></button>)}{!followUps.length&&<small>No open Contact 360 commitment is linked to this loan's assigned contact.</small>}</div>
-          <div className="vs-finance-history"><strong>Payment history (linked transactions only)</strong>{loanTransactions.map(item=><button type="button" key={item.id} onClick={onOpenFinancials}><span>{item.date} · {item.type}</span><em>{formatINR(amount(item.amount))}</em></button>)}{!loanTransactions.length&&<small>No financial transaction with this loan's record ID is linked.</small>}</div>
+          <div className="vs-finance-followups"><strong>Open follow-up assignments</strong>{followUps.map(item=><button type="button" key={item.id} onClick={()=>loanContact?onOpenContact(loanContact.id):onOpenTasks()}><span>{item.description||"Follow-up"}</span><small>{item.promisedDate||"No date"} {item.promisedTime||""} · {item.status}</small><em>{item.amount?formatINR(amount(item.amount)):"No amount"}</em></button>)}{!followUps.length&&<small>No open Contact 360 commitment is linked to this loan's assigned contact.</small>}</div>
+          <div className="vs-finance-history"><strong>Payment history (linked transactions only)</strong>{loanTransactions.map(item=><button type="button" key={item.id} onClick={()=>onOpenTransaction(item.id)}><span>{item.date} · {item.type}</span><em>{formatINR(amount(item.amount))}</em></button>)}{!loanTransactions.length&&<small>No financial transaction with this loan's record ID is linked.</small>}</div>
         </div>}
       </div>:<div className="vs-empty-state"><Wallet size={22}/><strong>No saved loan records yet.</strong><small>Existing property/personal/company/housing loan modules populate this panel.</small><button type="button" onClick={onOpenLoans}>Open loan module</button></div>}
     </section>
