@@ -72,7 +72,7 @@ export default function ThreeDHistogram({
       <span className="ax-3d-histogram-hint">Select a column to inspect its record group</span>
     </div>
     <div className="ax-3d-histogram-scroll">
-      <svg className="ax-3d-histogram" style={{transform:`perspective(1100px) rotateZ(${rotation}deg) rotateX(${tilt}deg) scale(${zoom})`,transformOrigin:"center center"}}>
+      <svg className="ax-3d-histogram" style={{transform:`perspective(1100px) rotateZ(${rotation}deg) rotateX(${tilt}deg) scale(${zoom})`,transformOrigin:"center center"}} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Interactive three-dimensional portfolio histogram">
         <defs>
           <linearGradient id="ax-3d-floor" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#12344a"/>
