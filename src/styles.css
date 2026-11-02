@@ -2662,6 +2662,7 @@ h2,h3{color:#e5f2fc}
 .ax-record-followups__table input:focus,.ax-record-followups__table select:focus,.ax-record-followups__table textarea:focus{outline:2px solid #b6dce4;border-color:#7bb8c5}
 .ax-record-followups__record-cell{min-width:180px}
 .ax-record-followups__record-cell>strong,.ax-record-followups__empty-row td:first-child>strong{display:block;max-width:220px;color:#21465b;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.ax-record-followups__name-input{min-width:155px!important;min-height:34px!important;padding:6px 7px!important;color:#21465b!important;font-size:11px!important;font-weight:800!important}
 .ax-record-followups__record-cell>small,.ax-record-followups__empty-row td:first-child>small{display:block;margin:4px 0;color:#82949d;font-size:9px}
 .ax-record-followups__open,.ax-record-followups__contact-link,.ax-record-followups__add-another{display:inline-flex;align-items:center;gap:4px;margin:3px 6px 0 0;padding:3px 0;border:0;background:transparent;color:#26748a;font-size:9px;font-weight:700;cursor:pointer}
 .ax-record-followups__add-another{color:#287b5c}
