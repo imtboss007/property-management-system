@@ -79,7 +79,7 @@ for (const token of [
 for (const token of [
   "ThreeDHistogram", "calculateMonthlyInterest", "outstandingPrincipal", "loanTransactions",
   "onOpenTransaction(item.id)", "recentMonths", "selectedMonth",
-  "No supported outstanding figure saved", "TRACEABLE CALCULATION BREAKDOWN", "showPortfolioBreakdown", "vs-finance-fact-button"
+  "no supported outstanding figure saved", "TRACEABLE CALCULATION BREAKDOWN", "showPortfolioBreakdown", "vs-finance-fact-button"
 ]) assert.ok(finance.includes(token), "Missing source-traceable Financial Intelligence: " + token);
 for (const token of [
   "linkedFinancials", "linkedDocuments", "linkedRisks", "linkedApprovals", "duplicateReviewPairs",
