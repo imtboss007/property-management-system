@@ -173,7 +173,7 @@ assert.ok(styles.includes(".vs-relationship-network__activity rect"), "Linked ac
 
 const magneticHandler = vestra.slice(vestra.indexOf("const handleMagneticPointerMove"), vestra.indexOf("const resetMagneticPointer"));
 assert.ok(magneticHandler.includes('event.pointerType!=="mouse"'), "Magnetic interactions must stay off coarse touch pointers.");
-assert.ok(magneticHandler.includes('target.closest<HTMLElement>("[data-vs-magnetic=\'true\']")'), "Magnetic movement must be delegated to explicitly marked controls.");
+assert.ok(magneticHandler.includes('.closest<HTMLElement>("[data-vs-magnetic=\'true\']")'), "Magnetic movement must be delegated to explicitly marked controls.");
 assert.ok(magneticHandler.includes('target.style.setProperty("--vs-magnetic-x"'), "Magnetic movement must update the active control directly.");
 assert.ok(!magneticHandler.includes("setState("), "Pointer movement must not trigger React re-renders on every frame.");
 assert.ok(vestra.includes('onPointerMove={handleMagneticPointerMove}'), "The VESTRA workspace must activate its pointer interaction engine.");
