@@ -125,3 +125,6 @@ assert.ok(vestra.includes('workspacePreferencesReady:boolean'), "Focus must rece
 const focus = fs.readFileSync("src/VestraFocusMode.tsx","utf8");
 assert.ok(focus.includes('onSaveWorkspacePreference("vestraFocus.selection"'), "Focus context must persist across PC and mobile.");
 assert.ok(focus.includes('hydratedPreferenceRef.current=false'), "Focus context must hydrate before writing local defaults.");
+
+assert.ok(app.includes("cloudPreviousScopeRef=useRef"), "Cloud deletion tracking must be isolated by active company/member.");
+assert.ok(app.includes("cloudPreviousScopeRef.current!==activeCloudScope"), "Switching company or member must reset prior deletion IDs before sync.");
