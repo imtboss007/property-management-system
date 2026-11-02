@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const app = fs.readFileSync("src/App.tsx", "utf8");
 const desktopService = fs.readFileSync("electron/whatsapp-service.cjs", "utf8");
+const windowsWorkflow = fs.readFileSync(".github/workflows/main.yml", "utf8");
 const analytics = fs.readFileSync("src/PortfolioAnalytics.tsx", "utf8");
 const histogram = fs.readFileSync("src/ThreeDHistogram.tsx", "utf8");
 const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
@@ -128,3 +129,6 @@ assert.ok(focus.includes('hydratedPreferenceRef.current=false'), "Focus context 
 
 assert.ok(app.includes("cloudPreviousScopeRef=useRef"), "Cloud deletion tracking must be isolated by active company/member.");
 assert.ok(app.includes("cloudPreviousScopeRef.current!==activeCloudScope"), "Switching company or member must reset prior deletion IDs before sync.");
+
+assert.ok(windowsWorkflow.includes("Smoke test the packaged Windows renderer"), "Windows packaging must launch the actual packaged app and verify visible renderer content.");
+assert.ok(windowsWorkflow.includes("npx electron-builder --win dir --x64 --publish never"), "Windows renderer smoke check must run against the unpacked production package.");
