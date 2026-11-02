@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
   GitBranch, Landmark, Moon, Network, Sparkles, Sun, TrendingUp, Users, Wallet, Workflow
@@ -85,6 +85,25 @@ export default function VestraShift(props:Props){
     theme,onToggleTheme,workspaceScope
   }=props;
   const [space,setSpace]=useState<ShiftSpace>("intent");
+  const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
+  const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
+    const target=event.target as HTMLElement;
+    const blocked=Boolean(target.closest("button,input,select,textarea,a,summary,details,[draggable='true'],.vs-calendar-grid,.vs-timeline-list,.vs-3d-histogram-scroll,.ax-3d-histogram-scroll,.vs-intent-search-control,.vs-module-filters"));
+    const point=event.touches[0];
+    if(point)touchStartRef.current={x:point.clientX,y:point.clientY,blocked};
+  };
+  const handleWorkspaceTouchEnd=(event:React.TouchEvent<HTMLElement>)=>{
+    const start=touchStartRef.current;
+    touchStartRef.current=null;
+    if(!start||start.blocked)return;
+    const point=event.changedTouches[0];
+    if(!point)return;
+    const dx=point.clientX-start.x,dy=point.clientY-start.y;
+    if(Math.abs(dx)<76||Math.abs(dy)>54)return;
+    const index=SPACES.findIndex(item=>item.id===space);
+    const nextIndex=Math.max(0,Math.min(SPACES.length-1,index+(dx<0?1:-1)));
+    if(nextIndex!==index)setSpace(SPACES[nextIndex].id);
+  };
   const [timeFilter,setTimeFilter]=useState<"past"|"today"|"upcoming"|"all">("upcoming");
   const [timelineKind,setTimelineKind]=useState("All types");
   const [timelineSearch,setTimelineSearch]=useState("");
@@ -273,7 +292,7 @@ export default function VestraShift(props:Props){
     onOpenTasks();
   };
 
-  return <section className="vs-shift" data-theme={theme}>
+  return <section className="vs-shift" data-theme={theme} onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
     <header className="vs-shift-hero">
       <div className="vs-shift-brand">
         <div className="vs-prism-emblem" aria-hidden="true"><i/><i/><i/><i/><i/></div>
