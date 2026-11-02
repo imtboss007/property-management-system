@@ -230,6 +230,7 @@ export default function VestraShift(props:Props){
       <div className="vs-hero-actions">
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
         <button type="button" onClick={onOpenTasks}><CalendarClock size={14}/> Schedule</button>
+        <button type="button" onClick={onUndo} disabled={!undoAvailable} title="Undo last supported workspace change">Undo</button>
         <button type="button" className="vs-hero-primary" onClick={onOpenContacts}><Users size={14}/> People</button>
       </div>
     </header>
@@ -240,11 +241,7 @@ export default function VestraShift(props:Props){
     </nav>
     {!!savedViews.length&&<div className="vs-saved-contexts"><span>YOUR SAVED WORKSPACES</span>{savedViews.map(view=><button type="button" key={view.id} onClick={()=>setSpace(view.space)}><Bookmark size={11}/>{view.label}</button>)}</div>}
 
-    {space==="intent"&&<IntelligenceHub
-      properties={properties} contacts={contacts} tasks={tasks} financials={financials}
-      today={today} readOnly={readOnly} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts}
-      onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}
-    />}
+    {space==="intent"&&<VestraIntentCanvas properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} readOnly={readOnly} moduleNames={moduleNames} workspaceScope={workspaceScope} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts} onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}/>}\n    {space==="finance"&&<VestraFinance properties={properties} contacts={contacts} financials={financials} today={today} onOpenRecord={onOpenRecord} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks} onOpenLoans={()=>onOpenModule("Property Loans")}/>}
 
     {space==="timeline"&&<section className="vs-space-page">
       <header><div><span className="vs-eyebrow">TEMPORAL WORKSPACE</span><h3>Past · present · upcoming</h3>
