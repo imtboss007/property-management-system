@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, CalendarClock, CircleDollarSign, Clock3, Landmark, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarClock, CircleDollarSign, Clock3, Landmark, Users, Wallet } from "lucide-react";
 import ThreeDHistogram from "./ThreeDHistogram";
 import { calculateMonthlyInterest, formatINR, getLoanPrincipalValue, parseDealNumber } from "./lib/deal-structure";
 
@@ -15,7 +15,7 @@ type Transaction = {
 };
 type Props = {
   properties:LoanRecord[]; contacts:Contact[]; financials:Transaction[];
-  today:string; onOpenRecord:(id:string)=>void; onOpenFinancials:()=>void; onOpenTasks:()=>void;
+  today:string; onOpenRecord:(id:string)=>void; onOpenFinancials:()=>void; onOpenTasks:()=>void; onOpenLoans:()=>void;
 };
 const LOAN_MODULES=new Set(["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"]);
 const INFLOW=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
@@ -29,7 +29,7 @@ const amount=(value:string)=>parseDealNumber(value);
 const monthKey=(date:string)=>date.slice(0,7);
 const monthLabel=(key:string)=>{const [y,m]=key.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("en-IN",{month:"short"});};
 
-export default function VestraFinance({properties,contacts,financials,today,onOpenRecord,onOpenFinancials,onOpenTasks}:Props){
+export default function VestraFinance({properties,contacts,financials,today,onOpenRecord,onOpenFinancials,onOpenTasks,onOpenLoans}:Props){
   const loans=useMemo(()=>loansOnly(properties),[properties]);
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [selectedMonth,setSelectedMonth]=useState("");
@@ -89,7 +89,7 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
           <div className="vs-finance-followups"><strong>Open follow-up assignments</strong>{followUps.map(item=><button type="button" key={item.id} onClick={()=>onOpenTasks()}><span>{item.description||"Follow-up"}</span><small>{item.promisedDate||"No date"} {item.promisedTime||""} · {item.status}</small><em>{item.amount?formatINR(amount(item.amount)):"No amount"}</em></button>)}{!followUps.length&&<small>No open Contact 360 commitment is linked to this loan's assigned contact.</small>}</div>
           <div className="vs-finance-history"><strong>Payment history (linked transactions only)</strong>{loanTransactions.map(item=><button type="button" key={item.id} onClick={onOpenFinancials}><span>{item.date} · {item.type}</span><em>{formatINR(amount(item.amount))}</em></button>)}{!loanTransactions.length&&<small>No financial transaction with this loan's record ID is linked.</small>}</div>
         </div>}
-      </div>:<div className="vs-empty-state"><Wallet size={22}/><strong>No saved loan records yet.</strong><small>Existing property/personal/company/housing loan modules populate this panel.</small><button type="button" onClick={()=>onOpenRecord("")}>Open loan module</button></div>}
+      </div>:<div className="vs-empty-state"><Wallet size={22}/><strong>No saved loan records yet.</strong><small>Existing property/personal/company/housing loan modules populate this panel.</small><button type="button" onClick={onOpenLoans}>Open loan module</button></div>}
     </section>
     {trendItems.length>0&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">INTEREST COMPARISON</span><h4>Current monthly interest by loan</h4><p>This compares current calculated monthly amounts. It does not pretend to be a historical accrual ledger.</p></div><ArrowUpRight size={20}/></header><ThreeDHistogram items={trendItems} selected={selectedLoan?.id||""} onSelect={setSelectedLoanId} formatValue={value=>formatINR(value)}/></section>}
     <small className="vs-data-truth">Simple-interest/compound-interest history is not reconstructed from missing dates or payment allocation. This view separates saved balances, calculated monthly interest and recorded payments.</small>
