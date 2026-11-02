@@ -2926,6 +2926,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         <button type="button" className={active === "All Properties" ? "active" : ""} aria-current={active === "All Properties" ? "page" : undefined} onClick={() => go("All Properties")}><LandPlot size={18}/><span>Assets</span></button>
         <button type="button" className={active === "Contact 360" || active === "Contacts" ? "active" : ""} aria-current={active === "Contact 360" || active === "Contacts" ? "page" : undefined} onClick={() => go("Contact 360")}><UserRound size={18}/><span>Contacts</span></button>
         <button type="button" className={active === "Schedule & Tasks" ? "active" : ""} aria-current={active === "Schedule & Tasks" ? "page" : undefined} onClick={() => go("Schedule & Tasks")}><CalendarClock size={18}/><span>Tasks</span></button>
+        <button type="button" className={active === "Intelligence Hub" ? "active" : ""} aria-current={active === "Intelligence Hub" ? "page" : undefined} onClick={() => go("Intelligence Hub")}><Activity size={18}/><span>VESTRA</span></button>
         <button type="button" onClick={() => setMobileMenu(true)}><Menu size={18}/><span>Menu</span></button>
       </nav>
       {pendingPdfExport && <Modal title="PDF export options" onClose={()=>!pdfExportBusy&&setPendingPdfExport(null)}>
