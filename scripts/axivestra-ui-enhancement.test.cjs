@@ -170,3 +170,13 @@ for (const token of ["item.linkedTasks.length", "item.linkedFinancials.length", 
 }
 assert.ok(vestra.includes("vs-relationship-network__activity"), "The relationship map must render linked task, transaction, document, risk and history activity nodes.");
 assert.ok(styles.includes(".vs-relationship-network__activity rect"), "Linked activity nodes must have a distinct visual identity.");
+
+const magneticHandler = vestra.slice(vestra.indexOf("const handleMagneticPointerMove"), vestra.indexOf("const resetMagneticPointer"));
+assert.ok(magneticHandler.includes('event.pointerType!=="mouse"'), "Magnetic interactions must stay off coarse touch pointers.");
+assert.ok(magneticHandler.includes('target.closest<HTMLElement>("[data-vs-magnetic=\'true\']")'), "Magnetic movement must be delegated to explicitly marked controls.");
+assert.ok(magneticHandler.includes('target.style.setProperty("--vs-magnetic-x"'), "Magnetic movement must update the active control directly.");
+assert.ok(!magneticHandler.includes("setState("), "Pointer movement must not trigger React re-renders on every frame.");
+assert.ok(vestra.includes('onPointerMove={handleMagneticPointerMove}'), "The VESTRA workspace must activate its pointer interaction engine.");
+for (const token of ['.vs-shift [data-vs-magnetic="true"]', '.vs-shift button:active{translate:', '@media(hover:none),(pointer:coarse)', '@media(prefers-reduced-motion:reduce)']) {
+  assert.ok(styles.includes(token), "Missing adaptive magnetic / tactile interaction styling: " + token);
+}
