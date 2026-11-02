@@ -49,7 +49,7 @@ type AuditEntry = {id:string;at:string;action:string;entity:string;recordId:stri
 type Props = {
   properties:ShiftProperty[];contacts:ShiftContact[];tasks:ShiftTask[];financials:ShiftFinancial[];documents:ShiftDocument[];riskRecords:ShiftRisk[];approvalRequests:ShiftApproval[];
   today:string;readOnly?:boolean;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;
-  onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTransaction:(id:string)=>void;
+  onOpenTasks:()=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onMergeContacts:(keepId:string,removeId:string)=>void;onOpenTransaction:(id:string)=>void;
   onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowUpDraft)=>void;
   onOpenTask:(taskId:string)=>void;moduleNames:string[];auditEvents:AuditEntry[];onUndo:()=>void;undoAvailable:boolean;
   theme:"dark"|"light";onToggleTheme:()=>void;workspaceScope:string;
@@ -81,7 +81,7 @@ const dateText=(value:string)=>value?new Date(value+"T00:00:00").toLocaleDateStr
 export default function VestraShift(props:Props){
   const {
     properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,today,readOnly=false,onOpenModule,onOpenContacts,
-    onOpenTasks,onOpenRecord,onOpenContact,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
+    onOpenTasks,onOpenRecord,onOpenContact,onMergeContacts,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
     theme,onToggleTheme,workspaceScope
   }=props;
   const [space,setSpace]=useState<ShiftSpace>("intent");
@@ -335,7 +335,7 @@ export default function VestraShift(props:Props){
     {space==="connections"&&<section className="vs-space-page">
       <header><div><span className="vs-eyebrow">LIVING RECORDS · RELATIONSHIP INTELLIGENCE</span><h3>People connected to work</h3>
         <p>Connections are derived from saved contact IDs, linked contact fields, contact follow-ups and task assignments.</p></div><Network size={22}/></header>
-      {duplicateReviewPairs.length>0&&<section className="vs-duplicate-review"><header><strong>Possible contact matches · review before any merge</strong><small>Shared phone alone is not a merge key. These pairs are not automatically combined.</small></header>{duplicateReviewPairs.map(pair=><div key={pair.first.id+"-"+pair.second.id}><span>{pair.reason}</span><button type="button" onClick={()=>onOpenContact(pair.first.id)}>{pair.first.name} · {pair.first.phone||"No phone"}</button><button type="button" onClick={()=>onOpenContact(pair.second.id)}>{pair.second.name} · {pair.second.phone||"No phone"}</button></div>)}</section>}
+      {duplicateReviewPairs.length>0&&<section className="vs-duplicate-review"><header><strong>Possible contact matches · review before any merge</strong><small>Shared phone alone is not a merge key. These pairs are not automatically combined.</small></header>{duplicateReviewPairs.map(pair=><div key={pair.first.id+"-"+pair.second.id}><span>{pair.reason}</span><button type="button" onClick={()=>onOpenContact(pair.first.id)}>{pair.first.name} · {pair.first.phone||"No phone"}</button><button type="button" onClick={()=>onOpenContact(pair.second.id)}>{pair.second.name} · {pair.second.phone||"No phone"}</button><button type="button" className="vs-duplicate-merge-action" onClick={()=>onMergeContacts(pair.first.id,pair.second.id)}>Keep {pair.first.name.split(" ")[0]} and merge second</button><button type="button" className="vs-duplicate-merge-action" onClick={()=>onMergeContacts(pair.second.id,pair.first.id)}>Keep {pair.second.name.split(" ")[0]} and merge first</button></div>)}</section>}
       <div className="vs-relationship-grid">{connections.map(({contact,records,followUps,linkedTasks,linkedFinancials,linkedDocuments,linkedRisks,linkedApprovals,linkedHistory})=><article className="vs-relationship-card" key={contact.id}>
         <button type="button" className="vs-person-node" onClick={()=>onOpenContact(contact.id)}>
           <span className="vs-person-monogram">{contact.name.trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase()}</span>
