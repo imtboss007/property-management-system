@@ -229,3 +229,7 @@ assert.ok(vestra.includes("quickActionsOpen||alertsOpen"), "Escape must close ac
 for (const token of [".vs-quick-actions-menu", ".vs-quick-actions-grid", "@media(max-width:760px)"]) {
   assert.ok(styles.includes(token), "Missing responsive quick-action menu styling: " + token);
 }
+
+for (const token of ["@keyframes vsOrigamiUnfold", "perspective(1300px) rotateX(-8deg)", '.ax-modern-shell[data-ax-motion="expressive"] .vs-space-page', ".vs-shift-tabs button.active{border-radius:13px", "@media(prefers-reduced-motion:reduce)"]) {
+  assert.ok(styles.includes(token), "Missing accessible origami / morphing transition: " + token);
+}
