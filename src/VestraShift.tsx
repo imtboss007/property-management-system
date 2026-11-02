@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
+  ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight, X,
   GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
