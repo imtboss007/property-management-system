@@ -4424,3 +4424,19 @@ h2,h3{color:#e5f2fc}
 .vs-prism-emblem.is-activated:after{animation-duration:1.6s;border-color:#e2c29f}
 .vs-startup-prism:before{content:"";position:absolute;inset:-14px;border:1px solid #a5cdb388;border-radius:50%;transform:rotateX(68deg) rotateY(32deg);box-shadow:0 0 28px #79b89b33;animation:vsRibbonFlow 4.2s linear infinite}
 @media(prefers-reduced-motion:reduce){.vs-prism-emblem:after,.vs-startup-prism:before{animation:none!important}}
+
+.vs-deadline-simulation{margin-top:13px}
+.vs-deadline-scenario{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:14px;border:1px solid #3a5b63;border-radius:12px;background:#0d2430}
+.vs-deadline-scenario>label{display:grid;gap:5px;color:#9dbab2;font-size:8px;font-weight:850}
+.vs-deadline-scenario input,.vs-deadline-scenario select{min-width:0;min-height:36px;padding:6px 8px;border:1px solid #3a5c68;border-radius:7px;background:#081d28;color:#e7eee3;font-size:9px}
+.vs-deadline-scenario>div{display:grid;gap:5px;padding:10px;border:1px solid #2d4d5b;border-radius:8px;background:#142e36}
+.vs-deadline-scenario>div span{color:#91aaa9;font-size:8px}
+.vs-deadline-scenario>div strong{color:#e1ecdf;font-size:13px}
+.vs-deadline-scenario>small{grid-column:1/-1;color:#8fa9ad;font-size:8px;line-height:1.5}
+.vs-shift[data-theme="light"] .vs-deadline-scenario{background:#f1f2e9;border-color:#ccd9cd}
+.vs-shift[data-theme="light"] .vs-deadline-scenario>label{color:#60786b}
+.vs-shift[data-theme="light"] .vs-deadline-scenario input,.vs-shift[data-theme="light"] .vs-deadline-scenario select{background:#fffdf6;color:#1d352e;border-color:#c4d5c9}
+.vs-shift[data-theme="light"] .vs-deadline-scenario>div{background:#fffdf6;border-color:#d0dace}
+.vs-shift[data-theme="light"] .vs-deadline-scenario>div span,.vs-shift[data-theme="light"] .vs-deadline-scenario>small{color:#687e73}
+.vs-shift[data-theme="light"] .vs-deadline-scenario>div strong{color:#1c332b}
+@media(max-width:620px){.vs-deadline-scenario{grid-template-columns:1fr}.vs-deadline-scenario>small{grid-column:auto}}
