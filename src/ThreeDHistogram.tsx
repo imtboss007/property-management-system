@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react";
+import { memo, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 export type ThreeDHistogramItem = {
   id?: string;
@@ -35,7 +35,7 @@ function keyboardActivate(event: KeyboardEvent<SVGGElement>, activate: () => voi
  * It uses the existing saved-record analytics values and avoids a WebGL dependency,
  * keeping the same chart usable in Electron, browsers and Android WebView.
  */
-export default function ThreeDHistogram({
+function ThreeDHistogram({
   items,
   selected = "",
   onSelect,
@@ -47,8 +47,12 @@ export default function ThreeDHistogram({
   const [rotation,setRotation]=useState(0);
   const [tilt,setTilt]=useState(0);
   const [zoom,setZoom]=useState(1);
-  const visible = items.slice(0, 9);
-  const max = Math.max(1, ...visible.flatMap(item => [Number(item.value) || 0, Number(item.secondaryValue) || 0]));
+  const chartRef=useRef<SVGSVGElement|null>(null);
+  const dragRef=useRef<{pointerId:number;startX:number;startY:number;rotation:number;tilt:number;moved:boolean}|null>(null);
+  const suppressClickRef=useRef(false);
+  const gradientId=useId().replace(/:/g,"");
+  const visible = useMemo(()=>items.slice(0, 9),[items]);
+  const max = useMemo(()=>Math.max(1, ...visible.flatMap(item => [Number(item.value) || 0, Number(item.secondaryValue) || 0])),[visible]);
   const width = Math.max(650, 148 + visible.length * 72);
   const height = 306;
   const left = 52;
@@ -62,28 +66,53 @@ export default function ThreeDHistogram({
   const depthY = -7;
   const selectedKey = selected;
   const yFor = (value: number) => floor - Math.max(0, value) / max * 154;
-  const colors = visible.map((item, index) => item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
-
+  const colors = useMemo(()=>visible.map((item, index) => item.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]),[visible]);
+  const chartTransform=(r:number,t:number,z:number)=>`perspective(1100px) rotateZ(${r}deg) rotateX(${t}deg) scale(${z})`;
+  const onChartPointerDown=(event:PointerEvent<SVGSVGElement>)=>{
+    if(event.pointerType==="mouse"&&event.button!==0)return;
+    dragRef.current={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,rotation,tilt,moved:false};
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onChartPointerMove=(event:PointerEvent<SVGSVGElement>)=>{
+    const drag=dragRef.current;if(!drag||drag.pointerId!==event.pointerId)return;
+    const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY;
+    if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+    if(!drag.moved)return;
+    const nextRotation=drag.rotation+dx*.22,nextTilt=Math.max(-12,Math.min(22,drag.tilt-dy*.14));
+    event.currentTarget.style.transform=chartTransform(nextRotation,nextTilt,zoom);
+  };
+  const onChartPointerEnd=(event:PointerEvent<SVGSVGElement>)=>{
+    const drag=dragRef.current;if(!drag||drag.pointerId!==event.pointerId)return;
+    dragRef.current=null;
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+    if(drag.moved){
+      const dx=event.clientX-drag.startX,dy=event.clientY-drag.startY;
+      setRotation(Number((drag.rotation+dx*.22).toFixed(1)));
+      setTilt(Number(Math.max(-12,Math.min(22,drag.tilt-dy*.14)).toFixed(1)));
+      suppressClickRef.current=true;
+      window.setTimeout(()=>{suppressClickRef.current=false;},0);
+    }
+  };
   return <div className="ax-3d-histogram-wrap">
 <div className="ax-3d-histogram-controls" aria-label="Chart perspective controls"><button type="button" onClick={()=>setRotation(value=>value-10)} title="Rotate chart left">↶</button><button type="button" onClick={()=>setRotation(value=>value+10)} title="Rotate chart right">↷</button><button type="button" onClick={()=>setTilt(value=>Math.max(-12,value-3))} title="Tilt chart upward">Tilt −</button><button type="button" onClick={()=>setTilt(value=>Math.min(22,value+3))} title="Tilt chart downward">Tilt +</button><button type="button" onClick={()=>setZoom(value=>Math.max(.7,Number((value-.1).toFixed(1))))} title="Zoom out">−</button><span>{Math.round(zoom*100)}%</span><button type="button" onClick={()=>setZoom(value=>Math.min(1.4,Number((value+.1).toFixed(1))))} title="Zoom in">+</button><button type="button" onClick={()=>{setRotation(0);setTilt(0);setZoom(1);}}>Reset view</button></div>
     <div className="ax-3d-histogram-meta">
       <span><i className="ax-3d-key-front"/> {primaryLabel}</span>
       {visible.some(item => Number(item.secondaryValue) > 0) && <span><i className="ax-3d-key-side"/> {secondaryLabel}</span>}
-      <span className="ax-3d-histogram-hint">Select a column to inspect its record group</span>
+      <span className="ax-3d-histogram-hint">Drag the chart to rotate · select a column to inspect its source</span>
     </div>
     <div className="ax-3d-histogram-scroll">
-      <svg className="ax-3d-histogram" style={{transform:`perspective(1100px) rotateZ(${rotation}deg) rotateX(${tilt}deg) scale(${zoom})`,transformOrigin:"center center"}} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Interactive three-dimensional portfolio histogram">
+      <svg ref={chartRef} className="ax-3d-histogram" style={{transform:chartTransform(rotation,tilt,zoom),transformOrigin:"center center",touchAction:"pan-y"}} onPointerDown={onChartPointerDown} onPointerMove={onChartPointerMove} onPointerUp={onChartPointerEnd} onPointerCancel={onChartPointerEnd} onClickCapture={event=>{if(suppressClickRef.current){event.preventDefault();event.stopPropagation();}}} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Interactive three-dimensional portfolio histogram. Drag to rotate; select a column to inspect its source.">
         <defs>
-          <linearGradient id="ax-3d-floor" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={`ax-3d-floor-${gradientId}`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#12344a"/>
             <stop offset="1" stopColor="#091b2b"/>
           </linearGradient>
-          <linearGradient id="ax-3d-grid-glow" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={`ax-3d-grid-glow-${gradientId}`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#2bd4e5" stopOpacity=".30"/>
             <stop offset="1" stopColor="#487fff" stopOpacity=".05"/>
           </linearGradient>
         </defs>
-        <polygon points={`${left},${floor} ${width-right},${floor} ${width-right+12},${floor+15} ${left+12},${floor+15}`} fill="url(#ax-3d-floor)" opacity=".78"/>
+        <polygon points={`${left},${floor} ${width-right},${floor} ${width-right+12},${floor+15} ${left+12},${floor+15}`} fill={`url(#ax-3d-floor-${gradientId})`} opacity=".78"/>
         {[0, 1, 2, 3, 4].map(index => {
           const y = top + index * (floor - top) / 4;
           const value = max * (1 - index / 4);
@@ -92,7 +121,7 @@ export default function ThreeDHistogram({
             <text x={left-11} y={y+4} textAnchor="end" fill="#789bb2" fontSize="10">{formatValue(value)}</text>
           </g>;
         })}
-        <line x1={left} x2={width-right} y1={floor} y2={floor} stroke="url(#ax-3d-grid-glow)" strokeWidth="1.3"/>
+        <line x1={left} x2={width-right} y1={floor} y2={floor} stroke={`url(#ax-3d-grid-glow-${gradientId})`} strokeWidth="1.3"/>
         {visible.map((item, index) => {
           const key = item.id || item.name;
           const isSelected = selectedKey === key || selectedKey === item.name;
@@ -143,3 +172,5 @@ export default function ThreeDHistogram({
     </div>
   </div>;
 }
+
+export default memo(ThreeDHistogram);
