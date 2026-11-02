@@ -200,15 +200,17 @@ for (const token of [".vs-alert-center", ".vs-alert-item.is-urgent", ".vs-alert-
   assert.ok(styles.includes(token), "Missing responsive alert centre visual styling: " + token);
 }
 
-assert.ok(vestra.includes('className="vs-orbit-system"'), "VESTRA must render the spatial sphere command hub.");
-assert.ok(vestra.includes('className="vs-core-sphere"'), "The 3D prismatic core must include a spherical centre.");
-assert.equal((vestra.match(/className="vs-orbit-node"/g)||[]).length,7, "The command hub must provide one direct icon control for each of the seven VESTRA spaces.");
+assert.ok(vestra.includes('className="vs-prism-command-hub"'), "VESTRA must render its original angular prismatic workspace command hub.");
+assert.equal((vestra.match(/className="vs-prism-shortcut"/g)||[]).length,7, "The prism command hub must provide one direct icon control for each of the seven VESTRA spaces.");
+assert.ok(vestra.includes('aria-label="Quick workspace navigation"'), "Prismatic shortcuts must have an accessible group label.");
 for (const token of ['aria-label="Open Spatial Desk"', 'aria-label="Open Intent Canvas"', 'aria-label="Open Financial Studio"', 'aria-label="Open Temporal workspace"', 'aria-label="Open Relationships"', 'aria-label="Open Simulation Studio"', 'aria-label="Open Mission workflow"']) {
-  assert.ok(vestra.includes(token), "Missing accessible orbital workspace shortcut: " + token);
+  assert.ok(vestra.includes(token), "Missing accessible prismatic workspace shortcut: " + token);
 }
-for (const token of ["vs-orbit-rings", "vsSatelliteOrbit", "vsSatelliteCounter", ".vs-core-sphere", ".vs-orbit-node:hover", '@media(prefers-reduced-motion:reduce)']) {
-  assert.ok(styles.includes(token), "Missing 3D sphere / orbital icon visual behavior: " + token);
+assert.ok(!vestra.includes("vs-orbit-system")&&!vestra.includes("vs-core-sphere"), "VESTRA must not copy AXIMACH's rotating sphere or orbital navigation.");
+for (const token of [".vs-prism-command-hub", ".vs-prism-shortcuts", ".vs-prism-shortcut:hover", "@keyframes vsPrismTileUnfold"]) {
+  assert.ok(styles.includes(token), "Missing original angular prismatic command-hub styling: " + token);
 }
+
 
 assert.ok(vestra.includes('workspacePreferences["vestraShift.favoriteModules"]'), "Favourite modules must persist as per-workspace preferences.");
 assert.ok(vestra.includes('onSaveWorkspacePreference("vestraShift.favoriteModules",next)'), "Changing favourite modules must save the selected module IDs.");
