@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
-  GitBranch, Landmark, Moon, Network, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow
+  GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
 import VestraFinance from "./VestraFinance";
@@ -88,7 +88,7 @@ export default function VestraShift(props:Props){
     onOpenTasks,onOpenRecord,onOpenContact,onMergeContacts,onOpenTransaction,onOpenFinancials,onCreateFollowUp,onOpenTask,moduleNames,auditEvents,onUndo,undoAvailable,
     theme,onToggleTheme,workspaceScope
   }=props;
-  const [space,setSpace]=useState<ShiftSpace>("intent");
+  const [space,setSpace]=useState<ShiftSpace>(()=>typeof window!=="undefined"&&window.innerWidth<=760?"intent":"desk");
   const [focusOpen,setFocusOpen]=useState(false);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
@@ -314,6 +314,10 @@ export default function VestraShift(props:Props){
         <div><span className="vs-eyebrow"><Sparkles size={13}/> VESTRA SHIFT · ADAPTIVE INTELLIGENCE OPERATING SYSTEM</span>
           <h2>Your workspace shifts with the work.</h2>
           <p>Assemble live information, explore relationships, inspect time and simulate decisions—without changing your saved records.</p>
+          <div className="vs-environment-indicator" aria-label="Adaptive operating environment">
+            <span className="vs-environment-atelier"><Monitor size={13}/><b>ATELIER</b><small>DESKTOP WORKSPACE</small></span>
+            <span className="vs-environment-motion"><Smartphone size={13}/><b>MOTION</b><small>TOUCH WORKSPACE</small></span>
+          </div>
         </div>
       </div>
       <div className="vs-hero-actions">
