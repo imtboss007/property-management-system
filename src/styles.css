@@ -4588,3 +4588,32 @@ h2,h3{color:#e5f2fc}
   .ax-mobile-dock { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .ax-mobile-dock button { font-size: 7.5px; }
 }
+
+
+/* ATELIER floating command composer and local intelligence companion */
+.vs-atelier-ai-launch{position:fixed;right:22px;bottom:24px;z-index:75;display:flex;align-items:center;gap:9px;padding:12px 15px;border:1px solid rgba(171,153,223,.38);border-radius:999px;background:linear-gradient(120deg,#173d47,#28264e);color:#f0eee9;box-shadow:0 14px 38px rgba(5,13,25,.36),0 0 24px rgba(142,118,213,.14);cursor:pointer;transition:transform .2s,box-shadow .2s}
+.vs-atelier-ai-launch:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(5,13,25,.44),0 0 28px rgba(142,118,213,.22)}
+.vs-atelier-ai-launch>svg{color:#c7b4ff}
+.vs-atelier-ai-launch span{font-size:11px;font-weight:800;letter-spacing:.02em}
+.vs-atelier-ai-launch kbd{padding:3px 5px;border:1px solid rgba(255,255,255,.16);border-radius:5px;color:#a6c5bf;font-size:9px}
+.vs-atelier-ai-backdrop{position:fixed;inset:0;z-index:1080;display:flex;justify-content:flex-end;align-items:stretch;padding:14px;background:rgba(4,12,20,.62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:vsFocusBackdropIn .18s ease both}
+.vs-atelier-ai-panel{display:flex;flex-direction:column;width:min(760px,100%);max-height:100%;overflow:hidden;border:1px solid rgba(151,184,176,.25);border-radius:22px;background:linear-gradient(145deg,#0d1d2a,#101b2b 68%,#1b2433);box-shadow:0 28px 90px rgba(0,0,0,.5);color:#edf5ef}
+.vs-atelier-ai-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 20px;border-bottom:1px solid rgba(159,190,181,.14)}
+.vs-atelier-ai-panel>header>div{display:grid;gap:5px}
+.vs-atelier-ai-panel>header strong{font-size:16px;letter-spacing:-.02em}
+.vs-atelier-ai-panel>header small{font-size:11px;color:#92a9ae}
+.vs-atelier-ai-panel>header button{display:grid;place-items:center;flex:0 0 34px;height:34px;border:1px solid rgba(162,190,181,.18);border-radius:10px;background:rgba(255,255,255,.06);color:#edf5ef;cursor:pointer}
+.vs-atelier-ai-content{min-height:0;overflow:auto;padding:17px}
+.vs-shift[data-theme="light"] .vs-atelier-ai-panel{background:linear-gradient(145deg,#fffefa,#f1f5f1);color:#1b3730;border-color:rgba(49,100,79,.2)}
+.vs-shift[data-theme="light"] .vs-atelier-ai-panel>header small{color:#687f76}
+.vs-shift[data-theme="light"] .vs-atelier-ai-panel>header button{background:#edf3ee;color:#27483c;border-color:rgba(49,100,79,.2)}
+@media(max-width:760px){
+  .vs-atelier-ai-launch{display:none}
+  .vs-atelier-ai-backdrop{padding:0}
+  .vs-atelier-ai-panel{width:100%;border-radius:0;max-height:100dvh}
+  .vs-atelier-ai-panel>header{padding:14px}
+  .vs-atelier-ai-content{padding:10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .vs-atelier-ai-launch,.vs-atelier-ai-backdrop{animation:none;transition:none}
+}
