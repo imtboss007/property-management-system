@@ -33,6 +33,8 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
   const loans=useMemo(()=>loansOnly(properties),[properties]);
   const [selectedLoanId,setSelectedLoanId]=useState("");
   const [selectedMonth,setSelectedMonth]=useState("");
+  const [selectedInterestMonth,setSelectedInterestMonth]=useState("");
+  const [projectionMonths,setProjectionMonths]=useState<3|6|12>(6);
   const selectedLoan=loans.find(row=>row.id===selectedLoanId)||loans[0];
   const loanTransactions=useMemo(()=>selectedLoan?financials.filter(item=>linkedToRecord(item,selectedLoan)).sort((a,b)=>b.date.localeCompare(a.date)):[],[financials,selectedLoan]);
   const recentMonths=useMemo(()=>{
@@ -56,7 +58,27 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
   const received=loanTransactions.filter(item=>INFLOW.has(item.type)).reduce((sum,item)=>sum+amount(item.amount),0);
   const paid=loanTransactions.filter(item=>OUTFLOW.has(item.type)).reduce((sum,item)=>sum+amount(item.amount),0);
   const method=selectedLoan?.moduleData?.__loanInterestMethod||(selectedLoan?.moduleData?.annualInterestRate?"Percentage per year":"Percentage per month");
-  const trendItems=loans.slice(0,8).map(row=>({id:row.id,name:(row.title||row.module).slice(0,13),fullName:row.title||row.module,value:interestOf(row)}));
+  const interestStartDate=selectedLoan?.moduleData?.targetDisbursementDate||selectedLoan?.moduleData?.firstEmiDate||"";
+  const interestEndDate=selectedLoan?.moduleData?.maturityDate||today;
+  const monthWiseInterest=useMemo(()=>{
+    if(!selectedLoan||!interestStartDate)return [];
+    const start=new Date(interestStartDate+"T00:00:00");
+    const end=new Date(interestEndDate+"T00:00:00");
+    if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||start>end)return [];
+    const cursor=new Date(start.getFullYear(),start.getMonth(),1);
+    const last=new Date(end.getFullYear(),end.getMonth(),1);
+    const rows:Array<{id:string;name:string;fullName:string;value:number}>=[];
+    while(cursor<=last&&rows.length<120){
+      const key=cursor.getFullYear()+"-"+String(cursor.getMonth()+1).padStart(2,"0");
+      rows.push({id:key,name:cursor.toLocaleDateString("en-IN",{month:"short"}),fullName:cursor.toLocaleDateString("en-IN",{month:"long",year:"numeric"}),value:monthlyInterest});
+      cursor.setMonth(cursor.getMonth()+1);
+    }
+    return rows.slice(-12);
+  },[selectedLoan?.id,interestStartDate,interestEndDate,monthlyInterest]);
+  const selectedInterestRow=monthWiseInterest.find(row=>row.id===selectedInterestMonth);
+  const isInterestReceivable=selectedLoan?.moduleData?.__loanDirection==="Loan I am giving / interest receivable";
+  const projectedCollection=isInterestReceivable?monthlyInterest*projectionMonths:0;
+  const trendItems=loans.slice(0,8).map(row=>({id:row.id,name:(row.title||row.module).slice(0,13),fullName:row.title||row.module,value:principalOf(row),secondaryValue:interestOf(row),color:"#c49370",secondaryColor:"#39d6a2"}));
   return <section className="vs-finance-space">
     <header className="vs-space-page-header"><div><span className="vs-eyebrow">FINANCIAL INTELLIGENCE ENGINE</span><h3>Capital, interest and recorded movement</h3><p>Every amount below comes from saved loan terms or financial transactions. A missing balance remains unreported instead of being inferred.</p></div><Landmark size={23}/></header>
     <div className="vs-finance-metrics">
@@ -85,13 +107,15 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
             <article><span>Recorded receipts</span><strong>{formatINR(received)}</strong><small>Directly linked inflow transactions</small></article>
             <article><span>Recorded payments</span><strong>{formatINR(paid)}</strong><small>Directly linked outflow transactions</small></article>
           </div>
-          <div className="vs-finance-loan-meta"><span><Clock3 size={14}/> Disbursement / first EMI: {selectedLoan.moduleData?.targetDisbursementDate||selectedLoan.moduleData?.firstEmiDate||"Not entered"}</span><span><CalendarClock size={14}/> Maturity: {selectedLoan.moduleData?.maturityDate||"Not entered"}</span><span><Users size={14}/> Follow-up owner: {loanContact?.name||"Not assigned"}</span></div>
+          <div className="vs-finance-loan-meta"><span><Clock3 size={14}/> Interest period start: {interestStartDate||"Not entered"}</span><span><CalendarClock size={14}/> Interest period end / maturity: {selectedLoan.moduleData?.maturityDate||"Not entered"}</span><span><Users size={14}/> Follow-up owner: {loanContact?.name||"Not assigned"}</span><span>Tenure: {selectedLoan.moduleData?.tenureMonths||"Not entered"} month(s)</span></div>
           <div className="vs-finance-followups"><strong>Open follow-up assignments</strong>{followUps.map(item=><button type="button" key={item.id} onClick={()=>loanContact?onOpenContact(loanContact.id):onOpenTasks()}><span>{item.description||"Follow-up"}</span><small>{item.promisedDate||"No date"} {item.promisedTime||""} · {item.status}</small><em>{item.amount?formatINR(amount(item.amount)):"No amount"}</em></button>)}{!followUps.length&&<small>No open Contact 360 commitment is linked to this loan's assigned contact.</small>}</div>
           <div className="vs-finance-history"><strong>Payment history (linked transactions only)</strong>{loanTransactions.map(item=><button type="button" key={item.id} onClick={()=>onOpenTransaction(item.id)}><span>{item.date} · {item.type}</span><em>{formatINR(amount(item.amount))}</em></button>)}{!loanTransactions.length&&<small>No financial transaction with this loan's record ID is linked.</small>}</div>
         </div>}
       </div>:<div className="vs-empty-state"><Wallet size={22}/><strong>No saved loan records yet.</strong><small>Existing property/personal/company/housing loan modules populate this panel.</small><button type="button" onClick={onOpenLoans}>Open loan module</button></div>}
     </section>
-    {trendItems.length>0&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">INTEREST COMPARISON</span><h4>Current monthly interest by loan</h4><p>This compares current calculated monthly amounts. It does not pretend to be a historical accrual ledger.</p></div><ArrowUpRight size={20}/></header><ThreeDHistogram items={trendItems} selected={selectedLoan?.id||""} onSelect={setSelectedLoanId} formatValue={value=>formatINR(value)}/></section>}
+    {trendItems.length>0&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">PRINCIPAL VS INTEREST</span><h4>Principal and monthly interest by loan</h4><p>Both bars use saved INR figures. Interest is calculated with AXIVESTRA’s current saved method; no missing historical payment allocation is invented.</p></div><ArrowUpRight size={20}/></header><ThreeDHistogram items={trendItems} selected={selectedLoan?.id||""} onSelect={setSelectedLoanId} primaryLabel="Saved principal" secondaryLabel="Monthly interest" formatValue={value=>formatINR(value)}/></section>}
+    {selectedLoan&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">MONTH-WISE INTEREST</span><h4>{selectedLoan.title||selectedLoan.module}</h4><p>Illustrative monthly run-rate from the saved interest period and current terms. It is not a reconstructed historical accrual ledger.</p></div><CalendarClock size={20}/></header>{monthWiseInterest.length?<><ThreeDHistogram items={monthWiseInterest} selected={selectedInterestMonth} onSelect={setSelectedInterestMonth} primaryLabel="Monthly interest run-rate" showLabels={false} formatValue={value=>formatINR(value)}/><div className="vs-finance-legend"><span>Saved start: {interestStartDate}</span><span>End / maturity: {selectedLoan.moduleData?.maturityDate||today}</span><strong>{selectedInterestRow?selectedInterestRow.fullName+" · "+formatINR(selectedInterestRow.value):"Select a month"}</strong></div></>:<div className="vs-empty-state"><CalendarClock size={22}/><strong>Interest period dates are incomplete.</strong><small>Enter a disbursement or first-EMI date in the source loan module to show a month-wise run-rate preview. No date is inferred.</small></div>}</section>}
+    {selectedLoan&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">COLLECTION SCENARIO</span><h4>Potential interest collections</h4><p>Available only for a loan marked “Loan I am giving / interest receivable”. This is a simple run-rate projection, not a promised collection.</p></div><CircleDollarSign size={20}/></header>{isInterestReceivable?<><div className="vs-projection-switch">{([3,6,12] as const).map(months=><button type="button" className={projectionMonths===months?"active":""} key={months} onClick={()=>setProjectionMonths(months)}>{months} months</button>)}</div><div className="vs-projection-result"><span>Potential interest over {projectionMonths} months</span><strong>{formatINR(projectedCollection)}</strong><small>{formatINR(monthlyInterest)} monthly run-rate × {projectionMonths}. Assumes unchanged principal and rate.</small></div></>:<div className="vs-empty-state"><Wallet size={22}/><strong>Collection projection is not enabled for this loan direction.</strong><small>Set the source record’s direction to “Loan I am giving / interest receivable” to show a collection run-rate.</small></div>}</section>}
     <small className="vs-data-truth">Simple-interest/compound-interest history is not reconstructed from missing dates or payment allocation. This view separates saved balances, calculated monthly interest and recorded payments.</small>
   </section>;
 }
