@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const assert = require("node:assert/strict");
 
 const app = fs.readFileSync("src/App.tsx", "utf8");
+const desktopService = fs.readFileSync("electron/whatsapp-service.cjs", "utf8");
 const analytics = fs.readFileSync("src/PortfolioAnalytics.tsx", "utf8");
 const histogram = fs.readFileSync("src/ThreeDHistogram.tsx", "utf8");
 const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
@@ -116,4 +117,4 @@ assert.ok(shift.includes("workspacePreferencesReady:boolean"), "VESTRA SHIFT mus
 assert.ok(shift.includes('hydratedPreferenceKeysRef.current.delete("views")'), "Saved VESTRA views must hydrate before local defaults are written back.");
 assert.ok(desk.includes("hydratedPreferenceRef.current=false"), "Atelier layouts must not overwrite a remote layout during initial hydration.");
 assert.ok(canvas.includes('hydratedPreferenceKeysRef.current.delete("canvas")'), "Motion saved canvases must hydrate before local defaults are written back.");
-assert.ok(service.includes('"workspacePreferences"'), "Windows PC companion must accept the new shared preference collection.");
+assert.ok(desktopService.includes('"workspacePreferences"'), "Windows PC companion must accept the new shared preference collection.");
