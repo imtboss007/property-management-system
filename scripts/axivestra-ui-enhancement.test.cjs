@@ -69,7 +69,7 @@ for (const token of [
   "/\\b(loan|interest|lender|borrow)\\b/.test(query)", "commandResults"
 ]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
 for (const token of [
-  "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields",
+  "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields", "mergeMasterContactsById",
   "draggable onDragStart", "setSavedCanvases", "vs-canvas-pins",
   "onOpenRecord(record.id)", "onOpenContact(contact.id)", "moduleNames.map"
 ]) assert.ok(canvas.includes(token), "Missing interactive Intent Canvas capability: " + token);
@@ -87,6 +87,7 @@ for (const token of [
 ]) assert.ok(vestra.includes(token), "Missing relationship / temporal / simulation / mission feature: " + token);
 for (const token of ["description?: string", "amount?: string", "priority?: string", "status?: string", "nextAction?: string", "notes?: string", "Assigned At", "Next Action"]) assert.ok(recordFollowUpLib.includes(token), "Missing record-level follow-up data field / export: " + token);
 for (const token of ['aria-label="Follow-up description"', 'aria-label="Follow-up amount"', 'aria-label="Follow-up priority"', 'aria-label="Follow-up status"', 'aria-label="Follow-up next action"', 'aria-label="Follow-up notes"']) assert.ok(recordTracker.includes(token), "Missing editable record follow-up control: " + token);
+for (const token of ["mergeContactsWithAuthorization", "MERGE CONTACT RECORDS", "onMergeContacts={mergeContactsWithAuthorization}"]) assert.ok(app.includes(token), "Missing user-authorized duplicate merge: " + token);
 for (const token of ["mergeMasterContactsById", 'new Set(["roles", "whatsappAliases", "followUps"])', "merged.followUps ="]) assert.ok(contactMerge.includes(token), "Missing safe merge preservation: " + token);
 for (const token of ["mergeContactsWithAuthorization", "MERGE CONTACT RECORDS", "onMergeContacts={mergeContactsWithAuthorization}"]) assert.ok(app.includes(token), "Missing user-authorized contact merge safeguard: " + token);
 for (const token of ['space==="finance"', 'temporalView==="calendar"', "calendarCells", "onMergeContacts", "scenarioFullSchedule", "missionLinks"]) assert.ok(vestra.includes(token), "Missing VESTRA temporal / finance / workflow capability: " + token);
