@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const app = fs.readFileSync("src/App.tsx", "utf8");
 const analytics = fs.readFileSync("src/PortfolioAnalytics.tsx", "utf8");
 const histogram = fs.readFileSync("src/ThreeDHistogram.tsx", "utf8");
+const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
@@ -46,4 +47,13 @@ for (const token of [
 assert.ok(!pkg.dependencies["echarts-gl"] && !pkg.dependencies["three"], "The visual refresh must not add a heavy WebGL runtime dependency.");
 assert.ok(pkg.scripts.test.includes("axivestra-ui-enhancement.test.cjs"), "The new UI checks must run in the main regression suite.");
 
-console.log("AXIVESTRA responsive UI, mobile navigation and 3D histogram contracts passed.");
+for (const token of [
+  'space==="timeline"', 'space==="connections"', 'space==="simulation"', 'space==="workflow"',
+  'calculateMonthlyInterest({...selectedLoan.moduleData,__loanInterestRate:scenarioInput||"0"}',
+  'window.localStorage.setItem(contextKey', 'vs-prism-emblem', 'onOpenRecord(event.recordId)'
+]) assert.ok(vestra.includes(token), "Missing VESTRA SHIFT workspace feature: " + token);
+for (const token of [
+  'name: "Intelligence Hub", label: "VESTRA SHIFT"', 'onOpenRecord={recordId=>',
+  'onOpenContact={contactId=>', 'ax-theme-light'
+]) assert.ok(app.includes(token), "Missing VESTRA SHIFT activation in App: " + token);
+console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
