@@ -114,6 +114,7 @@ for (const token of [".vs-atelier-ai-launch",".vs-atelier-ai-backdrop",".vs-atel
 assert.ok(app.includes("workspacePreferencesReady"), "VESTRA preferences must wait for the initial device/company sync before hydrating shared UI state.");
 const supabaseSync = fs.readFileSync("src/lib/supabase.ts", "utf8");
 assert.ok(supabaseSync.includes('recordType: "workspace_preference"'), "Shared company records must include the VESTRA preference collection.");
+assert.ok(supabaseSync.includes('String(payload.scope || "") !== company.id + ":" + userId'), "Company initialization must not hydrate another member's VESTRA preferences.");
 assert.ok(shift.includes("workspacePreferencesReady:boolean"), "VESTRA SHIFT must gate preference writes until its first sync finishes.");
 assert.ok(shift.includes('hydratedPreferenceKeysRef.current.delete("views")'), "Saved VESTRA views must hydrate before local defaults are written back.");
 assert.ok(desk.includes("hydratedPreferenceRef.current=false"), "Atelier layouts must not overwrite a remote layout during initial hydration.");
