@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, CalendarClock, FileText, History, Target, UserRound, Wallet, X } from "lucide-react";
 import { formatINR, parseDealNumber } from "./lib/deal-structure";
 
@@ -27,7 +27,7 @@ type FocusFinancial = {
 };
 type Props = {
   properties: FocusRecord[]; contacts: FocusContact[]; tasks: FocusTask[]; financials: FocusFinancial[];
-  today: string; workspaceScope: string;
+  today: string; workspaceScope: string; workspacePreferences:Record<string,unknown>;workspacePreferencesReady:boolean;onSaveWorkspacePreference:(key:string,value:unknown)=>void;
   onClose: () => void; onOpenRecord: (id:string) => void; onOpenContact: (id:string) => void;
   onOpenTask: (id:string) => void; onOpenFinancials: () => void; onOpenTasks: () => void;
 };
@@ -38,13 +38,14 @@ const dateLabel = (value: string) => value
 
 export default function VestraFocusMode({
   properties, contacts, tasks, financials, today, workspaceScope,
-  onClose, onOpenRecord, onOpenContact, onOpenTask, onOpenFinancials, onOpenTasks
+  onClose, onOpenRecord, onOpenContact, onOpenTask, onOpenFinancials, onOpenTasks,workspacePreferences,workspacePreferencesReady,onSaveWorkspacePreference
 }: Props) {
   const storageKey = "axivestra.vestraFocus." + workspaceScope;
   const [mode, setMode] = useState<"task"|"record">("task");
   const [taskId, setTaskId] = useState("");
   const [recordId, setRecordId] = useState("");
 
+  const hydratedPreferenceRef=useRef(false);
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem(storageKey) || "{}");
@@ -54,10 +55,27 @@ export default function VestraFocusMode({
     } catch { /* Focus preferences are optional and never affect business data. */ }
   }, [storageKey]);
 
+  useEffect(()=>{
+    if(!workspacePreferencesReady)return;
+    const saved=workspacePreferences["vestraFocus.selection"];
+    if(saved&&typeof saved==="object"&&!Array.isArray(saved)){
+      hydratedPreferenceRef.current=true;
+      const value=saved as {mode?:unknown;taskId?:unknown;recordId?:unknown};
+      if(value.mode==="task"||value.mode==="record")setMode(value.mode);
+      if(typeof value.taskId==="string")setTaskId(value.taskId);
+      if(typeof value.recordId==="string")setRecordId(value.recordId);
+    }
+  },[workspacePreferencesReady,workspacePreferences["vestraFocus.selection"]]);
+
   useEffect(() => {
-    try { window.localStorage.setItem(storageKey, JSON.stringify({mode,taskId,recordId})); }
+    const value={mode,taskId,recordId};
+    try { window.localStorage.setItem(storageKey, JSON.stringify(value)); }
     catch { /* Focus preferences are optional and never affect business data. */ }
-  }, [storageKey,mode,taskId,recordId]);
+    if(workspacePreferencesReady){
+      if(hydratedPreferenceRef.current){hydratedPreferenceRef.current=false;return;}
+      onSaveWorkspacePreference("vestraFocus.selection",value);
+    }
+  }, [storageKey,mode,taskId,recordId,workspacePreferencesReady,onSaveWorkspacePreference]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
