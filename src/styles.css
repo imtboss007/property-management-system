@@ -4391,3 +4391,9 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell.ax-theme-light .nav-list button{color:#4d6858!important}
 .ax-modern-shell.ax-theme-light .nav-list button.active{background:linear-gradient(110deg,#dce9dd,#e8dfd2)!important;color:#20392b!important;border-color:#b7cdbb!important}
 .ax-modern-shell.ax-theme-light .secondary-button,.ax-modern-shell.ax-theme-light .ax-action-ghost{background:#e8ede3!important;border-color:#c5d4c5!important;color:#314d3d!important}
+
+.vs-desk-month-inspector{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px;border:1px solid #cbd8c8;border-radius:9px;background:#f7f4e9;color:#405c4b;font-size:8px}
+.vs-desk-month-inspector>strong{color:#263e31}
+.vs-desk-month-inspector>span{display:grid;gap:3px;color:#778879}
+.vs-desk-month-inspector>span b{color:#385d43;font-size:10px}
+.vs-desk-month-inspector>button{display:inline-flex;align-items:center;gap:5px;margin-left:auto;min-height:29px;padding:0 8px;border:1px solid #9db9a1;border-radius:7px;background:#e1ecdf;color:#34533d;font-size:8px;font-weight:850}
