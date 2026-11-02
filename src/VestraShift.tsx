@@ -128,8 +128,8 @@ export default function VestraShift(props:Props){
   const [scenarioPayment,setScenarioPayment]=useState("");
   const [scenarioMode,setScenarioMode]=useState<"simple"|"compound">("simple");
   const [scenarioStartDate,setScenarioStartDate]=useState("");
-  const [scenarioTaskId,setScenarioTaskId]=useState("");
-  const [scenarioTaskDate,setScenarioTaskDate]=useState("");
+  const [scenarioTaskId,setScenarioTaskId]=useState(()=>tasks.find(task=>!task.done&&task.date)?.id||"");
+  const [scenarioTaskDate,setScenarioTaskDate]=useState(()=>tasks.find(task=>!task.done&&task.date)?.date||"");
   const contextKey="axivestra.vestraShift.views."+workspaceScope;
   const [savedViews,setSavedViews]=useState<SavedView[]>(()=>{
     try{const value=JSON.parse(window.localStorage.getItem(contextKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
