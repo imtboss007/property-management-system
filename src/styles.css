@@ -4400,3 +4400,11 @@ h2,h3{color:#e5f2fc}
 .vs-desk-month-inspector>span b{color:#385d43;font-size:10px}
 .vs-desk-month-inspector>button{display:inline-flex;align-items:center;gap:5px;margin-left:auto;min-height:29px;padding:0 8px;border:1px solid #9db9a1;border-radius:7px;background:#e1ecdf;color:#34533d;font-size:8px;font-weight:850}
 .ax-followup-register__assigned-date{display:inline-block;padding:8px 7px;border:1px solid #36576a;border-radius:7px;background:#102b3a;color:#c0d4dc;font-size:9px;white-space:nowrap}
+
+.vs-finance-fact-button{display:grid;gap:6px;min-width:0;padding:9px;border:1px solid #2d4d5b;border-radius:8px;background:#102a36;color:#91aab0;text-align:left;cursor:pointer;transition:border-color .18s,background .18s}
+.vs-finance-fact-button:hover{border-color:#90bd9b;background:#193a3b}
+.vs-finance-fact-button>span,.vs-finance-fact-button>small{font-size:8px}
+.vs-finance-fact-button>strong{overflow:hidden;color:#e5eee4;font-size:12px;text-overflow:ellipsis}
+.vs-shift[data-theme="light"] .vs-finance-fact-button{background:#edf1e9;border-color:#d0dace;color:#687e73}
+.vs-shift[data-theme="light"] .vs-finance-fact-button>strong{color:#1d352e}
+.vs-finance-breakdown{border-color:#7a8c73}
