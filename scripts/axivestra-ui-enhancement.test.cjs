@@ -132,3 +132,8 @@ assert.ok(app.includes("cloudPreviousScopeRef.current!==activeCloudScope"), "Swi
 
 assert.ok(windowsWorkflow.includes("Smoke test the packaged Windows renderer"), "Windows packaging must launch the actual packaged app and verify visible renderer content.");
 assert.ok(windowsWorkflow.includes("npx electron-builder --win --dir --x64 --publish never"), "Windows renderer smoke check must run against the unpacked production package.");
+
+assert.ok(vestra.includes('onSaveWorkspacePreference("displayDensity"'), "VESTRA must expose a working compact/comfortable density preference.");
+assert.ok(vestra.includes('onSaveWorkspacePreference("motionMode"'), "VESTRA must expose a working motion intensity preference.");
+assert.ok(vestra.includes('data-density={displayDensity} data-motion={motionMode}'), "Personalisation settings must affect the rendered workspace.");
+for (const token of [".vs-personalization-panel",".vs-personalization-controls",".vs-shift[data-density=\"compact\"]",".vs-shift[data-motion=\"reduced\"]"]) assert.ok(styles.includes(token), "Missing visual personalisation style: "+token);
