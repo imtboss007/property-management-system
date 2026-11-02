@@ -4151,3 +4151,15 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-calendar-day.is-focused{background:#f0e4d3;border-color:#b9916d}
 @media(max-width:680px){.vs-calendar{padding:8px}.vs-calendar-grid{gap:3px}.vs-calendar-day{min-height:66px;padding:4px}.vs-calendar-day em{font-size:6px}.vs-calendar-weekday{font-size:7px}.vs-calendar>header{align-items:flex-start}.vs-calendar>header h4{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.vs-calendar-day,.vs-temporal-view-toggle button{transition:none!important}}
+
+.ax-analytics-source-inspector{display:grid;gap:6px;margin:10px 0;padding:10px;border:1px solid #365b68;border-radius:10px;background:linear-gradient(140deg,#112c39,#0b202c)}
+.ax-analytics-source-inspector>strong{color:#b9d9c4;font-size:9px;letter-spacing:.25px}
+.ax-analytics-source-inspector>button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 9px;padding:7px 8px;border:1px solid #345363;border-radius:7px;background:#102a36;color:#e0ebe3;text-align:left}
+.ax-analytics-source-inspector>button>span{overflow:hidden;font-size:8px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
+.ax-analytics-source-inspector>button>small{color:#8da9ad;font-size:8px}
+.ax-analytics-source-inspector>button>svg{grid-column:2;grid-row:1/3;align-self:center}
+.ax-analytics-source-inspector>small{color:#8faab0;font-size:8px}
+.ax-analytics-source-inspector .ax-inspector-open-financials{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:5px;background:#1c403b;border-color:#648f76;color:#cbe8ce;text-align:center}
+.ax-modern-shell .ax-analytics-source-inspector{background:linear-gradient(140deg,#112c39,#0b202c)}
+.ax-modern-shell .ax-analytics-source-inspector>button:hover{border-color:#86c2a2;background:#15343b}
+@media(max-width:680px){.ax-analytics-source-inspector{padding:8px}.ax-analytics-source-inspector>button{padding:9px}}
