@@ -4349,3 +4349,45 @@ h2,h3{color:#e5f2fc}
 @keyframes vsStartupOrbit{to{rotate:360deg}}
 @keyframes vsStartupPrism{0%,100%{transform:rotateX(-10deg) rotateY(0deg) translateY(0)}50%{transform:rotateX(18deg) rotateY(180deg) translateY(-9px)}}
 @media(prefers-reduced-motion:reduce){.vs-startup-intro,.vs-startup-intro:before,.vs-startup-intro:after,.vs-startup-prism{animation:none!important;clip-path:none!important}}
+
+/* AXI VESTRA global identity — mineral/jade/copper, deliberately distinct from AXIMACH */
+.ax-modern-shell{
+  --vs-porcelain:#f3f0e5;--vs-deep-ink:#101d19;--vs-mineral-jade:#79b89b;
+  --vs-soft-copper:#c49370;--vs-ai-violet:#9a85d5;--vs-cobalt:#648bd2;--vs-alert-coral:#ed8e85;
+  --vs-shadow-deep:0 18px 42px #030c0875;
+  color-scheme:dark;
+}
+.ax-modern-shell .main-panel{background:radial-gradient(ellipse at 78% 0%,#36544755 0%,transparent 30%),radial-gradient(ellipse at 8% 46%,#3b2f2b44 0%,transparent 35%),linear-gradient(145deg,#101b17 0%,#17251f 48%,#101a17 100%)!important}
+.ax-modern-shell .sidebar{background:radial-gradient(ellipse at 55% 0%,#46644a44 0%,transparent 34%),linear-gradient(180deg,#101a16 0%,#16231d 60%,#101a16 100%)!important;border-right:1px solid #425c4b!important}
+.ax-modern-shell .topbar{background:#111e19ed!important;border-bottom-color:#3d5948!important;box-shadow:0 9px 32px #020a0775!important}
+.ax-modern-shell .breadcrumb{color:#a2b8a8!important}
+.ax-modern-shell .breadcrumb strong{color:#f3f0e5!important}
+.ax-modern-shell .content{color:#e4e9dd}
+.ax-modern-shell h1,.ax-modern-shell h2,.ax-modern-shell h3,.ax-modern-shell .section-heading h2,.ax-modern-shell .panel-heading h2,.ax-modern-shell .institutional-copy h2,.ax-modern-shell .ax-analytics-heading h2{color:#f3f0e5!important}
+.ax-modern-shell .subtitle,.ax-modern-shell .section-heading p,.ax-modern-shell .panel-heading p{color:#a8b8aa!important}
+.ax-modern-shell .eyebrow,.ax-modern-shell .section-kicker{color:#c49370!important}
+.ax-modern-shell .primary-button,.ax-modern-shell .ax-action-primary{border-color:#c3ddc8!important;background:linear-gradient(110deg,#f3f0e5,#a9d3b7 70%,#c6b49a)!important;color:#1b2e24!important;box-shadow:0 7px 18px #7eb69524!important}
+.ax-modern-shell .secondary-button,.ax-modern-shell .ax-action-ghost{border-color:#57745f!important;background:#20342a!important;color:#e5ecdf!important}
+.ax-modern-shell .institutional-banner{border-color:#55755f!important;background:radial-gradient(ellipse at 76% 20%,#79b89b33 0%,transparent 38%),radial-gradient(ellipse at 12% 110%,#c4937026 0%,transparent 48%),linear-gradient(118deg,#14231c 0%,#1d382a 48%,#3a3930 100%)!important}
+.ax-modern-shell .module-card.enterprise-module-card{border-color:#3f5b49!important;background:linear-gradient(145deg,#1a2b22,#14211b)!important;box-shadow:0 12px 30px #030b0870,inset 0 1px #ffffff0b!important}
+.ax-modern-shell .module-card.enterprise-module-card:hover{border-color:#8fba9b!important;box-shadow:0 20px 38px #020b168d,0 0 24px #79b89b1a!important}
+.ax-modern-shell .ax-module-hero{border-color:#496953!important;background:radial-gradient(ellipse at 75% 20%,#79b89b30 0%,transparent 40%),linear-gradient(120deg,#17251e,#263b2c 58%,#3a342d)!important}
+.ax-modern-shell .ax-module-kpi,.ax-modern-shell .ax-intelligence-panel{border-color:#3f5b49!important;background:linear-gradient(145deg,#1c2d23,#15221c)!important}
+.ax-modern-shell .ax-status-chip.open{border-color:#719b7a!important;background:#24402f!important;color:#b9e1c1!important}
+.ax-modern-shell .ax-status-chip.closed{border-color:#6e6657!important;background:#38362d!important;color:#d9c7a6!important}
+.ax-modern-shell .ax-record-value,.ax-modern-shell .ax-module-kpi strong{color:#dcebdc!important}
+.ax-modern-shell input:focus,.ax-modern-shell select:focus,.ax-modern-shell textarea:focus{border-color:#86b99a!important;box-shadow:0 0 0 3px #79b89b20!important}
+.ax-modern-shell button:focus-visible,.ax-modern-shell a:focus-visible{outline:2px solid #c49370!important;outline-offset:3px}
+.ax-modern-shell .live-dot{background:#79b89b!important;box-shadow:0 0 0 4px #79b89b22!important}
+.ax-modern-shell .nav-list button.active{border-color:#7fa68a!important;background:linear-gradient(110deg,#304b38,#24382d)!important;color:#f1f0e4!important}
+.ax-modern-shell .nav-list button:hover{background:#263a2d!important;color:#e8eee2!important}
+.ax-modern-shell.ax-theme-light{color-scheme:light}
+.ax-modern-shell.ax-theme-light .main-panel{background:radial-gradient(ellipse at 82% 0%,#b8d5c644 0%,transparent 30%),radial-gradient(ellipse at 7% 42%,#d9c4ad33 0%,transparent 35%),linear-gradient(145deg,#f3f0e5 0%,#ebece3 48%,#f7f4ea 100%)!important}
+.ax-modern-shell.ax-theme-light .sidebar{background:linear-gradient(180deg,#f5f1e7,#e7ece3)!important;border-right:1px solid #ccd8cb!important}
+.ax-modern-shell.ax-theme-light .topbar{background:#f5f1e7eF!important;border-bottom-color:#d2dbd0!important}
+.ax-modern-shell.ax-theme-light .breadcrumb,.ax-modern-shell.ax-theme-light .subtitle{color:#6b7d70!important}
+.ax-modern-shell.ax-theme-light .breadcrumb strong,.ax-modern-shell.ax-theme-light h1,.ax-modern-shell.ax-theme-light h2,.ax-modern-shell.ax-theme-light h3{color:#20362c!important}
+.ax-modern-shell.ax-theme-light .module-card.enterprise-module-card,.ax-modern-shell.ax-theme-light .ax-module-kpi,.ax-modern-shell.ax-theme-light .ax-intelligence-panel{border-color:#d0d9cc!important;background:linear-gradient(145deg,#fffdf6,#e8ede3)!important;box-shadow:0 10px 26px #1a302515!important}
+.ax-modern-shell.ax-theme-light .nav-list button{color:#4d6858!important}
+.ax-modern-shell.ax-theme-light .nav-list button.active{background:linear-gradient(110deg,#dce9dd,#e8dfd2)!important;color:#20392b!important;border-color:#b7cdbb!important}
+.ax-modern-shell.ax-theme-light .secondary-button,.ax-modern-shell.ax-theme-light .ax-action-ghost{background:#e8ede3!important;border-color:#c5d4c5!important;color:#314d3d!important}
