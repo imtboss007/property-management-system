@@ -12,12 +12,12 @@ type CommandResult={id:string;title:string;detail:string;value:string;kind:"reco
 type FollowDraft={contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;promisedTime:string;responseType:string;notes:string;status:string};
 type SavedCanvas={id:string;label:string;search:string;moduleFilters?:string[];moduleFilter?:string;recordIds:string[];contactIds:string[];pinnedIds:string[];createdAt:string};
 type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;readOnly?:boolean;
- moduleNames:string[];workspaceScope:string;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;onOpenTasks:()=>void;
+ moduleNames:string[];workspaceScope:string;workspacePreferences:Record<string,unknown>;onSaveWorkspacePreference:(key:string,value:unknown)=>void;onOpenModule:(name:string)=>void;onOpenContacts:()=>void;onOpenTasks:()=>void;
  onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenFinancials:()=>void;onCreateFollowUp:(draft:FollowDraft)=>void;};
 const LOANS=new Set(["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"]);
 const safeIds=(value:unknown)=>Array.isArray(value)?value.filter((item):item is string=>typeof item==="string"):[];
 export default function VestraIntentCanvas(props:Props){
- const {properties,contacts,tasks,financials,today,readOnly,moduleNames,workspaceScope,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenFinancials,onCreateFollowUp}=props;
+ const {properties,contacts,tasks,financials,today,readOnly,moduleNames,workspaceScope,onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenFinancials,onCreateFollowUp,workspacePreferences,onSaveWorkspacePreference}=props;
  const storageKey="axivestra.vestraShift.canvas."+workspaceScope;
  const [search,setSearch]=useState("");
  const [moduleFilters,setModuleFilters]=useState<string[]>([]);
@@ -36,9 +36,26 @@ export default function VestraIntentCanvas(props:Props){
  const [savedCanvases,setSavedCanvases]=useState<SavedCanvas[]>(()=>{
   try{const value=JSON.parse(window.localStorage.getItem(storageKey)||"[]");return Array.isArray(value)?value:[];}catch{return [];}
  });
- useEffect(()=>{try{window.localStorage.setItem(storageKey,JSON.stringify(savedCanvases));}catch{/* local canvas preferences are optional */}},[storageKey,savedCanvases]);
- useEffect(()=>{try{window.localStorage.setItem(commandStorageKey,JSON.stringify(savedCommands));}catch{/* optional saved command preference */}},[commandStorageKey,savedCommands]);
- useEffect(()=>{try{window.localStorage.setItem(recentStorageKey,JSON.stringify(recentIds));}catch{/* optional recent record preference */}},[recentStorageKey,recentIds]);
+ useEffect(()=>{
+  try{window.localStorage.setItem(storageKey,JSON.stringify(savedCanvases));}catch{/* local canvas preferences are optional */}
+  onSaveWorkspacePreference("vestraShift.canvas",savedCanvases);
+ },[storageKey,savedCanvases,onSaveWorkspacePreference]);
+ useEffect(()=>{
+  try{window.localStorage.setItem(commandStorageKey,JSON.stringify(savedCommands));}catch{/* optional saved command preference */}
+  onSaveWorkspacePreference("vestraShift.commands",savedCommands);
+ },[commandStorageKey,savedCommands,onSaveWorkspacePreference]);
+ useEffect(()=>{
+  try{window.localStorage.setItem(recentStorageKey,JSON.stringify(recentIds));}catch{/* optional recent record preference */}
+  onSaveWorkspacePreference("vestraShift.recent",recentIds);
+ },[recentStorageKey,recentIds,onSaveWorkspacePreference]);
+ useEffect(()=>{
+  const canvases=workspacePreferences["vestraShift.canvas"];
+  const commands=workspacePreferences["vestraShift.commands"];
+  const recent=workspacePreferences["vestraShift.recent"];
+  if(Array.isArray(canvases))setSavedCanvases(canvases as SavedCanvas[]);
+  if(Array.isArray(commands))setSavedCommands(commands.filter((item):item is string=>typeof item==="string"));
+  if(Array.isArray(recent))setRecentIds(recent.filter((item):item is string=>typeof item==="string"));
+ },[workspacePreferences["vestraShift.canvas"],workspacePreferences["vestraShift.commands"],workspacePreferences["vestraShift.recent"]]);
  useEffect(()=>{const onShortcut=(event:KeyboardEvent)=>{if((event.ctrlKey||event.metaKey)&&event.shiftKey&&event.key.toLowerCase()==="k"){event.preventDefault();commandInputRef.current?.focus();}};window.addEventListener("keydown",onShortcut);return()=>window.removeEventListener("keydown",onShortcut);},[]);
  const query=search.trim().toLocaleLowerCase();
  const recordMatches=useMemo(()=>properties.filter(record=>{
