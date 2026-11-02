@@ -218,7 +218,7 @@ assert.ok(styles.includes(".ax-followup-register__board{display:grid;grid-templa
   "Each person's follow-up group must occupy its own full-width row.");
 assert.ok(styles.includes(".ax-followup-register__grid-wrap{width:100%;overflow-x:auto"),
   "Each person's editable follow-up fields must appear in a single horizontally structured grid.");
-assert.ok(styles.includes(".ax-followup-register__grid{width:100%;min-width:1190px"),
+assert.ok(styles.includes(".ax-followup-register__grid{width:100%;min-width:1320px"),
   "Module, Description, Date, Time, Final Amount and Status must remain distinct table columns.");
 for (const heading of ["Module","Description","Date","Time","Final Amount (INR)","Status"])
   assert.ok(register.includes(">"+heading+"</th>"), "Missing directly editable follow-up column: " + heading);
