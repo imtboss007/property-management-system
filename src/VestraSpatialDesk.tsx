@@ -10,7 +10,7 @@ type PanelId="portfolio"|"followups"|"finance"|"schedule"|"transactions"|"people
 type PanelState={minimized?:boolean;expanded?:boolean};
 type PanelPosition={x:number;y:number};
 type PanelSize={width:number;height:number};
-type PanelGesture={id:PanelId;pointerId:number;mode:"move"|"resize";startX:number;startY:number;originX:number;originY:number;originWidth:number;originHeight:number};
+type PanelGesture={id:PanelId;pointerId:number;mode:"move"|"resize";startX:number;startY:number;originX:number;originY:number;originWidth:number;originHeight:number;currentX:number;currentY:number;currentWidth:number;currentHeight:number};
 type SavedLayout={id:string;label:string;preset:string;order:PanelId[];states:Record<string,PanelState>;layoutMode:"grid"|"freeform";positions:Record<string,PanelPosition>;sizes?:Record<string,PanelSize>};
 type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;workspaceScope:string;workspacePreferences:Record<string,unknown>;workspacePreferencesReady:boolean;onSaveWorkspacePreference:(key:string,value:unknown)=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenModule:(name:string)=>void};
 const PANEL_IDS:PanelId[]=["portfolio","followups","finance","schedule","transactions","people"];
@@ -34,13 +34,15 @@ export default function VestraSpatialDesk({properties,contacts,tasks,financials,
  const [layoutMode,setLayoutMode]=useState<"grid"|"freeform">("grid");
  const [positions,setPositions]=useState<Record<string,PanelPosition>>({});
  const [sizes,setSizes]=useState<Record<string,PanelSize>>({});
+ const [activeGesture,setActiveGesture]=useState<PanelId|null>(null);
  const canvasRef=useRef<HTMLDivElement>(null);
  const pointerGesture=useRef<PanelGesture|null>(null);
  const [selectedMonth,setSelectedMonth]=useState("");
  const beginGesture=(mode:"move"|"resize",id:PanelId,event:PointerEvent<HTMLElement>,position:PanelPosition,size:PanelSize)=>{
   if(layoutMode!=="freeform")return;
   event.preventDefault();event.stopPropagation();
-  pointerGesture.current={id,pointerId:event.pointerId,mode,startX:event.clientX,startY:event.clientY,originX:position.x,originY:position.y,originWidth:size.width,originHeight:size.height};
+  pointerGesture.current={id,pointerId:event.pointerId,mode,startX:event.clientX,startY:event.clientY,originX:position.x,originY:position.y,originWidth:size.width,originHeight:size.height,currentX:position.x,currentY:position.y,currentWidth:size.width,currentHeight:size.height};
+  setActiveGesture(id);
   event.currentTarget.setPointerCapture(event.pointerId);
  };
  const moveGesture=(id:PanelId,event:PointerEvent<HTMLElement>)=>{
@@ -48,17 +50,28 @@ export default function VestraSpatialDesk({properties,contacts,tasks,financials,
   if(!gesture||gesture.id!==id||gesture.pointerId!==event.pointerId)return;
   const rect=canvasRef.current?.getBoundingClientRect();if(!rect)return;
   const dx=event.clientX-gesture.startX,dy=event.clientY-gesture.startY;
+  const panel=event.currentTarget.closest<HTMLElement>(".vs-desk-panel");
   if(gesture.mode==="move"){
-   setPositions(current=>({...current,[id]:{x:Math.max(0,Math.min(Math.max(0,rect.width-220),gesture.originX+dx)),y:Math.max(0,Math.min(2400,gesture.originY+dy))}}));
+   gesture.currentX=Math.max(0,Math.min(Math.max(0,rect.width-220),gesture.originX+dx));
+   gesture.currentY=Math.max(0,Math.min(2400,gesture.originY+dy));
+   if(panel){panel.style.left=gesture.currentX+"px";panel.style.top=gesture.currentY+"px";}
   }else{
    const maxWidth=Math.max(260,Math.min(1200,rect.width-gesture.originX-12));
-   setSizes(current=>({...current,[id]:{width:Math.max(260,Math.min(maxWidth,gesture.originWidth+dx)),height:Math.max(220,Math.min(1000,gesture.originHeight+dy))}}));
+   gesture.currentWidth=Math.max(260,Math.min(maxWidth,gesture.originWidth+dx));
+   gesture.currentHeight=Math.max(220,Math.min(1000,gesture.originHeight+dy));
+   if(panel){panel.style.width=gesture.currentWidth+"px";panel.style.height=gesture.currentHeight+"px";}
   }
  };
  const endGesture=(id:PanelId,event:PointerEvent<HTMLElement>)=>{
   const gesture=pointerGesture.current;
   if(!gesture||gesture.id!==id||gesture.pointerId!==event.pointerId)return;
   pointerGesture.current=null;
+  if(gesture.mode==="move"){
+   setPositions(current=>({...current,[id]:{x:gesture.currentX,y:gesture.currentY}}));
+  }else{
+   setSizes(current=>({...current,[id]:{width:gesture.currentWidth,height:gesture.currentHeight}}));
+  }
+  setActiveGesture(current=>current===id?null:current);
   if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
  };
  const resizeWithKeyboard=(id:PanelId,event:KeyboardEvent<HTMLButtonElement>)=>{
@@ -116,7 +129,7 @@ export default function VestraSpatialDesk({properties,contacts,tasks,financials,
  return <section className="vs-spatial-desk">
   <header className="vs-desk-heading"><div><span className="vs-eyebrow"><LayoutGrid size={13}/> SPATIAL WORKSPACE · LIVE SAVED DATA</span><h3>Arrange your operational surfaces.</h3><p>Reorder in Snap grid. Switch to Freeform to drag and resize panels; your panel dimensions are saved with the layout.</p></div><div className="vs-desk-actions"><select aria-label="Workspace layout" value={preset} onChange={event=>setPreset(event.target.value)}>{Object.keys(PRESETS).map(name=><option key={name}>{name}</option>)}</select><select aria-label="Panel arrangement mode" value={layoutMode} onChange={event=>setLayoutMode(event.target.value as "grid"|"freeform")}><option value="grid">Snap grid</option><option value="freeform">Freeform canvas</option></select><button type="button" onClick={saveLayout}>Save layout</button></div></header>
   {!!savedLayouts.length&&<div className="vs-desk-saved"><span>RECENT LAYOUT SAVES</span>{savedLayouts.map(item=><button type="button" key={item.id} onClick={()=>{setPreset(item.preset);setOrder([...item.order]);setStates({...item.states});setLayoutMode(item.layoutMode||"grid");setPositions({...item.positions});setSizes(normalizeSizes(item.sizes));}}>{item.label} · Restore</button>)}</div>}
-  <div ref={canvasRef} className={"vs-desk-grid "+(layoutMode==="freeform"?"freeform":"")}>{visibleOrder.map((id,index)=>{const state=states[id]||{};const narrowViewport=typeof window!=="undefined"&&window.innerWidth<760;const defaultPosition={x:narrowViewport?0:(index%2)*600,y:narrowViewport?index*350:Math.floor(index/2)*350};const position=positions[id]||defaultPosition;const panelSize=sizes[id]||{width:520,height:320};return <article key={id} draggable={layoutMode==="grid"} style={layoutMode==="freeform"?{left:position.x,top:position.y,...(!state.expanded?{width:panelSize.width,height:panelSize.height}:{})}:undefined} onDragStart={()=>{if(layoutMode==="grid")setDragged(id);}} onDragOver={event=>event.preventDefault()} onDrop={()=>movePanel(id)} onDragEnd={()=>setDragged(null)} className={"vs-desk-panel "+(state.expanded?"expanded ":"")+(state.minimized?"minimized":"")}><header onPointerDown={event=>{if(layoutMode!=="freeform"||(event.target as HTMLElement).closest("button"))return;beginGesture("move",id,event,position,panelSize);}} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)}><span className="vs-desk-grip" title="Drag to reposition"><Grip size={14}/></span><div><small>VESTRA / {String(index+1).padStart(2,"0")}</small><strong>{panelNames[id]}</strong></div><div className="vs-desk-panel-actions"><button type="button" title={state.expanded?"Restore panel":"Expand panel"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],expanded:!current[id]?.expanded}}))}>{state.expanded?<Minimize2 size={13}/>:<Maximize2 size={13}/>}</button><button type="button" title={state.minimized?"Restore":"Minimize"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],minimized:!current[id]?.minimized}}))}>{state.minimized?<ChevronDown size={13}/>:<ChevronUp size={13}/>}</button></div></header>{!state.minimized&&<div className="vs-desk-panel-content">{renderPanel(id)}</div>}{layoutMode==="freeform"&&!state.minimized&&<button type="button" className="vs-desk-resize" title="Drag to resize · Arrow keys also work" aria-label={"Resize "+panelNames[id]+"; use arrow keys to change width and height"} onPointerDown={event=>beginGesture("resize",id,event,position,panelSize)} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)} onKeyDown={event=>resizeWithKeyboard(id,event)}><Maximize2 size={11}/></button>}</article>;})}</div>
+  <div ref={canvasRef} className={"vs-desk-grid "+(layoutMode==="freeform"?"freeform":"")}>{visibleOrder.map((id,index)=>{const state=states[id]||{};const narrowViewport=typeof window!=="undefined"&&window.innerWidth<760;const defaultPosition={x:narrowViewport?0:(index%2)*600,y:narrowViewport?index*350:Math.floor(index/2)*350};const position=positions[id]||defaultPosition;const panelSize=sizes[id]||{width:520,height:320};return <article key={id} draggable={layoutMode==="grid"} style={layoutMode==="freeform"?{left:position.x,top:position.y,...(!state.expanded?{width:panelSize.width,height:panelSize.height}:{})}:undefined} onDragStart={()=>{if(layoutMode==="grid")setDragged(id);}} onDragOver={event=>event.preventDefault()} onDrop={()=>movePanel(id)} onDragEnd={()=>setDragged(null)} className={"vs-desk-panel "+(state.expanded?"expanded ":"")+(state.minimized?"minimized ":"")+(activeGesture===id?"is-gesturing":"")}><header onPointerDown={event=>{if(layoutMode!=="freeform"||(event.target as HTMLElement).closest("button"))return;beginGesture("move",id,event,position,panelSize);}} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)}><span className="vs-desk-grip" title="Drag to reposition"><Grip size={14}/></span><div><small>VESTRA / {String(index+1).padStart(2,"0")}</small><strong>{panelNames[id]}</strong></div><div className="vs-desk-panel-actions"><button type="button" title={state.expanded?"Restore panel":"Expand panel"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],expanded:!current[id]?.expanded}}))}>{state.expanded?<Minimize2 size={13}/>:<Maximize2 size={13}/>}</button><button type="button" title={state.minimized?"Restore":"Minimize"} onClick={()=>setStates(current=>({...current,[id]:{...current[id],minimized:!current[id]?.minimized}}))}>{state.minimized?<ChevronDown size={13}/>:<ChevronUp size={13}/>}</button></div></header>{!state.minimized&&<div className="vs-desk-panel-content">{renderPanel(id)}</div>}{layoutMode==="freeform"&&!state.minimized&&<button type="button" className="vs-desk-resize" title="Drag to resize · Arrow keys also work" aria-label={"Resize "+panelNames[id]+"; use arrow keys to change width and height"} onPointerDown={event=>beginGesture("resize",id,event,position,panelSize)} onPointerMove={event=>moveGesture(id,event)} onPointerUp={event=>endGesture(id,event)} onPointerCancel={event=>endGesture(id,event)} onKeyDown={event=>resizeWithKeyboard(id,event)}><Maximize2 size={11}/></button>}</article>;})}</div>
   <small className="vs-desk-disclaimer"><Activity size={12}/> Panel arrangement is a saved workspace preference. It does not modify business records, calculations or permissions.</small>
  </section>;
 }
