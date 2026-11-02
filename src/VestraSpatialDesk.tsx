@@ -10,13 +10,13 @@ type PanelId="portfolio"|"followups"|"finance"|"schedule"|"transactions"|"people
 type PanelState={minimized?:boolean;expanded?:boolean};
 type PanelPosition={x:number;y:number};
 type SavedLayout={id:string;label:string;preset:string;order:PanelId[];states:Record<string,PanelState>;layoutMode:"grid"|"freeform";positions:Record<string,PanelPosition>};
-type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;workspaceScope:string;workspacePreferences:Record<string,unknown>;onSaveWorkspacePreference:(key:string,value:unknown)=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenModule:(name:string)=>void};
+type Props={properties:RecordRow[];contacts:ContactRow[];tasks:TaskRow[];financials:FinancialRow[];today:string;workspaceScope:string;workspacePreferences:Record<string,unknown>;workspacePreferencesReady:boolean;onSaveWorkspacePreference:(key:string,value:unknown)=>void;onOpenRecord:(id:string)=>void;onOpenContact:(id:string)=>void;onOpenTask:(id:string)=>void;onOpenTransaction:(id:string)=>void;onOpenModule:(name:string)=>void};
 const PANEL_IDS:PanelId[]=["portfolio","followups","finance","schedule","transactions","people"];
 const PRESETS:Record<string,PanelId[]>={Overview:PANEL_IDS,Collections:["finance","followups","transactions","people","portfolio","schedule"],Operations:["schedule","followups","portfolio","people","transactions","finance"],People:["people","followups","portfolio","schedule","finance","transactions"]};
 const CLOSED=new Set(["completed","closed","settled","rejected","cancelled","reached back"]);
 const isOpen=(status:string)=>!CLOSED.has(String(status||"").trim().toLowerCase());
 const panelNames:Record<PanelId,string>={portfolio:"Portfolio pulse",followups:"Follow-up control",finance:"Interest intelligence",schedule:"Operational schedule",transactions:"Financial activity",people:"People network"};
-export default function VestraSpatialDesk({properties,contacts,tasks,financials,today,workspaceScope,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenModule,workspacePreferences,onSaveWorkspacePreference}:Props){
+export default function VestraSpatialDesk({properties,contacts,tasks,financials,today,workspaceScope,onOpenRecord,onOpenContact,onOpenTask,onOpenTransaction,onOpenModule,workspacePreferences,workspacePreferencesReady,onSaveWorkspacePreference}:Props){
  const storageKey="axivestra.vestraSpatialDesk."+workspaceScope;
  const [preset,setPreset]=useState("Overview"),[order,setOrder]=useState<PanelId[]>(PANEL_IDS),[states,setStates]=useState<Record<string,PanelState>>({}),[dragged,setDragged]=useState<PanelId|null>(null),[savedLayouts,setSavedLayouts]=useState<SavedLayout[]>([]);
  const [layoutMode,setLayoutMode]=useState<"grid"|"freeform">("grid");
@@ -24,15 +24,13 @@ export default function VestraSpatialDesk({properties,contacts,tasks,financials,
  const canvasRef=useRef<HTMLDivElement>(null);
  const pointerDrag=useRef<{id:PanelId;pointerId:number;startX:number;startY:number;originX:number;originY:number}|null>(null);
  const [selectedMonth,setSelectedMonth]=useState("");
+ const hydratedPreferenceRef=useRef(false);
  useEffect(()=>{try{const saved=JSON.parse(localStorage.getItem(storageKey)||"{}");if(saved&&typeof saved==="object"){if(PRESETS[String(saved.preset)])setPreset(String(saved.preset));if(Array.isArray(saved.order))setOrder(saved.order.filter((id:unknown):id is PanelId=>PANEL_IDS.includes(id as PanelId)));if(saved.states&&typeof saved.states==="object")setStates(saved.states);if(saved.layoutMode==="freeform"||saved.layoutMode==="grid")setLayoutMode(saved.layoutMode);if(saved.positions&&typeof saved.positions==="object")setPositions(saved.positions);if(Array.isArray(saved.savedLayouts))setSavedLayouts(saved.savedLayouts.filter((v:unknown):v is SavedLayout=>Boolean(v&&typeof v==="object"&&typeof (v as SavedLayout).label==="string"&&Array.isArray((v as SavedLayout).order))));}}catch{/* optional preferences */}},[storageKey]);
  useEffect(()=>{
-  const saved={preset,order,states,savedLayouts,layoutMode,positions};
-  try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{/* preferences never affect business data */}
-  onSaveWorkspacePreference("vestraSpatialDesk",saved);
- },[storageKey,preset,order,states,savedLayouts,layoutMode,positions,onSaveWorkspacePreference]);
- useEffect(()=>{
+  if(!workspacePreferencesReady)return;
   const saved=workspacePreferences["vestraSpatialDesk"];
   if(!saved||typeof saved!=="object"||Array.isArray(saved))return;
+  hydratedPreferenceRef.current=true;
   const value=saved as Partial<SavedLayout>&{states?:Record<string,PanelState>;savedLayouts?:SavedLayout[]};
   if(PRESETS[String(value.preset)])setPreset(String(value.preset));
   if(Array.isArray(value.order))setOrder(value.order.filter((id):id is PanelId=>PANEL_IDS.includes(id as PanelId)));
@@ -40,7 +38,15 @@ export default function VestraSpatialDesk({properties,contacts,tasks,financials,
   if(value.layoutMode==="freeform"||value.layoutMode==="grid")setLayoutMode(value.layoutMode);
   if(value.positions&&typeof value.positions==="object")setPositions(value.positions);
   if(Array.isArray(value.savedLayouts))setSavedLayouts(value.savedLayouts);
- },[workspacePreferences["vestraSpatialDesk"]]);
+ },[workspacePreferencesReady,workspacePreferences["vestraSpatialDesk"]]);
+ useEffect(()=>{
+  const saved={preset,order,states,savedLayouts,layoutMode,positions};
+  try{localStorage.setItem(storageKey,JSON.stringify(saved));}catch{/* preferences never affect business data */}
+  if(workspacePreferencesReady){
+   if(hydratedPreferenceRef.current){hydratedPreferenceRef.current=false;return;}
+   onSaveWorkspacePreference("vestraSpatialDesk",saved);
+  }
+ },[storageKey,preset,order,states,savedLayouts,layoutMode,positions,workspacePreferencesReady,onSaveWorkspacePreference]);
  const activeFollowUps=useMemo(()=>contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>isOpen(item.status)).map(item=>({contact,item,record:properties.find(record=>record.id===item.linkedRecordId)}))),[contacts,properties]);
  const overdue=activeFollowUps.filter(row=>row.item.promisedDate&&row.item.promisedDate<today),dueToday=activeFollowUps.filter(row=>row.item.promisedDate===today);
  const loanRecords=properties.filter(record=>["Property Loans","Unsecured Company Loan","Personal Loan","Housing Loan"].includes(record.module)||record.moduleData?.__transactionType==="Loan");
