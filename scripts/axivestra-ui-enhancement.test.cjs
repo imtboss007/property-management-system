@@ -217,3 +217,13 @@ assert.ok(vestra.includes('onClick={()=>onOpenModule(name)}'), "A favourite modu
 for (const token of [".vs-personalization-favourites", ".vs-personalization-favourite-grid", ".vs-favourite-module-rail", "@media(max-width:720px)"]) {
   assert.ok(styles.includes(token), "Missing responsive favourite-module personalization: " + token);
 }
+
+assert.ok(vestra.includes('className="vs-quick-actions-launch"'), "VESTRA must expose a contextual quick-action menu.");
+assert.ok(vestra.includes('aria-controls="vs-quick-actions-menu"'), "Quick actions must be linked accessibly to their menu.");
+for (const token of ['onOpenTasks();','onOpenModule("Follow-up Register")','onOpenModule("All Properties")','onOpenFinancials();','onOpenContacts();','onOpenModule("Documents")','onOpenModule("Risk & Compliance")']) {
+  assert.ok(vestra.includes(token), "Quick action must route to its actual workspace: " + token);
+}
+assert.ok(vestra.includes("quickActionsOpen||alertsOpen"), "Escape must close active VESTRA quick menus and alert centre.");
+for (const token of [".vs-quick-actions-menu", ".vs-quick-actions-grid", "@media(max-width:760px)"]) {
+  assert.ok(styles.includes(token), "Missing responsive quick-action menu styling: " + token);
+}
