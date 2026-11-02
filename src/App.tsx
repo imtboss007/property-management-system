@@ -27,7 +27,7 @@ import type { CustomModuleDefinition, CustomModuleField } from "./lib/custom-mod
 import WorkspaceCommandCenter, { type SearchKind } from "./WorkspaceCommandCenter";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
-import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
+import { canonicalContactPhone, deduplicateMasterContacts, mergeMasterContactsById, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import { dealTransactionTypes, loanDirections, loanInterestMethods, loanRepaymentMethods, sharingModels, settlementModels, calculateMonthlyInterest, calculateGiftAmount, calculateSettlementBalance, calculateSaleBalance, resolveSharingPreset, formatINR, parseDealNumber, getLoanPrincipalValue, getTransactionAmount, updateLoanPrincipalFields, updateTransactionAmountFields } from "./lib/deal-structure";
 import { axivestraModuleFields, axivestraRepeatableGroups, RepeatableModuleEditor, buildModuleSummary } from "./lib/axivestra-module-upgrades";
 import {
@@ -2410,6 +2410,56 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     }));
     remoteDelete("property_records", id);
   };
+  const mergeContactsWithAuthorization = (keepId:string, removeId:string) => {
+    if(company?.role==="read_only"){setNotice("Read-only company access cannot merge contacts.");return;}
+    const keep=contactsRef.current.find(item=>item.id===keepId);
+    const remove=contactsRef.current.find(item=>item.id===removeId);
+    if(!keep||!remove){setNotice("Both contact records must still exist before merging.");return;}
+    const confirmed=window.confirm(
+      "MERGE CONTACT RECORDS\n\nKeep: "+keep.name+"\nMerge into it: "+remove.name+
+      "\n\nThis will combine contact details and follow-up history, then remap linked module records, tasks, transactions, risks, approvals and documents to the kept contact. The removed contact ID will be soft-deleted.\n\nContinue?"
+    );
+    if(!confirmed)return;
+    try{
+      const result=mergeMasterContactsById(contactsRef.current,keepId,removeId);
+      const remap=result.remap;
+      const mapped=remapWorkspaceContactReferences({properties,tasks,financials,riskRecords,approvalRequests},remap);
+      contactIdRemapRef.current={...contactIdRemapRef.current,...remap};
+      contactsRef.current=result.contacts as ContactRecord[];
+      setContacts(result.contacts as ContactRecord[]);
+      setProperties(mapped.properties as PropertyRecord[]);
+      setTasks(mapped.tasks as TaskRecord[]);
+      setFinancials(mapped.financials as FinancialRecord[]);
+      setRiskRecords(mapped.riskRecords as RiskRecord[]);
+      setApprovalRequests(mapped.approvalRequests as ApprovalRequest[]);
+      setDocuments(current=>current.map(document=>({...document,contactId:document.contactId?(remap[document.contactId]||document.contactId):document.contactId})));
+      setEditingProperty(current=>current?({
+        ...current,
+        primaryContactId:current.primaryContactId?(remap[current.primaryContactId]||current.primaryContactId):current.primaryContactId,
+        followUpContactId:current.followUpContactId?(remap[current.followUpContactId]||current.followUpContactId):current.followUpContactId,
+        moduleData:remapWorkspaceContactReferences({properties:[current]},remap).properties[0].moduleData as Record<string,string>
+      }):current);
+      setEditingContact(current=>current?.id===removeId?(result.contacts.find(item=>item.id===keepId) as ContactRecord||current):current);
+      setEditingTask(current=>current?.contactId?({...current,contactId:remap[current.contactId]||current.contactId}):current);
+      setEditingFinancial(current=>current?.contactId?({...current,contactId:remap[current.contactId]||current.contactId}):current);
+      setDocumentContact(current=>remap[current]||current);
+      setTaskPrefill(current=>current?.contactId?({...current,contactId:remap[current.contactId]||current.contactId}):current);
+      setWhatsAppPrefill(current=>current?.contactId?({...current,contactId:remap[current.contactId]||current.contactId}):current);
+      setContactProfileId(current=>current===removeId?keepId:current);
+      void localDb.documents.toArray().then(async stored=>{
+        const updates=stored.filter(document=>document.contactId&&remap[document.contactId]).map(document=>({...document,contactId:remap[document.contactId!]}));
+        if(updates.length)await localDb.documents.bulkPut(updates);
+      }).catch(error=>setNotice("Contacts merged; document-vault links need a local retry: "+(error instanceof Error?error.message:String(error))));
+      if(company&&userId){
+        void softDeleteCompanyRecords(company,userId,[{recordType:"contact",recordKey:removeId}]).catch(error=>{
+          setNotice("Contacts merged locally; cloud duplicate cleanup needs attention: "+(error instanceof Error?error.message:String(error)));
+        });
+      }
+      setNotice("Merged "+remove.name+" into "+keep.name+". Follow-up history and linked AXIVESTRA records were remapped to the kept contact.");
+    }catch(error){
+      setNotice("Contact merge was not completed: "+(error instanceof Error?error.message:String(error)));
+    }
+  };
   const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); setProperties(prev=>prev.map(record=>record.followUpContactId===id?{...record,followUpContactId:""}:record)); remoteDelete("contacts", id); };
   const deleteTask = (id: string) => { setTasks(prev => prev.filter(t => t.id !== id)); remoteDelete("tasks", id); };
   const saveFinancial = (data: Omit<FinancialRecord, "id">) => {
@@ -2586,7 +2636,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active === "Intelligence Hub" ? "VESTRA SHIFT" : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             {active !== "Follow-up Register" && <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Contact 360" ? (contactProfileId ? openPropertyForm(null,{contactId:contactProfileId}) : openContactForm()) : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contact 360" ? (contactProfileId ? "Add linked record" : "New contact") : active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button>}</div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
-          {active === "Intelligence Hub" && <VestraShift key={company?.id||userId||"local"} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} riskRecords={riskRecords} approvalRequests={approvalRequests} today={today} readOnly={company?.role==="read_only"} moduleNames={modules.map(item=>item.name)} auditEvents={auditEvents} undoAvailable={undoHistory.length>0} onUndo={undoLastChange} onOpenModule={name=>go(name)} onOpenContacts={()=>go("Contacts")} onOpenTasks={()=>go("Schedule & Tasks")} onOpenTask={taskId=>{const task=tasks.find(item=>item.id===taskId);if(task){go("Schedule & Tasks");openTaskForm(task);}}} onOpenRecord={recordId=>{const record=properties.find(item=>item.id===recordId);if(record){go(record.module);openPropertyForm(record);}else go("All Properties");}} onOpenContact={contactId=>{setContactProfileId(contactId);go("Contact 360");}} onOpenTransaction={transactionId=>{const transaction=financials.find(item=>item.id===transactionId);go("Financials");if(transaction)openFinancialForm(transaction);}} onOpenFinancials={()=>go("Financials")} onCreateFollowUp={createFollowUpFromWhatsApp} theme={appTheme} onToggleTheme={()=>setAppTheme(current=>current==="dark"?"light":"dark")} workspaceScope={company?.id||userId||"local"}/> }
+          {active === "Intelligence Hub" && <VestraShift key={company?.id||userId||"local"} properties={properties} contacts={contacts} tasks={tasks} financials={financials} documents={documents} riskRecords={riskRecords} approvalRequests={approvalRequests} today={today} readOnly={company?.role==="read_only"} moduleNames={modules.map(item=>item.name)} auditEvents={auditEvents} undoAvailable={undoHistory.length>0} onUndo={undoLastChange} onOpenModule={name=>go(name)} onOpenContacts={()=>go("Contacts")} onOpenTasks={()=>go("Schedule & Tasks")} onOpenTask={taskId=>{const task=tasks.find(item=>item.id===taskId);if(task){go("Schedule & Tasks");openTaskForm(task);}}} onOpenRecord={recordId=>{const record=properties.find(item=>item.id===recordId);if(record){go(record.module);openPropertyForm(record);}else go("All Properties");}} onOpenContact={contactId=>{setContactProfileId(contactId);go("Contact 360");}} onMergeContacts={mergeContactsWithAuthorization} onOpenTransaction={transactionId=>{const transaction=financials.find(item=>item.id===transactionId);go("Financials");if(transaction)openFinancialForm(transaction);}} onOpenFinancials={()=>go("Financials")} onCreateFollowUp={createFollowUpFromWhatsApp} theme={appTheme} onToggleTheme={()=>setAppTheme(current=>current==="dark"?"light":"dark")} workspaceScope={company?.id||userId||"local"}/> }
           {active === "Activity History" && <section className="ax-history-page">
             <div className="ax-history-heading"><div><span className="section-kicker">WORKSPACE AUDIT TRAIL</span><h2>Activity history</h2><p>Recent record-level changes. Undo restores the latest saved state without clearing the workspace.</p></div><button type="button" className="secondary-button" disabled={!undoHistory.length} onClick={undoLastChange}>Undo last change{undoHistory[0] ? " · " + undoHistory[0].label : ""}</button></div>
             {undoHistory[0] && <div className="ax-undo-note"><strong>Undo available:</strong> {undoHistory[0].entity} · {undoHistory[0].label} · {new Date(undoHistory[0].at).toLocaleString("en-IN")}</div>}
