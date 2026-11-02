@@ -717,8 +717,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [active, setActive] = useState<Section>("Overview");
   const [appTheme,setAppTheme] = useState<"dark"|"light">(()=>load("estateflow.vestraTheme","dark"));
   useEffect(()=>{saveLocal("estateflow.vestraTheme",appTheme);},[appTheme]);
-  useEffect(()=>{const remoteTheme=vestraWorkspacePreferences.appTheme;if((remoteTheme==="dark"||remoteTheme==="light")&&remoteTheme!==appTheme)setAppTheme(remoteTheme);},[vestraWorkspacePreferences.appTheme]);
-  const toggleAppTheme=()=>{const next=appTheme==="dark"?"light":"dark";setAppTheme(next);saveVestraWorkspacePreference("appTheme",next);};
   const [showVestraIntro,setShowVestraIntro]=useState(()=>!load("axivestra.vestraIntroSeen",false));
   useEffect(()=>{if(!showVestraIntro)return;const timer=window.setTimeout(()=>{saveLocal("axivestra.vestraIntroSeen",true);setShowVestraIntro(false);},1600);return ()=>window.clearTimeout(timer);},[showVestraIntro]);
   const skipVestraIntro=()=>{saveLocal("axivestra.vestraIntroSeen",true);setShowVestraIntro(false);};
@@ -744,6 +742,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       return [...current.filter(item=>item.id!==id),next];
     });
   },[workspacePreferenceScope]);
+  useEffect(()=>{const remoteTheme=vestraWorkspacePreferences.appTheme;if((remoteTheme==="dark"||remoteTheme==="light")&&remoteTheme!==appTheme)setAppTheme(remoteTheme);},[vestraWorkspacePreferences.appTheme]);
+  const toggleAppTheme=()=>{const next=appTheme==="dark"?"light":"dark";setAppTheme(next);saveVestraWorkspacePreference("appTheme",next);};
   const [moduleStudioOpen, setModuleStudioOpen] = useState(false);
   const [dashboardLayout, setDashboardLayout] = useState(() => load("estateflow.dashboardLayout", { analytics: true, insightPanels: true, moduleDirectory: true, followups: true, whatsApp: true, recentActivity: true }));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
