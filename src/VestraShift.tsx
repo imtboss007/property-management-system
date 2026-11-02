@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight, X,
-  GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow
+  GitBranch, Landmark, Monitor, Moon, Network, Smartphone, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow, SlidersHorizontal
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
 import VestraFinance from "./VestraFinance";
@@ -91,6 +91,9 @@ export default function VestraShift(props:Props){
   }=props;
   const [space,setSpace]=useState<ShiftSpace>(()=>typeof window!=="undefined"&&window.innerWidth<=760?"intent":"desk");
   const [focusOpen,setFocusOpen]=useState(false);
+  const [personalizationOpen,setPersonalizationOpen]=useState(false);
+  const displayDensity=workspacePreferences.displayDensity==="compact"?"compact":"comfortable";
+  const motionMode=workspacePreferences.motionMode==="reduced"||workspacePreferences.motionMode==="expressive"?workspacePreferences.motionMode:"balanced";
   const [atelierCopilotOpen,setAtelierCopilotOpen]=useState(false);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
@@ -343,7 +346,7 @@ export default function VestraShift(props:Props){
     onOpenTasks();
   };
 
-  return <section className="vs-shift" data-theme={theme} onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
+  return <section className="vs-shift" data-theme={theme} data-density={displayDensity} data-motion={motionMode} onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
     <header className="vs-shift-hero">
       <div className="vs-shift-brand">
         <button type="button" className="vs-prism-emblem" aria-label="Drag to rotate the VESTRA prismatic core" title="Drag to rotate · click to activate" onPointerDown={event=>{const el=event.currentTarget;el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.setPointerCapture(event.pointerId);}} onPointerMove={event=>{const el=event.currentTarget;if(el.hasPointerCapture(event.pointerId)){const dx=event.clientX-Number(el.dataset.lastX||event.clientX);const dy=event.clientY-Number(el.dataset.lastY||event.clientY);const x=Number(el.dataset.rotateX||0)+dy*.65;const y=Number(el.dataset.rotateY||0)+dx*.65;el.dataset.rotateX=String(x);el.dataset.rotateY=String(y);el.dataset.lastX=String(event.clientX);el.dataset.lastY=String(event.clientY);el.style.setProperty("--vs-prism-rotate-x",x+"deg");el.style.setProperty("--vs-prism-rotate-y",y+"deg");}else{const rect=el.getBoundingClientRect();el.style.setProperty("--vs-prism-hover-x",(((event.clientY-rect.top)/rect.height)-.5)*-12+"deg");el.style.setProperty("--vs-prism-hover-y",(((event.clientX-rect.left)/rect.width)-.5)*16+"deg");}}} onPointerUp={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onClick={event=>event.currentTarget.classList.toggle("is-activated")}><i/><i/><i/><i/><i/></button>
@@ -359,12 +362,21 @@ export default function VestraShift(props:Props){
       <div className="vs-hero-actions">
         <button type="button" className="vs-focus-launch" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
+        <button type="button" className="vs-personalization-launch" aria-expanded={personalizationOpen} aria-controls="vs-personalization-panel" onClick={()=>setPersonalizationOpen(value=>!value)}><SlidersHorizontal size={14}/> Experience</button>
         <button type="button" onClick={onOpenTasks}><CalendarClock size={14}/> Schedule</button>
         <button type="button" onClick={onUndo} disabled={!undoAvailable} title="Undo last supported workspace change">Undo</button>
         <button type="button" className="vs-hero-primary" onClick={onOpenContacts}><Users size={14}/> People</button>
       </div>
     </header>
 
+    {personalizationOpen&&<section id="vs-personalization-panel" className="vs-personalization-panel" aria-label="VESTRA visual personalisation">
+      <header><div><span className="vs-eyebrow">PERSONALISATION STUDIO</span><strong>Shape the feel of your workspace.</strong><small>These preferences follow your account between compatible devices.</small></div><button type="button" onClick={()=>setPersonalizationOpen(false)} aria-label="Close personalisation"><X size={15}/></button></header>
+      <div className="vs-personalization-controls">
+        <label>Workspace density<select aria-label="Workspace density" value={displayDensity} disabled={!workspacePreferencesReady} onChange={event=>onSaveWorkspacePreference("displayDensity",event.target.value)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
+        <label>Motion intensity<select aria-label="Motion intensity" value={motionMode} disabled={!workspacePreferencesReady} onChange={event=>onSaveWorkspacePreference("motionMode",event.target.value)}><option value="reduced">Reduced</option><option value="balanced">Balanced</option><option value="expressive">Expressive</option></select></label>
+      </div>
+      <small className="vs-personalization-note">{workspacePreferencesReady?"Saved to your workspace preferences.":"Waiting for the first device sync before changing shared preferences."}</small>
+    </section>}
     <nav className="vs-shift-tabs" aria-label="VESTRA SHIFT workspaces">
       {SPACES.map(item=><button type="button" key={item.id} className={space===item.id?"active":""} aria-pressed={space===item.id} onClick={()=>setSpace(item.id)}>{item.label}</button>)}
       <button type="button" className="vs-save-context" onClick={saveView}><Bookmark size={13}/> Save workspace</button>
