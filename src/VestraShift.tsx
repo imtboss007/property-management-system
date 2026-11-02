@@ -220,7 +220,7 @@ export default function VestraShift(props:Props){
     {space==="intent"&&<IntelligenceHub
       properties={properties} contacts={contacts} tasks={tasks} financials={financials}
       today={today} readOnly={readOnly} onOpenModule={onOpenModule} onOpenContacts={onOpenContacts}
-      onOpenTasks={onOpenTasks} onCreateFollowUp={onCreateFollowUp}
+      onOpenTasks={onOpenTasks} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenFinancials={onOpenFinancials} onCreateFollowUp={onCreateFollowUp}
     />}
 
     {space==="timeline"&&<section className="vs-space-page">
