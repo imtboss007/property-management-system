@@ -32,6 +32,7 @@ export type WorkspaceCollections = {
   approvalRequests: Array<Record<string, unknown> & { id: string }>;
   auditEvents: Array<Record<string, unknown> & { id: string }>;
   customModules: Array<Record<string, unknown> & { id: string }>;
+  workspacePreferences: Array<Record<string, unknown> & { id: string }>;
 };
 
 export const collectionKeys: Array<{
@@ -47,7 +48,8 @@ export const collectionKeys: Array<{
   { stateKey: "riskRecords", storageKey: "estateflow.risks", recordType: "risk" },
   { stateKey: "approvalRequests", storageKey: "estateflow.approvals", recordType: "approval" },
   { stateKey: "auditEvents", storageKey: "estateflow.auditEvents", recordType: "audit_event" },
-  { stateKey: "customModules", storageKey: "axivestra.customModules", recordType: "custom_module" }
+  { stateKey: "customModules", storageKey: "axivestra.customModules", recordType: "custom_module" },
+  { stateKey: "workspacePreferences", storageKey: "axivestra.workspacePreferences", recordType: "workspace_preference" }
 ];
 
 export function scopedStorageKey(companyId: string, key: string) {
@@ -295,6 +297,10 @@ export async function syncCompanyWorkspace(
     }
     if (recordType === "whatsapp_group") {
       const stamp = Date.parse(String(payload.lastSyncedAt || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
+    if (recordType === "workspace_preference") {
+      const stamp = Date.parse(String(payload.updatedAt || ""));
       if (Number.isFinite(stamp)) return stamp;
     }
     const entity = auditEntityByType[recordType];
