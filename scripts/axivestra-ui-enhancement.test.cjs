@@ -115,8 +115,8 @@ assert.ok(app.includes("workspacePreferencesReady"), "VESTRA preferences must wa
 const supabaseSync = fs.readFileSync("src/lib/supabase.ts", "utf8");
 assert.ok(supabaseSync.includes('recordType: "workspace_preference"'), "Shared company records must include the VESTRA preference collection.");
 assert.ok(supabaseSync.includes('String(payload.scope || "") !== company.id + ":" + userId'), "Company initialization must not hydrate another member's VESTRA preferences.");
-assert.ok(shift.includes("workspacePreferencesReady:boolean"), "VESTRA SHIFT must gate preference writes until its first sync finishes.");
-assert.ok(shift.includes('hydratedPreferenceKeysRef.current.delete("views")'), "Saved VESTRA views must hydrate before local defaults are written back.");
+assert.ok(vestra.includes("workspacePreferencesReady:boolean"), "VESTRA SHIFT must gate preference writes until its first sync finishes.");
+assert.ok(vestra.includes('hydratedPreferenceKeysRef.current.delete("views")'), "Saved VESTRA views must hydrate before local defaults are written back.");
 assert.ok(desk.includes("hydratedPreferenceRef.current=false"), "Atelier layouts must not overwrite a remote layout during initial hydration.");
 assert.ok(canvas.includes('hydratedPreferenceKeysRef.current.delete("canvas")'), "Motion saved canvases must hydrate before local defaults are written back.");
 assert.ok(desktopService.includes('"workspacePreferences"'), "Windows PC companion must accept the new shared preference collection.");
