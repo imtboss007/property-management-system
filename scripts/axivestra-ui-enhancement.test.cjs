@@ -146,3 +146,7 @@ assert.ok(!motionSyncBlock.includes('"Connected · up to date " + time'), "Uncha
 for (const token of ["data-ax-motion={vestraWorkspacePreferences.motionMode", "data-ax-motion=\"balanced\"", "vsModuleFacet", "vsPrismOrbit 17s linear infinite", "content-visibility:auto", "backdrop-filter:none", "translate:0 -2px 3px"]) assert.ok(app.includes(token) || styles.includes(token), "Missing adaptive motion/performance control: " + token);
 for (const token of ["onChartPointerDown", "onChartPointerMove", "onChartPointerEnd", "Drag the chart to rotate", "useMemo(()=>items.slice(0, 9)", "useId().replace", "export default memo(ThreeDHistogram)"]) assert.ok(histogram.includes(token), "Missing lightweight, direct-manipulation 3D chart feature: " + token);
 for (const token of ["vsLiquidEnter", "translate3d(0,7px,0)", "data-ax-motion=\"balanced\"", "data-ax-motion=\"expressive\"", "data-ax-motion=\"reduced\"", "prefers-reduced-motion:reduce"]) assert.ok(styles.includes(token), "Missing motion-performance mode: " + token);
+
+assert.ok(styles.includes("@keyframes vsFacetFold"), "Expressive mode must fold the original multi-facet prismatic identity in 3D.");
+assert.ok(styles.includes('.ax-modern-shell[data-ax-motion="expressive"] .vs-prism-emblem i:nth-child(5)'), "Expressive mode must stagger the five prism facets rather than animate them in lockstep.");
+assert.ok(styles.includes(".ax-3d-histogram:active{cursor:grabbing}"), "Direct chart rotation must expose a tactile drag state.");
