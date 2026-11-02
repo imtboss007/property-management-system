@@ -131,4 +131,4 @@ assert.ok(app.includes("cloudPreviousScopeRef=useRef"), "Cloud deletion tracking
 assert.ok(app.includes("cloudPreviousScopeRef.current!==activeCloudScope"), "Switching company or member must reset prior deletion IDs before sync.");
 
 assert.ok(windowsWorkflow.includes("Smoke test the packaged Windows renderer"), "Windows packaging must launch the actual packaged app and verify visible renderer content.");
-assert.ok(windowsWorkflow.includes("npx electron-builder --win dir --x64 --publish never"), "Windows renderer smoke check must run against the unpacked production package.");
+assert.ok(windowsWorkflow.includes("npx electron-builder --win --dir --x64 --publish never"), "Windows renderer smoke check must run against the unpacked production package.");
