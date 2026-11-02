@@ -4687,3 +4687,36 @@ h2,h3{color:#e5f2fc}
 @media(prefers-reduced-motion:reduce){
  .ax-modern-shell .vs-module-identity-object>i,.ax-modern-shell .vs-prism-emblem,.ax-modern-shell .vs-prism-emblem:after{animation:none!important}
 }
+
+/* VESTRA live relationship map — source-linked, keyboard-operable SVG nodes */
+.vs-relationship-view-toggle{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 12px}
+.vs-relationship-view-toggle>button{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 12px;border:1px solid var(--vs-color-line,#344b4c);border-radius:999px;background:var(--vs-color-surface,#102326);color:var(--vs-color-muted,#a7b8ae);font-size:11px;font-weight:750;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+.vs-relationship-view-toggle>button:hover{transform:translateY(-1px);border-color:var(--vs-color-jade,#73b49b);color:var(--vs-color-text,#edf3e9)}
+.vs-relationship-view-toggle>button.active{background:var(--vs-color-jade-soft,#183d35);border-color:var(--vs-color-jade,#73b49b);color:var(--vs-color-text,#edf3e9)}
+.vs-relationship-view-toggle>small{flex:1 1 240px;color:var(--vs-color-muted,#91a9a0);font-size:10px}
+.vs-relationship-network{overflow:hidden;border:1px solid var(--vs-color-line,#344b4c);border-radius:20px;background:radial-gradient(ellipse at 14% 40%,#2b514c44,transparent 44%),linear-gradient(135deg,#101f25,#122c2c 58%,#1c2330);box-shadow:inset 0 1px #ffffff0a,0 18px 42px #020b1724;color:#edf4eb}
+.vs-relationship-network__legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 16px 10px;border-bottom:1px solid #ffffff12;color:#a9c0b7;font-size:10px}
+.vs-relationship-network__legend span{display:inline-flex;align-items:center;gap:7px}
+.vs-relationship-network__legend i{display:inline-block;width:9px;height:9px;border-radius:50%;background:#78c7ad;box-shadow:0 0 12px #78c7ad66}
+.vs-relationship-network__legend i.record{border-radius:3px;background:#d7a27d;box-shadow:0 0 12px #d7a27d66}
+.vs-relationship-network__legend span:last-child{margin-left:auto;color:#839d95}
+.vs-relationship-network__canvas{overflow-x:auto;overscroll-behavior-x:contain;padding:8px 12px 2px}
+.vs-relationship-network svg{display:block;width:100%;min-width:760px;height:auto;overflow:visible}
+.vs-relationship-network__edge{fill:none;stroke:#72b8a2;stroke-width:1.4;stroke-opacity:.5;stroke-dasharray:5 6;animation:vsRelationshipTrace 1.15s cubic-bezier(.2,.75,.2,1) both}
+.vs-relationship-network__person,.vs-relationship-network__record{cursor:pointer;outline:none}
+.vs-relationship-network__person circle{fill:#1f4943;stroke:#86cbb0;stroke-width:1.5;transition:fill .2s ease,stroke-width .2s ease,filter .2s ease}
+.vs-relationship-network__person:hover circle,.vs-relationship-network__person:focus-visible circle{fill:#286458;stroke-width:2.6;filter:drop-shadow(0 0 9px #79d7b366)}
+.vs-relationship-network__initials{fill:#f2f5eb;font-size:11px;font-weight:850;pointer-events:none}
+.vs-relationship-network__person-name{fill:#f0f3eb;font-size:12px;font-weight:800;pointer-events:none}
+.vs-relationship-network__person-meta{fill:#a9c2b8;font-size:9px;pointer-events:none}
+.vs-relationship-network__person-role{fill:#76978b;font-size:8px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+.vs-relationship-network__record rect{fill:#263039;stroke:#b98969;stroke-opacity:.64;stroke-width:1;transition:fill .2s ease,stroke .2s ease,filter .2s ease}
+.vs-relationship-network__record:hover rect,.vs-relationship-network__record:focus-visible rect{fill:#35434a;stroke:#e2b48f;stroke-width:1.6;filter:drop-shadow(0 0 8px #d7a27d44)}
+.vs-relationship-network__record-title{fill:#f0e9df;font-size:10px;font-weight:800;pointer-events:none}
+.vs-relationship-network__record-meta{fill:#c19d83;font-size:8px;letter-spacing:.05em;pointer-events:none}
+.vs-relationship-network__chevron{fill:none;stroke:#d5a37e;stroke-width:1.5;pointer-events:none}
+.vs-relationship-network__empty{fill:#b8c9c0;font-size:13px}
+.vs-relationship-network__note{display:block;padding:10px 16px 14px;color:#8da89c;font-size:10px;border-top:1px solid #ffffff10}
+@keyframes vsRelationshipTrace{from{stroke-dashoffset:500;opacity:.1}to{stroke-dashoffset:0;opacity:.55}}
+@media(max-width:720px){.vs-relationship-view-toggle{align-items:stretch}.vs-relationship-view-toggle>button{flex:1 1 140px;justify-content:center}.vs-relationship-view-toggle>small{flex-basis:100%}.vs-relationship-network__legend span:last-child{margin-left:0}.vs-relationship-network{border-radius:15px}.vs-relationship-network__canvas{padding-inline:6px}}
+@media(prefers-reduced-motion:reduce){.vs-relationship-view-toggle>button,.vs-relationship-network__person circle,.vs-relationship-network__record rect{transition:none}.vs-relationship-network__edge{animation:none}}
