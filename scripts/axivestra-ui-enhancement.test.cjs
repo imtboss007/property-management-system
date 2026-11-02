@@ -5,6 +5,7 @@ const app = fs.readFileSync("src/App.tsx", "utf8");
 const analytics = fs.readFileSync("src/PortfolioAnalytics.tsx", "utf8");
 const histogram = fs.readFileSync("src/ThreeDHistogram.tsx", "utf8");
 const vestra = fs.readFileSync("src/VestraShift.tsx", "utf8");
+const intent = fs.readFileSync("src/IntelligenceHub.tsx", "utf8");
 const styles = fs.readFileSync("src/styles.css", "utf8");
 const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
 
@@ -56,4 +57,5 @@ for (const token of [
   'name: "Intelligence Hub", label: "VESTRA SHIFT"', 'onOpenRecord={recordId=>',
   'onOpenContact={contactId=>', 'ax-theme-light'
 ]) assert.ok(app.includes(token), "Missing VESTRA SHIFT activation in App: " + token);
+for (const token of ["People: ", "onOpenRecord(entry.recordId)", "onOpenContact(entry.contactId)", "commitments.length"]) assert.ok(intent.includes(token), "Intent Canvas must expose source-linked loan owners and result navigation: " + token);
 console.log("AXIVESTRA VESTRA SHIFT adaptive spaces and theme contracts passed.");
