@@ -2786,6 +2786,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onUpdateRecordTitle={updateRecordFollowUpTitle}
             onOpenRecord={record=>{go(record.module);openPropertyForm(record as PropertyRecord);}}
             onOpenContact={id=>{setContactProfileId(id);go("Contact 360");}}
+            onDownloadStatus={message=>setNotice(message)}
           />}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
