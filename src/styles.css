@@ -4558,3 +4558,26 @@ h2,h3{color:#e5f2fc}
   .vs-environment-atelier{display:none!important}
   .vs-environment-motion{display:inline-flex!important}
 }
+
+
+/* AXIVESTRA PDF export: content privacy and filename controls */
+.ax-pdf-export-options{display:grid;gap:16px}
+.ax-pdf-export-options>p{margin:0;color:#6e8293;font-size:12px;line-height:1.65}
+.ax-pdf-option-group{min-width:0;margin:0;padding:13px;border:1px solid #d8e4ec;border-radius:13px;background:#f8fbfd}
+.ax-pdf-option-group legend{padding:0 6px;color:#2a5368;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.ax-pdf-option-group>label{display:flex;align-items:flex-start;gap:9px;padding:9px 4px;cursor:pointer}
+.ax-pdf-option-group>label+label{border-top:1px solid #e7eef2}
+.ax-pdf-option-group>label input{margin-top:3px;accent-color:#227f92}
+.ax-pdf-option-group>label span{display:grid;gap:3px}
+.ax-pdf-option-group>label strong{font-size:12px;color:#183b50}
+.ax-pdf-option-group>label small{font-size:10px;color:#71879a;line-height:1.4}
+.ax-pdf-filename-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ax-pdf-filename-fields label{display:grid;gap:6px;color:#476577;font-size:10px;font-weight:700}
+.ax-pdf-filename-fields input{width:100%;min-width:0;border:1px solid #d2e0e8;border-radius:9px;padding:9px 10px;background:#fff;color:#19384b;font-size:12px}
+.ax-pdf-filename-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:12px}
+.ax-pdf-filename-modes label{display:flex;align-items:center;gap:7px;min-width:0;padding:8px 9px;border:1px solid #dce7ec;border-radius:9px;background:#fff;color:#31566b;font-size:10px;cursor:pointer}
+.ax-pdf-filename-modes input{accent-color:#227f92}
+.ax-pdf-filename-preview{display:grid;gap:6px;margin-top:12px;padding:10px;border-radius:9px;background:#eaf2f4}
+.ax-pdf-filename-preview span{color:#6b8796;font-size:9px;font-weight:800;letter-spacing:.12em}
+.ax-pdf-filename-preview strong{overflow-wrap:anywhere;color:#173e50;font:700 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+@media(max-width:520px){.ax-pdf-filename-fields{grid-template-columns:1fr}.ax-pdf-filename-modes{grid-template-columns:1fr 1fr}}
