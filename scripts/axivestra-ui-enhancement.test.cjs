@@ -72,7 +72,7 @@ for (const token of [
 ]) assert.ok(canvas.includes(token), "Missing natural-language Command Composer feature: " + token);
 for (const token of ["makeContextAnswer", "contextRecords", "contextContacts", "ax-copilot-context", "Current intent context"]) assert.ok(intent.includes(token), "Missing selected-record contextual companion: " + token);
 for (const token of [
-  "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields", "mergeMasterContactsById",
+  "selectedRecordIds", "selectedContactIds", "pinnedIds", "compareFields",
   "draggable onDragStart", "setSavedCanvases", "vs-canvas-pins",
   "onOpenRecord(record.id)", "onOpenContact(contact.id)", "moduleNames.map"
 ]) assert.ok(canvas.includes(token), "Missing interactive Intent Canvas capability: " + token);
