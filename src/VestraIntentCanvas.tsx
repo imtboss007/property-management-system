@@ -58,20 +58,20 @@ export default function VestraIntentCanvas(props:Props){
   if(!query)return;
   setCommand(input);
   const results:CommandResult[]=[];
-  if(/\\b(loan|interest|lender|borrow)\\b/.test(query)){
+  if(/\b(loan|interest|lender|borrow)\b/.test(query)){
    const rows=properties.filter(record=>LOANS.has(record.module)||record.moduleData?.__transactionType==="Loan");
    for(const record of rows){const interest=calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value));const owner=contacts.find(contact=>contact.id===(record.followUpContactId||record.primaryContactId));results.push({id:"loan-"+record.id,title:record.title||record.module,detail:[record.module,owner?.name?"Owner: "+owner.name:"No follow-up owner saved"].join(" · "),value:formatINR(interest)+" / month",kind:"record",recordId:record.id});}
    setCommandSummary("Found "+rows.length+" saved loan record(s). Monthly interest uses AXIVESTRA's existing calculation method; it is not a bank-confirmed balance.");
-  }else if(/\\b(overdue|follow.?up|commitment|pending response)\\b/.test(query)){
-   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLocaleLowerCase())&&(!/\\boverdue\\b/.test(query)||(item.promisedDate&&item.promisedDate<today))).map(item=>({contact,item})));
+  }else if(/\b(overdue|follow.?up|commitment|pending response)\b/.test(query)){
+   const rows=contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLocaleLowerCase())&&(!/\boverdue\b/.test(query)||(item.promisedDate&&item.promisedDate<today))).map(item=>({contact,item})));
    rows.forEach(({contact,item})=>results.push({id:"follow-"+item.id,title:contact.name,detail:[item.description,item.promisedDate,item.status].filter(Boolean).join(" · "),value:item.amount?formatINR(parseDealNumber(item.amount)):"Amount not entered",kind:"contact",contactId:contact.id,recordId:item.linkedRecordId||undefined} as CommandResult));
-   setCommandSummary("Found "+rows.length+" saved "+(/\\boverdue\\b/.test(query)?"overdue":"open")+" follow-up commitment(s). Open a person to inspect their linked records and history.");
-  }else if(/\\b(today|task|schedule|deadline|meeting)\\b/.test(query)){
-   const rows=tasks.filter(task=>!task.done&&((/\\btoday\\b/.test(query)&&task.date===today)||(/\\boverdue\\b/.test(query)&&task.date<today)||(!/\\b(today|overdue)\\b/.test(query))));
+   setCommandSummary("Found "+rows.length+" saved "+(/\boverdue\b/.test(query)?"overdue":"open")+" follow-up commitment(s). Open a person to inspect their linked records and history.");
+  }else if(/\b(today|task|schedule|deadline|meeting)\b/.test(query)){
+   const rows=tasks.filter(task=>!task.done&&((/\btoday\b/.test(query)&&task.date===today)||(/\boverdue\b/.test(query)&&task.date<today)||(!/\b(today|overdue)\b/.test(query))));
    rows.forEach(task=>results.push({id:"task-"+task.id,title:task.title,detail:[task.date,task.time,task.contactName,task.property].filter(Boolean).join(" · "),value:task.type||"Task",kind:"task",taskId:task.id}));
    setCommandSummary("Found "+rows.length+" saved task(s) matching this schedule request.");
-  }else if(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/.test(query)){
-   const rows=financials.filter(item=>[item.type,item.party,item.property,item.notes,item.reference].join(" ").toLocaleLowerCase().includes(query.replace(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/g,"").trim())||!query.replace(/\\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\\b/g,"").trim());
+  }else if(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/.test(query)){
+   const rows=financials.filter(item=>[item.type,item.party,item.property,item.notes,item.reference].join(" ").toLocaleLowerCase().includes(query.replace(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/g,"").trim())||!query.replace(/\b(payment|collection|inflow|outflow|cash|receipt|expense|transaction)\b/g,"").trim());
    rows.slice(0,30).forEach(item=>results.push({id:"transaction-"+item.id,title:item.type+" · "+(item.party||item.property||"Transaction"),detail:[item.date,item.property,item.reference].filter(Boolean).join(" · "),value:formatINR(parseDealNumber(item.amount)),kind:"transaction",transactionId:item.id}));
    const total=rows.reduce((sum,item)=>sum+parseDealNumber(item.amount),0);
    setCommandSummary("Found "+rows.length+" saved financial transaction(s), totalling "+formatINR(total)+" across the matching rows.");
