@@ -199,3 +199,13 @@ assert.ok(vestra.includes("Background or operating-system notifications still re
 for (const token of [".vs-alert-center", ".vs-alert-item.is-urgent", ".vs-alert-preferences", "@media(max-width:600px)", '.vs-shift[data-theme="light"] .vs-alert-center']) {
   assert.ok(styles.includes(token), "Missing responsive alert centre visual styling: " + token);
 }
+
+assert.ok(vestra.includes('className="vs-orbit-system"'), "VESTRA must render the spatial sphere command hub.");
+assert.ok(vestra.includes('className="vs-core-sphere"'), "The 3D prismatic core must include a spherical centre.");
+assert.equal((vestra.match(/className="vs-orbit-node"/g)||[]).length,7, "The command hub must provide one direct icon control for each of the seven VESTRA spaces.");
+for (const token of ['aria-label="Open Spatial Desk"', 'aria-label="Open Intent Canvas"', 'aria-label="Open Financial Studio"', 'aria-label="Open Temporal workspace"', 'aria-label="Open Relationships"', 'aria-label="Open Simulation Studio"', 'aria-label="Open Mission workflow"']) {
+  assert.ok(vestra.includes(token), "Missing accessible orbital workspace shortcut: " + token);
+}
+for (const token of ["vs-orbit-rings", "vsSatelliteOrbit", "vsSatelliteCounter", ".vs-core-sphere", ".vs-orbit-node:hover", '@media(prefers-reduced-motion:reduce)']) {
+  assert.ok(styles.includes(token), "Missing 3D sphere / orbital icon visual behavior: " + token);
+}
