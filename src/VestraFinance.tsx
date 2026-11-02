@@ -51,6 +51,24 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
   const totalInflow=financials.filter(item=>INFLOW.has(item.type)).reduce((sum,item)=>sum+amount(item.amount),0);
   const totalOutflow=financials.filter(item=>OUTFLOW.has(item.type)).reduce((sum,item)=>sum+amount(item.amount),0);
   const portfolioInterest=loans.reduce((sum,row)=>sum+interestOf(row),0);
+  const collectionRows=useMemo(()=>loans.filter(row=>row.moduleData?.__loanDirection==="Loan I am giving / interest receivable").map(row=>{
+    const owner=contacts.find(person=>person.id===(row.followUpContactId||row.primaryContactId));
+    const openFollowUps=(owner?.followUps||[]).filter(item=>item.linkedRecordId===row.id&&!["completed","closed","settled","rejected","cancelled"].includes(String(item.status||"").toLowerCase())).sort((a,b)=>(a.promisedDate||"9999-12-31").localeCompare(b.promisedDate||"9999-12-31")||(a.promisedTime||"").localeCompare(b.promisedTime||""));
+    const transactions=financials.filter(item=>item.propertyId===row.id).sort((a,b)=>b.date.localeCompare(a.date));
+    const receipts=transactions.filter(item=>item.type==="Receipt");
+    const savedOutstanding=row.moduleData?.outstandingPrincipal||row.moduleData?.outstandingAmount||"";
+    return {row,owner,openFollowUps,transactions,receipts,savedOutstanding,monthlyInterest:interestOf(row),principal:principalOf(row),committed:openFollowUps.reduce((sum,item)=>sum+amount(item.amount),0),receiptTotal:receipts.reduce((sum,item)=>sum+amount(item.amount),0)};
+  }),[loans,contacts,financials]);
+  const collectionGroups=useMemo(()=>{
+    const groups=new Map<string,{id:string;name:string;owner?:Contact;rows:typeof collectionRows}>();
+    collectionRows.forEach(item=>{
+      const id=item.owner?.id||"__unassigned";
+      const current=groups.get(id)||{id,name:item.owner?.name||"Unassigned owner",owner:item.owner,rows:[]};
+      current.rows.push(item);
+      groups.set(id,current);
+    });
+    return [...groups.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  },[collectionRows]);
   const monthlyInterest=selectedLoan?interestOf(selectedLoan):0;
   const principal=selectedLoan?principalOf(selectedLoan):0;
   const outstanding=selectedLoan?.moduleData?.outstandingPrincipal||selectedLoan?.moduleData?.outstandingAmount||"";
@@ -117,6 +135,28 @@ export default function VestraFinance({properties,contacts,financials,today,onOp
     </section>
     {trendItems.length>0&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">PRINCIPAL VS INTEREST</span><h4>Principal and monthly interest by loan</h4><p>Both bars use saved INR figures. Interest is calculated with AXIVESTRA’s current saved method; no missing historical payment allocation is invented.</p></div><ArrowUpRight size={20}/></header><ThreeDHistogram items={trendItems} selected={selectedLoan?.id||""} onSelect={setSelectedLoanId} primaryLabel="Saved principal" secondaryLabel="Monthly interest" formatValue={value=>formatINR(value)}/></section>}
     {selectedLoan&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">MONTH-WISE INTEREST</span><h4>{selectedLoan.title||selectedLoan.module}</h4><p>Illustrative monthly run-rate from the saved interest period and current terms. It is not a reconstructed historical accrual ledger.</p></div><CalendarClock size={20}/></header>{monthWiseInterest.length?<><ThreeDHistogram items={monthWiseInterest} selected={selectedInterestMonth} onSelect={setSelectedInterestMonth} primaryLabel="Monthly interest run-rate" showLabels={false} formatValue={value=>formatINR(value)}/><div className="vs-finance-legend"><span>Saved start: {interestStartDate}</span><span>End / maturity: {selectedLoan.moduleData?.maturityDate||today}</span><strong>{selectedInterestRow?selectedInterestRow.fullName+" · "+formatINR(selectedInterestRow.value):"Select a month"}</strong></div></>:<div className="vs-empty-state"><CalendarClock size={22}/><strong>Interest period dates are incomplete.</strong><small>Enter a disbursement or first-EMI date in the source loan module to show a month-wise run-rate preview. No date is inferred.</small></div>}</section>}
+    <section className="vs-finance-panel vs-collection-desk">
+      <header><div><span className="vs-eyebrow">PERSON-WISE COLLECTION CONTROL</span><h4>Interest collection desk</h4><p>Groups saved interest-receivable loans by their assigned Contact 360 follow-up owner. Principal, monthly interest and outstanding values are shown separately from saved commitments and recorded receipts.</p></div><Users size={20}/></header>
+      {collectionRows.length?<div className="vs-collection-groups">
+        {collectionGroups.map(group=>{
+          const monthlyTotal=group.rows.reduce((sum,item)=>sum+item.monthlyInterest,0);
+          const commitmentTotal=group.rows.reduce((sum,item)=>sum+item.committed,0);
+          const receiptTotal=group.rows.reduce((sum,item)=>sum+item.receiptTotal,0);
+          const followUpCount=group.rows.reduce((sum,item)=>sum+item.openFollowUps.length,0);
+          return <section className="vs-collection-owner" key={group.id}>
+            <header><button type="button" disabled={!group.owner} onClick={()=>group.owner&&onOpenContact(group.owner.id)}><Users size={15}/><strong>{group.name}</strong>{group.owner&&<ArrowUpRight size={12}/>}</button><span>{group.rows.length} loan(s) · {followUpCount} open follow-up(s)</span></header>
+            <div className="vs-collection-owner-metrics"><article><small>Calculated monthly interest</small><strong>{formatINR(monthlyTotal)}</strong></article><article><small>Saved open commitments</small><strong>{formatINR(commitmentTotal)}</strong></article><article><small>Recorded Receipt entries</small><strong>{formatINR(receiptTotal)}</strong></article></div>
+            <div className="vs-collection-loans">{group.rows.map(item=><article key={item.row.id}>
+              <button type="button" className="vs-collection-loan-title" onClick={()=>onOpenRecord(item.row.id)}><span><strong>{item.row.title||item.row.module}</strong><small>{item.row.module} · {item.row.status||"Status not entered"}</small></span><ArrowUpRight size={14}/></button>
+              <div className="vs-collection-loan-facts"><span>Principal <strong>{formatINR(item.principal)}</strong></span><span>Interest / month <strong>{formatINR(item.monthlyInterest)}</strong></span><span>Outstanding <strong>{item.savedOutstanding?formatINR(amount(item.savedOutstanding)):"Not entered"}</strong></span></div>
+              <div className="vs-collection-followups"><strong>Saved collection commitments</strong>{item.openFollowUps.map(followUp=><button type="button" key={followUp.id} onClick={()=>item.owner&&onOpenContact(item.owner.id)}><span><strong>{followUp.description||"Follow-up"}</strong><small>{followUp.promisedDate||"No date"} {followUp.promisedTime||""} · {followUp.status}</small></span><em>{followUp.amount?formatINR(amount(followUp.amount)):"Amount not entered"}</em></button>)}{!item.openFollowUps.length&&<small>No open follow-up commitment linked to this loan and owner.</small>}</div>
+              <div className="vs-collection-receipts"><strong>Recorded Receipt entries</strong>{item.receipts.slice(0,4).map(receipt=><button type="button" key={receipt.id} onClick={()=>onOpenTransaction(receipt.id)}><span>{receipt.date} · {receipt.party||receipt.reference||"Receipt"}</span><em>{formatINR(amount(receipt.amount))}</em><ArrowUpRight size={12}/></button>)}{!item.receipts.length&&<small>No financial transaction categorised as Receipt is linked to this loan.</small>}</div>
+            </article>)}</div>
+          </section>;
+        })}
+      </div>:<div className="vs-empty-state"><Wallet size={22}/><strong>No interest-receivable loans are saved.</strong><small>Loans appear here only when their source record is marked “Loan I am giving / interest receivable”. No sample collection rows are generated.</small></div>}
+      <small className="vs-data-truth">Monthly interest is calculated from the existing loan formula. Follow-up amounts are saved commitments, not proof of payment. Only financial entries explicitly categorised as Receipt are totalled here; other payment categories remain in the source transaction history.</small>
+    </section>
     {selectedLoan&&<section className="vs-finance-panel"><header><div><span className="vs-eyebrow">COLLECTION SCENARIO</span><h4>Potential interest collections</h4><p>Available only for a loan marked “Loan I am giving / interest receivable”. This is a simple run-rate projection, not a promised collection.</p></div><CircleDollarSign size={20}/></header>{isInterestReceivable?<><div className="vs-projection-switch">{([3,6,12] as const).map(months=><button type="button" className={projectionMonths===months?"active":""} key={months} onClick={()=>setProjectionMonths(months)}>{months} months</button>)}</div><div className="vs-projection-result"><span>Potential interest over {projectionMonths} months</span><strong>{formatINR(projectedCollection)}</strong><small>{formatINR(monthlyInterest)} monthly run-rate × {projectionMonths}. Assumes unchanged principal and rate.</small></div></>:<div className="vs-empty-state"><Wallet size={22}/><strong>Collection projection is not enabled for this loan direction.</strong><small>Set the source record’s direction to “Loan I am giving / interest receivable” to show a collection run-rate.</small></div>}</section>}
     <small className="vs-data-truth">Simple-interest/compound-interest history is not reconstructed from missing dates or payment allocation. This view separates saved balances, calculated monthly interest and recorded payments.</small>
   </section>;
