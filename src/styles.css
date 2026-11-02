@@ -4098,3 +4098,14 @@ h2,h3{color:#e5f2fc}
 .vs-shift[data-theme="light"] .vs-simulation-table-wrap th,.vs-shift[data-theme="light"] .vs-simulation-table-wrap td{border-color:#d4ddd2;color:#385549}
 @media(max-width:850px){.vs-simulation-inputs-wide{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.vs-simulation-inputs-wide{grid-template-columns:1fr}.vs-scenario-method{min-height:100px}}
+
+/* Spatial and tactile interaction layer */
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card{transform:perspective(1000px) translate3d(var(--vs-magnet-x,0),var(--vs-magnet-y,0),0) rotateX(var(--vs-tilt-x,0deg)) rotateY(var(--vs-tilt-y,0deg));transform-style:preserve-3d;transition:transform .24s cubic-bezier(.18,.82,.25,1),border-color .22s,box-shadow .22s;will-change:transform}
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card:hover{border-color:#8ac6aa;box-shadow:0 20px 38px #020b168d,0 0 26px #6ac89b19}
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-actions button,.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-quick-actions button{transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s}
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-actions button:active,.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-quick-actions button:active{transform:translateY(2px) scale(.97);box-shadow:inset 0 3px 7px #02091175}
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-expanded{transform-origin:top center;animation:vsOrigamiReveal .32s cubic-bezier(.18,.85,.22,1) both}
+.ax-modern-shell .ax-module-record-card.vs-magnetic-card .ax-record-expanded p{animation:vsOrigamiReveal .35s both}
+@keyframes vsOrigamiReveal{from{opacity:0;transform:perspective(700px) rotateX(-8deg) translateY(-7px) scaleY(.94)}to{opacity:1;transform:perspective(700px) rotateX(0) translateY(0) scaleY(1)}}
+@media(hover:none){.ax-modern-shell .ax-module-record-card.vs-magnetic-card{transform:none!important;will-change:auto}}
+@media(prefers-reduced-motion:reduce){.ax-modern-shell .ax-module-record-card.vs-magnetic-card,.ax-modern-shell .ax-module-record-card.vs-magnetic-card *{animation:none!important;transition:none!important}}
