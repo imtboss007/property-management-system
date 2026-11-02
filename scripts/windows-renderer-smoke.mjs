@@ -84,7 +84,7 @@ while (Date.now() < deadline) {
       try {
         const state = await inspectTarget(target);
         const renderedText = String(state.rootText || state.bodyText || "");
-        if (state.rootExists && state.rootVisible && renderedText.length >= 4) {
+        if (state.rootExists && state.rootVisible && renderedText.length >= 20) {
           process.stdout.write(JSON.stringify({
             ok: true,
             title: state.title,
