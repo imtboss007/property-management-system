@@ -28,7 +28,7 @@ for (const token of [
 assert.ok(app.includes('saveWorkspaceState("undo-history"'), "Undo snapshots must persist in IndexedDB");
 const tracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
 const trackerHelper = fs.readFileSync("src/lib/record-follow-up.ts", "utf8");
-for (const token of ["Record name", "Follow person", "Follow-up date", "Follow-up time", "Remarks", "Next follow-up date", "Next follow-up time", "Download table (CSV)", "Add another follow-up"]) assert.ok(tracker.includes(token), "Missing record follow-up tracker capability: " + token);
+for (const token of ["Record name", "Follow person", "Follow-up date", "Follow-up time", "Remarks", "Next follow-up date", "Next follow-up time", "Download table (CSV)", "Add another follow-up", "Record name", "onUpdateRecordTitle", "saveRecordTitle"]) assert.ok(tracker.includes(token), "Missing record follow-up tracker capability: " + token);
 for (const token of ["followPersonId", "upsertRecordFollowUp", "removeRecordFollowUp", "buildRecordFollowUpCsv"]) assert.ok(trackerHelper.includes(token), "Missing record follow-up persistence/export contract: " + token);
 assert.ok(localDb.includes('key: "workspace:" + key'), "Workspace state must use its own IndexedDB key prefix");
 assert.ok(app.includes("setUndoHistory(current => current.slice(1))"), "Undo must consume a single history entry");
