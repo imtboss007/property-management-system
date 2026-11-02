@@ -27,6 +27,22 @@ for (const token of [
 ]) {
   assert.ok(styles.includes(token), "Missing responsive / design system styling: " + token);
 }
+
+for (const token of [
+  "AXIVESTRA immersive night-mode command centre",
+  ".ax-modern-shell .main-panel",
+  ".ax-modern-shell .institutional-banner",
+  ".ax-modern-shell .module-card:hover",
+  "perspective(650px) rotateX(11deg) rotateY(-13deg)",
+  ".ax-modern-shell .ax-dashboard-kpi:nth-child(5)",
+  ".ax-modern-shell .ax-mobile-dock button.active",
+  "touch-action: manipulation",
+  "@keyframes axIconFloat",
+  "@media (prefers-reduced-motion: reduce)"
+]) {
+  assert.ok(styles.includes(token), "Missing immersive / 3D / touch-first UI behavior: " + token);
+}
+
 assert.ok(!pkg.dependencies["echarts-gl"] && !pkg.dependencies["three"], "The visual refresh must not add a heavy WebGL runtime dependency.");
 assert.ok(pkg.scripts.test.includes("axivestra-ui-enhancement.test.cjs"), "The new UI checks must run in the main regression suite.");
 
