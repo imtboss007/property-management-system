@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight, Bookmark, CalendarClock, CalendarDays, ChevronRight,
-  GitBranch, Landmark, Moon, Network, Sparkles, Sun, TrendingUp, Users, Wallet, Workflow
+  GitBranch, Landmark, Moon, Network, Sparkles, Sun, Target, TrendingUp, Users, Wallet, Workflow
 } from "lucide-react";
 import VestraIntentCanvas from "./VestraIntentCanvas";
 import VestraFinance from "./VestraFinance";
+import VestraFocusMode from "./VestraFocusMode";
 import VestraSpatialDesk from "./VestraSpatialDesk";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 
@@ -88,6 +89,7 @@ export default function VestraShift(props:Props){
     theme,onToggleTheme,workspaceScope
   }=props;
   const [space,setSpace]=useState<ShiftSpace>("intent");
+  const [focusOpen,setFocusOpen]=useState(false);
   const touchStartRef=useRef<{x:number;y:number;blocked:boolean}|null>(null);
   const handleWorkspaceTouchStart=(event:React.TouchEvent<HTMLElement>)=>{
     const target=event.target as HTMLElement;
@@ -315,6 +317,7 @@ export default function VestraShift(props:Props){
         </div>
       </div>
       <div className="vs-hero-actions">
+        <button type="button" className="vs-focus-launch" onClick={()=>setFocusOpen(true)}><Target size={14}/> Focus</button>
         <button type="button" className="vs-theme-toggle" onClick={onToggleTheme}>{theme==="dark"?<Sun size={15}/>:<Moon size={15}/>} {theme==="dark"?"Porcelain light":"Deep ink"} theme</button>
         <button type="button" onClick={onOpenTasks}><CalendarClock size={14}/> Schedule</button>
         <button type="button" onClick={onUndo} disabled={!undoAvailable} title="Undo last supported workspace change">Undo</button>
@@ -436,5 +439,7 @@ export default function VestraShift(props:Props){
       <small className="vs-data-truth">Dependency links are stored as workspace preferences only. They do not change or invent dependencies in your business records.</small>
       <button type="button" className="vs-open-schedule" onClick={onOpenTasks}>Open and manage tasks <ArrowUpRight size={14}/></button>
     </section>}
+    {focusOpen&&<VestraFocusMode properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today} workspaceScope={workspaceScope} onClose={()=>setFocusOpen(false)} onOpenRecord={onOpenRecord} onOpenContact={onOpenContact} onOpenTask={onOpenTask} onOpenFinancials={onOpenFinancials} onOpenTasks={onOpenTasks}/>}
+
   </section>;
 }
