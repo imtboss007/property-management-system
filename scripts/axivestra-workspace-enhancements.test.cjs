@@ -3,10 +3,10 @@ const assert = require("node:assert/strict");
 
 const app = fs.readFileSync("src/App.tsx", "utf8");
 
-const tracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
-assert.ok(tracker.includes('import { saveBlobForUser } from "./lib/mobile-export";'), "Tracker exports must use the shared mobile-safe file delivery helper");
-assert.ok(tracker.includes("await saveBlobForUser(blob, filename)"), "Tracker CSV must await native file delivery");
-assert.ok(tracker.includes("Android share panel opened. Choose Files"), "Android CSV export must instruct users to save from the native share panel");
+const recordTracker = fs.readFileSync("src/RecordFollowUpTracker.tsx", "utf8");
+assert.ok(recordTracker.includes('import { saveBlobForUser } from "./lib/mobile-export";'), "Tracker exports must use the shared mobile-safe file delivery helper");
+assert.ok(recordTracker.includes("await saveBlobForUser(blob, filename)"), "Tracker CSV must await native file delivery");
+assert.ok(recordTracker.includes("Android share panel opened. Choose Files"), "Android CSV export must instruct users to save from the native share panel");
 assert.ok(app.includes('onDownloadStatus={message=>setNotice(message)}'), "Tracker export status must be visible in the app");
 
 const commandCenter = fs.readFileSync("src/WorkspaceCommandCenter.tsx", "utf8");
