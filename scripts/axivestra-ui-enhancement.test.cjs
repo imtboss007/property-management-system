@@ -164,3 +164,9 @@ assert.ok(vestra.includes('event.key==="Escape"&&atelierCopilotOpen'), "Escape m
 for (const token of [".vs-relationship-view-toggle", ".vs-relationship-network__edge", ".vs-relationship-network__person", ".vs-relationship-network__record", "@keyframes vsRelationshipTrace", "@media(prefers-reduced-motion:reduce)"]) {
   assert.ok(styles.includes(token), "Missing relationship-map visual / reduced-motion behavior: " + token);
 }
+
+for (const token of ["item.linkedTasks.length", "item.linkedFinancials.length", "item.linkedDocuments.length", "item.linkedRisks.length", "item.linkedApprovals.length", "item.linkedHistory.length", "item.followUps.length"]) {
+  assert.ok(vestra.includes(token), "Relationship network must expose actual linked operational activity: " + token);
+}
+assert.ok(vestra.includes("vs-relationship-network__activity"), "The relationship map must render linked task, transaction, document, risk and history activity nodes.");
+assert.ok(styles.includes(".vs-relationship-network__activity rect"), "Linked activity nodes must have a distinct visual identity.");
