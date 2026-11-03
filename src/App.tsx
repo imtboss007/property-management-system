@@ -342,7 +342,8 @@ const moduleContactFields: Record<string, ModuleContactField[]> = {
     { key: "__contact_legalCounsel", label: "Lawyer / drafting counsel" }
   ],
   "SR Rate Settlement": [
-    { key: "__contact_client", label: "Client / instructing party" },
+    { key: "__contact_primaryFollowUp", label: "Primary follow-up coordinator" },
+  { key: "__contact_client", label: "Client / instructing party" },
     { key: "__contact_counterparty", label: "Settlement counterparty" },
     { key: "__contact_mediator", label: "Mediator / facilitator" },
     { key: "__contact_settlementOfficer", label: "Settlement / accounts officer" }
@@ -2239,7 +2240,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       const digits = normalizedContactPhone(phone);
       if (digits.length < 8 || digits.length > 15) continue;
       const jid = String(item.jid || item.id || "").trim();
-      const waName = String(item.verifiedName || item.whatsappName || item.name || item.notify || "").trim();
+      const waName = String(item.verifiedName || item.whatsappName || item.name || item.notify || "").trim() || phone;
       if (!waName) continue;
 
       // Collapse duplicates inside the same WhatsApp response before touching master records.
