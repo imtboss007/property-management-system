@@ -1,12 +1,13 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { axivestraRepeatableGroups, buildModuleSummary } from "./lib/axivestra-module-upgrades";
+import type { RecordFollowUpEntry } from "./lib/record-follow-up";
 import { dealTransactionTypes, calculateMonthlyInterest, calculateGiftAmount, formatINR, parseDealNumber, getLoanPrincipalValue, calculateSettlementBalance, calculateSaleBalance } from "./lib/deal-structure";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileText, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users, X } from "lucide-react";
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
   contact: string; primaryContactId?: string; followUpContactId?: string;
-  followUpEntries?: Array<{ followPersonId: string; followPersonName?: string }>;
+  followUpEntries?: RecordFollowUpEntry[];
   targetDeadline?: string; targetDeadlineTime?: string;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
   nextResponseType?: string; nextResponseDescription?: string; nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
@@ -80,7 +81,7 @@ function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
   return <div className="ax-module-chart-line"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Module records trend"><defs><linearGradient id="axModuleLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#20d9ef" stopOpacity=".22"/><stop offset="100%" stopColor="#20d9ef" stopOpacity="0"/></linearGradient></defs>{[0,1,2,3,4].map(n=><line key={n} x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#203e55" strokeDasharray="4 6"/>)}{points.length>1&&<polygon points={points.map(point=>point.x+","+point.y).join(" ")+" "+points[points.length-1].x+","+(height-bottom)+" "+points[0].x+","+(height-bottom)} fill="url(#axModuleLineFill)"/>}<polyline points={points.map(point=>point.x+","+point.y).join(" ")} fill="none" stroke="#20d9ef" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>{points.map(point=><g key={point.name} tabIndex={0} role="button" onClick={()=>onSelect(point.name)} className="ax-chart-point"><circle cx={point.x} cy={point.y} r="5" fill={point.color} stroke="#071827" strokeWidth="2"/><text x={point.x} y={point.y-13} textAnchor="middle" fill="#e7f8ff" fontSize="10">{metric==="value"?currency(point.value):point.value}</text><text x={point.x} y={height-15} textAnchor="middle" fill="#8aa9bf" fontSize="10">{point.name.length>12?point.name.slice(0,11)+"…":point.name}</text></g>)}</svg></div>;
 }
 
-export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onExportReport, onExportPdf, onPrintRecord, onDownloadRecordPdf }: Props) {
+export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onOpenContact, onExportReport, onExportPdf, onPrintRecord, onDownloadRecordPdf }: Props) {
   const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
   const [transactionFilter,setTransactionFilter] = useState("All transactions");
