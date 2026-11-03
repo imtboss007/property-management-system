@@ -1904,7 +1904,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setDocumentVaultBusy(false); }
   };
 
-  const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
+  const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); if (typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches) window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior }); };
   const openPropertyForm = (record: PropertyRecord | null = null, prefill: {contactId?:string;module?:string}|null = null) => { setEditingProperty(record); setPropertyPrefill(prefill); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); setPropertyPrefill(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
