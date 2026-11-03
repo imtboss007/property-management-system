@@ -13,6 +13,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import DealFinder from "./DealFinder";
 import SearchableContactPickerBase from "./SearchableContactPicker";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
 import FollowUpRegisterPanel from "./FollowUpRegisterPanel";
@@ -115,6 +116,7 @@ const navigation = [
   { name: "Follow-up Register", icon: ClipboardList },
   { name: "Record Follow-up Tracker", icon: CalendarClock },
   { name: "Client & Deal Hub", icon: Handshake },
+  { name: "Deal Finder", icon: Search },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
   { name: "Schedule & Tasks", icon: CalendarClock },
@@ -2828,8 +2830,15 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
             {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(deferredSearch.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {(contactLinkMetrics.recordCounts.get(c.id)||0)} · Open tasks: {(contactLinkMetrics.openTaskCounts.get(c.id)||0)}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,contactLinkMetrics.firstRecordIds.get(c.id))}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+          {active === "Deal Finder" && <DealFinder
+            records={properties}
+            contacts={contacts}
+            modules={modules}
+            onOpenModule={name=>go(name)}
+            onOpenRecord={record=>{go(record.module);openPropertyForm(record as PropertyRecord);}}
+          />}
           {active === "Client & Deal Hub" && <RelationshipHub
-            properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
+            properties={properties} contacts={contacts} tasks={tasks} financials={financials} modules={modules} today={today}
             onEditProperty={openPropertyForm}
             onAddProperty={()=>openPropertyForm()}
             onAddContact={()=>openContactForm()}
