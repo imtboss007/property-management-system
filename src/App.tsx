@@ -3118,8 +3118,11 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
   const restoredFollowUpIds = hasStoredFollowUpIds
     ? (initial?.moduleData?.__followUpContactIds ?? "").split(",").map(id => id.trim())
     : (initial?.followUpEntries || []).map(entry => entry.followPersonId).filter(Boolean);
+  const hasLegacyFollowUpRows=(initial?.followUpEntries||[]).some(entry=>Boolean(entry.followPersonId));
+  const fallbackFollowUpContactIds=hasStoredFollowUpIds||hasLegacyFollowUpRows?[]:[legacyFollowUpContactId];
   const initialFollowUpContactIds = Array.from(new Set([
-    ...(restoredFollowUpIds.length ? restoredFollowUpIds : [legacyFollowUpContactId])
+    ...restoredFollowUpIds,
+    ...fallbackFollowUpContactIds
   ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id)));
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
