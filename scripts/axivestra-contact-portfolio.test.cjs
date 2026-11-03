@@ -243,7 +243,7 @@ for (const token of [
   "normalizePhone", "phoneMatches", "contact.verifiedName", "contact.whatsappName",
   "contact.phone", "groupById.get(normalize(groupAlias))"
 ]) assert.ok(contactPicker.includes(token), "Contact search must match synced names, aliases, groups and normalized phone numbers: " + token);
-assert.ok(report.includes("__followUpContactIds") && report.includes("record.followUpEntries"),
+assert.ok(registerReport.includes("__followUpContactIds") && registerReport.includes("record.followUpEntries"),
   "Follow-up register PDF must include every assigned person, including legacy multi-person records.");
 
 
