@@ -3087,3 +3087,80 @@ h2,h3{color:#e5f2fc}
     z-index: 40;
   }
 }
+
+/* Client & Deal Hub: module grouping and filter controls. */
+.relationship-hub-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, .8fr) minmax(240px, 1.4fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0 20px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.relationship-hub-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.relationship-hub-filters select,
+.relationship-hub-filters input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #fff;
+  color: #172738;
+  font: inherit;
+  font-size: 13px;
+}
+.relationship-hub-result-count {
+  align-self: center;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.relationship-module-group {
+  margin: 18px 0 26px;
+}
+.relationship-module-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--green, #173c2c);
+  border-radius: 8px;
+  background: var(--green-light, #e8f0e8);
+}
+.relationship-module-group > header h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+.relationship-module-group > header > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .relationship-hub-filters {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 11px;
+  }
+  .relationship-hub-result-count {
+    justify-self: start;
+  }
+  .relationship-module-group > header h3 {
+    font-size: 14px;
+  }
+}
