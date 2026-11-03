@@ -12,6 +12,7 @@ const mobile = read("src/lib/mobile-export.ts");
 const register = read("src/FollowUpRegisterPanel.tsx");
 const styles = read("src/styles.css");
 const registerReport = read("src/lib/follow-up-register-report.ts");
+const dealFinder = read("src/DealFinder.tsx");
 const contactDirectory = read("src/lib/contact-directory.mjs");
 const pkg = JSON.parse(read("package.json"));
 
@@ -246,7 +247,13 @@ for (const token of [
 assert.ok(registerReport.includes("__followUpContactIds") && registerReport.includes("record.followUpEntries"),
   "Follow-up register PDF must include every assigned person, including legacy multi-person records.");
 
-
-
-
-
+for (const token of [
+  "locationTextFromData", "phoneQueryMatches", "followUpEntries",
+  "locationTerms.every(term => item.locationText.includes(term))",
+  "marketPreset", "settlementPreset", "customMarket", "customSettlement",
+  "categoryByModule", "onOpenRecord"
+]) assert.ok(dealFinder.includes(token), "Deal Finder must search linked contacts, legacy follow-ups, structured locations and custom amount limits: " + token);
+assert.ok(app.includes("__contact_primaryFollowUp"), "Every module must have a separately linked primary follow-up coordinator.");
+assert.ok(contactPicker.includes('normalize("NFKD")') && contactPicker.includes('contact.notes'),
+  "Contact search must tolerate accent variants and search saved contact notes as well as synced identity fields.");
+console.log("AXIVESTRA cross-module location/amount/phone search and primary follow-up coordinator contracts passed.");
