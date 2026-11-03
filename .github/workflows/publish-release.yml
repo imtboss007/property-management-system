@@ -1,4 +1,4 @@
-name: AXIVESTRA Publish Release
+name: AXIVESTRA Windows Publish Release
 
 on:
   workflow_run:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   publish-release:
-    name: Publish tested Windows and Android installers
+    name: Publish tested Windows installer
     if: >-
       ${{ github.event.workflow_run.conclusion == 'success' &&
           github.event.workflow_run.head_branch == 'main' &&
@@ -56,15 +56,6 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Download Android APK artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: AXIVESTRA-Android
-          path: dist/release
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.event.workflow_run.id }}
-
       - name: Validate and prepare release files
         env:
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -73,8 +64,6 @@ jobs:
           WINDOWS_FILE="$(find dist/release -maxdepth 1 -type f -name 'AXIVESTRA-Setup-*-x64.exe' -print -quit)"
           test -n "$WINDOWS_FILE" || { echo "Windows installer is missing."; exit 1; }
           test -s "$WINDOWS_FILE" || { echo "Windows installer is empty."; exit 1; }
-          test -s dist/release/app-debug.apk || { echo "Android APK is missing."; exit 1; }
-          mv dist/release/app-debug.apk dist/release/AXIVESTRA-Android.apk
           echo "SOURCE_SHA=$SOURCE_SHA" >> "$GITHUB_ENV"
           echo "WINDOWS_FILE=$WINDOWS_FILE" >> "$GITHUB_ENV"
 
@@ -95,11 +84,11 @@ jobs:
           WINDOWS_FILE="$(find dist/release -maxdepth 1 -type f -name 'AXIVESTRA-Setup-*-x64.exe' -print -quit)"
           test -n "$WINDOWS_FILE"
           test -s "$WINDOWS_FILE"
-          test -s dist/release/AXIVESTRA-Android.apk
           gh release create "$TAG" \
             "$WINDOWS_FILE" \
-            dist/release/AXIVESTRA-Android.apk \
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_SHA" \
             --title "AXIVESTRA $TAG" \
             --generate-notes
+
+# Android user APKs are re-signed separately with the persistent private release key. Never publish the debug CI artifact.
