@@ -2782,6 +2782,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onDelete={deleteProperty}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.nextResponseDate||record.targetDeadline||today,time:record.nextFollowUpTime||record.nextResponseTime||record.targetDeadlineTime||"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
+            onOpenContact={id=>{setContactProfileId(id);go("Contact 360");}}
             onExportReport={rows=>printModuleReport(active,rows as PropertyRecord[],dynamicModuleFields[active]||[],()=>setNotice("Check application print permissions to open the printable report."),dynamicModuleFields)}
             onExportPdf={rows=>void downloadAxivestraPdf(active,rows as PropertyRecord[])}
             onPrintRecord={record=>printModuleReport(record.module,[record as PropertyRecord],dynamicModuleFields[record.module]||[],()=>setNotice("The printable report could not be opened. Check the application print permission."),dynamicModuleFields)}
