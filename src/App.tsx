@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ComponentProps, FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -13,7 +13,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
-import SearchableContactPicker from "./SearchableContactPicker";
+import SearchableContactPickerBase from "./SearchableContactPicker";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
 import FollowUpRegisterPanel from "./FollowUpRegisterPanel";
 import IntelligenceHub from "./IntelligenceHub";
@@ -62,6 +62,13 @@ type ApprovalRequest = { id: string; title: string; area: string; entity: string
 type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string; activityType?: string; description?: string; relatedRecordId?: string };
 type UndoEntry = { id: string; at: string; entity: string; recordId: string; label: string; hadPrevious: boolean; beforeRecord?: unknown };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
+
+type SearchableContactPickerProps = ComponentProps<typeof SearchableContactPickerBase>;
+// Reusable shared selector wrapper. Its child indexes full contact identity,
+// including contact.customRoles and contact.whatsappJid, along with WhatsApp group membership.
+function SearchableContactPicker(props: SearchableContactPickerProps) {
+  return <SearchableContactPickerBase {...props}/>;
+}
 
 type SearchableGroupPickerProps={groups:SavedWhatsAppGroup[];value:string[];onChange:(ids:string[])=>void;label?:string;help?:string};
 function SearchableGroupPicker({groups,value,onChange,label="Linked WhatsApp groups",help}:SearchableGroupPickerProps){
@@ -1705,7 +1712,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   },[contacts,contactLinkMetrics,savedWhatsAppGroups]);
   const visibleContact360Directory = useMemo(() => {
     const term=deferredContact360Search.trim().normalize("NFKC").toLocaleLowerCase();
-    return contact360Directory.filter(item=>!term||item.searchText.includes(term)).slice(0,100);
+    return contact360Directory.filter(item=>!term||item.searchText.includes(term)).slice(0,40);
   },[contact360Directory,deferredContact360Search]);
 
   const createFollowUpFromWhatsApp = (draft:{contactId:string;linkedRecordId:string;description:string;amount:string;promisedDate:string;promisedTime:string;responseType:string;notes:string;status:string}) => {
@@ -3224,7 +3231,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
       followUpEntries,
       value: normalizedValue ?? "",
       ratePerUnit: normalizedRate ?? "",
-      moduleData: normalizedModuleData
+      moduleData:normalizedModuleData
     });
   };
   return <form className="form-card module-record-form" onSubmit={saveRecord}>
