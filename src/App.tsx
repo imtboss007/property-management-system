@@ -2955,7 +2955,11 @@ function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactR
   const roleIds = Object.entries(property.moduleData ?? {})
     .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
     .map(([,value]) => String(value));
-  const ids = [property.followUpContactId ?? "", ...(property.moduleData?.__followUpContactIds ?? "").split(","), property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
+  const hasSavedFollowUpIds=Object.prototype.hasOwnProperty.call(property.moduleData||{},"__followUpContactIds");
+  const followUpIds=hasSavedFollowUpIds
+    ? (property.moduleData?.__followUpContactIds||"").split(",")
+    : [property.followUpContactId||"",...(property.followUpEntries||[]).map(entry=>entry.followPersonId||"")];
+  const ids = [...followUpIds, property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
   if (unique.length) return unique;
