@@ -1670,9 +1670,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const overdueTaskCount = useMemo(() => upcomingTasks.filter(item=>item.date<today).length,[upcomingTasks,today]);
   const expiringDocumentCount = useMemo(() => documents.filter(item=>item.expiresOn&&item.expiresOn>=today&&item.expiresOn<=expiryWindowDate).length,[documents,today,expiryWindowDate]);
 
-  const contact360Directory = useMemo(() => {
-    const counts = new Map<string, number>();
+  const contactLinkMetrics = useMemo(() => {
     const contactByName = new Map(contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact.id]));
+    const recordCounts = new Map<string,number>();
+    const firstRecordIds = new Map<string,string>();
     for (const property of properties) {
       const ids = new Set([
         property.followUpContactId || "",
@@ -1685,14 +1686,23 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         const legacyId=contactByName.get((property.contact||"").trim().toLocaleLowerCase());
         if (legacyId) ids.add(legacyId);
       }
-      ids.forEach(id=>counts.set(id,(counts.get(id)||0)+1));
+      ids.forEach(id=>{
+        recordCounts.set(id,(recordCounts.get(id)||0)+1);
+        if(!firstRecordIds.has(id))firstRecordIds.set(id,property.id);
+      });
     }
+    const openTaskCounts = new Map<string,number>();
+    for(const task of tasks) if(task.contactId&&!task.done) openTaskCounts.set(task.contactId,(openTaskCounts.get(task.contactId)||0)+1);
+    return {recordCounts,firstRecordIds,openTaskCounts};
+  },[contacts,properties,tasks]);
+  const contact360Directory = useMemo(() => {
+    const groupsById = new Map(savedWhatsAppGroups.map(group=>[group.id,group.name]));
     return contacts.map(contact=>({
       contact,
-      linkedCount:counts.get(contact.id)||0,
-      searchText:[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase()
+      linkedCount:contactLinkMetrics.recordCounts.get(contact.id)||0,
+      searchText:[contact.name,contact.phone,contact.role,...(contact.roles||[]),contact.profession,contact.employer,contact.associatedCompany,...(contact.whatsappGroupIds||[]).map(id=>groupsById.get(id)||"")].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase()
     }));
-  },[contacts,properties]);
+  },[contacts,contactLinkMetrics,savedWhatsAppGroups]);
   const visibleContact360Directory = useMemo(() => {
     const term=deferredContact360Search.trim().normalize("NFKC").toLocaleLowerCase();
     return contact360Directory.filter(item=>!term||item.searchText.includes(term)).slice(0,100);
@@ -2772,7 +2782,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
             <div className="contact-filter-bar"><label>Filter contacts by role<select value={contactRoleFilter} onChange={event=>setContactRoleFilter(event.target.value)}><option>All roles</option>{Array.from(new Set([...contactRoleOptions,...contacts.flatMap(contact=>[...(contact.roles??[]),...(contact.customRoles??"").split(",").map(role=>role.trim())])].filter(Boolean))).sort().map(role=><option key={role}>{role}</option>)}</select></label><span>{contacts.filter(contact=>contactRoleFilter==="All roles" || [...(contact.roles??[]),contact.role,...(contact.customRoles??"").split(",").map(role=>role.trim())].includes(contactRoleFilter)).length} matching contacts</span></div>
-            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(deferredSearch.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.followUpContactId===c.id || property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.followUpContactId===c.id || property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+            {contacts.length ? <div className="record-list">{contacts.filter(c=>{const roleValues=[...(c.roles ?? []),c.role,...(c.customRoles ?? "").split(",").map(role=>role.trim())].filter(Boolean);const roleMatches=contactRoleFilter==="All roles"||roleValues.includes(contactRoleFilter);const text=`${c.name} ${c.phone} ${roleValues.join(" ")} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`;return roleMatches&&text.toLowerCase().includes(deferredSearch.toLowerCase());}).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {(contactLinkMetrics.recordCounts.get(c.id)||0)} · Open tasks: {(contactLinkMetrics.openTaskCounts.get(c.id)||0)}</small><div className="linked-actions"><button className="secondary-button" onClick={()=>{setContactProfileId(c.id);go("Contact 360");}}><Users size={14}/> Open Contact 360</button></div>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,contactLinkMetrics.firstRecordIds.get(c.id))}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
