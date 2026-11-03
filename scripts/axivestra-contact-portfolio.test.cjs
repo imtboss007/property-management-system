@@ -119,6 +119,10 @@ assert.ok(app.indexOf('{ name: "Contact 360"') < app.indexOf('{ name: "Follow-up
 assert.ok(registerReport.includes("buildContactFollowUpRegisterHtml"), "Missing cross-contact PDF report builder.");
 for (const token of ["Module / transaction","Description","Final amount / principal","Monthly loan interest","Will reach back","WhatsApp groups","item.promisedTime","item.isPrimary"])
   assert.ok(registerReport.includes(token), "Missing follow-up register PDF field: " + token);
+assert.ok(!app.includes("startNavigation"), "Sidebar navigation must update synchronously rather than wait for a low-priority transition.");
+assert.ok(/const go = \(section: Section\) => \{ setActive\(section\)/.test(app), "Sidebar navigation must set the selected section immediately.");
+assert.ok(app.includes('type="button" key={name} className={`nav-item'), "Sidebar buttons must not submit surrounding forms.");
+
 console.log("AXIVESTRA standalone cross-contact follow-up register and PDF export contracts passed.");
 
 
