@@ -2029,8 +2029,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const recordFollowUpContactIds = (record:PropertyRecord) => {
     const data=record.moduleData||{};
     const hasMultiIds=Object.prototype.hasOwnProperty.call(data,"__followUpContactIds");
-    const raw=hasMultiIds?String(data.__followUpContactIds||""):String(record.followUpContactId||"");
-    return Array.from(new Set(raw.split(",").map(id=>id.trim()).filter(Boolean)));
+    const rawIds=hasMultiIds
+      ? String(data.__followUpContactIds||"").split(",")
+      : [record.followUpContactId||"",...(record.followUpEntries||[]).map(entry=>entry.followPersonId||"")];
+    return Array.from(new Set(rawIds.map(id=>id.trim()).filter(Boolean)));
   };
   const syncModuleFollowUpFromRecord = (record:PropertyRecord) => {
     if(company?.role==="read_only")return;
