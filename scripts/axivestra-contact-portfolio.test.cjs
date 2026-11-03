@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const assert = require("node:assert/strict");
 const read = path => fs.readFileSync(path, "utf8");
 const app = read("src/App.tsx");
+const contactPicker = read("src/SearchableContactPicker.tsx");
 const contact = read("src/ContactPortfolioPanel.tsx");
 const workbench = read("src/ModuleWorkbench.tsx");
 const report = read("src/lib/axivestra-report.ts");
@@ -129,10 +130,10 @@ for (const token of [
 ]) assert.ok(app.includes(token), "Missing required module-level follow-up assignment: " + token);
 
 for (const token of [
-  'type="search"', "const contactIndex=useMemo", "setQuery(event.target.value)",
+  'type="search"', "const contactsById = useMemo", "setQuery(event.target.value)",
   'role="listbox"', "Type to search contacts for "
-]) assert.ok(app.includes(token), "Contact selector must filter live as the user types: " + token);
-assert.ok(!app.includes('<select className="searchable-contact-picker__select"'), "Single-contact selector must not fall back to a native dropdown.");
+]) assert.ok(contactPicker.includes(token), "Shared contact selector must filter live as the user types: " + token);
+assert.ok(!contactPicker.includes('<select className="searchable-contact-picker__select"'), "Single-contact selector must not fall back to a native dropdown.");
 
 for (const token of [
   "FollowUpRegisterPanel", "matchingAddContacts",
