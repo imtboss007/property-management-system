@@ -2802,3 +2802,14 @@ h2,h3{color:#e5f2fc}
     gap: 6px;
   }
 }
+
+@media (max-width: 720px) {
+  /* The module trend chart previously forced a 400px SVG on narrow screens. */
+  .ax-module-chart-line { overflow: hidden; }
+  .ax-module-chart-line svg {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .ax-module-chart-center-note { max-width: 100%; text-align: center; }
+}
