@@ -193,9 +193,21 @@ export default function RecordFollowUpTracker(props: Props) {
 
   const addForRecord = (record: RecordRow) => {
     if (props.readOnly) return;
-    const suggestedContactId = (record.moduleData?.__followUpContactIds || "").split(",").map(id=>id.trim()).find(Boolean) || record.followUpContactId || record.primaryContactId || "";
-    const suggestedContact = contactsById.get(suggestedContactId)
-      || props.contacts.find(contact => record.contact && contact.name.trim().toLocaleLowerCase() === record.contact.trim().toLocaleLowerCase());
+    const assignedIds = Array.from(new Set([
+      ...(record.moduleData?.__followUpContactIds || "").split(","),
+      record.followUpContactId || "",
+      record.primaryContactId || ""
+    ].map(id => id.trim()).filter(Boolean)));
+    const existingPersonIds = new Set((record.followUpEntries || []).map(entry => entry.followPersonId).filter(Boolean));
+    // When a record has several assigned people, suggest the next person who
+    // does not already have an individual follow-up row instead of always
+    // defaulting every additional row to the first contact.
+    const suggestedContactId = assignedIds.find(id => !existingPersonIds.has(id)) || "";
+    const suggestedContact = suggestedContactId
+      ? contactsById.get(suggestedContactId)
+      : !assignedIds.length && !existingPersonIds.size
+        ? props.contacts.find(contact => record.contact && contact.name.trim().toLocaleLowerCase() === record.contact.trim().toLocaleLowerCase())
+        : undefined;
     const entry = newEntry(suggestedContact);
     props.onUpsertFollowUp(record.id, entry);
     setDrafts(current => ({ ...current, [rowKey(record.id, entry.id)]: { recordId: record.id, entry, dirty: false } }));
