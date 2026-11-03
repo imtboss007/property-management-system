@@ -3112,10 +3112,13 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     || (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id => contacts.some(item => item.id === id))
     || defaultContactId
     || "";
+  const hasStoredFollowUpIds = Object.prototype.hasOwnProperty.call(initial?.moduleData || {}, "__followUpContactIds");
+  const restoredFollowUpIds = hasStoredFollowUpIds
+    ? (initial?.moduleData?.__followUpContactIds ?? "").split(",").map(id => id.trim())
+    : (initial?.followUpEntries || []).map(entry => entry.followPersonId).filter(Boolean);
   const initialFollowUpContactIds = Array.from(new Set([
-    ...(initial?.moduleData?.__followUpContactIds ?? "").split(",").map(id => id.trim()),
-    legacyFollowUpContactId
-  ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id))));
+    ...(restoredFollowUpIds.length ? restoredFollowUpIds : [legacyFollowUpContactId])
+  ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id)));
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
