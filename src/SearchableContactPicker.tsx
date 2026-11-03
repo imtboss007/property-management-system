@@ -36,7 +36,7 @@ type Props = {
   onSelectGroup?: (groupId: string, memberIds: string[]) => void;
 };
 
-const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[\s\u00a0]+/g, " ").trim();
+const normalize = (value: unknown) => String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase().replace(/[\s\u00a0]+/g, " ").trim();
 const normalizePhone = (value: unknown) => String(value ?? "").replace(/\D/g, "");
 const phoneMatches = (phone: string, query: string) => {
   const digits = normalizePhone(phone);
@@ -80,7 +80,7 @@ export default function SearchableContactPicker({
       contact.name, contact.whatsappName, contact.verifiedName, contact.notify,
       contact.phone, phoneDigits, ...roles, contact.email,
       contact.address, contact.profession, contact.employer, contact.designation,
-      contact.businessType, contact.associatedCompany, contact.whatsappJid, contact.notes,
+      contact.businessType, contact.associatedCompany, contact.whatsappJid, contact.notes, contact.notes,
       ...groupNames
     ].filter(Boolean).join(" "));
     return { contact, roles, groupNames, searchText, phoneDigits };
