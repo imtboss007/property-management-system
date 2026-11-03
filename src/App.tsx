@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
@@ -667,6 +667,7 @@ const customModuleIconRegistry: Record<string, LucideIcon> = {
 
 export default function App({ company, userId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
+  const [, startNavigation] = useTransition();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilter, setContactRoleFilter] = useState("All roles");
@@ -1577,11 +1578,12 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
 
   const propertyMetricsByModule = useMemo(() => {
-    const metrics = new Map<string, { count: number; value: number }>();
+    const metrics = new Map<string, { count: number; value: number; records: PropertyRecord[] }>();
     properties.forEach(property => {
-      const current = metrics.get(property.module) || { count: 0, value: 0 };
+      const current = metrics.get(property.module) || { count: 0, value: 0, records: [] };
       current.count += 1;
       current.value += Number(property.value || 0);
+      current.records.push(property);
       metrics.set(property.module, current);
     });
     return metrics;
@@ -1600,7 +1602,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const rangeSearch = rangeSearches[0] ?? null;
   const filteredModules = useMemo(() => rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(deferredSearch.toLowerCase())), [modules, rangeSearches, deferredSearch]);
   const filteredProperties = useMemo(() => {
-    const term = deferredSearch.toLowerCase();
+    const term = deferredSearch.trim().toLowerCase();
+    if (!term && !rangeSearches.length) return properties;
     return properties.filter(property => {
       if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
       const searchableText = [
@@ -1611,6 +1614,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       return searchableText.includes(term);
     });
   }, [properties, deferredSearch, rangeSearches]);
+  const activeModuleRecords = useMemo(() => {
+    if (active === "All Properties") return filteredProperties;
+    if (!deferredSearch.trim() && !rangeSearches.length) return propertyMetricsByModule.get(active)?.records || [];
+    return filteredProperties.filter(record => record.module === active);
+  }, [active, filteredProperties, deferredSearch, rangeSearches, propertyMetricsByModule]);
   const rangeSortedProperties = useMemo(() => {
     if (!rangeSearches.length || rangeSort === "best") return filteredProperties;
     const getSortValue = (property: PropertyRecord) => rangeSort.startsWith("price")
@@ -1668,6 +1676,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     for (const property of properties) {
       const ids = new Set([
         property.followUpContactId || "",
+        ...(property.moduleData?.__followUpContactIds || "").split(","),
         property.primaryContactId || "",
         ...(property.moduleData?.__linkedContactIds || "").split(","),
         ...Object.entries(property.moduleData || {}).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))
@@ -1920,7 +1929,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setDocumentVaultBusy(false); }
   };
 
-  const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); if (typeof window !== "undefined") window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior }); };
+  const go = (section: Section) => { startNavigation(() => setActive(section)); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); if (typeof window !== "undefined") window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior }); };
   const openPropertyForm = (record: PropertyRecord | null = null, prefill: {contactId?:string;module?:string}|null = null) => { setEditingProperty(record); setPropertyPrefill(prefill); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); setPropertyPrefill(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
@@ -2748,7 +2757,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           {active === "All Properties" || modules.some(m=>m.name===active) ? <ModuleWorkbench
             moduleName={active === "All Properties" ? "All Properties" : active}
             description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : modules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
-            records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
+            records={activeModuleRecords}
             fields={active==="All Properties" ? [] : dynamicModuleFields[active] || []}
             contacts={contacts}
             onAdd={()=>openPropertyForm()}
@@ -2890,7 +2899,7 @@ function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactR
   const roleIds = Object.entries(property.moduleData ?? {})
     .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
     .map(([,value]) => String(value));
-  const ids = [property.followUpContactId ?? "", property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
+  const ids = [property.followUpContactId ?? "", ...(property.moduleData?.__followUpContactIds ?? "").split(","), property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
   if (unique.length) return unique;
