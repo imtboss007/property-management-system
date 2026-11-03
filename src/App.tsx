@@ -1635,19 +1635,61 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const rangeSearches = useMemo(() => parsePropertyRangeQueries(deferredSearch), [deferredSearch]);
   const rangeSearch = rangeSearches[0] ?? null;
   const filteredModules = useMemo(() => rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(deferredSearch.toLowerCase())), [modules, rangeSearches, deferredSearch]);
+  const contactsByIdForGlobalSearch = useMemo(() => new Map(contacts.map(contact => [contact.id, contact])), [contacts]);
+  const indexedPropertiesForGlobalSearch = useMemo(() => properties.map(property => {
+    const data = property.moduleData || {};
+    const hasFollowUpIds = Object.prototype.hasOwnProperty.call(data, "__followUpContactIds");
+    const followUpIds = hasFollowUpIds
+      ? (data.__followUpContactIds || "").split(",")
+      : [property.followUpContactId || "", ...(property.followUpEntries || []).map(entry => entry.followPersonId || "")];
+    const linkedIds = Array.from(new Set([
+      ...followUpIds,
+      property.primaryContactId || "",
+      ...(data.__linkedContactIds || "").split(","),
+      ...Object.entries(data).filter(([key, value]) => key.startsWith("__contact_") && Boolean(value)).map(([, value]) => String(value))
+    ].filter(Boolean)));
+    const linkedContacts = linkedIds.map(id => contactsByIdForGlobalSearch.get(id)).filter((contact): contact is ContactRecord => Boolean(contact));
+    if (!linkedContacts.length && property.contact) {
+      const legacy = contacts.find(contact => contact.name.trim().toLocaleLowerCase() === property.contact.trim().toLocaleLowerCase());
+      if (legacy) linkedContacts.push(legacy);
+    }
+    const locationFields = Object.entries(data)
+      .filter(([key, value]) => /location|address|city|area|locality|village|district|taluk|tehsil|pincode|postal|landmark|zone|state/i.test(key) && String(value || "").trim())
+      .map(([, value]) => String(value));
+    const linkedText = linkedContacts.flatMap(contact => [
+      contact.name, contact.phone, String(contact.phone || "").replace(/[^0-9]/g, ""),
+      contact.role, ...(contact.roles || []), contact.customRoles, contact.whatsappName,
+      contact.verifiedName, contact.notify, contact.email, contact.associatedCompany,
+      contact.profession, contact.employer, contact.designation
+    ]);
+    const searchText = [
+      property.title, property.module, property.location, ...locationFields,
+      property.contact, property.status, property.value, property.surveyNumber,
+      property.areaValue, property.areaUnit, property.dimensions,
+      property.ownershipDetails, property.notes, property.nextAction,
+      ...Object.entries(data).flatMap(([key, value]) => [key, String(value ?? "")]),
+      ...linkedText
+    ].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+    const phoneDigits = linkedContacts.map(contact => String(contact.phone || "").replace(/[^0-9]/g, "")).join(" ");
+    return { property, searchText, phoneDigits };
+  }), [properties, contacts, contactsByIdForGlobalSearch]);
+
   const filteredProperties = useMemo(() => {
-    const term = deferredSearch.trim().toLowerCase();
+    const term = deferredSearch.trim().normalize("NFKC").toLocaleLowerCase();
     if (!term && !rangeSearches.length) return properties;
-    return properties.filter(property => {
+    const terms = term.split(/\s+/).filter(Boolean);
+    const queryDigits = term.replace(/[^0-9]/g, "");
+    return indexedPropertiesForGlobalSearch.filter(({ property, searchText, phoneDigits }) => {
       if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
-      const searchableText = [
-        property.title, property.module, property.location, property.contact, property.status,
-        property.surveyNumber, property.areaValue, property.areaUnit, property.dimensions,
-        property.ownershipDetails, property.notes, ...Object.values(property.moduleData ?? {})
-      ].join(" ").toLowerCase();
-      return searchableText.includes(term);
-    });
-  }, [properties, deferredSearch, rangeSearches]);
+      const phoneMatch = queryDigits.length >= 4 && phoneDigits.split(/\s+/).some(raw => {
+        const number = raw.replace(/[^0-9]/g, "");
+        const localNumber = number.length > 10 && number.startsWith("91") ? number.slice(2) : number;
+        const localQuery = queryDigits.length > 10 && queryDigits.startsWith("91") ? queryDigits.slice(2) : queryDigits;
+        return number.includes(queryDigits) || localNumber.includes(localQuery) || number.endsWith(queryDigits) || localNumber.endsWith(localQuery);
+      });
+      return terms.every(token => searchText.includes(token)) || phoneMatch;
+    }).map(item => item.property);
+  }, [properties, deferredSearch, rangeSearches, indexedPropertiesForGlobalSearch]);
   const activeModuleRecords = useMemo(() => {
     if (active === "All Properties") return filteredProperties;
     if (!deferredSearch.trim() && !rangeSearches.length) return propertyMetricsByModule.get(active)?.records || [];
