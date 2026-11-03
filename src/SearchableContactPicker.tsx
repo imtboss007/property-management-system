@@ -16,6 +16,8 @@ export type SearchableContact = {
   businessType?: string;
   associatedCompany?: string;
   whatsappName?: string;
+  verifiedName?: string;
+  notify?: string;
   whatsappJid?: string;
   whatsappGroupIds?: string[];
 };
@@ -33,7 +35,16 @@ type Props = {
   onSelectGroup?: (groupId: string, memberIds: string[]) => void;
 };
 
-const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().trim();
+const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[\\s\\u00a0]+/g, " ").trim();
+const normalizePhone = (value: unknown) => String(value ?? "").replace(/\\D/g, "");
+const phoneMatches = (phone: string, query: string) => {
+  const digits = normalizePhone(phone);
+  const term = normalizePhone(query);
+  if (term.length < 4 || !digits) return false;
+  const localDigits = digits.length > 10 && digits.startsWith("91") ? digits.slice(2) : digits;
+  const localTerm = term.length > 10 && term.startsWith("91") ? term.slice(2) : term;
+  return digits.includes(term) || localDigits.includes(localTerm) || digits.endsWith(term) || localDigits.endsWith(localTerm);
+};
 
 export default function SearchableContactPicker({
   label, contacts, value, onChange, multiple = false, placeholder, help, groups = [], onSelectGroup
@@ -48,36 +59,45 @@ export default function SearchableContactPicker({
     Array.isArray(value) ? value.filter(Boolean) : value ? [value] : []
   )), [value]);
 
-  const groupById = useMemo(() => new Map(groups.map(group => [group.id, group])), [groups]);
+  const groupById = useMemo(() => {
+    const index = new Map<string, SearchableContactGroup>();
+    groups.forEach(group => {
+      [group.id, group.jid, group.name].filter(Boolean).forEach(alias => index.set(normalize(alias), group));
+    });
+    return index;
+  }, [groups]);
   const contactsById = useMemo(() => new Map(contacts.map(contact => [contact.id, contact])), [contacts]);
   const indexedContacts = useMemo(() => contacts.map(contact => {
-    const groupNames = (contact.whatsappGroupIds || [])
-      .map(id => groupById.get(id)?.name || "")
-      .filter(Boolean);
+    const linkedGroups = (contact.whatsappGroupIds || []).map(id => groupById.get(normalize(id))).filter((group): group is SearchableContactGroup => Boolean(group));
+    const groupNames = linkedGroups.map(group => group.name);
     const roles = Array.from(new Set([
       ...(contact.roles || []), contact.role,
       ...(contact.customRoles || "").split(",").map(role => role.trim())
     ].filter(Boolean)));
+    const phoneDigits = normalizePhone(contact.phone);
     const searchText = normalize([
-      contact.name, contact.whatsappName, contact.phone, ...roles, contact.email,
+      contact.name, contact.whatsappName, contact.verifiedName, contact.notify,
+      contact.phone, phoneDigits, ...roles, contact.email,
       contact.address, contact.profession, contact.employer, contact.designation,
       contact.businessType, contact.associatedCompany, contact.whatsappJid,
       ...groupNames
     ].filter(Boolean).join(" "));
-    return { contact, roles, groupNames, searchText };
+    return { contact, roles, groupNames, searchText, phoneDigits };
   }).sort((a, b) => a.contact.name.localeCompare(b.contact.name)), [contacts, groupById]);
 
   // Build the group-to-contact index in one pass. This avoids scanning the full
   // contact directory once per group when the workspace has large WhatsApp lists.
   const contactsByGroup = useMemo(() => {
     const result = new Map<string, typeof indexedContacts>();
-    indexedContacts.forEach(item => (item.contact.whatsappGroupIds || []).forEach(groupId => {
-      const members = result.get(groupId) || [];
-      members.push(item);
-      result.set(groupId, members);
+    indexedContacts.forEach(item => (item.contact.whatsappGroupIds || []).forEach(groupAlias => {
+      const group = groupById.get(normalize(groupAlias));
+      if (!group) return;
+      const members = result.get(group.id) || [];
+      if (!members.some(existing => existing.contact.id === item.contact.id)) members.push(item);
+      result.set(group.id, members);
     }));
     return result;
-  }, [indexedContacts]);
+  }, [indexedContacts, groupById]);
   const indexedGroups = useMemo(() => groups.map(group => ({
     group,
     searchText: normalize([group.name, group.subject, group.description, group.jid].filter(Boolean).join(" ")),
@@ -92,7 +112,7 @@ export default function SearchableContactPicker({
   const matching = useMemo(() => {
     const source = activeGroupId ? (contactsByGroup.get(activeGroupId) || []) : indexedContacts;
     return terms.length
-      ? source.filter(item => terms.every(term => item.searchText.includes(term)))
+      ? source.filter(item => terms.every(term => item.searchText.includes(term)) || phoneMatches(item.contact.phone || "", deferredQuery))
       : source;
   }, [indexedContacts, contactsByGroup, activeGroupId, terms]);
   const visible = matching.slice(0, 40);
@@ -240,7 +260,7 @@ export default function SearchableContactPicker({
               <span className="searchable-contact-picker__option-mark">{isSelected ? <CheckCircle2 size={15}/> : <span/>}</span>
               <span>
                 <strong>{contact.name}</strong>
-                <small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{item.roles.join(", ") || "Contact"}{contact.phone ? " · " + contact.phone : ""}{contact.email ? " · " + contact.email : ""}</small>
+                <small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : contact.verifiedName ? "Verified: " + contact.verifiedName + " · " : ""}{item.roles.join(", ") || "Contact"}{contact.phone ? " · " + contact.phone : ""}{contact.email ? " · " + contact.email : ""}</small>
                 {item.groupNames.length > 0 && <small className="searchable-contact-picker__groups">Groups: {item.groupNames.join(", ")}</small>}
               </span>
             </button>;
