@@ -2,11 +2,11 @@ import { useDeferredValue, useMemo, useState } from "react";
 import {
   Activity, ArrowUpRight, CalendarClock, CheckCircle2,
   CircleAlert, ClipboardList, MessageCircle, Search, Sparkles,
-  Users, X, Filter, MapPin, Bookmark, GitCompare, BellRing, Network, TrendingUp, FileSearch
+  Users, X, Filter, MapPin, Bookmark, GitCompare, BellRing, Network, TrendingUp, FileSearch, Layers, Wallet, Landmark, ShieldCheck
 } from "lucide-react";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 import { extractWhatsAppCommitment } from "./lib/whatsapp-message-intelligence.mjs";
-import { buildIntelligenceActivityFeed, buildIntelligenceAlerts, buildIntelligenceConflictSignals, buildIntelligenceDecisionSupport, buildIntelligenceDocumentSearch, buildIntelligenceDuplicateSignals, buildIntelligenceExposure, buildIntelligenceLoanPropertyExposure, buildIntelligenceLocationSummary, buildIntelligenceOpportunitySignals, buildIntelligenceOwnershipChains, buildIntelligencePropertyCashflow, buildIntelligenceStakeholderNetwork, filterIntelligenceRecords, getIntelligenceRecordAmount, getIntelligenceMarketValue, getIntelligenceSettlementValue, getIntelligenceTransactionType, type IntelligenceFilters } from "./lib/intelligence-engine.mjs";
+import { buildIntelligenceActivityFeed, buildIntelligenceAlerts, buildIntelligenceConflictSignals, buildIntelligenceDecisionSupport, buildIntelligenceDocumentSearch, buildIntelligenceDuplicateSignals, buildIntelligenceExposure, buildIntelligenceLoanPropertyExposure, buildIntelligenceLocationSummary, buildIntelligenceOpportunitySignals, buildIntelligenceOwnershipChains, buildIntelligencePropertyCashflow, buildIntelligenceStakeholderNetwork, filterIntelligenceRecords, getIntelligenceRecordAmount, getIntelligenceMarketValue, getIntelligenceSettlementValue, getIntelligenceTransactionType, searchIntelligenceContacts, type IntelligenceFilters } from "./lib/intelligence-engine.mjs";
 
 type FollowUpRow = {
   id:string; person:string; role:string; linkedRecordId:string; description:string; amount:string;
@@ -148,12 +148,13 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
   const selectedTimelineRecord=properties.find(record=>record.id===timelineRecordId)||intelligenceResults[0]?.record||null;
   const activityFeed=useMemo(()=>buildIntelligenceActivityFeed({record:selectedTimelineRecord,records:properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,auditEvents}),[selectedTimelineRecord,properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,auditEvents]);
   const comparisonRecords=properties.filter(record=>compareIds.includes(record.id));
+  const contactMatches=useMemo(()=>searchIntelligenceContacts(contacts,deferredIntelQuery),[contacts,deferredIntelQuery]);
   const conflictSignals=useMemo(()=>buildIntelligenceConflictSignals(properties),[properties]);
   const ownershipChains=useMemo(()=>buildIntelligenceOwnershipChains(properties),[properties]);
   const propertyCashflow=useMemo(()=>buildIntelligencePropertyCashflow(properties,financials),[properties,financials]);
   const loanPropertyExposure=useMemo(()=>buildIntelligenceLoanPropertyExposure(properties),[properties]);
   const documentMatches=useMemo(()=>buildIntelligenceDocumentSearch(documents,documentQuery),[documents,documentQuery]);
-  const decisionSupport=useMemo(()=>buildIntelligenceDecisionSupport(properties,contacts,documents,riskRecords,tasks),[properties,contacts,documents,riskRecords,tasks]);
+  const decisionSupport=useMemo(()=>buildIntelligenceDecisionSupport(properties,contacts,documents,riskRecords,tasks,today),[properties,contacts,documents,riskRecords,tasks]);
 
   const updateSavedSearches=(next:SavedIntelligenceSearch[])=>{setSavedSearches(next);try{window.localStorage.setItem(savedSearchStorageKey,JSON.stringify(next));}catch{}};
   const currentFilterSnapshot=():IntelligenceFilters=>({query:intelQuery,location:intelLocation,category:intelCategory,module:intelModule,transactionType:intelTransaction,status:intelStatus,dealMax,dealCustom,marketMax,marketCustom,settlementMax,settlementCustom});
@@ -281,6 +282,14 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
       </div>
       <div className="ax-intelligence-suite__results">
         <div className="ax-intelligence-suite__section-head"><div><h4>Cross-module results</h4><p>Open source records directly. Similar spelling results are labelled for review, not merged.</p></div><span>{intelligenceResults.length} found</span></div>
+        {contactMatches.length>0&&<section className="ax-intelligence-suite__module ax-intelligence-suite__contacts">
+          <header><div><span className="section-kicker">PEOPLE & CONTACTS</span><strong>Standalone contact matches</strong></div><span>{contactMatches.length} matching contact(s)</span></header>
+          {contactMatches.slice(0,12).map(contact=><article className="ax-intelligence-suite__contact-result" key={contact.id}>
+            <button type="button" onClick={onOpenContacts}><strong>{contact.name}</strong><small>{contact.role||"Contact"} · {(contact.roles||[]).join(", ")||contact.customRoles||"No extra role saved"}</small></button>
+            <span>{contact.phone||"No phone saved"}{contact.whatsappName?" · WhatsApp: "+contact.whatsappName:""}{contact.verifiedName?" · "+contact.verifiedName:""}</span>
+          </article>)}
+        </section>}
+
         {!intelligenceResults.length&&<div className="ax-command-empty">No records match these filters. Try a broader location or remove an amount ceiling.</div>}
         {intelligenceGroups.map(([moduleName,items])=><section className="ax-intelligence-suite__module" key={moduleName}>
           <header><div><span className="section-kicker">{items[0]?.group||"OTHER"}</span><strong>{moduleName}</strong></div><span>{items.length} record(s)</span></header>

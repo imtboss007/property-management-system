@@ -21,4 +21,5 @@ export function buildIntelligenceOwnershipChains(records:any[]):any[];
 export function buildIntelligencePropertyCashflow(records:any[],financials:any[]):any[];
 export function buildIntelligenceLoanPropertyExposure(records:any[]):any[];
 export function buildIntelligenceDocumentSearch(documents:any[],query?:string):any[];
-export function buildIntelligenceDecisionSupport(records:any[],contacts:any[],documents:any[],riskRecords:any[],tasks:any[]):any[];
+export function buildIntelligenceDecisionSupport(records:any[],contacts:any[],documents:any[],riskRecords:any[],tasks:any[],today?:string):any[];
+export function searchIntelligenceContacts(contacts:any[],query?:string):any[];

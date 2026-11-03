@@ -336,13 +336,13 @@ export function buildIntelligenceDocumentSearch(documents=[],query="") {
   if(!q)return documents.slice(0,30);
   return documents.filter(document=>normalizeIntelligenceText([document.name,document.category,document.property,document.notes,document.mimeType,document.storagePath,document.expiresOn].join(" ")).includes(q)).slice(0,30);
 }
-export function buildIntelligenceDecisionSupport(records=[],contacts=[],documents=[],riskRecords=[],tasks=[]) {
+export function buildIntelligenceDecisionSupport(records=[],contacts=[],documents=[],riskRecords=[],tasks=[],today="") {
   return records.map(record=>{
     const linked=getIntelligenceLinkedContacts(record,contacts);
     const data=record.moduleData||{};
     const docCount=documents.filter(document=>document.propertyId===record.id || normalizeIntelligenceText(document.property)===normalizeIntelligenceText(record.title)).length;
     const openRisk=riskRecords.some(risk=>risk.propertyId===record.id && !closedStatuses.has(text(risk.status)));
-    const overdue=tasks.some(task=>(task.propertyId===record.id || task.property===record.title)&&!task.done&&task.date);
+    const overdue=tasks.some(task=>(task.propertyId===record.id || task.property===record.title)&&!task.done&&task.date&&today&&task.date<today);
     const missing=[];
     if(!record.location)missing.push("location");
     if(!record.surveyNumber && !data.__surveyNumber && !data.surveyNumber)missing.push("survey / property ID");
@@ -352,4 +352,16 @@ export function buildIntelligenceDecisionSupport(records=[],contacts=[],document
     if(!record.followUpContactId && !record.primaryContactId && !data.__primaryFollowUpContactId && !data.__followUpContactId)missing.push("primary follow-up owner");
     return {record,missing,docCount,openRisk,overdue,status:openRisk||overdue?"Attention needed":missing.length?"Evidence gaps":"Ready for human review"};
   }).sort((a,b)=>Number(b.openRisk||b.overdue)-Number(a.openRisk||a.overdue)||b.missing.length-a.missing.length);
+}
+
+export function searchIntelligenceContacts(contacts=[],query="") {
+  const q=normalizeIntelligenceText(query);
+  if(!q)return [];
+  const terms=q.split(" ").filter(Boolean);
+  const phoneQuery=digits(query);
+  return contacts.filter(contact=>{
+    const search=normalizeIntelligenceText(contactSearchFields(contact).join(" "));
+    const phone=localPhone(contact.phone);
+    return terms.every(term=>search.includes(term)) || (phoneQuery.length>=4 && phone.includes(localPhone(phoneQuery)));
+  }).slice(0,100);
 }

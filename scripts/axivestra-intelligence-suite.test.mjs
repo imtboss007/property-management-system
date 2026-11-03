@@ -39,7 +39,7 @@ console.log("AXIVESTRA Intelligence Suite engine tests passed.");
 
 import {
   buildIntelligenceConflictSignals,buildIntelligenceOwnershipChains,buildIntelligencePropertyCashflow,
-  buildIntelligenceLoanPropertyExposure,buildIntelligenceDocumentSearch,buildIntelligenceDecisionSupport
+  buildIntelligenceLoanPropertyExposure,buildIntelligenceDocumentSearch,buildIntelligenceDecisionSupport,searchIntelligenceContacts
 } from "../src/lib/intelligence-engine.mjs";
 const chainRecords=[
  {id:"s1",title:"Survey 123 land",module:"Property Sale",location:"Srirampuram",value:"1cr",status:"Registered",surveyNumber:"123",ownershipDetails:"Owner A",createdAt:"2020-01-01",moduleData:{__marketValue:"1.5cr",__transactionType:"Sale",seller:"Owner A",buyer:"Owner B"}},
@@ -60,3 +60,6 @@ assert.equal(linkedLoan[0].knownOutstanding,3500000);
 assert.equal(buildIntelligenceDocumentSearch([{id:"doc1",name:"Sale Deed",category:"Legal",property:"Survey 123 land"}],"sale deed").length,1);
 const readiness=buildIntelligenceDecisionSupport([{...chainRecords[0],primaryContactId:"c1"}],[{id:"c1",name:"Owner A",phone:"9999999999",role:"Owner"}],[{id:"d1",propertyId:"s1",name:"Sale Deed"}],[],[]]);
 assert.ok(readiness[0].missing.includes("primary follow-up owner"));
+
+assert.equal(searchIntelligenceContacts(contacts,"9876543210").length,2);
+assert.equal(searchIntelligenceContacts(contacts,"Asha Rao").length,1);
