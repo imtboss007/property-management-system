@@ -229,4 +229,22 @@ for (const heading of ["Module","Description","Date","Time","Final Amount (INR)"
   assert.ok(register.includes(">"+heading+"</th>"), "Missing directly editable follow-up column: " + heading);
 console.log("AXIVESTRA person-grouped six-column editable follow-up grid layout contracts passed.");
 
+for (const token of [
+  "relationship-hub-filters", "Filter by module", "relationship-module-group",
+  "Search client / deal / contact number", "groupedProperties"
+]) assert.ok(app.includes(token), "Client & Deal Hub must categorize records by module and provide working filters: " + token);
+for (const token of [
+  "commonModuleContactFields", "__contact_client", "__contact_borrower",
+  "__contact_lender", "__contact_lawyer", "__contact_advocate",
+  "__contact_broker", "__contact_owner", "__contact_investor",
+  "getModuleContactFields(form.module)"
+]) assert.ok(app.includes(token), "Every module must expose saved role-linked contact pickers: " + token);
+for (const token of [
+  "normalizePhone", "phoneMatches", "contact.verifiedName", "contact.whatsappName",
+  "contact.phone", "groupById.get(normalize(groupAlias))"
+]) assert.ok(contactPicker.includes(token), "Contact search must match synced names, WhatsApp aliases, group aliases and normalized phone numbers: " + token);
+assert.ok(report.includes("__followUpContactIds") && report.includes("record.followUpEntries"),
+  "Follow-up register PDF must include all assigned people, including legacy multi-person records.");
+
+
 
