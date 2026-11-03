@@ -3165,7 +3165,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     const selectedFollowUpContactIds = Array.from(new Set((form.followUpContactIds || [])
       .filter(id => contacts.some(contact => contact.id === id))));
     if(!selectedFollowUpContactIds.length || selectedFollowUpContactIds.length !== (form.followUpContactIds || []).length){
-      setAmountError("Choose at least one saved Follow-up Person. You can assign multiple people to this record.");
+      setAmountError("Choose a saved Follow-up Person (one or more). You can assign multiple people to this record.");
       return;
     }
     const normalizedValue=normalizeIndianAmount(form.value);
