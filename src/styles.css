@@ -2698,3 +2698,107 @@ h2,h3{color:#e5f2fc}
   .ax-record-followups__table{min-width:0;font-size:8px}
   .ax-record-followups__table input,.ax-record-followups__table select,.ax-record-followups__table textarea{border:0;padding:0;min-width:0}
 }
+
+
+/* AXIVESTRA mobile-only usability and performance corrections.
+   Desktop styles and existing module content/behaviour are intentionally unchanged. */
+@media (max-width: 720px) {
+  html { scroll-behavior: auto; }
+  .app-shell, .main-panel, .content,
+  .ax-analytics-panel, .ax-module-workbench {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .app-shell { overflow-x: clip; }
+  .content { width: 100%; }
+
+  /* Keep analytics and chart visualizations inside the phone viewport. */
+  .ax-analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+  }
+  .ax-chart-stage {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-bottom: 10px;
+  }
+  .ax-donut-wrap,
+  .ax-horizontal-bars,
+  .ax-line-chart,
+  .ax-cashflow-bars,
+  .ax-module-chart-focus,
+  .ax-module-chart-bars,
+  .ax-module-chart-line {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ax-donut-wrap { padding: 14px 8px; gap: 8px; }
+  .ax-donut-wrap svg,
+  .ax-module-donut-chart svg,
+  .ax-line-chart svg,
+  .ax-cashflow-bars svg,
+  .ax-module-chart-line svg {
+    display: block;
+    width: min(100%, 260px);
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+  .ax-module-donut-chart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding: 12px 8px;
+    overflow: hidden;
+  }
+  .ax-module-chart-bars { overflow-x: hidden; }
+  .ax-module-chart-bar {
+    grid-template-columns: minmax(72px, 1fr) minmax(50px, 1.2fr) minmax(48px, auto);
+    gap: 8px;
+  }
+  .ax-chart-inspector { width: 100%; min-width: 0; }
+
+  /* Make compact desktop labels readable on phone screens. */
+  .content :is(p, label, input, select, textarea, button, td, th, small),
+  .ax-analytics-panel :is(p, label, input, select, textarea, button, small),
+  .ax-module-workbench :is(p, label, input, select, textarea, button, small),
+  .ax-inspector-pair span,
+  .ax-inspector-pair strong,
+  .ax-chart-legend button,
+  .ax-module-chart-legend button {
+    font-size: max(12px, 1em);
+  }
+  .module-card h3 { font-size: 13px; line-height: 1.4; }
+  .module-card p { font-size: 12px; line-height: 1.55; }
+  .nav-item { font-size: 14px; min-height: 46px; }
+  .breadcrumb { font-size: 12px; }
+  .ax-kicker, .ax-live-status { font-size: 10px; }
+
+  /* Reduce expensive motion and layered effects on mobile without changing actions. */
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .module-card:hover,
+  .ax-module-card:hover,
+  .ax-chart-point:hover {
+    transform: none;
+    filter: none;
+  }
+}
+@media (max-width: 380px) {
+  .ax-module-chart-bar {
+    grid-template-columns: minmax(65px, 1fr) minmax(42px, 1.1fr) minmax(44px, auto);
+    gap: 6px;
+  }
+}
