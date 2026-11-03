@@ -14,7 +14,7 @@ type ModuleRecord = {
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
 };
 type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "currency" | "percent" | "date" | "select" | "textarea" | "email" | "phone" | "url" | "checkbox"; options?: string[]; required?: boolean };
-type Contact = { id: string; name: string; phone: string; role: string; notes: string };
+type Contact = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; whatsappName?: string; verifiedName?: string; notify?: string; notes: string };
 type Props = {
   moduleName: string;
   description: string;
@@ -40,6 +40,7 @@ const dateLabel = (value?: string) => value ? new Date(value + "T00:00:00").toLo
 const contactIds = (record: ModuleRecord) => [
   record.followUpContactId || "",
   ...(record.moduleData?.__followUpContactIds || "").split(","),
+  ...(record.followUpEntries || []).map(entry => entry.followPersonId || ""),
   record.primaryContactId || "",
   ...(record.moduleData?.__linkedContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
