@@ -1571,6 +1571,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setMemberBusy(false); }
   };
 
+  const propertyMetricsByModule = useMemo(() => {
+    const metrics = new Map<string, { count: number; value: number }>();
+    properties.forEach(property => {
+      const current = metrics.get(property.module) || { count: 0, value: 0 };
+      current.count += 1;
+      current.value += Number(property.value || 0);
+      metrics.set(property.module, current);
+    });
+    return metrics;
+  }, [properties]);
+
   const modules = useMemo(() => [
     ...builtInModules,
     ...customModules.filter(item => !item.archived).map(item => ({ name: item.name, icon: customModuleIconRegistry[item.icon] || Layers, color: item.color, group: item.group, description: item.description, custom: true }))
@@ -1904,7 +1915,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     } finally { setDocumentVaultBusy(false); }
   };
 
-  const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); if (typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches) window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior }); };
+  const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); if (typeof window !== "undefined") window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior }); };
   const openPropertyForm = (record: PropertyRecord | null = null, prefill: {contactId?:string;module?:string}|null = null) => { setEditingProperty(record); setPropertyPrefill(prefill); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); setPropertyPrefill(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
@@ -2674,7 +2685,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
               financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
-              modules={modules.map(item => ({ name: item.name, value: properties.filter(property => property.module === item.name).reduce((sum, property) => sum + Number(property.value || 0), 0), count: properties.filter(property => property.module === item.name).length }))}
+              modules={modules.map(item => { const metrics = propertyMetricsByModule.get(item.name); return { name: item.name, value: metrics?.value || 0, count: metrics?.count || 0 }; })}
               onOpenModule={name => go(name)}
             />}
             {dashboardLayout.insightPanels && <section className="ax-dashboard-insights">
@@ -2691,7 +2702,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             {dashboardLayout.moduleDirectory && <>
             <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS · {modules.length} MODULES</span><h2>Explore your operating modules</h2><p>Every workspace has its own record structure, search, analytics, stakeholders and export tools. Create new module types as your business evolves.</p></div><div className="ax-module-directory-actions"><button className="secondary-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button><button className="primary-button" onClick={()=>setModuleStudioOpen(true)} disabled={company?.role==="read_only"}><Plus size={16}/> Add module</button></div></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
-              const count=properties.filter(item=>item.module===name).length;
+              const count=propertyMetricsByModule.get(name)?.count || 0;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
                 <div className={`module-icon ${color}`}><Icon size={20} strokeWidth={1.8}/></div>
                 <div className="module-number">{String(index+1).padStart(2,"0")}</div>
