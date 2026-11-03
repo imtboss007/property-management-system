@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { ArrowUpRight, Filter, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { formatINR, parseDealNumber } from "./lib/deal-structure";
+import { getPropertyPriceForRangeSearch } from "./lib/property-range-search";
 
 type FinderRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
@@ -31,7 +32,7 @@ const amountLabel = (value: number) => value > 0 ? formatINR(value) : "Not recor
 const locationTextFromData = (data: Record<string,string> | undefined) => Object.entries(data || {})
   .filter(([key,value]) => /location|address|city|area|locality|village|district|taluk|tehsil|pincode|postal|landmark|zone|state/i.test(key) && String(value || "").trim())
   .map(([,value]) => String(value)).join(" ");
-const phoneDigits = (value: unknown) => String(value || "").replace(/\\D/g, "");
+const phoneDigits = (value: unknown) => String(value || "").replace(/\D/g, "");
 const phoneQueryMatches = (numbers: string, query: string) => {
   const q = phoneDigits(query);
   if (q.length < 4) return false;
@@ -85,7 +86,7 @@ export default function DealFinder({ records, contacts, modules, onOpenModule, o
       ...Object.entries(data).filter(([key, value]) => key.startsWith("__contact_") && Boolean(value)).map(([, value]) => String(value))
     ].filter(Boolean)));
     const linked = ids.map(id => contactById.get(id)).filter((contact): contact is FinderContact => Boolean(contact));
-    const amount = parseDealNumber(record.value);
+    const amount = getPropertyPriceForRangeSearch(record) ?? parseDealNumber(record.value);
     const market = amountFromData(data, "market");
     const settlement = amountFromData(data, "settlement");
     const locationText = [record.location, locationTextFromData(data)].filter(Boolean).join(" ");
