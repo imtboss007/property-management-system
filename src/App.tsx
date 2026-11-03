@@ -3032,14 +3032,15 @@ function RelationshipHub({properties,contacts,tasks,financials,modules,today,onE
     const data=property.moduleData||{};
     const hasIds=Object.prototype.hasOwnProperty.call(data,"__followUpContactIds");
     const followIds=hasIds?(data.__followUpContactIds||"").split(","):[property.followUpContactId||"",...(property.followUpEntries||[]).map(entry=>entry.followPersonId||"")];
-    const ids=Array.from(new Set([...followIds,property.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean)));
+    const ids=Array.from(new Set([...followIds,...(property.followUpEntries||[]).map(entry=>entry.followPersonId||""),property.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean)));
     const linked=ids.map(id=>contactsById.get(id)).filter((contact):contact is ContactRecord=>Boolean(contact));
     const unique=linked.filter((contact,index)=>linked.findIndex(other=>other.id===contact.id)===index);
     const people=unique.length?unique:contacts.filter(contact=>contact.name.trim().toLocaleLowerCase()===(property.contact||"").trim().toLocaleLowerCase()).slice(0,1);
     const roleLabels=getModuleContactFields(property.module).map(field=>({label:field.label,contact:contactsById.get(data[field.key]||"")})).filter((item):item is {label:string;contact:ContactRecord}=>Boolean(item.contact)).map(item=>item.label+": "+item.contact.name);
-    const searchText=[property.title,property.module,categoryByModule.get(property.module),property.location,property.status,property.contact,property.value,property.nextAction,property.notes,...Object.entries(data).flatMap(([key,value])=>[key,String(value??"")]),...people.flatMap(person=>[person.name,person.phone,person.role,...(person.roles||[]),person.customRoles,person.email])].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+    const locationSearchText=[property.location,...Object.entries(data).filter(([key,value])=>/location|address|city|area|locality|village|district|taluk|tehsil|pincode|postal|landmark|zone|state/i.test(key)&&String(value||"").trim()).map(([,value])=>String(value))].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+    const searchText=[property.title,property.module,categoryByModule.get(property.module),locationSearchText,property.status,property.contact,property.value,property.nextAction,property.notes,...Object.entries(data).flatMap(([key,value])=>[key,String(value??"")]),...people.flatMap(person=>[person.name,person.whatsappName,person.verifiedName,person.notify,person.phone,String(person.phone||"").replace(/\D/g,""),person.role,...(person.roles||[]),person.customRoles,person.email])].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
     const phoneDigits=people.map(person=>String(person.phone||"").replace(/\D/g,"")).join(" ");
-    return {property,linked:people,roleLabels,searchText,phoneDigits,category:categoryByModule.get(property.module)||"Other"};
+    return {property,linked:people,roleLabels,searchText,phoneDigits,locationSearchText,category:categoryByModule.get(property.module)||"Other"};
   }),[properties,contactsById,categoryByModule,contacts]);
   const activeProperties=useMemo(()=>properties.filter(property=>!["Completed","Closed","Settled"].includes(property.status)),[properties]);
   const overdueDeadlines=useMemo(()=>activeProperties.filter(property=>{const deadline=getPropertyDeadline(property);return Boolean(deadline&&deadline.date<today);}),[activeProperties,today]);
@@ -3053,8 +3054,9 @@ function RelationshipHub({properties,contacts,tasks,financials,modules,today,onE
   const filteredRows=useMemo(()=>ordered.filter(item=>{
     if(moduleFilter!=="All modules"&&item.property.module!==moduleFilter)return false;
     if(categoryFilter!=="All categories"&&item.category!==categoryFilter)return false;
-    if(locationTerms.length&&!locationTerms.every(term=>(item.property.location||"").normalize("NFKC").toLocaleLowerCase().includes(term)))return false;
-    return !normalizedQuery||item.searchText.includes(normalizedQuery)||(queryDigits.length>=4&&item.phoneDigits.includes(queryDigits));
+    if(locationTerms.length&&!locationTerms.every(term=>item.locationSearchText.includes(term)))return false;
+    const phoneMatch=queryDigits.length>=4&&item.phoneDigits.split(" ").some(raw=>{const n=raw;const localN=n.length>10&&n.startsWith("91")?n.slice(2):n;const localQ=queryDigits.length>10&&queryDigits.startsWith("91")?queryDigits.slice(2):queryDigits;return n.includes(queryDigits)||localN.includes(localQ)||n.endsWith(queryDigits)||localN.endsWith(localQ);});
+    return !normalizedQuery||item.searchText.includes(normalizedQuery)||phoneMatch;
   }),[ordered,moduleFilter,categoryFilter,locationTerms.join("|"),normalizedQuery,queryDigits]);
   const filteredProperties=useMemo(()=>filteredRows.map(item=>item.property),[filteredRows]);
   const groupedProperties=useMemo(()=>{const map=new Map<string,typeof filteredRows>();filteredRows.forEach(item=>map.set(item.property.module,[...(map.get(item.property.module)||[]),item]));return Array.from(map.entries()).sort(([a],[b])=>a.localeCompare(b)).map(([moduleName,records])=>({moduleName,records}));},[filteredRows]);
