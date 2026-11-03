@@ -257,4 +257,9 @@ assert.ok(app.includes("__contact_primaryFollowUp"), "Every module must have a s
 assert.ok(app.includes("__marketValue") && app.includes("__settlementAmount"), "Shared market and settlement value fields must exist in every module.");
 assert.ok(contactPicker.includes('normalize("NFKD")') && contactPicker.includes('contact.notes'),
   "Contact search must tolerate accent variants and search saved contact notes as well as synced identity fields.");
+assert.ok(/replace\(\/\\D\/g, ""\)/.test(dealFinder), "Deal Finder phone searches must strip formatting before comparing synced numbers.");
+assert.ok(dealFinder.includes("getPropertyPriceForRangeSearch(record)"), "Deal amount caps must use module amount fields when headline value is blank.");
+assert.ok(dealFinder.includes("contact.verifiedName") && dealFinder.includes("contact.whatsappJid"), "Deal Finder must search synced WhatsApp and verified contact aliases.");
+assert.ok(register.includes("contact.verifiedName") && register.includes("contact.whatsappJid") && register.includes('replace(/[^0-9]/g,"")'), "Follow-up Register search must support synced identity aliases and formatted phone numbers.");
+assert.ok(app.includes("indexedPropertiesForGlobalSearch") && app.includes("contact.whatsappName"), "Workspace-wide search must include linked contact and synced names.");
 console.log("AXIVESTRA cross-module location/amount/phone search and primary follow-up coordinator contracts passed.");
