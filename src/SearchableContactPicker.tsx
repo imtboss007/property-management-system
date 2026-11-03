@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Search, X } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, Search, Users, X } from "lucide-react";
 
 export type SearchableContact = {
   id: string;
@@ -19,7 +19,7 @@ export type SearchableContact = {
   whatsappJid?: string;
   whatsappGroupIds?: string[];
 };
-export type SearchableContactGroup = { id: string; name: string; jid?: string };
+export type SearchableContactGroup = { id: string; name: string; jid?: string; subject?: string; description?: string };
 
 type Props = {
   label: string;
@@ -30,16 +30,18 @@ type Props = {
   placeholder?: string;
   help?: string;
   groups?: SearchableContactGroup[];
+  onSelectGroup?: (groupId: string, memberIds: string[]) => void;
 };
 
 const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().trim();
 
 export default function SearchableContactPicker({
-  label, contacts, value, onChange, multiple = false, placeholder, help, groups = []
+  label, contacts, value, onChange, multiple = false, placeholder, help, groups = [], onSelectGroup
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const selectedIds = useMemo(() => Array.from(new Set(
@@ -65,10 +67,34 @@ export default function SearchableContactPicker({
     return { contact, roles, groupNames, searchText };
   }).sort((a, b) => a.contact.name.localeCompare(b.contact.name)), [contacts, groupById]);
 
-  const terms = normalize(query).split(/\s+/).filter(Boolean);
-  const matching = useMemo(() => terms.length
-    ? indexedContacts.filter(item => terms.every(term => item.searchText.includes(term)))
-    : indexedContacts, [indexedContacts, query]);
+  // Build the group-to-contact index in one pass. This avoids scanning the full
+  // contact directory once per group when the workspace has large WhatsApp lists.
+  const contactsByGroup = useMemo(() => {
+    const result = new Map<string, typeof indexedContacts>();
+    indexedContacts.forEach(item => (item.contact.whatsappGroupIds || []).forEach(groupId => {
+      const members = result.get(groupId) || [];
+      members.push(item);
+      result.set(groupId, members);
+    }));
+    return result;
+  }, [indexedContacts]);
+  const indexedGroups = useMemo(() => groups.map(group => ({
+    group,
+    searchText: normalize([group.name, group.subject, group.description, group.jid].filter(Boolean).join(" ")),
+    memberCount: contactsByGroup.get(group.id)?.length || 0
+  })).sort((a, b) => a.group.name.localeCompare(b.group.name)), [groups, contactsByGroup]);
+
+  const deferredQuery = useDeferredValue(query);
+  const terms = useMemo(() => normalize(deferredQuery).split(/\s+/).filter(Boolean), [deferredQuery]);
+  const matchingGroups = useMemo(() => terms.length
+    ? indexedGroups.filter(item => terms.every(term => item.searchText.includes(term))).slice(0, 20)
+    : [], [indexedGroups, terms]);
+  const matching = useMemo(() => {
+    const source = activeGroupId ? (contactsByGroup.get(activeGroupId) || []) : indexedContacts;
+    return terms.length
+      ? source.filter(item => terms.every(term => item.searchText.includes(term)))
+      : source;
+  }, [indexedContacts, contactsByGroup, activeGroupId, terms]);
   const visible = matching.slice(0, 40);
   const selected = selectedIds.map(id => contactsById.get(id)).filter((item): item is SearchableContact => Boolean(item));
 
@@ -82,6 +108,10 @@ export default function SearchableContactPicker({
     return () => document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
   }, [open]);
 
+  useEffect(() => {
+    if (activeIndex >= visible.length) setActiveIndex(0);
+  }, [activeIndex, visible.length]);
+
   const rolesFor = (contact: SearchableContact) => Array.from(new Set([
     ...(contact.roles || []), contact.role,
     ...(contact.customRoles || "").split(",").map(role => role.trim())
@@ -90,6 +120,7 @@ export default function SearchableContactPicker({
   const selectSingle = (id: string) => {
     onChange(id);
     setQuery("");
+    setActiveGroupId(null);
     setOpen(false);
     setActiveIndex(0);
   };
@@ -99,6 +130,20 @@ export default function SearchableContactPicker({
       : [...selectedIds, id];
     onChange(next);
     setQuery("");
+    setActiveGroupId(null);
+    setOpen(true);
+    setActiveIndex(0);
+    inputRef.current?.focus();
+  };
+  const selectGroup = (groupId: string) => {
+    const group = groupById.get(groupId);
+    if (!group) return;
+    const members = contactsByGroup.get(groupId) || [];
+    onSelectGroup?.(groupId, members.map(item => item.contact.id));
+    // A group is not fabricated into a person/contact ID. Instead, show its
+    // linked master contacts so the user can choose the actual follow-up people.
+    setActiveGroupId(groupId);
+    setQuery(group.name);
     setOpen(true);
     setActiveIndex(0);
     inputRef.current?.focus();
@@ -111,6 +156,7 @@ export default function SearchableContactPicker({
     if (event.key === "Escape") {
       setOpen(false);
       setQuery("");
+      setActiveGroupId(null);
       return;
     }
     if (event.key === "ArrowDown" && visible.length) {
@@ -131,12 +177,12 @@ export default function SearchableContactPicker({
     }
   };
 
-  return <div ref={rootRef} className={"searchable-contact-picker" + (multiple ? " searchable-contact-picker--multiple" : "")}>
+  return <div ref={rootRef} className={"searchable-contact-picker" + (multiple ? " searchable-contact-picker--multiple" : "") + (open ? " searchable-contact-picker--open" : "")}>
     <span className="searchable-contact-picker__label">{label}</span>
     {selected.length > 0 && <div className="searchable-contact-picker__selected">
       {selected.map(contact => <span className="searchable-contact-picker__chip" key={contact.id}>
         <span><strong>{contact.name}</strong><small>{rolesFor(contact) || "Contact"}{contact.phone ? " · " + contact.phone : ""}</small></span>
-        <button type="button" onPointerDown={event => event.preventDefault()} onClick={() => remove(contact.id)} aria-label={"Remove " + contact.name + " from " + label}><X size={12}/></button>
+        <button type="button" onClick={() => remove(contact.id)} aria-label={"Remove " + contact.name + " from " + label}><X size={12}/></button>
       </span>)}
     </div>}
     <div className="searchable-contact-picker__search">
@@ -145,7 +191,7 @@ export default function SearchableContactPicker({
         ref={inputRef}
         type="search"
         value={query}
-        onChange={event => { setQuery(event.target.value); setOpen(true); setActiveIndex(0); }}
+        onChange={event => { setQuery(event.target.value); setActiveGroupId(null); setOpen(true); setActiveIndex(0); }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder || "Type a name, role, phone or group…"}
@@ -154,33 +200,54 @@ export default function SearchableContactPicker({
         aria-autocomplete="list"
         autoComplete="off"
       />
-      {query && <button type="button" className="searchable-contact-picker__clear" onPointerDown={event => event.preventDefault()} onClick={() => { setQuery(""); setOpen(true); inputRef.current?.focus(); }} aria-label={"Clear search for " + label}>×</button>}
+      {query && <button type="button" className="searchable-contact-picker__clear" onClick={() => { setQuery(""); setActiveGroupId(null); setOpen(true); inputRef.current?.focus(); }} aria-label={"Clear search for " + label}>×</button>}
     </div>
     {open && <div className="searchable-contact-picker__options" role="listbox" aria-label={label + " search results"} aria-multiselectable={multiple}>
+      {matchingGroups.length > 0 && <div className="searchable-contact-picker__group-results">
+        <small className="searchable-contact-picker__section-label">WhatsApp groups</small>
+        {matchingGroups.map(item => <button
+          type="button"
+          role="option"
+          aria-selected={activeGroupId === item.group.id}
+          className={"searchable-contact-picker__group-option" + (activeGroupId === item.group.id ? " selected" : "")}
+          key={item.group.id}
+          onClick={() => selectGroup(item.group.id)}
+        >
+          <span className="searchable-contact-picker__group-icon"><Users size={14}/></span>
+          <span><strong>{item.group.name}</strong><small>{item.memberCount} saved contact{item.memberCount === 1 ? "" : "s"} linked · select to view people in this group</small></span>
+          <span className="searchable-contact-picker__group-action">View</span>
+        </button>)}
+      </div>}
       {visible.length === 0
-        ? <p className="searchable-contact-picker__empty">No saved contacts match this name, role, phone or group. Add the person in Contacts or check the group link.</p>
-        : visible.map((item, index) => {
-          const contact = item.contact;
-          const isSelected = selectedIds.includes(contact.id);
-          return <button
-            type="button"
-            role="option"
-            aria-selected={isSelected}
-            className={"searchable-contact-picker__option" + (isSelected ? " selected" : "") + (activeIndex === index ? " active" : "")}
-            key={contact.id}
-            onPointerDown={event => event.preventDefault()}
-            onClick={() => multiple ? toggle(contact.id) : selectSingle(contact.id)}
-          >
-            <span className="searchable-contact-picker__option-mark">{isSelected ? <CheckCircle2 size={15}/> : <span/>}</span>
-            <span>
-              <strong>{contact.name}</strong>
-              <small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{item.roles.join(", ") || "Contact"}{contact.phone ? " · " + contact.phone : ""}{contact.email ? " · " + contact.email : ""}</small>
-              {item.groupNames.length > 0 && <small className="searchable-contact-picker__groups">Groups: {item.groupNames.join(", ")}</small>}
-            </span>
-          </button>;
-        })}
-      <small className="searchable-contact-picker__count">{visible.length} shown · {matching.length} matching contacts{matching.length > 40 ? " · refine your search" : ""}{groups.length ? " · group names included" : ""}</small>
-      <button type="button" className="searchable-contact-picker__close" onPointerDown={event => event.preventDefault()} onClick={() => setOpen(false)}>Close results</button>
+        ? <p className="searchable-contact-picker__empty">{activeGroupId
+          ? "This WhatsApp group has no saved master contacts linked yet. Link people to the group in Contact 360, then search the group again."
+          : matchingGroups.length
+            ? "Select a WhatsApp group above to see the saved contacts linked to it."
+            : "No saved contacts match this name, role, phone or group. Add the person in Contacts or check the group link."}</p>
+        : <>
+          {activeGroupId && <small className="searchable-contact-picker__section-label">People linked to {groupById.get(activeGroupId)?.name || "this group"}</small>}
+          {visible.map((item, index) => {
+            const contact = item.contact;
+            const isSelected = selectedIds.includes(contact.id);
+            return <button
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              className={"searchable-contact-picker__option" + (isSelected ? " selected" : "") + (activeIndex === index ? " active" : "")}
+              key={contact.id}
+              onClick={() => multiple ? toggle(contact.id) : selectSingle(contact.id)}
+            >
+              <span className="searchable-contact-picker__option-mark">{isSelected ? <CheckCircle2 size={15}/> : <span/>}</span>
+              <span>
+                <strong>{contact.name}</strong>
+                <small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{item.roles.join(", ") || "Contact"}{contact.phone ? " · " + contact.phone : ""}{contact.email ? " · " + contact.email : ""}</small>
+                {item.groupNames.length > 0 && <small className="searchable-contact-picker__groups">Groups: {item.groupNames.join(", ")}</small>}
+              </span>
+            </button>;
+          })}
+        </>}
+      <small className="searchable-contact-picker__count">{visible.length} contacts shown · {matching.length} matching contacts{matching.length > 40 ? " · refine your search" : ""}{groups.length ? " · group names searchable" : ""}</small>
+      <button type="button" className="searchable-contact-picker__close" onClick={() => setOpen(false)}>Close results</button>
     </div>}
     {multiple && <small className="searchable-contact-picker__count">{selectedIds.length} selected · search and select more people</small>}
     {help && <small className="searchable-contact-picker__help">{help}</small>}
