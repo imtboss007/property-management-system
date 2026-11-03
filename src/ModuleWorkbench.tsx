@@ -5,7 +5,9 @@ import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, Check
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
-  contact: string; primaryContactId?: string; followUpContactId?: string; targetDeadline?: string; targetDeadlineTime?: string;
+  contact: string; primaryContactId?: string; followUpContactId?: string;
+  followUpEntries?: Array<{ followPersonId: string; followPersonName?: string }>;
+  targetDeadline?: string; targetDeadlineTime?: string;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
   nextResponseType?: string; nextResponseDescription?: string; nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
@@ -41,10 +43,13 @@ const contactIds = (record: ModuleRecord) => [
   ...(record.moduleData?.__linkedContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
 ].filter(Boolean);
-const followUpContactIds = (record: ModuleRecord) => Array.from(new Set([
-  ...(record.moduleData?.__followUpContactIds || "").split(","),
-  record.followUpContactId || ""
-].map(value => value.trim()).filter(Boolean)));
+const followUpContactIds = (record: ModuleRecord) => {
+  const hasSavedIds = Object.prototype.hasOwnProperty.call(record.moduleData || {}, "__followUpContactIds");
+  const savedIds = hasSavedIds
+    ? (record.moduleData?.__followUpContactIds || "").split(",")
+    : [record.followUpContactId || "", ...(record.followUpEntries || []).map(entry => entry.followPersonId || "")];
+  return Array.from(new Set(savedIds.map(value => value.trim()).filter(Boolean)));
+};
 
 function ModuleEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" }) {
   if (type === "donut") return <svg className="ax-empty-chart-ring" viewBox="0 0 180 180" role="img" aria-label="Empty donut chart preview"><circle cx="90" cy="90" r="62" fill="none" stroke="#1a354a" strokeWidth="21" strokeDasharray="6 7"/><circle cx="90" cy="90" r="45" fill="#0b1d2d"/><text x="90" y="86" textAnchor="middle" fill="#69879c" fontSize="9" letterSpacing="1">NO DATA</text><text x="90" y="105" textAnchor="middle" fill="#89a7bb" fontSize="14" fontWeight="800">0</text></svg>;
