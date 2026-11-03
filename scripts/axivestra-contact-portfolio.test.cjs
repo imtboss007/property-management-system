@@ -254,6 +254,7 @@ for (const token of [
   "categoryByModule", "onOpenRecord"
 ]) assert.ok(dealFinder.includes(token), "Deal Finder must search linked contacts, legacy follow-ups, structured locations and custom amount limits: " + token);
 assert.ok(app.includes("__contact_primaryFollowUp"), "Every module must have a separately linked primary follow-up coordinator.");
+assert.ok(app.includes("__marketValue") && app.includes("__settlementAmount"), "Shared market and settlement value fields must exist in every module.");
 assert.ok(contactPicker.includes('normalize("NFKD")') && contactPicker.includes('contact.notes'),
   "Contact search must tolerate accent variants and search saved contact notes as well as synced identity fields.");
 console.log("AXIVESTRA cross-module location/amount/phone search and primary follow-up coordinator contracts passed.");
