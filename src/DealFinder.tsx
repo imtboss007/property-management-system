@@ -4,7 +4,7 @@ import { formatINR, parseDealNumber } from "./lib/deal-structure";
 
 type FinderRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
-  contact: string; primaryContactId?: string; followUpContactId?: string; moduleData?: Record<string, string>;
+  contact: string; primaryContactId?: string; followUpContactId?: string; followUpEntries?: Array<{followPersonId:string}>; moduleData?: Record<string, string>;
 };
 type FinderContact = { id: string; name: string; phone?: string; role?: string; roles?: string[]; customRoles?: string };
 type FinderModule = { name: string; group?: string };
@@ -28,6 +28,20 @@ const amountFromData = (data: Record<string, string> | undefined, kind: "market"
 };
 const selectedMax = (preset: string, custom: string) => preset === "custom" ? parseDealNumber(custom) : preset ? Number(preset) : 0;
 const amountLabel = (value: number) => value > 0 ? formatINR(value) : "Not recorded";
+const locationTextFromData = (data: Record<string,string> | undefined) => Object.entries(data || {})
+  .filter(([key,value]) => /location|address|city|area|locality|village|district|taluk|tehsil|pincode|postal|landmark|zone|state/i.test(key) && String(value || "").trim())
+  .map(([,value]) => String(value)).join(" ");
+const phoneDigits = (value: unknown) => String(value || "").replace(/\\D/g, "");
+const phoneQueryMatches = (numbers: string, query: string) => {
+  const q = phoneDigits(query);
+  if (q.length < 4) return false;
+  return numbers.split(" ").some(raw => {
+    const n = phoneDigits(raw);
+    const localN = n.length > 10 && n.startsWith("91") ? n.slice(2) : n;
+    const localQ = q.length > 10 && q.startsWith("91") ? q.slice(2) : q;
+    return n.includes(q) || localN.includes(localQ) || n.endsWith(q) || localN.endsWith(localQ);
+  });
+};
 
 function AmountFilter({ label, value, custom, onValue, onCustom }: { label: string; value: string; custom: string; onValue: (value: string) => void; onCustom: (value: string) => void }) {
   return <label className="ax-deal-finder__amount-filter">
@@ -62,8 +76,11 @@ export default function DealFinder({ records, contacts, modules, onOpenModule, o
 
   const indexed = useMemo(() => records.map(record => {
     const data = record.moduleData || {};
+    const hasFollowUpIds = Object.prototype.hasOwnProperty.call(data,"__followUpContactIds");
     const ids = Array.from(new Set([
-      record.primaryContactId || "", record.followUpContactId || "", ...(data.__followUpContactIds || "").split(","),
+      record.primaryContactId || "", record.followUpContactId || "",
+      ...(hasFollowUpIds ? (data.__followUpContactIds || "").split(",") : []),
+      ...(record.followUpEntries || []).map(entry => entry.followPersonId || ""),
       ...(data.__linkedContactIds || "").split(","),
       ...Object.entries(data).filter(([key, value]) => key.startsWith("__contact_") && Boolean(value)).map(([, value]) => String(value))
     ].filter(Boolean)));
@@ -71,12 +88,14 @@ export default function DealFinder({ records, contacts, modules, onOpenModule, o
     const amount = parseDealNumber(record.value);
     const market = amountFromData(data, "market");
     const settlement = amountFromData(data, "settlement");
+    const locationText = [record.location, locationTextFromData(data)].filter(Boolean).join(" ");
+    const linkedPhones = linked.map(contact => contact.phone || "").filter(Boolean).join(" ");
     const text = normalize([
-      record.title, record.module, categoryByModule.get(record.module), record.location, record.status, record.contact, record.value,
+      record.title, record.module, categoryByModule.get(record.module), locationText, record.status, record.contact, record.value,
       ...Object.entries(data).flatMap(([key, value]) => [key, value]),
-      ...linked.flatMap(contact => [contact.name, contact.phone, contact.role, ...(contact.roles || []), contact.customRoles])
+      ...linked.flatMap(contact => [contact.name, contact.phone, phoneDigits(contact.phone), contact.role, ...(contact.roles || []), contact.customRoles])
     ].filter(Boolean).join(" "));
-    return { record, linked, amount, market, settlement, text, category: categoryByModule.get(record.module) || "Other" };
+    return { record, linked, amount, market, settlement, text, locationText:normalize(locationText), linkedPhones, category: categoryByModule.get(record.module) || "Other" };
   }), [records, contactById, categoryByModule]);
 
   const filtered = useMemo(() => {
@@ -85,8 +104,8 @@ export default function DealFinder({ records, contacts, modules, onOpenModule, o
     return indexed.filter(item =>
       (category === "All categories" || item.category === category) &&
       (module === "All modules" || item.record.module === module) &&
-      locationTerms.every(term => normalize(item.record.location).includes(term)) &&
-      terms.every(term => item.text.includes(term)) &&
+      locationTerms.every(term => item.locationText.includes(term)) &&
+      (terms.every(term => item.text.includes(term)) || phoneQueryMatches(item.linkedPhones, deferredQuery)) &&
       (!limits.amount || (item.amount > 0 && item.amount <= limits.amount)) &&
       (!limits.market || (item.market > 0 && item.market <= limits.market)) &&
       (!limits.settlement || (item.settlement > 0 && item.settlement <= limits.settlement))
