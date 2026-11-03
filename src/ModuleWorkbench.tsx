@@ -95,6 +95,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
 
   const deferredQuery=useDeferredValue(query);
   const searchTerms=useMemo(()=>deferredQuery.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean),[deferredQuery]);
+  const searchPhoneDigits=deferredQuery.replace(/[^0-9]/g,"");
   const contactIndex = useMemo(() => ({
     byId:new Map(contacts.map(contact=>[contact.id,contact])),
     byName:new Map(contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact]))
@@ -105,13 +106,14 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     if(legacy&&!linked.some(contact=>contact.id===legacy.id))linked.push(legacy);
     const people=linked.flatMap(contact=>[contact.name,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.role,...(contact.roles||[]),contact.customRoles,contact.email,contact.whatsappName,contact.verifiedName,contact.notify,contact.notes]);
     const text=[record.id,record.title,record.module,record.location,record.value,record.status,record.contact,record.surveyNumber,record.ownershipDetails,record.areaValue,record.areaUnit,record.dimensions,record.ratePerUnit,record.targetDeadline,record.targetDeadlineTime,record.nextFollowUpDate,record.nextFollowUpTime,record.nextResponseDate,record.nextResponseTime,record.nextResponseType,record.nextResponseDescription,record.nextAction,record.notes,...Object.entries(record.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")]),...people].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
-    return {record,text};
+    const phoneText=linked.map(contact=>String(contact.phone||"").replace(/[^0-9]/g,"")).join(" ");
+    return {record,text,phoneText};
   }),[records,contactIndex]);
-  const filtered=useMemo(()=>searchIndex.filter(({record,text})=>
+  const filtered=useMemo(()=>searchIndex.filter(({record,text,phoneText})=>
     (filter==="All"||record.status===filter||(filter==="Follow-up set"&&Boolean(record.nextFollowUpDate))||(filter==="No follow-up"&&!record.nextFollowUpDate)) &&
     (transactionFilter==="All transactions"||(record.moduleData?.__transactionType||"Not decided")===transactionFilter) &&
-    searchTerms.every(term=>text.includes(term))
-  ).map(item=>item.record),[searchIndex,filter,transactionFilter,searchTerms]);
+    (searchTerms.every(term=>text.includes(term)) || (searchPhoneDigits.length>=4 && phoneText.includes(searchPhoneDigits)))
+  ).map(item=>item.record),[searchIndex,filter,transactionFilter,searchTerms,searchPhoneDigits]);
   const metrics=useMemo(()=>{
     const totalValue=records.reduce((sum,row)=>sum+(Number(row.value)||0),0);
     const active=records.filter(row=>!CLOSED.has(String(row.status).toLowerCase())).length;
