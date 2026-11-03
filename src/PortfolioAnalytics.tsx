@@ -28,15 +28,19 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
   const [selected, setSelected] = useState("");
   const [showLabels, setShowLabels] = useState(true);
 
-  const moduleRows = useMemo(() => modules.map((module, index) => {
-    const items = properties.filter(property => property.module === module.name);
-    return {
-      ...module,
-      count: items.length,
-      value: items.reduce((sum, property) => sum + (Number(property.value) || 0), 0),
-      color: PALETTE[index % PALETTE.length]
-    };
-  }).filter(row => row.count > 0 || row.value > 0), [modules, properties]);
+  const moduleRows = useMemo(() => {
+    const totals = new Map<string, { count: number; value: number }>();
+    properties.forEach(property => {
+      const current = totals.get(property.module) || { count: 0, value: 0 };
+      current.count += 1;
+      current.value += Number(property.value) || 0;
+      totals.set(property.module, current);
+    });
+    return modules.map((module, index) => {
+      const summary = totals.get(module.name) || { count: 0, value: 0 };
+      return { ...module, count: summary.count, value: summary.value, color: PALETTE[index % PALETTE.length] };
+    }).filter(row => row.count > 0 || row.value > 0);
+  }, [modules, properties]);
 
   const stageRows = useMemo(() => {
     const map = new Map<string, number>();
@@ -49,13 +53,34 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
 
   const cashflowRows = useMemo(() => {
     const now = new Date();
-    return Array.from({ length: period }, (_, index) => {
-      const month = new Date(now.getFullYear(), now.getMonth() - (period - 1 - index), 1);
+    const months = Array.from({ length: period }, (_, index) =>
+      new Date(now.getFullYear(), now.getMonth() - (period - 1 - index), 1)
+    );
+    const totals = new Map<string, { inflow: number; outflow: number; count: number }>();
+    months.forEach(month => {
       const key = month.getFullYear() + "-" + String(month.getMonth() + 1).padStart(2, "0");
-      const rows = financials.filter(row => String(row.date || "").slice(0, 7) === key);
-      const inflow = rows.filter(row => INFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      const outflow = rows.filter(row => OUTFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length };
+      totals.set(key, { inflow: 0, outflow: 0, count: 0 });
+    });
+    financials.forEach(row => {
+      const bucket = totals.get(String(row.date || "").slice(0, 7));
+      if (!bucket) return;
+      const amount = Number(row.amount) || 0;
+      if (INFLOW.has(row.type)) bucket.inflow += amount;
+      if (OUTFLOW.has(row.type)) bucket.outflow += amount;
+      bucket.count += 1;
+    });
+    return months.map(month => {
+      const key = month.getFullYear() + "-" + String(month.getMonth() + 1).padStart(2, "0");
+      const bucket = totals.get(key)!;
+      return {
+        key,
+        name: month.toLocaleDateString("en-IN", { month: "short" }),
+        fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }),
+        inflow: bucket.inflow,
+        outflow: bucket.outflow,
+        net: bucket.inflow - bucket.outflow,
+        count: bucket.count
+      };
     });
   }, [financials, period]);
 
