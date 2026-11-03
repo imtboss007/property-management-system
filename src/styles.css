@@ -2813,3 +2813,98 @@ h2,h3{color:#e5f2fc}
   }
   .ax-module-chart-center-note { max-width: 100%; text-align: center; }
 }
+
+
+/* AXIVESTRA desktop/tablet corrections: same navigation, chart and readability
+   issues reported on PC. Existing modules and desktop content are preserved. */
+@media (min-width: 721px) {
+  html { scroll-behavior: auto; }
+
+  /* Readability: bring the smallest dashboard and analytics labels up to 12px. */
+  .subtitle,
+  .section-heading p,
+  .panel-heading p,
+  .hero-copy p,
+  .module-card p,
+  .module-link,
+  .ax-chart-mode-title p,
+  .ax-chart-empty p,
+  .ax-chart-inspector > small,
+  .ax-inspector-pair span,
+  .ax-inspector-pair strong,
+  .ax-toggle-row,
+  .ax-inspector-action,
+  .ax-chart-legend button > span,
+  .ax-chart-legend button > strong,
+  .ax-module-analytics-head p,
+  .ax-module-metric-tabs button,
+  .ax-module-chart-bar > span,
+  .ax-module-chart-bar > strong,
+  .ax-module-chart-legend button > span,
+  .ax-module-chart-legend button > strong,
+  .ax-module-chart-legend button > small,
+  .ax-module-analytics-note {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .module-card h3 { font-size: 14px; line-height: 1.4; }
+  .ax-chart-mode-title strong { font-size: 14px; }
+  .ax-chart-empty small { font-size: 11px; }
+
+  /* Keep charts centered in their available column instead of forcing
+     a wider chart canvas that creates sideways clipping. */
+  .ax-analytics-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(235px, 270px);
+    min-width: 0;
+    width: 100%;
+  }
+  .ax-chart-stage,
+  .ax-chart-inspector,
+  .ax-module-analytics,
+  .ax-module-chart-focus,
+  .ax-module-chart-line,
+  .ax-module-chart-bars {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ax-chart-stage { width: 100%; }
+  .ax-donut-wrap { width: 100%; justify-content: center; }
+  .ax-donut-wrap svg {
+    display: block;
+    width: min(245px, 100%);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  .ax-module-donut-chart {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+  .ax-module-chart-line {
+    width: 100%;
+    overflow: hidden;
+  }
+  .ax-module-chart-line svg {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+  .ax-module-chart-bars { width: 100%; }
+
+  /* Shorten chart/card effects that otherwise repaint large dashboard areas. */
+  .module-card,
+  .enterprise-module-card,
+  .ax-donut-segment,
+  .ax-chart-point,
+  .ax-module-chart-bar > i > b {
+    transition-duration: .16s;
+  }
+}
+@media (min-width: 721px) and (max-width: 1100px) {
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-analytics-grid { grid-template-columns: minmax(0, 1fr); }
+  .ax-chart-inspector { min-height: 0; }
+}
