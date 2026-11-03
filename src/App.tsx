@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps, FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
