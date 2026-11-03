@@ -106,7 +106,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     if(legacy&&!linked.some(contact=>contact.id===legacy.id))linked.push(legacy);
     const people=linked.flatMap(contact=>[contact.name,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.role,...(contact.roles||[]),contact.customRoles,contact.email,contact.whatsappName,contact.verifiedName,contact.notify,contact.notes]);
     const text=[record.id,record.title,record.module,record.location,record.value,record.status,record.contact,record.surveyNumber,record.ownershipDetails,record.areaValue,record.areaUnit,record.dimensions,record.ratePerUnit,record.targetDeadline,record.targetDeadlineTime,record.nextFollowUpDate,record.nextFollowUpTime,record.nextResponseDate,record.nextResponseTime,record.nextResponseType,record.nextResponseDescription,record.nextAction,record.notes,...Object.entries(record.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")]),...people].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
-    const phoneText=linked.map(contact=>String(contact.phone||"").replace(/[^0-9]/g,"")).join(" ");
+    const phoneText=linked.map(contact=>{const digits=String(contact.phone||"").replace(/[^0-9]/g,"");return digits+" "+(digits.length>10&&digits.startsWith("91")?digits.slice(2):digits);}).join(" ");
     return {record,text,phoneText};
   }),[records,contactIndex]);
   const filtered=useMemo(()=>searchIndex.filter(({record,text,phoneText})=>
