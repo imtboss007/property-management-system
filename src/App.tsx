@@ -3139,14 +3139,16 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     ...moduleData,
     __linkedWhatsAppGroupIds:Array.from(new Set([...(moduleData.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean),groupId])).join(",")
   });
-  const selectFollowUpGroup=(groupId:string,memberIds:string[])=>setForm(previous=>{
-    const ids=Array.from(new Set([...previous.followUpContactIds,...memberIds].filter(id=>contacts.some(contact=>contact.id===id))));
-    return {...previous,followUpContactIds:ids,followUpContactId:ids[0]||"",moduleData:addGroupToRecordData(previous.moduleData,groupId)};
-  });
-  const selectStakeholderGroup=(groupId:string,memberIds:string[])=>setForm(previous=>{
-    const ids=Array.from(new Set([...(previous.moduleData.__linkedContactIds||"").split(",").filter(Boolean),...memberIds].filter(id=>contacts.some(contact=>contact.id===id))));
-    return {...previous,moduleData:{...addGroupToRecordData(previous.moduleData,groupId),__linkedContactIds:ids.join(",")}};
-  });
+  const selectFollowUpGroup=(groupId:string)=>setForm(previous=>({
+    ...previous,
+    // Link the group to the record, but let the user choose each follow-up
+    // person individually from the member results shown by the picker.
+    moduleData:addGroupToRecordData(previous.moduleData,groupId)
+  }));
+  const selectStakeholderGroup=(groupId:string)=>setForm(previous=>({
+    ...previous,
+    moduleData:addGroupToRecordData(previous.moduleData,groupId)
+  }));
   const selectedFields=moduleFieldDefinitions[form.module] ?? [];
   const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost","caseNumber","court","parties","counsel","caseType","claimExposure"]);
   const hasEquityStructure = Boolean(form.moduleData.equityLegalStructure);
