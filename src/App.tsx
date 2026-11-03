@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
@@ -13,6 +13,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import SearchableContactPicker from "./SearchableContactPicker";
 import ContactPortfolioPanel from "./ContactPortfolioPanel";
 import FollowUpRegisterPanel from "./FollowUpRegisterPanel";
 import IntelligenceHub from "./IntelligenceHub";
@@ -61,53 +62,6 @@ type ApprovalRequest = { id: string; title: string; area: string; entity: string
 type AuditEvent = { id: string; at: string; action: "created" | "updated" | "deleted"; entity: string; recordId: string; label: string; activityType?: string; description?: string; relatedRecordId?: string };
 type UndoEntry = { id: string; at: string; entity: string; recordId: string; label: string; hadPrevious: boolean; beforeRecord?: unknown };
 type Section = "Overview" | "All Properties" | "Contacts" | "Documents" | "Schedule & Tasks" | "WhatsApp Automation" | "Risk & Compliance" | "Approvals" | "Settings" | string;
-
-type SearchableContactPickerProps = {
-  label: string;
-  contacts: ContactRecord[];
-  value: string | string[];
-  onChange: (value: string | string[]) => void;
-  multiple?: boolean;
-  placeholder?: string;
-  help?: string;
-};
-
-function SearchableContactPicker({ label, contacts, value, onChange, multiple = false, placeholder, help }: SearchableContactPickerProps) {
-  const [query,setQuery]=useState("");
-  const [open,setOpen]=useState(false);
-  const deferredQuery=useDeferredValue(query);
-  const selectedIds=Array.isArray(value)?value:value?[value]:[];
-  const selected=contacts.filter(contact=>selectedIds.includes(contact.id));
-  const contactIndex=useMemo(()=>contacts.map(contact=>({
-    contact,
-    searchText:[contact.name,contact.whatsappName,contact.phone,contact.role,...(contact.roles||[]),contact.customRoles,contact.email,contact.address,contact.profession,contact.employer,contact.designation,contact.businessType,contact.associatedCompany,contact.whatsappJid].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase()
-  })).sort((a,b)=>a.contact.name.localeCompare(b.contact.name)),[contacts]);
-  const matching=useMemo(()=>{const term=deferredQuery.trim().normalize("NFKC").toLocaleLowerCase();return term?contactIndex.filter(item=>item.searchText.includes(term)):contactIndex;},[contactIndex,deferredQuery]);
-  const visible=matching.slice(0,40).map(item=>item.contact);
-  const rolesFor=(contact:ContactRecord)=>Array.from(new Set([...(contact.roles||[]),contact.role,...(contact.customRoles||"").split(",").map(role=>role.trim())].filter(Boolean))).join(", ");
-  const selectSingle=(id:string)=>{onChange(id);setQuery("");setOpen(false);};
-  const toggle=(id:string)=>{const next=selectedIds.includes(id)?selectedIds.filter(item=>item!==id):Array.from(new Set([...selectedIds,id]));onChange(next);setQuery("");setOpen(true);};
-  const remove=(id:string)=>{const next=selectedIds.filter(item=>item!==id);onChange(multiple?next:"");};
-  const handleKeyDown=(event:ReactKeyboardEvent<HTMLInputElement>)=>{if(event.key==="Escape"){setOpen(false);setQuery("");}if(event.key==="Enter"&&visible[0]){event.preventDefault();if(multiple)toggle(visible[0].id);else selectSingle(visible[0].id);}};
-  return <div className={"searchable-contact-picker"+(multiple?" searchable-contact-picker--multiple":"")}>
-    <span className="searchable-contact-picker__label">{label}</span>
-    {selected.length>0&&<div className="searchable-contact-picker__selected">{selected.map(contact=><span className="searchable-contact-picker__chip" key={contact.id}><span><strong>{contact.name}</strong><small>{rolesFor(contact)||"Contact"}{contact.phone?" · "+contact.phone:""}</small></span><button type="button" onMouseDown={event=>event.preventDefault()} onClick={()=>remove(contact.id)} aria-label={"Remove "+contact.name+" from "+label}><X size={12}/></button></span>)}</div>}
-    <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event=>{setQuery(event.target.value);setOpen(true);}} onFocus={()=>setOpen(true)} onBlur={()=>setOpen(false)} onKeyDown={handleKeyDown} placeholder={query?"Type to filter…":placeholder?.startsWith("No ")?"Type a name, role or phone…":placeholder||"Type a name, role or phone…"} aria-label={"Type to search contacts for "+label} aria-expanded={open} aria-autocomplete="list"/>{query&&<button type="button" className="searchable-contact-picker__clear" onMouseDown={event=>event.preventDefault()} onClick={()=>setQuery("")} aria-label={"Clear search for "+label}>×</button>}</div>
-    {open&&<div className="searchable-contact-picker__options" role="listbox" aria-label={label+" search results"} aria-multiselectable={multiple}>
-      {visible.length===0?<p className="searchable-contact-picker__empty">No saved contacts match this search. Add this person in Contacts first.</p>:visible.map(contact=>{
-        const isSelected=selectedIds.includes(contact.id);
-        return <button type="button" role="option" aria-selected={isSelected} className={"searchable-contact-picker__option"+(isSelected?" selected":"")} key={contact.id} onMouseDown={event=>event.preventDefault()} onClick={()=>multiple?toggle(contact.id):selectSingle(contact.id)}>
-          <span className="searchable-contact-picker__option-mark">{isSelected?<CheckCircle2 size={15}/>:<span/>}</span>
-          <span><strong>{contact.name}</strong><small>{contact.whatsappName&&contact.whatsappName!==contact.name?"WhatsApp: "+contact.whatsappName+" · ":""}{rolesFor(contact)||"Contact"}{contact.phone?" · "+contact.phone:""}{contact.email?" · "+contact.email:""}</small></span>
-        </button>;
-      })}
-      <small className="searchable-contact-picker__count">{visible.length} shown · {matching.length} matching contacts{matching.length>40?" · refine your search":""}</small>
-      <button type="button" className="searchable-contact-picker__close" onMouseDown={event=>event.preventDefault()} onClick={()=>setOpen(false)}>Close results</button>
-    </div>}
-    {multiple&&<small className="searchable-contact-picker__count">{selectedIds.length} selected · type another name to add more people</small>}
-    {help&&<small className="searchable-contact-picker__help">{help}</small>}
-  </div>;
-}
 
 type SearchableGroupPickerProps={groups:SavedWhatsAppGroup[];value:string[];onChange:(ids:string[])=>void;label?:string;help?:string};
 function SearchableGroupPicker({groups,value,onChange,label="Linked WhatsApp groups",help}:SearchableGroupPickerProps){
