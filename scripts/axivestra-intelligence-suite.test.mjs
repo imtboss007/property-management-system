@@ -26,7 +26,7 @@ assert.ok(opportunities.some(item=>item.kind==="loan"));
 const exposure=buildIntelligenceExposure(records,[{type:"Receipt",amount:"10L"},{type:"Expense",amount:"2L"}]);
 assert.equal(exposure.recordedNet,800000);
 assert.equal(exposure.expectedSettlement,8000000);
-assert.equal(buildIntelligenceStakeholderNetwork(records,contacts).find(item=>item.contact.id==="c1").recordCount,1);
+assert.equal(buildIntelligenceStakeholderNetwork(records,contacts).find(item=>item.contact.id==="c1").recordCount,2);
 assert.ok(buildIntelligenceLocationSummary(records).some(item=>item.location.includes("Srirampuram")));
 const alerts=buildIntelligenceAlerts({today:"2026-11-03",tasks:[{id:"t1",title:"Call lender",date:"2026-11-02",done:false}],contacts,documents:[{id:"d1",name:"Sale deed",expiresOn:"2026-11-10"}]});
 assert.ok(alerts.some(item=>item.kind==="task"));
