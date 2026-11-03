@@ -58,7 +58,7 @@ const linkedLoan=buildIntelligenceLoanPropertyExposure([...chainRecords,{id:"p-o
 assert.equal(linkedLoan[0].linked,true);
 assert.equal(linkedLoan[0].knownOutstanding,3500000);
 assert.equal(buildIntelligenceDocumentSearch([{id:"doc1",name:"Sale Deed",category:"Legal",property:"Survey 123 land"}],"sale deed").length,1);
-const readiness=buildIntelligenceDecisionSupport([{...chainRecords[0],primaryContactId:"c1"}],[{id:"c1",name:"Owner A",phone:"9999999999",role:"Owner"}],[{id:"d1",propertyId:"s1",name:"Sale Deed"}],[],[]]);
+const readiness=buildIntelligenceDecisionSupport([{...chainRecords[0],primaryContactId:"c1"}],[{id:"c1",name:"Owner A",phone:"9999999999",role:"Owner"}],[{id:"d1",propertyId:"s1",name:"Sale Deed"}],[],[]);
 assert.ok(readiness[0].missing.includes("primary follow-up owner"));
 
 assert.equal(searchIntelligenceContacts(contacts,"9876543210").length,2);
