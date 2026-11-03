@@ -3004,11 +3004,20 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
   </div>;
 }
 function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;defaultContactId?:string;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
+  const legacyFollowUpContactId = initial?.followUpContactId
+    ?? initial?.primaryContactId
+    ?? contacts.find(item => item.name.trim().toLowerCase() === (initial?.contact ?? "").trim().toLowerCase())?.id
+    ?? (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id => contacts.some(item => item.id === id))
+    ?? defaultContactId
+    ?? "";
+  const initialFollowUpContactIds = initial?.moduleData?.__followUpContactIds
+    ? initial.moduleData.__followUpContactIds.split(",").map(id => id.trim()).filter(Boolean)
+    : [legacyFollowUpContactId].filter(Boolean);
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
     primaryContactId:initial?.primaryContactId ?? defaultContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
-    followUpContactId:initial?.followUpContactId ?? initial?.primaryContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id=>contacts.some(item=>item.id===id)) ?? defaultContactId ?? "",
+    followUpContactId:initialFollowUpContactIds[0] || "",followUpContactIds:initialFollowUpContactIds,
     targetDeadline:initial?.targetDeadline ?? "",targetDeadlineTime:initial?.targetDeadlineTime ?? "",
     nextFollowUpDate:initial?.nextFollowUpDate ?? "",nextFollowUpTime:initial?.nextFollowUpTime ?? "",
     nextResponseDate:initial?.nextResponseDate ?? "",nextResponseTime:initial?.nextResponseTime ?? "",
@@ -3035,8 +3044,10 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
-    if(!form.followUpContactId || !contacts.some(contact=>contact.id===form.followUpContactId)){
-      setAmountError("Choose a saved Follow-up Person for this record. The person will be added automatically to the Follow-up Register.");
+    const selectedFollowUpContactIds = Array.from(new Set((form.followUpContactIds || [])
+      .filter(id => contacts.some(contact => contact.id === id))));
+    if(!selectedFollowUpContactIds.length || selectedFollowUpContactIds.length !== (form.followUpContactIds || []).length){
+      setAmountError("Choose at least one saved Follow-up Person. You can assign multiple people to this record.");
       return;
     }
     const normalizedValue=normalizeIndianAmount(form.value);
@@ -3077,17 +3088,46 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
       return;
     }
     setAmountError("");
-    onSave({...form,value:normalizedValue ?? "",ratePerUnit:normalizedRate ?? "",moduleData:normalizedModuleData});
+    normalizedModuleData.__followUpContactIds = selectedFollowUpContactIds.join(",");
+    const stamp = new Date().toISOString();
+    const followUpEntries = [...(initial?.followUpEntries || [])];
+    const existingFollowPersonIds = new Set(followUpEntries.map(entry => entry.followPersonId));
+    selectedFollowUpContactIds.forEach(contactId => {
+      if (existingFollowPersonIds.has(contactId)) return;
+      const person = contacts.find(contact => contact.id === contactId);
+      if (!person) return;
+      followUpEntries.push({
+        id: uid(),
+        followPersonId: person.id,
+        followPersonName: person.name,
+        followDate: "",
+        followTime: "",
+        remarks: form.nextResponseDescription || form.nextAction || "",
+        nextFollowUpDate: form.nextFollowUpDate || form.nextResponseDate || "",
+        nextFollowUpTime: form.nextFollowUpTime || form.nextResponseTime || "",
+        createdAt: stamp,
+        updatedAt: stamp
+      });
+    });
+    const { followUpContactIds: _followUpContactIds, ...recordForm } = form;
+    onSave({
+      ...recordForm,
+      followUpContactId: selectedFollowUpContactIds[0] || "",
+      followUpEntries,
+      value: normalizedValue ?? "",
+      ratePerUnit: normalizedRate ?? "",
+      moduleData: normalizedModuleData
+    });
   };
   return <form className="form-card module-record-form" onSubmit={saveRecord}>
     <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{availableModules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="Type to select primary contact" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? "",followUpContactId:previous.followUpContactId||id}));}}/></div>
-    <SearchableContactPicker label="Follow-up Person *" contacts={contacts} value={form.followUpContactId||""} placeholder="Type name, role or phone to assign follow-up" onChange={value=>update("followUpContactId",String(value))} help="Required for every business module record. Saving this record automatically creates or updates its row in the global Follow-up Register and the person's Contact 360."/>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} groups={groups} value={form.primaryContactId || ""} placeholder="Type to select primary contact" onChange={value=>{const id=String(value);setForm(previous=>{const followUpContactIds=previous.followUpContactIds.length?previous.followUpContactIds:(id?[id]:[]);return {...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? "",followUpContactIds,followUpContactId:followUpContactIds[0]||""};});}}/></div>
+    <SearchableContactPicker label="Follow-up Persons * (select multiple)" contacts={contacts} groups={groups} groups={groups} multiple value={form.followUpContactIds} placeholder="Search by person, Dr name, role, phone or WhatsApp group…" onChange={value=>{const ids=Array.isArray(value)?value:[];setForm(previous=>({...previous,followUpContactIds:ids,followUpContactId:ids[0]||""}));}} help="Assign several follow-up people to the same module record. Search by a contact name, doctor/role, phone number or a WhatsApp group linked to that contact. Each selected person gets an individual entry in Record Follow-up Tracker and Contact 360."/>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
-    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} groups={groups} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
     <SearchableGroupPicker groups={groups} value={(form.moduleData.__linkedWhatsAppGroupIds??"").split(",").filter(Boolean)} onChange={ids=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedWhatsAppGroupIds:ids.join(",")}}))} help="Optionally connect one or more synced WhatsApp groups to this record. Group links are kept separate from individual contact links."/>
         <section className="property-detail-section ax-deal-structure">
       <div className="form-section-title"><span className="section-kicker">DEAL / TRANSACTION STRUCTURE · ALL MODULES</span><p>Choose the transaction type for this record. The matching sale, loan, sharing, settlement or gift fields appear below and remain linked to this module and the follow-up register.</p></div>
@@ -3119,7 +3159,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
         <label>Sharing model<select value={form.moduleData.__sharingModel||""} onChange={event=>{const model=event.target.value;const preset=resolveSharingPreset(model);setForm(p=>({...p,moduleData:{...p.moduleData,__sharingModel:model,__sharingFirstPercent:preset.first,__sharingSecondPercent:preset.second,__giftPercentage:preset.gift||"0"}}));}}><option value="">Select sharing arrangement</option>{sharingModels.map(x=><option key={x}>{x}</option>)}</select></label>
         <div className="form-two"><label>First party / owner %<input type="number" min="0" max="100" step="0.01" value={form.moduleData.__sharingFirstPercent||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingFirstPercent:event.target.value}}))}/></label><label>Second party / partner %<input type="number" min="0" max="100" step="0.01" value={form.moduleData.__sharingSecondPercent||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingSecondPercent:event.target.value}}))}/></label></div>
         {form.moduleData.__sharingModel==="10% gift + 90% balance sharing"&&<div className="form-two"><label>Gift percentage<input type="number" min="0" max="100" step="0.01" value={form.moduleData.__giftPercentage||"10"} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftPercentage:event.target.value}}))}/></label><div className="ax-deal-structure__calculation"><span>Gift amount on record value</span><strong>{formatINR(calculateGiftAmount(form.moduleData,parseDealNumber(form.value)))}</strong></div></div>}
-        <div className="form-two"><div><span className="ax-deal-structure__field-label">First sharing party</span><SearchableContactPicker label="Select first sharing party" contacts={contacts} value={form.moduleData.__sharingFirstPartyId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingFirstPartyId:String(value)}}))} placeholder="Search name / role / phone"/></div><div><span className="ax-deal-structure__field-label">Second sharing party</span><SearchableContactPicker label="Select second sharing party" contacts={contacts} value={form.moduleData.__sharingSecondPartyId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingSecondPartyId:String(value)}}))} placeholder="Search name / role / phone"/></div></div>
+        <div className="form-two"><div><span className="ax-deal-structure__field-label">First sharing party</span><SearchableContactPicker label="Select first sharing party" contacts={contacts} groups={groups} value={form.moduleData.__sharingFirstPartyId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingFirstPartyId:String(value)}}))} placeholder="Search name / role / phone"/></div><div><span className="ax-deal-structure__field-label">Second sharing party</span><SearchableContactPicker label="Select second sharing party" contacts={contacts} groups={groups} value={form.moduleData.__sharingSecondPartyId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingSecondPartyId:String(value)}}))} placeholder="Search name / role / phone"/></div></div>
         <label>Sharing terms / asset-wise allocation<textarea rows={2} value={form.moduleData.__sharingTerms||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__sharingTerms:event.target.value}}))} placeholder="Property, floor, units, revenue or profit allocation terms"/></label>
       </div>}
       {form.moduleData.__transactionType==="Settlement"&&<div className="ax-deal-structure__section">
@@ -3133,14 +3173,14 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
         <h4>Gift / transfer details</h4>
         <div className="form-two"><label>Gift calculation<select value={form.moduleData.__giftAmountMode||"Percentage"} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftAmountMode:event.target.value}}))}><option>Percentage</option><option>Fixed amount</option></select></label>{form.moduleData.__giftAmountMode==="Fixed amount"?<label>Gift amount (₹)<IndianAmountInput value={form.moduleData.__giftFixedAmount||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftFixedAmount:value}}))} placeholder="Gift amount"/></label>:<label>Gift percentage<input type="number" min="0" max="100" step="0.01" value={form.moduleData.__giftPercentage||"10"} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftPercentage:event.target.value}}))}/></label>}</div>
         <div className="ax-deal-structure__calculation"><span>Calculated gift amount</span><strong>{formatINR(calculateGiftAmount(form.moduleData,parseDealNumber(form.value)))}</strong></div>
-        <div className="form-two"><div><span className="ax-deal-structure__field-label">Donor</span><SearchableContactPicker label="Select donor" contacts={contacts} value={form.moduleData.__giftDonorId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftDonorId:String(value)}}))} placeholder="Search donor"/></div><div><span className="ax-deal-structure__field-label">Recipient</span><SearchableContactPicker label="Select recipient" contacts={contacts} value={form.moduleData.__giftRecipientId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftRecipientId:String(value)}}))} placeholder="Search recipient"/></div></div>
+        <div className="form-two"><div><span className="ax-deal-structure__field-label">Donor</span><SearchableContactPicker label="Select donor" contacts={contacts} groups={groups} value={form.moduleData.__giftDonorId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftDonorId:String(value)}}))} placeholder="Search donor"/></div><div><span className="ax-deal-structure__field-label">Recipient</span><SearchableContactPicker label="Select recipient" contacts={contacts} groups={groups} value={form.moduleData.__giftRecipientId||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftRecipientId:String(value)}}))} placeholder="Search recipient"/></div></div>
         <label>Gift / transfer conditions<textarea rows={2} value={form.moduleData.__giftTerms||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__giftTerms:event.target.value}}))} placeholder="Gift deed, consideration, conditions or notes"/></label>
       </div>}
       {form.moduleData.__transactionType==="Purchase"&&<div className="ax-deal-structure__section"><h4>Purchase terms</h4><div className="form-two"><label>Purchase offer amount (₹)<IndianAmountInput value={form.moduleData.__purchaseOfferAmount||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__purchaseOfferAmount:value}}))} placeholder="Offer"/></label><label>Final agreed purchase amount (₹)<IndianAmountInput value={form.moduleData.__purchaseFinalAmount||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__purchaseFinalAmount:value}}))} placeholder="Agreed purchase"/></label></div></div>}
       {form.moduleData.__transactionType==="Lease"&&<div className="ax-deal-structure__section"><h4>Lease terms</h4><div className="form-two"><label>Monthly rent (₹)<IndianAmountInput value={form.moduleData.__leaseMonthlyRent||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__leaseMonthlyRent:value}}))} placeholder="Monthly rent"/></label><label>Security deposit (₹)<IndianAmountInput value={form.moduleData.__leaseDeposit||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__leaseDeposit:value}}))} placeholder="Deposit"/></label></div></div>}
       <label>Transaction terms / special conditions<textarea rows={2} value={form.moduleData.__transactionTerms||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__transactionTerms:event.target.value}}))} placeholder="Write agreed conditions; these remain linked to this record"/></label>
     </section>
-    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
+    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} groups={groups} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEADLINES, RESPONSES & SCHEDULE</span><p>Every scheduled milestone captures its date and time. Keep the expected response and next follow-up separately editable.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Deadline time<input type="time" value={form.targetDeadlineTime} onChange={event=>update("targetDeadlineTime",event.target.value)}/></label></div>
       <div className="form-two"><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label><label>Follow-up time<input type="time" value={form.nextFollowUpTime} onChange={event=>update("nextFollowUpTime",event.target.value)}/></label></div>
