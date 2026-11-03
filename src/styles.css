@@ -3243,3 +3243,12 @@ h2,h3{color:#e5f2fc}
 .ax-intelligence-suite__timeline-list>p,.ax-intelligence-suite__signal-list>p,.ax-intelligence-suite__network>p{color:var(--muted,#91a9bc);font-size:11px}
 @media(max-width:900px){.ax-intelligence-suite__record{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ax-intelligence-suite__record-values{grid-column:1/-1;grid-row:2}}
 @media(max-width:720px){.ax-intelligence-suite__heading,.ax-intelligence-suite__section-head,.ax-intelligence-suite__panel>header{align-items:flex-start;flex-direction:column}.ax-intelligence-suite__filters{grid-template-columns:1fr;padding:11px}.ax-intelligence-suite__filters label.wide{grid-column:1}.ax-intelligence-suite__amounts{grid-template-columns:1fr}.ax-intelligence-suite__summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-intelligence-suite__insights{grid-template-columns:1fr}.ax-intelligence-suite__record{grid-template-columns:1fr;gap:8px}.ax-intelligence-suite__record-values{grid-column:auto;grid-row:auto}.ax-intelligence-suite__record>.secondary-button{justify-self:start}.ax-intelligence-suite__save-form{flex-direction:column}.ax-intelligence-suite__timeline>header select{max-width:none;width:100%}.ax-intelligence-suite__timeline-list>article{grid-template-columns:1fr;gap:4px}}
+
+.ax-intelligence-suite__expanded{margin-top:0}
+.ax-intelligence-suite__document-search{width:100%;min-height:40px;border:1px solid var(--border,rgba(116,154,184,.25));border-radius:8px;padding:8px 10px;background:var(--input-bg,#0b2032);color:var(--text,#e8f4fb);font-size:12px}
+.ax-intelligence-suite__chain>span{display:flex;flex-direction:column;gap:7px;width:100%;min-width:0}
+.ax-intelligence-suite__chain-entry{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 8px;padding:7px 0 7px 10px;border-left:2px solid rgba(83,190,211,.4);min-width:0}
+.ax-intelligence-suite__chain-entry time{color:#7fcada;font-size:10px}
+.ax-intelligence-suite__chain-entry button{justify-self:start;border:0;padding:0;background:none;color:var(--text,#eaf4fb);font-size:11px;text-align:left;cursor:pointer}
+.ax-intelligence-suite__chain-entry small{grid-column:2;color:var(--muted,#91a9bc);font-size:10px;overflow-wrap:anywhere}
+@media(max-width:720px){.ax-intelligence-suite__chain-entry{grid-template-columns:1fr}.ax-intelligence-suite__chain-entry small{grid-column:1}}

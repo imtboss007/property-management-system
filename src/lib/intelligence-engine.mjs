@@ -238,3 +238,118 @@ export function buildIntelligenceActivityFeed({record,records=[],contacts=[],tas
   for(const contact of contacts||[])for(const follow of contact.followUps||[])if(!id || follow.linkedRecordId===id)add({id:"follow-"+follow.id,at:follow.updatedAt||follow.createdAt||follow.promisedDate||"",title:contact.name+" · "+(follow.description||"Follow-up"),detail:follow.role+" · "+follow.status+" · "+follow.promisedDate,source:"Contact commitment",recordId:follow.linkedRecordId||id});
   return events.filter(item=>item.at).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,100);
 }
+
+
+function propertyIdentityKey(record) {
+  const data=record?.moduleData||{};
+  const survey=normalizeIntelligenceText(record?.surveyNumber||data.surveyNumber||data.__surveyNumber||data.surveyNo||"");
+  if(survey) return "survey:"+survey;
+  const title=normalizeIntelligenceText(record?.title||"");
+  const location=normalizeIntelligenceText(record?.location||data.address||data.propertyAddress||"");
+  return title && location ? "title-location:"+title+"|"+location : "";
+}
+function getOwnerDescriptor(record) {
+  const data=record?.moduleData||{};
+  const values=[record?.ownershipDetails,data.owner,data.ownerName,data.currentOwner,data.seller,data.transferor,data.landlord].filter(value=>String(value||"").trim());
+  return Array.from(new Set(values.map(value=>String(value).trim())));
+}
+export function buildIntelligenceConflictSignals(records=[]) {
+  const groups=new Map();
+  for(const record of records){
+    const key=propertyIdentityKey(record);
+    if(!key)continue;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(record);
+  }
+  const signals=[];
+  for(const [key,group] of groups){
+    if(group.length<2)continue;
+    const amountFields=[
+      ["deal amount",group.map(getIntelligenceRecordAmount)],
+      ["market value",group.map(getIntelligenceMarketValue)],
+      ["settlement value",group.map(getIntelligenceSettlementValue)]
+    ];
+    for(const [label,values] of amountFields){
+      const distinct=Array.from(new Set(values.filter(value=>value!==null).map(value=>Math.round(value))));
+      if(distinct.length>1)signals.push({kind:"amount-conflict",severity:"review",title:"Different "+label+" values recorded",detail:group.map(record=>record.title+" · "+(getIntelligenceRecordAmount(record)===null?"amount missing":record.value||"")).join(" / "),items:group.map(record=>({id:record.id,name:record.title,module:record.module}))});
+    }
+    const owners=Array.from(new Set(group.flatMap(getOwnerDescriptor).map(normalizeIntelligenceText).filter(Boolean)));
+    if(owners.length>1)signals.push({kind:"ownership-conflict",severity:"review",title:"Ownership details vary across records",detail:group.map(record=>record.title+" · "+getOwnerDescriptor(record).join(", ")).join(" / "),items:group.map(record=>({id:record.id,name:record.title,module:record.module}))});
+    const addresses=Array.from(new Set(group.map(record=>normalizeIntelligenceText(record.location||record.moduleData?.address||record.moduleData?.propertyAddress||"")).filter(Boolean)));
+    if(addresses.length>1)signals.push({kind:"address-conflict",severity:"review",title:"Property address varies across records",detail:group.map(record=>record.title+" · "+(record.location||record.moduleData?.address||record.moduleData?.propertyAddress||"")).join(" / "),items:group.map(record=>({id:record.id,name:record.title,module:record.module}))});
+  }
+  return signals;
+}
+export function buildIntelligenceOwnershipChains(records=[]) {
+  const groups=new Map();
+  for(const record of records){
+    const key=propertyIdentityKey(record);
+    if(!key)continue;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(record);
+  }
+  return Array.from(groups.entries()).filter(([,group])=>group.length>1).map(([key,group])=>({
+    key,
+    surveyNumber:group.find(record=>record.surveyNumber||record.moduleData?.__surveyNumber)?.surveyNumber||group.find(record=>record.moduleData?.__surveyNumber)?.moduleData?.__surveyNumber||"",
+    title:group[0].title||"Property record group",
+    entries:group.map(record=>{
+      const data=record.moduleData||{};
+      const date=data.transactionDate||data.saleDate||data.purchaseDate||data.registrationDate||record.createdAt||"";
+      const transferFrom=data.seller||data.transferor||data.previousOwner||"";
+      const transferTo=data.buyer||data.transferee||data.currentOwner||data.ownerName||"";
+      return {id:record.id,title:record.title,module:record.module,date,transactionType:getIntelligenceTransactionType(record),ownershipDetails:record.ownershipDetails||"",transferFrom,transferTo,status:record.status};
+    }).sort((a,b)=>String(a.date).localeCompare(String(b.date)))
+  })).sort((a,b)=>a.title.localeCompare(b.title));
+}
+export function buildIntelligencePropertyCashflow(records=[],financials=[]) {
+  const propertyRows=records.map(record=>{
+    const linked=financials.filter(item=>(record.id && item.propertyId===record.id)||(!item.propertyId && item.property && normalizeIntelligenceText(item.property)===normalizeIntelligenceText(record.title)));
+    let rentReceived=0,tenantAdvances=0,operatingCosts=0,otherInflows=0,otherOutflows=0;
+    for(const item of linked){
+      const kind=text(item.type);
+      const amount=parseIntelligenceAmount(item.amount)||0;
+      if(/tenant advance|rent advance|security deposit|lease deposit|rental deposit/.test(kind))tenantAdvances+=amount;
+      else if(/rent|rental income|lease receipt/.test(kind))rentReceived+=amount;
+      else if(/maintenance|repair|property tax|utility|property expense|operating expense/.test(kind))operatingCosts+=amount;
+      else if(/receipt|collection|inflow|sale|advance/.test(kind))otherInflows+=amount;
+      else if(/expense|outflow|payment|brokerage|tax|maintenance/.test(kind))otherOutflows+=amount;
+    }
+    return {record,rentReceived,tenantAdvances,operatingCosts,otherInflows,otherOutflows,recordedNet:rentReceived-operatingCosts-otherOutflows,entryCount:linked.length};
+  }).filter(item=>item.entryCount>0 || item.rentReceived>0 || item.tenantAdvances>0 || item.operatingCosts>0);
+  return propertyRows.sort((a,b)=>b.recordedNet-a.recordedNet);
+}
+export function buildIntelligenceLoanPropertyExposure(records=[]) {
+  const loans=records.filter(isLoan);
+  const properties=records.filter(record=>!isLoan(record));
+  return loans.map(loan=>{
+    const data=loan.moduleData||{};
+    const explicitId=data.__linkedPropertyId||data.linkedPropertyId||data.propertyId||data.__propertyId||data.securedPropertyId||data.propertyRecordId||"";
+    const explicitName=data.propertyName||data.securedProperty||data.linkedPropertyName||"";
+    let linkedProperty=explicitId?properties.find(record=>String(record.id)===String(explicitId)):null;
+    if(!linkedProperty && explicitName)linkedProperty=properties.find(record=>normalizeIntelligenceText(record.title)===normalizeIntelligenceText(explicitName));
+    const outstanding=Object.entries(data).find(([key,value])=>/outstanding|balance.*(due|loan)|loan.*balance/i.test(key)&&parseIntelligenceAmount(value)!==null);
+    return {loan,property:linkedProperty||null,reference:explicitName||explicitId||"",knownOutstanding:outstanding?parseIntelligenceAmount(outstanding[1]):null,principal:getIntelligenceRecordAmount(loan),linked:Boolean(linkedProperty)};
+  });
+}
+export function buildIntelligenceDocumentSearch(documents=[],query="") {
+  const q=normalizeIntelligenceText(query);
+  if(!q)return documents.slice(0,30);
+  return documents.filter(document=>normalizeIntelligenceText([document.name,document.category,document.property,document.notes,document.mimeType,document.storagePath,document.expiresOn].join(" ")).includes(q)).slice(0,30);
+}
+export function buildIntelligenceDecisionSupport(records=[],contacts=[],documents=[],riskRecords=[],tasks=[]) {
+  return records.map(record=>{
+    const linked=getIntelligenceLinkedContacts(record,contacts);
+    const data=record.moduleData||{};
+    const docCount=documents.filter(document=>document.propertyId===record.id || normalizeIntelligenceText(document.property)===normalizeIntelligenceText(record.title)).length;
+    const openRisk=riskRecords.some(risk=>risk.propertyId===record.id && !closedStatuses.has(text(risk.status)));
+    const overdue=tasks.some(task=>(task.propertyId===record.id || task.property===record.title)&&!task.done&&task.date);
+    const missing=[];
+    if(!record.location)missing.push("location");
+    if(!record.surveyNumber && !data.__surveyNumber && !data.surveyNumber)missing.push("survey / property ID");
+    if(!record.ownershipDetails && !data.ownerName && !data.currentOwner)missing.push("ownership evidence");
+    if(!linked.length)missing.push("linked stakeholder");
+    if(!docCount)missing.push("linked document");
+    if(!record.followUpContactId && !record.primaryContactId && !data.__primaryFollowUpContactId && !data.__followUpContactId)missing.push("primary follow-up owner");
+    return {record,missing,docCount,openRisk,overdue,status:openRisk||overdue?"Attention needed":missing.length?"Evidence gaps":"Ready for human review"};
+  }).sort((a,b)=>Number(b.openRisk||b.overdue)-Number(a.openRisk||a.overdue)||b.missing.length-a.missing.length);
+}

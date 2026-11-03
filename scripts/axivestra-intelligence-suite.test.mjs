@@ -36,3 +36,27 @@ const feed=buildIntelligenceActivityFeed({record:records[0],tasks:[{id:"t2",titl
 assert.ok(feed.some(item=>item.source==="Task"));
 assert.ok(feed.some(item=>item.source==="Financial entry"));
 console.log("AXIVESTRA Intelligence Suite engine tests passed.");
+
+import {
+  buildIntelligenceConflictSignals,buildIntelligenceOwnershipChains,buildIntelligencePropertyCashflow,
+  buildIntelligenceLoanPropertyExposure,buildIntelligenceDocumentSearch,buildIntelligenceDecisionSupport
+} from "../src/lib/intelligence-engine.mjs";
+const chainRecords=[
+ {id:"s1",title:"Survey 123 land",module:"Property Sale",location:"Srirampuram",value:"1cr",status:"Registered",surveyNumber:"123",ownershipDetails:"Owner A",createdAt:"2020-01-01",moduleData:{__marketValue:"1.5cr",__transactionType:"Sale",seller:"Owner A",buyer:"Owner B"}},
+ {id:"s2",title:"Survey 123 loan",module:"Property Loans",location:"Srirampuram",value:"40L",status:"Open",surveyNumber:"123",ownershipDetails:"Owner C",moduleData:{__marketValue:"1.7cr",__transactionType:"Loan",__linkedPropertyId:"s1",outstandingBalance:"35L"}}
+];
+assert.ok(buildIntelligenceConflictSignals(chainRecords).some(item=>item.kind==="amount-conflict"));
+assert.ok(buildIntelligenceConflictSignals(chainRecords).some(item=>item.kind==="ownership-conflict"));
+assert.equal(buildIntelligenceOwnershipChains(chainRecords).length,1);
+assert.equal(buildIntelligenceOwnershipChains(chainRecords)[0].entries.length,2);
+const rentSummary=buildIntelligencePropertyCashflow([{id:"r1",title:"Rental building",module:"Property",location:"Bengaluru",value:"",status:"Active",moduleData:{}}],[{id:"f1",propertyId:"r1",property:"Rental building",type:"Rent",amount:"50k"},{id:"f2",propertyId:"r1",property:"Rental building",type:"Tenant Advance",amount:"1L"},{id:"f3",propertyId:"r1",property:"Rental building",type:"Maintenance",amount:"5k"}]);
+assert.equal(rentSummary[0].rentReceived,50000);
+assert.equal(rentSummary[0].tenantAdvances,100000);
+assert.equal(rentSummary[0].operatingCosts,5000);
+assert.equal(rentSummary[0].recordedNet,45000);
+const linkedLoan=buildIntelligenceLoanPropertyExposure([...chainRecords,{id:"p-other",title:"Other plot",module:"Property",location:"Bengaluru",value:"2cr",status:"Active",moduleData:{}}]);
+assert.equal(linkedLoan[0].linked,true);
+assert.equal(linkedLoan[0].knownOutstanding,3500000);
+assert.equal(buildIntelligenceDocumentSearch([{id:"doc1",name:"Sale Deed",category:"Legal",property:"Survey 123 land"}],"sale deed").length,1);
+const readiness=buildIntelligenceDecisionSupport([{...chainRecords[0],primaryContactId:"c1"}],[{id:"c1",name:"Owner A",phone:"9999999999",role:"Owner"}],[{id:"d1",propertyId:"s1",name:"Sale Deed"}],[],[]]);
+assert.ok(readiness[0].missing.includes("primary follow-up owner"));

@@ -15,3 +15,10 @@ export function buildIntelligenceStakeholderNetwork(records:any[],contacts:any[]
 export function buildIntelligenceLocationSummary(records:any[]):any[];
 export function buildIntelligenceAlerts(input:any):any[];
 export function buildIntelligenceActivityFeed(input:any):any[];
+
+export function buildIntelligenceConflictSignals(records:any[]):any[];
+export function buildIntelligenceOwnershipChains(records:any[]):any[];
+export function buildIntelligencePropertyCashflow(records:any[],financials:any[]):any[];
+export function buildIntelligenceLoanPropertyExposure(records:any[]):any[];
+export function buildIntelligenceDocumentSearch(documents:any[],query?:string):any[];
+export function buildIntelligenceDecisionSupport(records:any[],contacts:any[],documents:any[],riskRecords:any[],tasks:any[]):any[];
