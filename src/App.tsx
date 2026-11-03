@@ -2114,9 +2114,16 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     const wasSaved=(existing.followUpEntries||[]).some(row=>row.id===entry.id);
     const stamp=new Date().toISOString();
     const saved={...entry,updatedAt:stamp};
-    setProperties(current=>current.map(record=>record.id===recordId
-      ? {...record,followUpEntries:upsertRecordFollowUp(record.followUpEntries||[],saved)}
-      : record));
+    const assignedIds=recordFollowUpContactIds(existing);
+    if(saved.followPersonId && contacts.some(item=>item.id===saved.followPersonId) && !assignedIds.includes(saved.followPersonId)) assignedIds.push(saved.followPersonId);
+    const updatedRecord:PropertyRecord={
+      ...existing,
+      followUpContactId:assignedIds[0]||"",
+      followUpEntries:upsertRecordFollowUp(existing.followUpEntries||[],saved),
+      moduleData:{...(existing.moduleData||{}),__followUpContactIds:assignedIds.join(",")}
+    };
+    setProperties(current=>current.map(record=>record.id===recordId?updatedRecord:record));
+    syncModuleFollowUpFromRecord(updatedRecord);
     const contact=contacts.find(item=>item.id===saved.followPersonId);
     const event:AuditEvent={
       id:uid(),at:stamp,action:wasSaved?"updated":"created",entity:"Record follow-up",
@@ -3092,14 +3099,15 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
 }
 function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,onSave,onCancel,availableModules,moduleFieldDefinitions,moduleStatuses}:{defaultModule:string;defaultContactId?:string;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void;availableModules:Array<{name:string}>;moduleFieldDefinitions:Record<string,ModuleField[]>;moduleStatuses:Record<string,string[]>}) {
   const legacyFollowUpContactId = initial?.followUpContactId
-    ?? initial?.primaryContactId
-    ?? contacts.find(item => item.name.trim().toLowerCase() === (initial?.contact ?? "").trim().toLowerCase())?.id
-    ?? (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id => contacts.some(item => item.id === id))
-    ?? defaultContactId
-    ?? "";
-  const initialFollowUpContactIds = initial?.moduleData?.__followUpContactIds
-    ? initial.moduleData.__followUpContactIds.split(",").map(id => id.trim()).filter(Boolean)
-    : [legacyFollowUpContactId].filter(Boolean);
+    || initial?.primaryContactId
+    || contacts.find(item => item.name.trim().toLowerCase() === (initial?.contact ?? "").trim().toLowerCase())?.id
+    || (initial?.moduleData?.__linkedContactIds ?? "").split(",").find(id => contacts.some(item => item.id === id))
+    || defaultContactId
+    || "";
+  const initialFollowUpContactIds = Array.from(new Set([
+    ...(initial?.moduleData?.__followUpContactIds ?? "").split(",").map(id => id.trim()),
+    legacyFollowUpContactId
+  ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id))));
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
@@ -3116,6 +3124,18 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
   });
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
+  const addGroupToRecordData=(moduleData:Record<string,string>,groupId:string)=>({
+    ...moduleData,
+    __linkedWhatsAppGroupIds:Array.from(new Set([...(moduleData.__linkedWhatsAppGroupIds||"").split(",").filter(Boolean),groupId])).join(",")
+  });
+  const selectFollowUpGroup=(groupId:string,memberIds:string[])=>setForm(previous=>{
+    const ids=Array.from(new Set([...previous.followUpContactIds,...memberIds].filter(id=>contacts.some(contact=>contact.id===id))));
+    return {...previous,followUpContactIds:ids,followUpContactId:ids[0]||"",moduleData:addGroupToRecordData(previous.moduleData,groupId)};
+  });
+  const selectStakeholderGroup=(groupId:string,memberIds:string[])=>setForm(previous=>{
+    const ids=Array.from(new Set([...(previous.moduleData.__linkedContactIds||"").split(",").filter(Boolean),...memberIds].filter(id=>contacts.some(contact=>contact.id===id))));
+    return {...previous,moduleData:{...addGroupToRecordData(previous.moduleData,groupId),__linkedContactIds:ids.join(",")}};
+  });
   const selectedFields=moduleFieldDefinitions[form.module] ?? [];
   const courtOnlyFieldKeys = new Set(["caseNumberCnr","courtName","courtCaseType","caseFilingDate","currentCourtStage","nextHearingDate","interimOrderStatus","advocateFees","courtFees","documentationExpenses","estimatedLitigationCost","caseNumber","court","parties","counsel","caseType","claimExposure"]);
   const hasEquityStructure = Boolean(form.moduleData.equityLegalStructure);
@@ -3211,10 +3231,10 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{availableModules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} groups={groups} value={form.primaryContactId || ""} placeholder="Type to select primary contact" onChange={value=>{const id=String(value);setForm(previous=>{const followUpContactIds=previous.followUpContactIds.length?previous.followUpContactIds:(id?[id]:[]);return {...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? "",followUpContactIds,followUpContactId:followUpContactIds[0]||""};});}}/></div>
-    <SearchableContactPicker label="Follow-up Persons * (select multiple)" contacts={contacts} groups={groups} groups={groups} multiple value={form.followUpContactIds} placeholder="Search by person, Dr name, role, phone or WhatsApp group…" onChange={value=>{const ids=Array.isArray(value)?value:[];setForm(previous=>({...previous,followUpContactIds:ids,followUpContactId:ids[0]||""}));}} help="Assign several follow-up people to the same module record. Search by a contact name, doctor/role, phone number or a WhatsApp group linked to that contact. Each selected person gets an individual entry in Record Follow-up Tracker and Contact 360."/>
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(moduleStatuses[form.module]?.length ? moduleStatuses[form.module] : ["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"]).map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} groups={groups} value={form.primaryContactId || ""} placeholder="Type to select primary contact" onSelectGroup={groupId=>setForm(previous=>({...previous,moduleData:addGroupToRecordData(previous.moduleData,groupId)}))} onChange={value=>{const id=String(value);setForm(previous=>{const followUpContactIds=previous.followUpContactIds.length?previous.followUpContactIds:(id?[id]:[]);return {...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? "",followUpContactIds,followUpContactId:followUpContactIds[0]||""};});}}/></div>
+    <SearchableContactPicker label="Follow-up Persons * (select multiple)" contacts={contacts} groups={groups} multiple value={form.followUpContactIds} placeholder="Search by person, Dr name, role, phone or WhatsApp group…" onSelectGroup={selectFollowUpGroup} onChange={value=>{const ids=Array.isArray(value)?value:[];setForm(previous=>({...previous,followUpContactIds:ids,followUpContactId:ids[0]||""}));}} help="Assign several follow-up people to the same module record. Search a doctor/person directly, or search a WhatsApp group to view its linked master contacts and select the actual people. Each selected person gets an individual entry in Record Follow-up Tracker and Contact 360."/>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
-    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} groups={groups} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} groups={groups} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onSelectGroup={selectStakeholderGroup} onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal. Group search shows the saved people linked to that WhatsApp group."/>
     <SearchableGroupPicker groups={groups} value={(form.moduleData.__linkedWhatsAppGroupIds??"").split(",").filter(Boolean)} onChange={ids=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedWhatsAppGroupIds:ids.join(",")}}))} help="Optionally connect one or more synced WhatsApp groups to this record. Group links are kept separate from individual contact links."/>
         <section className="property-detail-section ax-deal-structure">
       <div className="form-section-title"><span className="section-kicker">DEAL / TRANSACTION STRUCTURE · ALL MODULES</span><p>Choose the transaction type for this record. The matching sale, loan, sharing, settlement or gift fields appear below and remain linked to this module and the follow-up register.</p></div>
@@ -3267,7 +3287,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
       {form.moduleData.__transactionType==="Lease"&&<div className="ax-deal-structure__section"><h4>Lease terms</h4><div className="form-two"><label>Monthly rent (₹)<IndianAmountInput value={form.moduleData.__leaseMonthlyRent||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__leaseMonthlyRent:value}}))} placeholder="Monthly rent"/></label><label>Security deposit (₹)<IndianAmountInput value={form.moduleData.__leaseDeposit||""} onChange={value=>setForm(p=>({...p,moduleData:{...p.moduleData,__leaseDeposit:value}}))} placeholder="Deposit"/></label></div></div>}
       <label>Transaction terms / special conditions<textarea rows={2} value={form.moduleData.__transactionTerms||""} onChange={event=>setForm(p=>({...p,moduleData:{...p.moduleData,__transactionTerms:event.target.value}}))} placeholder="Write agreed conditions; these remain linked to this record"/></label>
     </section>
-    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} groups={groups} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
+    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} groups={groups} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onSelectGroup={groupId=>setForm(previous=>({...previous,moduleData:addGroupToRecordData(previous.moduleData,groupId)}))} onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEADLINES, RESPONSES & SCHEDULE</span><p>Every scheduled milestone captures its date and time. Keep the expected response and next follow-up separately editable.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Deadline time<input type="time" value={form.targetDeadlineTime} onChange={event=>update("targetDeadlineTime",event.target.value)}/></label></div>
       <div className="form-two"><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label><label>Follow-up time<input type="time" value={form.nextFollowUpTime} onChange={event=>update("nextFollowUpTime",event.target.value)}/></label></div>
