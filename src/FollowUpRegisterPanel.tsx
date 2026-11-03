@@ -21,7 +21,8 @@ export type FollowUpRegisterItem = {
 };
 type ContactRow = {
   id: string; name: string; phone: string; role: string; roles?: string[];
-  email?: string; whatsappName?: string; customRoles?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
+  email?: string; whatsappName?: string; verifiedName?: string; notify?: string; whatsappJid?: string;
+  customRoles?: string; associatedCompany?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
 };
 type RecordRow = {
   id: string; title: string; module: string; value: string; status: string;
@@ -144,7 +145,7 @@ export default function FollowUpRegisterPanel(props: Props) {
     const terms=term.split(/\\s+/).filter(Boolean);
     return props.contacts.filter(contact=>{
       const groupNames=contactRelations.groupNamesByContact.get(contact.id)||[];
-      const haystack=[contact.name,contact.whatsappName,contact.role,...(contact.roles||[]),contact.customRoles,contact.phone,contact.email,...groupNames].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+      const haystack=[contact.name,contact.whatsappName,contact.verifiedName,contact.notify,contact.whatsappJid,contact.role,...(contact.roles||[]),contact.customRoles,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.email,contact.associatedCompany,...groupNames].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
       return !terms.length||terms.every(part=>haystack.includes(part));
     }).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,30);
   },[props.contacts,deferredAddContactSearch,contactRelations]);
@@ -156,7 +157,7 @@ export default function FollowUpRegisterPanel(props: Props) {
     const groupNames = contactRelations.groupNamesByContact.get(contact.id)||[];
     const linkedRecords = contactRelations.linkedRecordsByContact.get(contact.id)||[];
     const searchText = [
-      contact.name,contact.phone,contact.role,...(contact.roles || []),draft.item.person,draft.item.role,
+      contact.name,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.whatsappName,contact.verifiedName,contact.notify,contact.whatsappJid,contact.role,...(contact.roles || []),contact.customRoles,contact.email,contact.associatedCompany,draft.item.person,draft.item.role,
       draft.item.description,draft.item.amount,draft.item.promisedDate,draft.item.promisedTime,
       draft.item.responseType,draft.item.status,draft.item.notes,record?.module,record?.title,
       ...Object.entries(record?.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")]),
