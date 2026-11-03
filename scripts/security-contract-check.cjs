@@ -162,11 +162,12 @@ check("property, multi-stakeholder and role-specific contact selectors are searc
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i) &&
   has(read("src/App.tsx"), /label="Primary contact"/i) &&
   has(read("src/App.tsx"), /moduleContactFields\[form\.module\][\s\S]{0,220}SearchableContactPicker/i) &&
+  has(read("src/SearchableContactPicker.tsx"), /type="search"/i) &&
   has(read("src/styles.css"), /searchable-contact-picker__options/i));
 check("all related-contact fields use a searchable picker and search across extended contact details",
   (read("src/App.tsx").match(/<SearchableContactPicker label="Related contact"/g) || []).length === 5 &&
-  has(read("src/App.tsx"), /contact\.customRoles/) &&
-  has(read("src/App.tsx"), /contact\.whatsappJid/) &&
+  has(read("src/SearchableContactPicker.tsx"), /contact\.customRoles/) &&
+  has(read("src/SearchableContactPicker.tsx"), /contact\.whatsappJid/) &&
   has(read("src/App.tsx"), /label="Primary contact"/i) &&
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i));
 check("all INR amount fields use an editable text input with Rupees, Thousands, Lakhs and Crores selector",
