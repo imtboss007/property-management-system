@@ -14,7 +14,7 @@
     "desktop:dir": "npm run build && electron-builder --dir",
     "android:sync": "npm run build && cap sync android",
     "cap:sync": "cap sync",
-    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs"
+    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/device-sync.test.cjs && node scripts/device-sync-protocol.test.cjs && node scripts/company-record-pagination.test.cjs && node scripts/record-follow-up.test.cjs && node scripts/indian-amount.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs && node scripts/axivestra-module-upgrades.test.cjs && node scripts/axivestra-module-calculations.test.cjs && node scripts/axivestra-custom-modules.test.cjs && node scripts/axivestra-workspace-enhancements.test.cjs && node scripts/axivestra-mobile-export.test.cjs && node scripts/axivestra-search-print.test.cjs && node scripts/axivestra-contact-portfolio.test.cjs && node scripts/axivestra-intelligence.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
@@ -27,7 +27,10 @@
     "qrcode": "^1.5.4",
     "dexie": "^4.0.8",
     "@supabase/supabase-js": "^2.118.0",
-    "@capacitor-mlkit/barcode-scanning": "^6.2.0"
+    "@capacitor-mlkit/barcode-scanning": "^6.2.0",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/share": "^6.0.2",
+    "jspdf": "^4.2.1"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",

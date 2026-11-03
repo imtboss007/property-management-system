@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, ipcMain, Tray, Menu } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { createWhatsAppService } = require("./whatsapp-service.cjs");
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 // Preserve the existing Windows browser profile, linked WhatsApp session, message queue and caches
 // after the visible product is renamed AXIVESTRA. productName otherwise changes Electron userData.
@@ -13,6 +14,21 @@ let mainWindow = null;
 let tray = null;
 let whatsappService = null;
 let isQuitting = false;
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!app.isReady()) return;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    } else {
+      createWindow();
+    }
+  });
+}
 
 function createWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -76,6 +92,7 @@ async function createTray() {
 }
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) { app.quit(); return; }
   // Opt into run-at-login for the packaged Windows app. The background process starts
   // hidden and is controlled through its tray icon; Exit AXIVESTRA stops scheduling.
   if (process.platform === "win32" && app.isPackaged) {

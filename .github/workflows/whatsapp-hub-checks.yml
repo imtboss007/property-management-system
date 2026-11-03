@@ -100,5 +100,7 @@ jobs:
         run: node scripts/whatsapp-contact-normalization.test.cjs
       - name: Test bidirectional PC/Android sync and deletion protection
         run: node scripts/device-sync.test.cjs
+      - name: Test Contact 360, response schedules and complete PDF export
+        run: node scripts/axivestra-contact-portfolio.test.cjs
       - run: npm run build
 

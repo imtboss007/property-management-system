@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const http = require("node:http");
 const os = require("node:os");
 const QRCode = require("qrcode");
+const { createDataSyncReadReply } = require("./device-sync-protocol.cjs");
 
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_REPEAT_COUNT = 20;
@@ -176,6 +177,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   const documentFilesDir = path.join(userData, "axivestra-document-vault");
   let dataSyncWrite = Promise.resolve();
   let dataSyncTransaction = Promise.resolve();
+  let dataSyncStoreCache = null;
   let documentIndexWrite = Promise.resolve();
   let documentIndexTransaction = Promise.resolve();
   const bridgeTokenPath = path.join(userData, "whatsapp-companion-token.txt");
@@ -1110,25 +1112,31 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   }
 
   async function readDataSyncStore() {
+    if (dataSyncStoreCache) return dataSyncStoreCache;
     try {
       const value = JSON.parse(await fs.readFile(dataSyncPath, "utf8"));
-      return {
+      dataSyncStoreCache = {
         schemaVersion: 1,
         revision: Number.isSafeInteger(value.revision) && value.revision >= 0 ? value.revision : 0,
         updatedAt: String(value.updatedAt || ""),
         snapshot: value.snapshot && typeof value.snapshot === "object" ? value.snapshot : {}
       };
+      return dataSyncStoreCache;
     } catch (error) {
       if (error && error.code !== "ENOENT") throw new Error("Could not read the saved AXIVESTRA sync store: " + error.message);
-      return { schemaVersion: 1, revision: 0, updatedAt: "", snapshot: {} };
+      dataSyncStoreCache = { schemaVersion: 1, revision: 0, updatedAt: "", snapshot: {} };
+      return dataSyncStoreCache;
     }
   }
 
   async function saveDataSyncStore(value) {
     dataSyncWrite = dataSyncWrite.catch(() => {}).then(async () => {
       const tempPath = dataSyncPath + ".tmp";
-      await fs.writeFile(tempPath, JSON.stringify(value, null, 2), { encoding: "utf8", mode: 0o600 });
+      // This is an internal machine snapshot, not a user-facing export. Compact JSON
+      // materially reduces serialization time and disk I/O for large workspaces.
+      await fs.writeFile(tempPath, JSON.stringify(value), { encoding: "utf8", mode: 0o600 });
       await fs.rename(tempPath, dataSyncPath);
+      dataSyncStoreCache = value;
     });
     await dataSyncWrite;
   }
@@ -1177,11 +1185,15 @@ function createWhatsAppService({ app, ipcMain, notify }) {
   }
 
   async function readBridgeBody(request, maxBytes = 1024 * 1024) {
-    let raw = "";
+    const chunks = [];
+    let totalBytes = 0;
     for await (const chunk of request) {
-      raw += chunk.toString("utf8");
-      if (raw.length > maxBytes) throw new Error("Request body is too large.");
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += buffer.length;
+      if (totalBytes > maxBytes) throw new Error("Request body is too large.");
+      chunks.push(buffer);
     }
+    const raw = Buffer.concat(chunks, totalBytes).toString("utf8");
     return raw.trim() ? JSON.parse(raw) : {};
   }
 
@@ -1246,7 +1258,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
       const body = request.method === "POST" ? await readBridgeBody(request, bodyLimit) : {};
       if (request.method === "GET" && route === "/api/data-sync") {
         const store = await readDataSyncStore();
-        bridgeReply(response, 200, { ok: true, schemaVersion: store.schemaVersion, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot });
+        bridgeReply(response, 200, createDataSyncReadReply(store, url.searchParams.get("sinceRevision")));
         return;
       }
       if (request.method === "GET" && route === "/api/documents") {
@@ -1263,7 +1275,7 @@ function createWhatsAppService({ app, ipcMain, notify }) {
         if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("A valid sync revision is required.");
         const snapshot = body.snapshot;
         if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("A valid AXIVESTRA data snapshot is required.");
-        const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents"];
+        const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules"];
         for (const key of allowed) {
           if (snapshot[key] !== undefined && !Array.isArray(snapshot[key])) throw new Error("Invalid data collection: " + key);
           if (Array.isArray(snapshot[key]) && snapshot[key].length > 50000) throw new Error("Collection exceeds the 50,000-record safety limit: " + key);
@@ -1364,16 +1376,16 @@ function createWhatsAppService({ app, ipcMain, notify }) {
     await startBridge();
     return { host: "http://127.0.0.1:" + bridgePort, token: deviceToken };
   });
-  ipcMain.handle("estateflow:wa:get-data-sync", async () => {
+  ipcMain.handle("estateflow:wa:get-data-sync", async (_event, sinceRevision) => {
     const store = await readDataSyncStore();
-    return { ok: true, revision: store.revision, updatedAt: store.updatedAt, snapshot: store.snapshot };
+    return createDataSyncReadReply(store, sinceRevision);
   });
   ipcMain.handle("estateflow:wa:save-data-sync", async (_event, payload) => {
     const expectedRevision = Number(payload && payload.expectedRevision);
     const snapshot = payload && payload.snapshot;
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("A valid sync revision is required.");
     if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) throw new Error("A valid AXIVESTRA data snapshot is required.");
-    const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "__axivestraSync"];
+    const allowed = ["properties", "contacts", "whatsappGroups", "tasks", "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules", "__axivestraSync"];
     for (const key of allowed) {
       if (key === "__axivestraSync") continue;
       if (snapshot[key] !== undefined && !Array.isArray(snapshot[key])) throw new Error("Invalid data collection: " + key);

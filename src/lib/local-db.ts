@@ -19,6 +19,7 @@ export type StoredDocument = {
 
 class AxivestraLocalDatabase extends Dexie {
   documents!: Table<StoredDocument, string>;
+  syncState!: Table<{ key: string; value: unknown }, string>;
 
   constructor() {
     super("axivestra-local-vault");
@@ -27,6 +28,10 @@ class AxivestraLocalDatabase extends Dexie {
     });
     this.version(2).stores({
       documents: "&id,createdAt,companyId,propertyId,contactId,category,name"
+    });
+    this.version(3).stores({
+      documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
+      syncState: "&key"
     });
   }
 }
@@ -44,4 +49,45 @@ export async function assignLegacyVaultToCompany(companyId: string): Promise<num
   const assigned = unassigned.map(document => ({ ...document, companyId }));
   await localDb.documents.bulkPut(assigned);
   return assigned.length;
+}
+
+
+const DEVICE_SYNC_BASELINE_KEY = "axivestra.deviceSyncBaseline";
+
+/** Store large PC/mobile reconciliation metadata in IndexedDB, not Android localStorage. */
+export async function loadDeviceSyncBaseline(): Promise<unknown> {
+  const saved = await localDb.syncState.get("deviceSyncBaseline");
+  if (saved) return saved.value;
+  let legacy: unknown = null;
+  try {
+    const raw = localStorage.getItem(DEVICE_SYNC_BASELINE_KEY);
+    if (raw) legacy = JSON.parse(raw);
+  } catch { /* A missing or oversized legacy value is treated as a fresh baseline. */ }
+  if (legacy !== null) {
+    await localDb.syncState.put({ key: "deviceSyncBaseline", value: legacy });
+    try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
+  }
+  return legacy;
+}
+
+export async function saveDeviceSyncBaseline(value: unknown): Promise<void> {
+  await localDb.syncState.put({ key: "deviceSyncBaseline", value });
+  try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
+}
+
+
+export async function clearDeviceSyncBaseline(): Promise<void> {
+  await localDb.syncState.delete("deviceSyncBaseline");
+  try { localStorage.removeItem(DEVICE_SYNC_BASELINE_KEY); } catch {}
+}
+
+
+/** Keep small workspace state in the existing IndexedDB state table instead of localStorage. */
+export async function loadWorkspaceState<T>(key: string): Promise<T | null> {
+  const row = await localDb.syncState.get("workspace:" + key);
+  return row ? row.value as T : null;
+}
+
+export async function saveWorkspaceState(key: string, value: unknown): Promise<void> {
+  await localDb.syncState.put({ key: "workspace:" + key, value });
 }

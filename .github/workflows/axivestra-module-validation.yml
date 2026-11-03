@@ -1,0 +1,29 @@
+name: AXIVESTRA module upgrade validation
+on:
+  pull_request:
+    branches:
+      - main
+      - "feat/axivestra-requested-module-upgrades-validated"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: axivestra-module-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    name: Test and build AXIVESTRA
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests
+        run: npm test
+      - name: Build web application
+        run: npm run build
