@@ -68,7 +68,7 @@ const dateTimeLabel = (date?: string,time?: string) => {
 };
 const relatedTo = (record: RecordRow,contact: Contact) => {
   const data=record.moduleData||{};
-  const ids=[record.followUpContactId||"",record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
+  const ids=[record.followUpContactId||"",...(data.__followUpContactIds||"").split(","),record.primaryContactId||"",...(data.__linkedContactIds||"").split(","),...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))].filter(Boolean);
   return ids.includes(contact.id)||(record.contact||"").trim().toLocaleLowerCase()===contact.name.trim().toLocaleLowerCase();
 };
 
