@@ -1,0 +1,17 @@
+export type IntelligenceFilters = {query?:string;location?:string;category?:string;module?:string;transactionType?:string;status?:string;dealMax?:string;dealCustom?:string;marketMax?:string;marketCustom?:string;settlementMax?:string;settlementCustom?:string};
+export function normalizeIntelligenceText(value:unknown):string;
+export function parseIntelligenceAmount(value:unknown):number|null;
+export function getIntelligenceRecordAmount(record:any):number|null;
+export function getIntelligenceMarketValue(record:any):number|null;
+export function getIntelligenceSettlementValue(record:any):number|null;
+export function getIntelligenceTransactionType(record:any):string;
+export function matchIntelligenceLocation(query:string,recordOrValue:any):{matched:boolean;kind:string};
+export function getIntelligenceLinkedContacts(record:any,contacts:any[]):any[];
+export function filterIntelligenceRecords(records:any[],contacts:any[],filters:IntelligenceFilters,modules?:any[]):Array<{record:any;linked:any[];searchText:string;locationMatch:{matched:boolean;kind:string};amount:number|null;market:number|null;settlement:number|null;transactionType:string;group:string}>;
+export function buildIntelligenceDuplicateSignals(records:any[],contacts:any[]):any[];
+export function buildIntelligenceOpportunitySignals(records:any[],contacts:any[]):any[];
+export function buildIntelligenceExposure(records:any[],financials:any[]):any;
+export function buildIntelligenceStakeholderNetwork(records:any[],contacts:any[]):any[];
+export function buildIntelligenceLocationSummary(records:any[]):any[];
+export function buildIntelligenceAlerts(input:any):any[];
+export function buildIntelligenceActivityFeed(input:any):any[];
