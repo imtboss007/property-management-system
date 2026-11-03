@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveBlobForUser } from "./lib/mobile-export";
 import { ClipboardList, Download, ExternalLink, Plus, Search, Trash2, Users } from "lucide-react";
+import SearchableContactPicker, { type SearchableContactGroup } from "./SearchableContactPicker";
 import {
   buildRecordFollowUpCsv,
   type RecordFollowUpContact,
@@ -12,16 +13,29 @@ type RecordRow = RecordFollowUpRecord & {
   followUpContactId?: string;
   primaryContactId?: string;
   contact?: string;
+  moduleData?: Record<string,string>;
 };
 type ContactRow = RecordFollowUpContact & {
   role?: string;
   roles?: string[];
   phone?: string;
+  whatsappName?: string;
+  whatsappJid?: string;
+  whatsappGroupIds?: string[];
+  email?: string;
+  address?: string;
+  profession?: string;
+  employer?: string;
+  designation?: string;
+  businessType?: string;
+  associatedCompany?: string;
+  customRoles?: string;
 };
 type DraftRow = { recordId: string; entry: RecordFollowUpEntry; dirty: boolean };
 type Props = {
   records: RecordRow[];
   contacts: ContactRow[];
+  groups: SearchableContactGroup[];
   moduleNames: string[];
   readOnly?: boolean;
   onUpsertFollowUp: (recordId: string, entry: RecordFollowUpEntry) => void;
@@ -91,34 +105,44 @@ export default function RecordFollowUpTracker(props: Props) {
     ...props.moduleNames,
     ...props.records.map(record => record.module).filter(Boolean)
   ])).sort((a, b) => a.localeCompare(b)), [props.moduleNames, props.records]);
-  const moduleCounts = useMemo(() => new Map(moduleOptions.map(name => [
-    name, props.records.filter(record => record.module === name).length
-  ])), [moduleOptions, props.records]);
+  const moduleCounts = useMemo(() => {
+    const counts = new Map<string,number>();
+    props.records.forEach(record => counts.set(record.module,(counts.get(record.module)||0)+1));
+    return new Map(moduleOptions.map(name => [name,counts.get(name)||0]));
+  }, [moduleOptions, props.records]);
   const contactsById = useMemo(() => new Map(props.contacts.map(contact => [contact.id, contact])), [props.contacts]);
-
-  const entriesForRecord = (recordId: string) => Object.values(drafts)
-    .filter(row => row.recordId === recordId)
-    .map(row => row.entry)
-    .sort((a, b) => (a.nextFollowUpDate || "9999-12-31").localeCompare(b.nextFollowUpDate || "9999-12-31")
+  const entriesByRecord = useMemo(() => {
+    const grouped = new Map<string,RecordFollowUpEntry[]>();
+    Object.values(drafts).forEach(row => {
+      const rows = grouped.get(row.recordId) || [];
+      rows.push(row.entry);
+      grouped.set(row.recordId,rows);
+    });
+    grouped.forEach(rows => rows.sort((a,b) =>
+      (a.nextFollowUpDate || "9999-12-31").localeCompare(b.nextFollowUpDate || "9999-12-31")
       || (a.nextFollowUpTime || "99:99").localeCompare(b.nextFollowUpTime || "99:99")
-      || a.createdAt.localeCompare(b.createdAt));
+      || a.createdAt.localeCompare(b.createdAt)
+    ));
+    return grouped;
+  },[drafts]);
+  const entriesForRecord = (recordId: string) => entriesByRecord.get(recordId) || [];
 
   const visibleRecords = useMemo(() => {
     const term = query.trim().normalize("NFKC").toLocaleLowerCase();
     return props.records.filter(record => {
       if (selectedModules.length && !selectedModules.includes(record.module)) return false;
-      const entries = Object.values(drafts).filter(row => row.recordId === record.id);
+      const entries = entriesByRecord.get(record.id) || [];
       if (!selectedModules.length && !showRecordsWithoutFollowUps && entries.length === 0) return false;
       if (!term) return true;
-      const entryText = entries.flatMap(row => {
-        const contact = contactsById.get(row.entry.followPersonId);
-        return [row.entry.followPersonName, contact?.name, row.entry.followDate, row.entry.followTime,
-          row.entry.remarks, row.entry.nextFollowUpDate, row.entry.nextFollowUpTime];
+      const entryText = entries.flatMap(entry => {
+        const contact = contactsById.get(entry.followPersonId);
+        return [entry.followPersonName, contact?.name, entry.followDate, entry.followTime,
+          entry.remarks, entry.nextFollowUpDate, entry.nextFollowUpTime];
       });
       return [record.title, record.module, record.contact, ...entryText]
         .filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase().includes(term);
     }).sort((a, b) => a.module.localeCompare(b.module) || a.title.localeCompare(b.title));
-  }, [props.records, selectedModules, showRecordsWithoutFollowUps, query, drafts, contactsById]);
+  }, [props.records, selectedModules, showRecordsWithoutFollowUps, query, entriesByRecord, contactsById]);
 
   const visibleEntryCount = visibleRecords.reduce((sum, record) => sum + entriesForRecord(record.id).length, 0);
   const overdueCount = visibleRecords.reduce((sum, record) => sum + entriesForRecord(record.id).filter(entry =>
@@ -169,7 +193,7 @@ export default function RecordFollowUpTracker(props: Props) {
 
   const addForRecord = (record: RecordRow) => {
     if (props.readOnly) return;
-    const suggestedContactId = record.followUpContactId || record.primaryContactId || "";
+    const suggestedContactId = (record.moduleData?.__followUpContactIds || "").split(",").map(id=>id.trim()).find(Boolean) || record.followUpContactId || record.primaryContactId || "";
     const suggestedContact = contactsById.get(suggestedContactId)
       || props.contacts.find(contact => record.contact && contact.name.trim().toLocaleLowerCase() === record.contact.trim().toLocaleLowerCase());
     const entry = newEntry(suggestedContact);
@@ -275,11 +299,21 @@ export default function RecordFollowUpTracker(props: Props) {
                   {index === 0 && <button type="button" className="ax-record-followups__add-another" disabled={props.readOnly} onClick={() => addForRecord(record)}><Plus size={12}/> Add another follow-up</button>}
                 </td>
                 <td>
-                  <select aria-label={"Follow person for " + record.title} value={draft.entry.followPersonId} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "followPersonId", event.target.value)} onBlur={() => save(record.id, entry.id)}>
-                    <option value="">Select saved contact</option>
-                    {draft.entry.followPersonId && !contactsById.has(draft.entry.followPersonId) && <option value={draft.entry.followPersonId}>{draft.entry.followPersonName || "Previously linked contact"}</option>}
-                    {props.contacts.slice().sort((a,b) => a.name.localeCompare(b.name)).map(person => <option key={person.id} value={person.id}>{person.name}{person.role ? " · " + person.role : person.phone ? " · " + person.phone : ""}</option>)}
-                  </select>
+                  <SearchableContactPicker
+                    label={"Follow person for " + record.title}
+                    contacts={props.contacts}
+                    groups={props.groups}
+                    value={draft.entry.followPersonId}
+                    placeholder="Search person, Dr name, role, phone or group…"
+                    help="Search includes saved contact names and linked WhatsApp group names."
+                    onChange={value=>{
+                      const id=String(value);
+                      const person=contactsById.get(id);
+                      const updated={...draft.entry,followPersonId:id,followPersonName:person?.name||draft.entry.followPersonName,updatedAt:new Date().toISOString()};
+                      props.onUpsertFollowUp(record.id,updated);
+                      setDrafts(current=>current[key]?{...current,[key]:{recordId:record.id,entry:updated,dirty:false}}:current);
+                    }}
+                  />
                   {contact && <button type="button" className="ax-record-followups__contact-link" onClick={() => props.onOpenContact(contact.id)}><Users size={11}/> Open contact</button>}
                 </td>
                 <td><input aria-label="Follow-up date" type="date" value={draft.entry.followDate} disabled={props.readOnly} onChange={event => patch(record.id, entry.id, "followDate", event.target.value)} onBlur={() => save(record.id, entry.id)}/></td>
