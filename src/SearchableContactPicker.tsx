@@ -20,6 +20,7 @@ export type SearchableContact = {
   notify?: string;
   whatsappJid?: string;
   whatsappGroupIds?: string[];
+  notes?: string;
 };
 export type SearchableContactGroup = { id: string; name: string; jid?: string; subject?: string; description?: string };
 
@@ -79,7 +80,7 @@ export default function SearchableContactPicker({
       contact.name, contact.whatsappName, contact.verifiedName, contact.notify,
       contact.phone, phoneDigits, ...roles, contact.email,
       contact.address, contact.profession, contact.employer, contact.designation,
-      contact.businessType, contact.associatedCompany, contact.whatsappJid,
+      contact.businessType, contact.associatedCompany, contact.whatsappJid, contact.notes,
       ...groupNames
     ].filter(Boolean).join(" "));
     return { contact, roles, groupNames, searchText, phoneDigits };
@@ -112,7 +113,7 @@ export default function SearchableContactPicker({
   const matching = useMemo(() => {
     const source = activeGroupId ? (contactsByGroup.get(activeGroupId) || []) : indexedContacts;
     return terms.length
-      ? source.filter(item => terms.every(term => item.searchText.includes(term)) || phoneMatches(item.contact.phone || "", deferredQuery))
+      ? source.filter(item => terms.every(term => item.searchText.includes(term) || item.searchText.split(" ").some(token => token.startsWith(term))) || phoneMatches(item.contact.phone || "", deferredQuery))
       : source;
   }, [indexedContacts, contactsByGroup, activeGroupId, terms]);
   const visible = matching.slice(0, 40);
