@@ -316,7 +316,7 @@ const moduleFields: Record<string, ModuleField[]> = Object.fromEntries(
     return [moduleName, Array.from(byKey.values())];
   })
 );
-const contactRoleOptions = ["Client","Mediator","Funder","Landowner","Property buyer","Property seller","Builder / developer","Borrower","Lender","Investor","Company owner / director","Broker / agent","Professional adviser","Guarantor","JV / JDA partner","Advocate","Contractor","Employee / salaried","Supplier / vendor","Introducer / referral partner","Tenant","Loan officer","Bank relationship manager","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Other"];
+const contactRoleOptions = ["Client","Mediator","Funder","Landowner","Property buyer","Property seller","Builder / developer","Borrower","Lender","Investor","Company owner / director","Broker / agent","Professional adviser","Guarantor","JV / JDA partner","Lawyer / legal counsel","Advocate","Contractor","Employee / salaried","Supplier / vendor","Introducer / referral partner","Tenant","Loan officer","Bank relationship manager","Auditor","Valuer / surveyor","Document agent","KYC / compliance provider","Other"];
 type ModuleContactField = { key: string; label: string };
 const moduleContactFields: Record<string, ModuleContactField[]> = {
   "Property Sale": [
