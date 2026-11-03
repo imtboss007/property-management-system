@@ -3123,7 +3123,7 @@ function PropertyForm({defaultModule,defaultContactId,contacts,groups,initial,on
   const initialFollowUpContactIds = Array.from(new Set([
     ...restoredFollowUpIds,
     ...fallbackFollowUpContactIds
-  ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id)));
+  ].filter(id => Boolean(id) && contacts.some(contact => contact.id === id))));
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? contacts.find(item=>item.id===defaultContactId)?.name ?? "",
