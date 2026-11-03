@@ -35,8 +35,8 @@ type Props = {
   onSelectGroup?: (groupId: string, memberIds: string[]) => void;
 };
 
-const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[\\s\\u00a0]+/g, " ").trim();
-const normalizePhone = (value: unknown) => String(value ?? "").replace(/\\D/g, "");
+const normalize = (value: unknown) => String(value ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[\s\u00a0]+/g, " ").trim();
+const normalizePhone = (value: unknown) => String(value ?? "").replace(/\D/g, "");
 const phoneMatches = (phone: string, query: string) => {
   const digits = normalizePhone(phone);
   const term = normalizePhone(query);
