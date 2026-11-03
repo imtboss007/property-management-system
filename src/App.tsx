@@ -2051,7 +2051,14 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     setContacts(current=>current.map(contact=>contact.id===contactId?{...contact,followUps:normalized}:contact));
     const syncStamp=new Date().toISOString();
     setProperties(current=>current.map(record=>{
-      const unassigned=removedAutoRecords.has(record.id)&&record.followUpContactId===contactId?{...record,followUpContactId:""}:record;
+      const assignedIds=recordFollowUpContactIds(record);
+      const removeThisContact=removedAutoRecords.has(record.id)&&assignedIds.includes(contactId);
+      const remainingIds=removeThisContact?assignedIds.filter(id=>id!==contactId):assignedIds;
+      const unassigned=removeThisContact?{
+        ...record,
+        followUpContactId:remainingIds[0]||"",
+        moduleData:{...(record.moduleData||{}),__followUpContactIds:remainingIds.join(",")}
+      }:record;
       const primary=primaryByRecord.get(record.id);
       if(!primary)return unassigned;
       const previousPrimary=previousPrimaryByRecord.get(record.id);
@@ -2433,7 +2440,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     }));
     remoteDelete("property_records", id);
   };
-  const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); setProperties(prev=>prev.map(record=>record.followUpContactId===id?{...record,followUpContactId:""}:record)); remoteDelete("contacts", id); };
+  const deleteContact = (id: string) => { setContacts(prev => prev.filter(c => c.id !== id)); setProperties(prev=>prev.map(record=>{const remaining=recordFollowUpContactIds(record).filter(contactId=>contactId!==id);return remaining.length!==recordFollowUpContactIds(record).length?{...record,followUpContactId:remaining[0]||"",moduleData:{...(record.moduleData||{}),__followUpContactIds:remaining.join(",")}}:record;})); remoteDelete("contacts", id); };
   const deleteTask = (id: string) => { setTasks(prev => prev.filter(t => t.id !== id)); remoteDelete("tasks", id); };
   const saveFinancial = (data: Omit<FinancialRecord, "id">) => {
     const record: FinancialRecord = editingFinancial ? { ...editingFinancial, ...data } : { ...data, id: uid() };
