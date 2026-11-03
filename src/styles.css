@@ -3040,3 +3040,50 @@ h2,h3{color:#e5f2fc}
     margin-left: 20px;
   }
 }
+
+/* Reliable sidebar interaction and scrolling on touch devices and desktop. */
+.sidebar {
+  position: relative;
+  z-index: 31;
+  isolation: isolate;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+.nav-list,
+.nav-item,
+.ax-sidebar-module-list,
+.ax-sidebar-module {
+  pointer-events: auto;
+}
+.nav-item,
+.ax-sidebar-module {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.nav-item:focus-visible,
+.ax-sidebar-module:focus-visible {
+  outline: 2px solid #62d5e7;
+  outline-offset: 2px;
+}
+@media (max-width: 720px) {
+  .sidebar {
+    z-index: 50;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .sidebar.sidebar-open {
+    pointer-events: auto;
+  }
+  .sidebar .nav-item,
+  .sidebar .ax-sidebar-module {
+    min-height: 46px;
+  }
+  .scrim {
+    z-index: 40;
+  }
+}
