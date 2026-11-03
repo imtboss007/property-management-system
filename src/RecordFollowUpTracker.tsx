@@ -193,11 +193,11 @@ export default function RecordFollowUpTracker(props: Props) {
 
   const addForRecord = (record: RecordRow) => {
     if (props.readOnly) return;
-    const assignedIds = Array.from(new Set([
-      ...(record.moduleData?.__followUpContactIds || "").split(","),
-      record.followUpContactId || "",
-      record.primaryContactId || ""
-    ].map(id => id.trim()).filter(Boolean)));
+    const hasSavedIds=Object.prototype.hasOwnProperty.call(record.moduleData||{},"__followUpContactIds");
+    const assignedIds = Array.from(new Set((hasSavedIds
+      ? (record.moduleData?.__followUpContactIds||"").split(",")
+      : [record.followUpContactId||"",record.primaryContactId||"",...(record.followUpEntries||[]).map(entry=>entry.followPersonId||"")]
+    ).map(id => id.trim()).filter(Boolean)));
     const existingPersonIds = new Set((record.followUpEntries || []).map(entry => entry.followPersonId).filter(Boolean));
     // When a record has several assigned people, suggest the next person who
     // does not already have an individual follow-up row instead of always
