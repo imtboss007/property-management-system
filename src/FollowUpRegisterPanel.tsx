@@ -21,11 +21,12 @@ export type FollowUpRegisterItem = {
 };
 type ContactRow = {
   id: string; name: string; phone: string; role: string; roles?: string[];
-  email?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
+  email?: string; whatsappName?: string; customRoles?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
 };
 type RecordRow = {
   id: string; title: string; module: string; value: string; status: string;
   contact: string; primaryContactId?: string; followUpContactId?: string;
+  followUpEntries?: Array<{ followPersonId: string }>;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
   nextResponseDescription?: string; nextAction?: string; notes?: string;
   moduleData: Record<string,string>;
@@ -53,16 +54,6 @@ const emptyRows = (contacts: ContactRow[]): Record<string,DraftRow> => Object.fr
     rowKey(contact.id,item.id), { contactId: contact.id, item: { ...item, amount: String(item.amount ?? "") }, isNew: false, dirty: false }
   ]))
 );
-const contactLinksRecord = (contact: ContactRow, record: RecordRow) => {
-  const data = record.moduleData || {};
-  const linkedIds = [
-    record.followUpContactId || "",
-    record.primaryContactId || "",
-    ...(data.__linkedContactIds || "").split(","),
-    ...Object.entries(data).filter(([key,value]) => key.startsWith("__contact_") && Boolean(value)).map(([,value]) => String(value))
-  ].filter(Boolean);
-  return linkedIds.includes(contact.id) || (record.contact || "").trim().toLocaleLowerCase() === contact.name.trim().toLocaleLowerCase();
-};
 const createFollowUp = (contact: ContactRow): FollowUpRegisterItem => {
   const now = new Date().toISOString();
   return {
@@ -117,9 +108,12 @@ export default function FollowUpRegisterPanel(props: Props) {
     props.contacts.forEach(contact=>groupIdsByContact.set(contact.id,new Set(contact.whatsappGroupIds||[])));
     for(const property of props.properties){
       const data=property.moduleData||{};
+      const hasSavedFollowUpIds=Object.prototype.hasOwnProperty.call(data,"__followUpContactIds");
+      const followUpIds=hasSavedFollowUpIds
+        ? (data.__followUpContactIds||"").split(",")
+        : [property.followUpContactId||"",...(property.followUpEntries||[]).map(entry=>entry.followPersonId||"")];
       const ids=new Set([
-        property.followUpContactId||"",
-        ...(data.__followUpContactIds||"").split(","),
+        ...followUpIds,
         property.primaryContactId||"",
         ...(data.__linkedContactIds||"").split(","),
         ...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))
