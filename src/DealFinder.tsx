@@ -7,7 +7,7 @@ type FinderRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
   contact: string; primaryContactId?: string; followUpContactId?: string; followUpEntries?: Array<{followPersonId:string}>; moduleData?: Record<string, string>;
 };
-type FinderContact = { id: string; name: string; phone?: string; role?: string; roles?: string[]; customRoles?: string };
+type FinderContact = { id: string; name: string; phone?: string; role?: string; roles?: string[]; customRoles?: string; email?: string; whatsappName?: string; verifiedName?: string; notify?: string; whatsappJid?: string; associatedCompany?: string; };
 type FinderModule = { name: string; group?: string };
 type Props = { records: FinderRecord[]; contacts: FinderContact[]; modules: FinderModule[]; onOpenModule: (module: string) => void; onOpenRecord: (record: FinderRecord) => void };
 
@@ -94,7 +94,7 @@ export default function DealFinder({ records, contacts, modules, onOpenModule, o
     const text = normalize([
       record.title, record.module, categoryByModule.get(record.module), locationText, record.status, record.contact, record.value,
       ...Object.entries(data).flatMap(([key, value]) => [key, value]),
-      ...linked.flatMap(contact => [contact.name, contact.phone, phoneDigits(contact.phone), contact.role, ...(contact.roles || []), contact.customRoles])
+      ...linked.flatMap(contact => [contact.name, contact.phone, phoneDigits(contact.phone), contact.role, ...(contact.roles || []), contact.customRoles, contact.email, contact.whatsappName, contact.verifiedName, contact.notify, contact.whatsappJid, contact.associatedCompany])
     ].filter(Boolean).join(" "));
     return { record, linked, amount, market, settlement, text, locationText:normalize(locationText), linkedPhones, category: categoryByModule.get(record.module) || "Other" };
   }), [records, contactById, categoryByModule]);
