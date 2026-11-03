@@ -94,7 +94,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [detailRecordId, setDetailRecordId] = useState<string|null>(null);
 
   const deferredQuery=useDeferredValue(query);
-  const searchTerms=useMemo(()=>deferredQuery.trim().normalize("NFKC").toLocaleLowerCase().split(/\\s+/).filter(Boolean),[deferredQuery]);
+  const searchTerms=useMemo(()=>deferredQuery.trim().normalize("NFKC").toLocaleLowerCase().split(/\s+/).filter(Boolean),[deferredQuery]);
   const contactIndex = useMemo(() => ({
     byId:new Map(contacts.map(contact=>[contact.id,contact])),
     byName:new Map(contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact]))
