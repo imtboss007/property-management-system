@@ -3012,47 +3012,74 @@ type RelationshipHubProps = {
   onDeleteTask: (id: string) => void;
 };
 function RelationshipHub({properties,contacts,tasks,financials,today,onEditProperty,onAddProperty,onAddContact,onOpenContacts,onOpenTasks,onSchedule,onWhatsApp,onEditTask,onToggleTask,onDeleteTask}:RelationshipHubProps) {
+  const [moduleFilter,setModuleFilter]=useState("All modules");
+  const [query,setQuery]=useState("");
   const resolveContact=(property:PropertyRecord)=>contacts.find(contact=>contact.id===property.primaryContactId)
     || contacts.find(contact=>contact.name.trim().toLowerCase()===(property.contact || "").trim().toLowerCase());
   const activeProperties=properties.filter(property=>!["Completed","Closed","Settled"].includes(property.status));
   const overdueDeadlines=activeProperties.filter(property=>{const deadline=getPropertyDeadline(property);return Boolean(deadline && deadline.date<today);});
   const overdueFollowups=activeProperties.filter(property=>Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today));
   const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+  const moduleOptions=Array.from(new Set(properties.map(property=>property.module).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
   const orderedProperties=[...properties].sort((a,b)=>(getPropertyDeadline(a)?.date || a.nextFollowUpDate || "9999-12-31").localeCompare(getPropertyDeadline(b)?.date || b.nextFollowUpDate || "9999-12-31"));
-  return <section className="data-panel relationship-hub">
-    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 16 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
-    <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
-    <div className="notice"><Handshake size={17}/>Select one saved contact on each deal record. The same contact then appears across call reminders, financial transactions, risk/approval items and WhatsApp follow-ups.</div>
-    {properties.length===0 && <Empty icon={<LandPlot size={22}/>} title="Add your first deal or property record" text="Every module record can be linked to a client, deadline and next action here." action="Create deal record" onClick={onAddProperty}/>}
-    {properties.length>0 && <div className="record-list">{orderedProperties.map(property=>{
-      const stakeholders=getLinkedContactsForRecord(property,contacts);
-      const contact=stakeholders[0] ?? resolveContact(property);
-      const relatedTasks=tasks.filter(task=>(task.propertyId===property.id || (!task.propertyId && task.property===property.title)) && !task.done);
-      const relatedFinancials=financials.filter(item=>item.propertyId===property.id || (!item.propertyId && item.property===property.title));
-      const deadline=getPropertyDeadline(property);
-      const deadlineOverdue=Boolean(deadline && deadline.date<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
-      const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
-      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
-      return <article className="record-card relationship-record" key={property.id}>
-        <div className="record-symbol"><Building2 size={20}/></div>
-        <div className="record-main">
-          <h3>{property.title}</h3>
-          <p>{property.module} <span>•</span> {property.location || "Location not entered"}</p>
-          <small>Contact: {contact ? <button className="inline-link" onClick={onOpenContacts}>{contact.name} · {contact.role}</button> : <button className="inline-link" onClick={onEditProperty.bind(null,property)}>Link a contact</button>}</small>
-          {contact?.phone && <small>Phone: {contact.phone}</small>}{getLinkedContactRoleLabels(property,contacts).length>0 && <small><strong>Linked roles:</strong> {getLinkedContactRoleLabels(property,contacts).join(" · ")}</small>}{stakeholders.length>1 && <small>Linked stakeholders: {stakeholders.map(item=>`${item.name} (${item.role})`).join(" · ")}</small>}
-          {deadline && <small><strong>{deadline.label}:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{deadline.date}{deadlineOverdue?" · OVERDUE":""}</span></small>}
-          {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
-          {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
-          <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: ₹{recordedAmount.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
-          {relatedTasks.slice(0,2).map(task=><small key={task.id}>Next task: {task.title} · {task.date} {task.time}{task.contactName ? ` · ${task.contactName}` : ""}</small>)}
-          <div className="linked-actions">
-            <button className="secondary-button" onClick={()=>onEditProperty(property)}><Pencil size={14}/> Edit links / deadlines</button>
-            {stakeholders.map(stakeholder=><span className="linked-stakeholder" key={stakeholder.id}><strong>{stakeholder.name}</strong><small>{getLinkedContactRoleLabels(property,contacts).filter(label=>label.endsWith(": "+stakeholder.name)).join(" · ") || stakeholder.role}</small>{stakeholder.phone && <a className="secondary-button" href={`tel:${stakeholder.phone}`}><Phone size={14}/> Call</a>}<button className="secondary-button" onClick={()=>onSchedule(property,stakeholder)}><CalendarClock size={14}/> Schedule call</button><button className="secondary-button" onClick={()=>onWhatsApp(stakeholder.id,property.id)}><MessageCircle size={14}/> WhatsApp</button></span>)}
-          </div>
+  const normalizedQuery=query.trim().normalize("NFKC").toLocaleLowerCase();
+  const filteredProperties=orderedProperties.filter(property=>{
+    if(moduleFilter!=="All modules"&&property.module!==moduleFilter)return false;
+    if(!normalizedQuery)return true;
+    const linked=getLinkedContactsForRecord(property,contacts);
+    const text=[property.title,property.module,property.location,property.status,property.contact,property.nextAction,...linked.flatMap(contact=>[contact.name,contact.phone,contact.role,...(contact.roles||[])])].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+    return text.includes(normalizedQuery);
+  });
+  const groupedProperties=(moduleFilter==="All modules"?moduleOptions:[moduleFilter])
+    .map(moduleName=>({moduleName,records:filteredProperties.filter(property=>property.module===moduleName)}))
+    .filter(group=>group.records.length>0);
+  const renderRecord=(property:PropertyRecord)=>{
+    const stakeholders=getLinkedContactsForRecord(property,contacts);
+    const contact=stakeholders[0] ?? resolveContact(property);
+    const relatedTasks=tasks.filter(task=>(task.propertyId===property.id || (!task.propertyId && task.property===property.title)) && !task.done);
+    const relatedFinancials=financials.filter(item=>item.propertyId===property.id || (!item.propertyId && item.property===property.title));
+    const deadline=getPropertyDeadline(property);
+    const deadlineOverdue=Boolean(deadline && deadline.date<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
+    const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
+    const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const roleLabels=getLinkedContactRoleLabels(property,contacts);
+    return <article className="record-card relationship-record" key={property.id}>
+      <div className="record-symbol"><Building2 size={20}/></div>
+      <div className="record-main">
+        <h3>{property.title}</h3>
+        <p>{property.module} <span>•</span> {property.location || "Location not entered"}</p>
+        <small>Contact: {contact ? <button className="inline-link" onClick={onOpenContacts}>{contact.name} · {contact.role}</button> : <button className="inline-link" onClick={onEditProperty.bind(null,property)}>Link a contact</button>}</small>
+        {contact?.phone && <small>Phone: {contact.phone}</small>}
+        {roleLabels.length>0 && <small><strong>Module roles:</strong> {roleLabels.join(" · ")}</small>}
+        {stakeholders.length>1 && <small>Linked stakeholders: {stakeholders.map(item=>`${item.name} (${item.role}) · ${item.phone||"No number"}`).join(" · ")}</small>}
+        {deadline && <small><strong>{deadline.label}:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{deadline.date}{deadlineOverdue?" · OVERDUE":""}</span></small>}
+        {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
+        {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
+        <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: ₹{recordedAmount.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
+        {relatedTasks.slice(0,2).map(task=><small key={task.id}>Next task: {task.title} · {task.date} {task.time}{task.contactName ? ` · ${task.contactName}` : ""}</small>)}
+        <div className="linked-actions">
+          <button className="secondary-button" onClick={()=>onEditProperty(property)}><Pencil size={14}/> Edit links / deadlines</button>
+          {stakeholders.map(stakeholder=><span className="linked-stakeholder" key={stakeholder.id}><strong>{stakeholder.name}</strong><small>{roleLabels.filter(label=>label.endsWith(": "+stakeholder.name)).join(" · ") || stakeholder.role}{stakeholder.phone?" · "+stakeholder.phone:""}</small>{stakeholder.phone && <a className="secondary-button" href={`tel:${stakeholder.phone}`}><Phone size={14}/> Call</a>}<button className="secondary-button" onClick={()=>onSchedule(property,stakeholder)}><CalendarClock size={14}/> Schedule call</button><button className="secondary-button" onClick={()=>onWhatsApp(stakeholder.id,property.id)}><MessageCircle size={14}/> WhatsApp</button></span>)}
         </div>
-        <div className="record-side"><strong>{property.value ? `₹ ${Number(property.value).toLocaleString("en-IN",{maximumFractionDigits:2})}` : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
-      </article>;
-    })}</div>}
+      </div>
+      <div className="record-side"><strong>{property.value ? `₹ ${Number(property.value).toLocaleString("en-IN",{maximumFractionDigits:2})}` : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
+    </article>;
+  };
+  return <section className="data-panel relationship-hub">
+    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>Deals are grouped by module. Filter a module or search a client name, phone number, property, deal or stakeholder.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
+    <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
+    <div className="notice"><Handshake size={17}/>Each deal can link several contacts by role, including client, borrower, lender, lawyer, advocate, broker, owner, buyer, seller, investor, guarantor, mediator and other stakeholders.</div>
+    <div className="relationship-hub-filters">
+      <label><span>Filter by module</span><select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option>All modules</option>{moduleOptions.map(moduleName=><option key={moduleName}>{moduleName}</option>)}</select></label>
+      <label className="relationship-hub-search"><span>Search client / deal / contact number</span><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Type name, phone, module or deal…"/></label>
+      <span className="relationship-hub-result-count">{filteredProperties.length} of {properties.length} records</span>
+    </div>
+    {properties.length===0 && <Empty icon={<LandPlot size={22}/>} title="Add your first deal or property record" text="Every module record can be linked to a client, deadline and next action here." action="Create deal record" onClick={onAddProperty}/>}
+    {properties.length>0 && filteredProperties.length===0 && <Empty icon={<Search size={22}/>} title="No matching deals" text="Change the module filter or search term to see records." action="Clear filters" onClick={()=>{setModuleFilter("All modules");setQuery("");}}/>}
+    {groupedProperties.map(group=><section className="relationship-module-group" key={group.moduleName}>
+      <header><div><span className="section-kicker">MODULE</span><h3>{group.moduleName}</h3></div><span>{group.records.length} deal{group.records.length===1?"":"s"}</span></header>
+      <div className="record-list">{group.records.map(renderRecord)}</div>
+    </section>)}
     <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
     {openTasks.length ? <TaskList tasks={openTasks.slice(0,8)} toggle={onToggleTask} remove={onDeleteTask} edit={onEditTask} onWhatsApp={onWhatsApp}/> : <Empty icon={<CalendarClock size={22}/>} title="No open reminders" text="Create a call, document collection, loan deadline or meeting reminder." action="Open schedule" onClick={onOpenTasks}/>}
     <div className="relationship-footer-actions"><button className="secondary-button" onClick={onOpenContacts}><Users size={15}/> Manage contacts</button><button className="secondary-button" onClick={onOpenTasks}><CalendarClock size={15}/> Manage reminders</button></div>
