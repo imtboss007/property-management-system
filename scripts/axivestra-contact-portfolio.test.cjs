@@ -232,6 +232,24 @@ console.log("AXIVESTRA person-grouped six-column editable follow-up grid layout 
 for (const token of [
   "relationship-hub-filters", "Filter by module", "relationship-module-group",
   "Search client / deal / contact number", "groupedProperties"
+]) assert.ok(app.includes(token), "Client & Deal Hub must categorize records by module and provide filters: " + token);
+for (const token of [
+  "commonModuleContactFields", "__contact_client", "__contact_borrower",
+  "__contact_lender", "__contact_lawyer", "__contact_advocate",
+  "__contact_broker", "__contact_owner", "__contact_investor",
+  "getModuleContactFields(form.module)"
+]) assert.ok(app.includes(token), "Every module must expose role-linked contact pickers: " + token);
+for (const token of [
+  "normalizePhone", "phoneMatches", "contact.verifiedName", "contact.whatsappName",
+  "contact.phone", "groupById.get(normalize(groupAlias))"
+]) assert.ok(contactPicker.includes(token), "Contact search must match synced names, aliases, groups and normalized phone numbers: " + token);
+assert.ok(report.includes("__followUpContactIds") && report.includes("record.followUpEntries"),
+  "Follow-up register PDF must include every assigned person, including legacy multi-person records.");
+
+
+for (const token of [
+  "relationship-hub-filters", "Filter by module", "relationship-module-group",
+  "Search client / deal / contact number", "groupedProperties"
 ]) assert.ok(app.includes(token), "Client & Deal Hub must categorize records by module and provide working filters: " + token);
 for (const token of [
   "commonModuleContactFields", "__contact_client", "__contact_borrower",
