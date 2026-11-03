@@ -2830,6 +2830,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           {active === "Record Follow-up Tracker" && <RecordFollowUpTracker
             records={properties}
             contacts={contacts}
+            groups={savedWhatsAppGroups}
             moduleNames={[...builtInModules.map(item=>item.name),...customModules.filter(item=>!item.archived).map(item=>item.name)]}
             readOnly={company?.role==="read_only"}
             onUpsertFollowUp={updateRecordFollowUpEntry}
