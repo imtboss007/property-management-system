@@ -3344,3 +3344,113 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-record-add-followup { min-height:44px; }
   .ax-modern-shell .ax-followup-kpis button strong { font-size:23px; }
 }
+
+
+/* VESTRA SHIFT — live intent canvas, command composer and focus workspace */
+.ax-modern-shell .ax-intent-canvas { display:flex; flex-direction:column; gap:13px; margin:0 0 18px; min-width:0; }
+.ax-modern-shell .ax-intent-command {
+  display:flex; flex-direction:column; gap:12px; padding:18px;
+  border:1px solid rgba(118,192,203,.22); border-radius:17px;
+  background:
+    radial-gradient(ellipse at 88% 0,rgba(105,86,172,.18),transparent 44%),
+    linear-gradient(135deg,rgba(14,39,56,.97),rgba(8,26,40,.98));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 35px rgba(0,0,0,.12);
+}
+.ax-modern-shell .ax-intent-command__title h2 { margin:5px 0 4px; color:#e9f7f5; font:800 clamp(18px,2vw,24px) "Manrope",sans-serif; letter-spacing:-.5px; }
+.ax-modern-shell .ax-intent-command__title p { margin:0; color:#91afbd; font-size:11px; line-height:1.55; }
+.ax-modern-shell .ax-intent-composer {
+  display:flex; align-items:center; gap:10px; min-width:0; padding:7px 8px 7px 13px;
+  border:1px solid rgba(127,205,204,.35); border-radius:12px;
+  background:rgba(4,19,32,.78); box-shadow:inset 0 2px 10px rgba(0,0,0,.12);
+}
+.ax-modern-shell .ax-intent-composer > svg { flex:none; color:#94c6c6; }
+.ax-modern-shell .ax-intent-composer input { flex:1; min-width:0; height:37px; border:0; outline:0; color:#e8faf7; background:transparent; font:500 12px "DM Sans",sans-serif; }
+.ax-modern-shell .ax-intent-composer input::placeholder { color:#668594; }
+.ax-modern-shell .ax-intent-composer button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:36px; padding:7px 13px; border:1px solid rgba(116,227,203,.55); border-radius:9px; color:#e7fff8; background:linear-gradient(110deg,#17675d,#245e7a); font:800 10px "DM Sans",sans-serif; cursor:pointer; }
+.ax-modern-shell .ax-intent-examples { display:flex; flex-wrap:wrap; gap:6px; }
+.ax-modern-shell .ax-intent-examples button { min-height:27px; padding:5px 9px; border:1px solid rgba(114,164,183,.22); border-radius:999px; color:#93b2bf; background:rgba(13,40,56,.55); font-size:9px; cursor:pointer; }
+.ax-modern-shell .ax-intent-examples button:hover { border-color:rgba(108,224,200,.6); color:#d5fff2; }
+.ax-modern-shell .ax-intent-command-result { margin:0; color:#a8e7d6; font-size:10px; }
+.ax-modern-shell .ax-intent-search-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.ax-modern-shell .ax-intent-search-results button { display:grid; grid-template-columns:1fr auto; gap:3px 8px; align-items:center; min-width:0; padding:9px 10px; border:1px solid #2b4b5c; border-radius:9px; text-align:left; color:#e5f4f3; background:#102b3d; cursor:pointer; }
+.ax-modern-shell .ax-intent-search-results button > span { grid-column:1/-1; color:#82c4bd; font-size:8px; font-weight:850; letter-spacing:.7px; text-transform:uppercase; }
+.ax-modern-shell .ax-intent-search-results strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-search-results small { overflow:hidden; color:#89a9b6; font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-search-results svg { grid-column:2; grid-row:2; color:#9bd9cb; }
+.ax-modern-shell .ax-intent-workspace-toolbar { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding-top:11px; border-top:1px solid rgba(116,169,187,.18); }
+.ax-modern-shell .ax-intent-workspace-toolbar > div:first-child { display:flex; align-items:center; gap:7px; flex:none; padding-top:7px; color:#a5c1ca; font-size:10px; font-weight:800; }
+.ax-modern-shell .ax-intent-toolbar-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px; }
+.ax-modern-shell .ax-intent-toolbar-actions > button { display:inline-flex; align-items:center; gap:5px; min-height:29px; padding:5px 9px; border:1px solid #2b4a5b; border-radius:8px; color:#a7c0c9; background:#10293a; font-size:9px; font-weight:750; cursor:pointer; }
+.ax-modern-shell .ax-intent-panel-picker { display:flex; flex-wrap:wrap; gap:4px; }
+.ax-modern-shell .ax-intent-panel-picker button { min-height:27px; padding:4px 7px; border:1px solid #294657; border-radius:7px; color:#7999a9; background:#0b2131; font-size:8px; cursor:pointer; }
+.ax-modern-shell .ax-intent-panel-picker button.selected { border-color:#4b9287; color:#d0f7ed; background:#16453f; }
+.ax-modern-shell .ax-intent-panels { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; min-width:0; }
+.ax-modern-shell .ax-intent-panels.is-focused { grid-template-columns:minmax(0,1fr); }
+.ax-modern-shell .ax-intent-panel { display:flex; flex-direction:column; gap:11px; min-width:0; padding:14px; border:1px solid rgba(113,172,190,.19); border-radius:14px; background:linear-gradient(145deg,rgba(13,39,55,.96),rgba(8,25,39,.97)); box-shadow:inset 0 1px 0 rgba(255,255,255,.025); }
+.ax-modern-shell .ax-intent-panel-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:9px; min-width:0; }
+.ax-modern-shell .ax-intent-panel-title { display:flex; align-items:flex-start; gap:8px; min-width:0; }
+.ax-modern-shell .ax-intent-panel-title > span { display:grid; flex:none; place-items:center; width:29px; height:29px; border:1px solid rgba(109,198,188,.25); border-radius:9px; color:#9ee8d6; background:rgba(33,104,101,.22); }
+.ax-modern-shell .ax-intent-panel-title h3 { margin:1px 0 3px; color:#e5f5f2; font:750 12px "Manrope",sans-serif; }
+.ax-modern-shell .ax-intent-panel-title small { display:block; color:#829fae; font-size:9px; line-height:1.4; }
+.ax-modern-shell .ax-intent-panel-controls { display:flex; flex:none; align-items:center; gap:4px; }
+.ax-modern-shell .ax-intent-panel-controls button { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:26px; padding:4px 7px; border:1px solid #2a4859; border-radius:7px; color:#9bc6c4; background:#0d2637; font-size:8px; font-weight:800; cursor:pointer; }
+.ax-modern-shell .ax-intent-big-number { color:#e8fff6; font:800 24px "Manrope",sans-serif; letter-spacing:-.5px; }
+.ax-modern-shell .ax-intent-big-number small { display:block; margin-top:3px; color:#85a7b3; font:500 9px "DM Sans",sans-serif; letter-spacing:0; }
+.ax-modern-shell .ax-intent-stat-row { display:flex; flex-wrap:wrap; gap:7px 15px; color:#87aab6; font-size:9px; }
+.ax-modern-shell .ax-intent-stat-row span { display:flex; align-items:center; gap:5px; }
+.ax-modern-shell .ax-intent-stat-row strong { color:#d4f0e7; font-weight:850; }
+.ax-modern-shell .ax-intent-module-bars { display:flex; flex-direction:column; gap:7px; }
+.ax-modern-shell .ax-intent-module-bars button { display:grid; grid-template-columns:minmax(90px,1fr) minmax(70px,1.1fr) 25px; align-items:center; gap:8px; padding:0; border:0; text-align:left; color:#9fb9c2; background:transparent; font-size:9px; cursor:pointer; }
+.ax-modern-shell .ax-intent-module-bars button > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-module-bars i,.ax-modern-shell .ax-intent-workflow-stages i { display:block; height:6px; overflow:hidden; border-radius:999px; background:#223f51; }
+.ax-modern-shell .ax-intent-module-bars i b,.ax-modern-shell .ax-intent-workflow-stages i b { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#3c9d93,#86d9bd); }
+.ax-modern-shell .ax-intent-module-bars strong { color:#d7e9e6; text-align:right; font-size:9px; }
+.ax-modern-shell .ax-intent-four-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+.ax-modern-shell .ax-intent-four-stats button { display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-width:0; padding:8px; border:1px solid #29485b; border-radius:9px; text-align:left; color:#9eb9c1; background:#102c3d; cursor:pointer; }
+.ax-modern-shell .ax-intent-four-stats strong { color:#e4fff4; font:800 18px "Manrope",sans-serif; }
+.ax-modern-shell .ax-intent-four-stats span { color:#88acb8; font-size:8px; font-weight:850; text-transform:uppercase; }
+.ax-modern-shell .ax-intent-rows { display:flex; flex-direction:column; min-width:0; }
+.ax-modern-shell .ax-intent-rows button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:4px 7px; min-width:0; padding:8px 0; border:0; border-top:1px solid rgba(99,155,177,.15); text-align:left; color:#e1f3f0; background:transparent; cursor:pointer; }
+.ax-modern-shell .ax-intent-rows button strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-rows button small { grid-column:2; overflow:hidden; color:#829fac; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-rows button > svg { grid-column:3; grid-row:1 / span 2; color:#9bd8ca; }
+.ax-modern-shell .ax-intent-finance-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.ax-modern-shell .ax-intent-finance-columns > div { display:flex; flex-direction:column; gap:4px; min-width:0; padding:11px; border:1px solid #29485a; border-radius:10px; background:#102a3b; }
+.ax-modern-shell .ax-intent-finance-columns span { color:#86a9b7; font-size:9px; font-weight:800; }
+.ax-modern-shell .ax-intent-finance-columns strong { color:#dffbef; font:800 16px "Manrope",sans-serif; overflow-wrap:anywhere; }
+.ax-modern-shell .ax-intent-finance-columns small { color:#7f9fae; font-size:8px; }
+.ax-modern-shell .ax-intent-footnote { margin:0; color:#83a3b1; font-size:9px; line-height:1.45; }
+.ax-modern-shell .ax-intent-footnote strong { color:#c3e8dc; }
+.ax-modern-shell .ax-intent-workflow-stages { display:flex; flex-direction:column; gap:8px; }
+.ax-modern-shell .ax-intent-workflow-stages button { display:grid; grid-template-columns:minmax(90px,1fr) 24px minmax(55px,1fr); align-items:center; gap:8px; padding:0; border:0; text-align:left; color:#a6c0c7; background:transparent; font-size:9px; cursor:pointer; }
+.ax-modern-shell .ax-intent-workflow-stages strong { color:#e3f8f0; text-align:right; }
+.ax-modern-shell .ax-intent-timeline { display:flex; flex-direction:column; }
+.ax-modern-shell .ax-intent-timeline button { display:grid; grid-template-columns:105px minmax(0,1fr) 18px; gap:3px 8px; align-items:center; padding:8px 0; border:0; border-top:1px solid rgba(99,155,177,.15); text-align:left; color:#e0f0ed; background:transparent; cursor:pointer; }
+.ax-modern-shell .ax-intent-timeline-date { grid-row:1 / span 2; color:#96c9bf; font-size:8px; font-weight:850; }
+.ax-modern-shell .ax-intent-timeline strong { overflow:hidden; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-timeline small { overflow:hidden; color:#839fac; font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+.ax-modern-shell .ax-intent-timeline svg { grid-column:3; grid-row:1 / span 2; color:#92cbbf; }
+.ax-modern-shell .ax-intent-focus-notice { display:flex; align-items:center; gap:8px; padding:9px 12px; border:1px solid rgba(116,214,194,.3); border-radius:9px; color:#b9eadf; background:#123c3c; font-size:10px; }
+.ax-modern-shell .ax-intent-focus-notice button { margin-left:auto; padding:5px 9px; border:1px solid #488879; border-radius:7px; color:#e4fff5; background:#174f47; font-size:9px; cursor:pointer; }
+.ax-modern-shell .ax-intent-integrity-note { display:flex; align-items:flex-start; gap:7px; padding:8px 10px; border:1px solid rgba(112,157,178,.16); border-radius:8px; color:#829eac; background:rgba(9,29,44,.6); font-size:9px; line-height:1.5; }
+.ax-modern-shell .ax-intent-integrity-note svg { flex:none; margin-top:1px; color:#95bcb9; }
+@media (max-width:900px) {
+  .ax-modern-shell .ax-intent-panels { grid-template-columns:minmax(0,1fr); }
+  .ax-modern-shell .ax-intent-workspace-toolbar { flex-direction:column; }
+  .ax-modern-shell .ax-intent-toolbar-actions { justify-content:flex-start; }
+}
+@media (max-width:720px) {
+  .ax-modern-shell .ax-intent-command { padding:13px; }
+  .ax-modern-shell .ax-intent-composer { flex-wrap:wrap; }
+  .ax-modern-shell .ax-intent-composer input { min-width:calc(100% - 50px); }
+  .ax-modern-shell .ax-intent-composer button { width:100%; }
+  .ax-modern-shell .ax-intent-search-results { grid-template-columns:minmax(0,1fr); }
+  .ax-modern-shell .ax-intent-toolbar-actions { width:100%; align-items:flex-start; }
+  .ax-modern-shell .ax-intent-panel-picker { width:100%; }
+  .ax-modern-shell .ax-intent-panel-picker button { min-height:30px; }
+  .ax-modern-shell .ax-intent-four-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ax-modern-shell .ax-intent-panel-heading { gap:6px; }
+  .ax-modern-shell .ax-intent-panel-controls button { min-height:30px; }
+  .ax-modern-shell .ax-intent-big-number { font-size:21px; }
+  .ax-modern-shell .ax-intent-timeline button { grid-template-columns:85px minmax(0,1fr) 16px; }
+}
