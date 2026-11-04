@@ -74,6 +74,8 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [showAllFields, setShowAllFields] = useState(false);
   const [moduleChartType, setModuleChartType] = useState<"donut" | "bar" | "line">("donut");
   const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
+  const contactsById = useMemo(() => new Map(contacts.map(contact => [contact.id, contact])), [contacts]);
+  const sortedContacts = useMemo(() => [...contacts].sort((a,b) => a.name.localeCompare(b.name)), [contacts]);
 
   const filtered = useMemo(() => records.filter(record => {
     const text = [record.title, record.location, record.status, record.contact, record.nextAction, record.notes, ...Object.values(record.moduleData || {})].join(" ").toLowerCase();
@@ -115,7 +117,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const toggleExpanded = (id: string) => setExpanded(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
   const linkedContacts = (record: ModuleRecord) => {
     const ids = contactIds(record);
-    const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((item): item is Contact => Boolean(item));
+    const linked = ids.map(id => contactsById.get(id)).filter((item): item is Contact => Boolean(item));
     if (!linked.length && record.contact) {
       const legacy = contacts.find(contact => contact.name.trim().toLowerCase() === record.contact.trim().toLowerCase());
       if (legacy) linked.push(legacy);
@@ -184,7 +186,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     : <div className="ax-module-record-grid">{filtered.map(record=>{
       const linked=linkedContacts(record);
       const followUpIds=followUpContactIds(record);
-      const followUpPeople=followUpIds.map(id=>contacts.find(contact=>contact.id===id)).filter((person): person is Contact => Boolean(person));
+      const followUpPeople=followUpIds.map(id=>contactsById.get(id)).filter((person): person is Contact => Boolean(person));
       const expandedRow=expandedHas(record.id);
       const fieldsShown=dataFields.filter(field=>getFieldValue(record,field.key).trim());
       return <article className="ax-module-record-card" key={record.id}>
@@ -202,7 +204,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
             </span>)}
             <label className="ax-followup-contact-add"><Plus size={13}/><select value="" aria-label={"Add follow-up contact for "+record.title} onChange={event=>{const id=event.target.value;if(id)onUpdateFollowUpContacts(record,[...followUpIds,id]);}}>
               <option value="">Add follow-up person</option>
-              {contacts.filter(contact=>!followUpIds.includes(contact.id)).sort((a,b)=>a.name.localeCompare(b.name)).map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.role?" · "+contact.role:""}</option>)}
+              {sortedContacts.filter(contact=>!followUpIds.includes(contact.id)).map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.role?" · "+contact.role:""}</option>)}
             </select></label>
             {!followUpPeople.length && <small className="ax-followup-contact-empty">No follow-up person linked</small>}
           </div>
