@@ -3259,3 +3259,104 @@ h2,h3{color:#e5f2fc}
 .ax-intelligence-suite__contact-result strong{font-size:12px;overflow-wrap:anywhere}
 .ax-intelligence-suite__contact-result small,.ax-intelligence-suite__contact-result>span{font-size:10px;color:var(--muted,#91a9bc);overflow-wrap:anywhere}
 @media(max-width:720px){.ax-intelligence-suite__contact-result{grid-template-columns:1fr;gap:5px}}
+
+
+/* Final mobile viewport containment: prevent the workspace from rendering
+   wider than the device and pushing the whole screen sideways. */
+@media (max-width: 720px) {
+  html, body, #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .app-shell {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+  .main-panel {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow-x: clip;
+  }
+  .topbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .top-actions {
+    min-width: 0;
+    max-width: 58%;
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+  .company-session {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .company-session-name,
+  .company-session-role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0;
+    overflow-x: clip;
+  }
+  .welcome-row {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .welcome-row > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .welcome-row .primary-button {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .content > *,
+  .content section,
+  .content article,
+  .content header,
+  .content form,
+  .content .card,
+  .content .panel {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sidebar {
+    width: min(285px, 86vw);
+    max-width: 86vw;
+  }
+  /* Wide data tables remain locally scrollable; they must not widen the page. */
+  .ax-followup-register__grid-wrap,
+  .ax-record-followups__table-wrap,
+  .ax-intelligence-suite__table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+@media (max-width: 380px) {
+  .topbar { padding-left: 9px; padding-right: 9px; gap: 6px; }
+  .breadcrumb { min-width: 0; }
+  .content { padding-left: 10px; padding-right: 10px; }
+  .welcome-row { gap: 10px; }
+  .welcome-row .primary-button { width: 100%; justify-content: center; }
+}
