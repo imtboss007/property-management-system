@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Command, Layers3, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -34,6 +34,18 @@ export default function AxivestraOrbitalHub({
   onOpen,
 }: AxivestraOrbitalHubProps) {
   const [focused, setFocused] = useState<string | null>(null);
+  const [zoomed, setZoomed] = useState(false);
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
+  const openWorkspace = (name: string) => {
+    setFocused(name);
+    setZoomed(true);
+    if (openTimer.current) clearTimeout(openTimer.current);
+    openTimer.current = setTimeout(() => {
+      setZoomed(false);
+      onOpen(name);
+    }, 380);
+  };
 
   const orbitItems = useMemo(() => items.map((item, index) => {
     const ring = index < 8 ? 0 : 1;
@@ -76,7 +88,15 @@ export default function AxivestraOrbitalHub({
         <div className="ax-orbit-axis ax-orbit-axis--horizontal" aria-hidden="true" />
         <div className="ax-orbit-axis ax-orbit-axis--vertical" aria-hidden="true" />
 
-        <div className="ax-orbit-core">
+        <div
+          className={"ax-orbit-core" + (zoomed ? " is-zoomed" : "")}
+          role="button"
+          tabIndex={0}
+          aria-label="Zoom the AXIVESTRA intelligence sphere"
+          aria-pressed={zoomed}
+          onClick={() => setZoomed(value => !value)}
+          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setZoomed(value => !value); } }}
+        >
           <div className="ax-orbit-core__aura" />
           <div className="ax-orbit-core__sphere">
             <div className="ax-orbit-core__latitude ax-orbit-core__latitude--one" />
@@ -103,7 +123,7 @@ export default function AxivestraOrbitalHub({
               onMouseEnter={() => setFocused(item.name)}
               onFocus={() => setFocused(item.name)}
               onBlur={() => setFocused(null)}
-              onClick={() => onOpen(item.name)}
+              onClick={() => openWorkspace(item.name)}
               aria-label={`Open ${item.name}, ${item.count} records`}
             >
               <span className="ax-orbit-node__icon">{item.icon}</span>
