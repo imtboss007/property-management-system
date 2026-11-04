@@ -26,14 +26,14 @@ const PANEL_LABELS:Record<Panel,string>={portfolio:"Portfolio",followups:"Follow
 const IN_KEY=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
 const OUT_KEY=new Set(["Purchase","Loan Repayment","Interest","Instalment","Brokerage","Expense","Settlement"]);
 const INR=new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0});
-const amount=(raw:string)=>{const n=Number(String(raw??"").replace(/[^0-9.-]/g,""));return raw && Number.isFinite(n) ? INR.format(n) : raw ? "₹"+raw : "—";};
+const amount=(raw:string)=>{const n=Number(String(raw??"").trim());return raw && Number.isFinite(n) ? INR.format(n) : raw ? "₹"+raw : "—";};
 const dateLabel=(raw:string)=>raw?new Date(raw+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"Unscheduled";
 
 type Props={
   properties:Property[]; contacts:Contact[]; tasks:Task[]; financials:Financial[];
   risks:Risk[]; approvals:Approval[]; modules:Module[]; followUps:FollowUp[]; today:string;
   onOpenModule:(name:string)=>void; onOpenFollowUps:(view:"Today"|"Overdue"|"Upcoming"|"Completed"|"All")=>void;
-  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void;
+  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void; onOpenSchedule:()=>void;
 };
 
 export default function IntentCanvas(props:Props) {
@@ -43,7 +43,6 @@ export default function IntentCanvas(props:Props) {
   const [focus,setFocus]=useState<Panel|null>(null);
   const [visible,setVisible]=useState<Panel[]>(PANEL_IDS);
   const [saved,setSaved]=useState(false);
-  const contactById=useMemo(()=>new Map(contacts.map(person=>[person.id,person] as const)),[contacts]);
 
   useEffect(()=>{
     try {
@@ -199,7 +198,7 @@ export default function IntentCanvas(props:Props) {
 
         return <section className="ax-intent-panel" key={panel}>
           {panelHeader(panel,"Temporal workspace","Next dated commitments and work activity",<CalendarClock size={16}/>,()=>props.onOpenFollowUps("All"),"Open timeline")}
-          <div className="ax-intent-timeline">{timelineItems.map(item=><button type="button" key={item.id} onClick={()=>item.kind==="Follow-up"?props.onOpenFollowUps(item.date<today?"Overdue":item.date===today?"Today":"Upcoming"):props.onOpenModule(item.module)}><span className="ax-intent-timeline-date">{dateLabel(item.date)}{item.time?" · "+item.time:""}</span><strong>{item.title}</strong><small>{item.kind} · {item.module} · {item.record}</small><ChevronRight size={13}/></button>)}</div>
+          <div className="ax-intent-timeline">{timelineItems.map(item=><button type="button" key={item.id} onClick={()=>item.kind==="Follow-up"?props.onOpenFollowUps(item.date<today?"Overdue":item.date===today?"Today":"Upcoming"):props.onOpenSchedule()}><span className="ax-intent-timeline-date">{dateLabel(item.date)}{item.time?" · "+item.time:""}</span><strong>{item.title}</strong><small>{item.kind} · {item.module} · {item.record}</small><ChevronRight size={13}/></button>)}</div>
         </section>;
       })}
     </div>
