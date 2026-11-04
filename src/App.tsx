@@ -868,7 +868,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         const legacyBaselineKey = "axivestra.deviceSyncBaseline";
         let legacyBaselineValue: unknown = null;
         try { legacyBaselineValue = JSON.parse(localStorage.getItem(legacyBaselineKey) || "null"); } catch {}
-        const baselineId = "device-sync:" + (company?.id || "personal");
+        const baselineId = "device-sync:personal";
         const baseline = await loadDeviceSyncBaseline(baselineId, legacyBaselineValue);
         if (legacyBaselineValue) {
           try { localStorage.removeItem(legacyBaselineKey); } catch {}
@@ -1546,6 +1546,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     setNotice("Property record saved on this device.");
   };
   const updateRecordFollowUpContacts = (record: PropertyRecord, contactIds: string[]) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only access cannot change follow-up contacts.");
+      return;
+    }
     const ids = Array.from(new Set(contactIds.filter(id => contacts.some(contact => contact.id === id))));
     const updated: PropertyRecord = {
       ...record,
@@ -1553,7 +1557,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     };
     setProperties(previous => previous.map(item => item.id === record.id ? updated : item));
     setAuditEvents(previous => [{
-      id: uid(), at: new Date().toISOString(), action: "updated", entity: "Property",
+      id: uid(), at: new Date().toISOString(), action: "updated" as const, entity: "Property",
       recordId: record.id, label: "Follow-up contacts updated · " + record.title
     }, ...previous].slice(0, 500));
   };
