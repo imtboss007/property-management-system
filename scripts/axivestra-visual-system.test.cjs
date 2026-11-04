@@ -34,7 +34,7 @@ assert.match(app, /import AxivestraOrbitalHub from "\.\/AxivestraOrbitalHub"/, "
 assert.match(app, /<AxivestraOrbitalHub[\s\S]*?onOpen=\{name => go\(name\)\}/, "The orbital nodes must open the existing workspace navigation.");
 assert.match(orbit, /aria-label="AXIVESTRA orbital workspace navigation"/, "The orbital navigation must have an accessible landmark.");
 assert.match(orbit, /items\.map\(/, "The orbital navigation must render the supplied workspaces.");
-assert.match(orbit, /onClick=\{\(\) => onOpen\(item\.name\)\}/, "Each orbital node must navigate to its existing workspace.");
+assert.match(orbit, /onClick=\{\(\) => openWorkspace\(item\.name\)\}/, "Each orbital node must zoom before navigating to its existing workspace.");
 assert.match(orbit, /totalRecords|portfolioValue|openActions/, "The central command panel must use live workspace metrics.");
 assert.match(css, /\.ax-orbit-core__sphere/, "The command hub must include its central 3D sphere.");
 assert.match(css, /\.ax-orbit-track--outer/, "The command hub must render orbital tracks.");
