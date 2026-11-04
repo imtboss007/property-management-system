@@ -12,6 +12,9 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import FollowUpRegistry from "./FollowUpRegistry";
+import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
+import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
@@ -22,7 +25,7 @@ import {
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow
+  BrainCircuit, Workflow, ListTodo
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -34,7 +37,7 @@ type PropertyRecord = {
 type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string };
 type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
-type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
+type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean; followUpContactIds?: string[]; priority?: "Low"|"Normal"|"High"|"Urgent"; nextAction?: string; createdAt?: string };
 type DocumentRecord = { id: string; propertyId: string; property: string; contactId?: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 
 type FinancialRecord = { id: string; propertyId: string; property: string; contactId?: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
@@ -118,6 +121,7 @@ const navigation = [
   { name: "AXIVESTRA Shift", icon: Workflow },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
+  { name: "Follow-up Registry", icon: ListTodo },
   { name: "Client & Deal Hub", icon: Handshake },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
@@ -608,6 +612,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [editingFollowUp, setEditingFollowUp] = useState<{ record: PropertyRecord; entry: FollowUpEntry } | null>(null);
+  const [followUpDefault, setFollowUpDefault] = useState<{ propertyId?: string; contactId?: string } | null>(null);
   const [editingProperty, setEditingProperty] = useState<PropertyRecord | null>(null);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(null);
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
