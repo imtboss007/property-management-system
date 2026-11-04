@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { loadCompanySyncBaseline, saveCompanySyncBaseline } from "./local-db";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || "";
 const publishableKey = (
@@ -265,12 +266,18 @@ export async function syncCompanyWorkspace(
     remoteByType.set(row.record_type, items);
   }
 
-  let oldBaseline: Record<string, Record<string, string>> = {};
   const baselineKey = scopedStorageKey(company.id, "estateflow.syncBaseline");
+  let legacyBaseline: unknown = null;
   try {
-    const parsed = JSON.parse(localStorage.getItem(baselineKey) || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) oldBaseline = parsed;
-  } catch { oldBaseline = {}; }
+    const legacyText = localStorage.getItem(baselineKey);
+    if (legacyText) legacyBaseline = JSON.parse(legacyText);
+  } catch { legacyBaseline = null; }
+  const oldBaseline = await loadCompanySyncBaseline("company-sync:" + company.id, legacyBaseline);
+  if (legacyBaseline) {
+    // Best-effort migration: IndexedDB now owns this potentially large shadow copy.
+    await saveCompanySyncBaseline("company-sync:" + company.id, company.id, oldBaseline);
+    try { localStorage.removeItem(baselineKey); } catch { /* legacy cleanup must not block sync */ }
+  }
 
   const currentRows = new Map<string, Map<string, SyncRow>>();
   for (const item of collectionKeys) {
@@ -405,7 +412,8 @@ export async function syncCompanyWorkspace(
     if (error) throw new Error("Could not upload changed company records: " + error.message);
   }
 
-  localStorage.setItem(baselineKey, JSON.stringify(nextBaseline));
+  await saveCompanySyncBaseline("company-sync:" + company.id, company.id, nextBaseline);
+  try { localStorage.removeItem(baselineKey); } catch { /* ignore stale legacy cache */ }
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.lastCloudSync"), new Date().toISOString());
   return mergedSnapshot;
 }
