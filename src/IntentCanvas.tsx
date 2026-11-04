@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, Bookmark, CalendarClock, CheckCircle2, ChevronRight, CircleAlert, Command, Compass, Focus, LayoutGrid, ListTodo, Pin, Plus, Search, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Activity, ArrowUpRight, Bookmark, CalendarClock, ChevronRight, CircleAlert, Command, Focus, ListTodo, Pin, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from "lucide-react";
 import type { FollowUpEntry } from "./lib/follow-ups";
 
 type Property = {
@@ -43,7 +43,6 @@ export default function IntentCanvas(props:Props) {
   const [focus,setFocus]=useState<Panel|null>(null);
   const [visible,setVisible]=useState<Panel[]>(PANEL_IDS);
   const [saved,setSaved]=useState(false);
-  const [expanded,setExpanded]=useState<string[]>(["portfolio","followups","finance","workflow"]);
   const contactById=useMemo(()=>new Map(contacts.map(person=>[person.id,person] as const)),[contacts]);
 
   useEffect(()=>{
@@ -123,7 +122,7 @@ export default function IntentCanvas(props:Props) {
     setSaved(false);
   };
   const togglePanel=(panel:Panel)=>setVisible(previous=>previous.includes(panel)?previous.filter(item=>item!==panel):[...previous,panel]);
-  const panelHeader=(id:Panel,title:string,description:string,icon:React.ReactNode,action?:()=>void,actionLabel?:string)=>(
+  const panelHeader=(id:Panel,title:string,description:string,icon:ReactNode,action?:()=>void,actionLabel?:string)=>(
     <div className="ax-intent-panel-heading">
       <div className="ax-intent-panel-title"><span>{icon}</span><div><h3>{title}</h3><small>{description}</small></div></div>
       <div className="ax-intent-panel-controls">
