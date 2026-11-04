@@ -74,7 +74,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [showAllFields, setShowAllFields] = useState(false);
   const [moduleChartType, setModuleChartType] = useState<"donut" | "bar" | "line">("donut");
   const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
-  const contactsById = useMemo(() => new Map(contacts.map(contact => [contact.id, contact])), [contacts]);
+  const contactsById = useMemo(() => new Map<string, Contact>(contacts.map(contact => [contact.id, contact] as const)), [contacts]);
   const sortedContacts = useMemo(() => [...contacts].sort((a,b) => a.name.localeCompare(b.name)), [contacts]);
 
   const filtered = useMemo(() => records.filter(record => {
