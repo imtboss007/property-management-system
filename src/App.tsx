@@ -2272,6 +2272,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
             onUpdateFollowUpContacts={updateRecordFollowUpContacts}
+            onAddFollowUp={(record,contact)=>openFollowUpForm(record as PropertyRecord,contact as ContactRecord)}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
@@ -2289,6 +2290,23 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onEditTask={openTaskForm}
             onToggleTask={toggleTask}
             onDeleteTask={deleteTask}
+          />}
+          {active === "Follow-up Registry" && <FollowUpRegistry
+            properties={properties}
+            contacts={contacts}
+            tasks={tasks}
+            today={today}
+            onAdd={()=>openFollowUpForm()}
+            onAddForRecord={record=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpForm(source);}}
+            onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
+            onUpdateEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)updateFollowUpEntry(source,entry);}}
+            onDeleteEntry={(record,entryId)=>{const source=properties.find(item=>item.id===record.id);if(source)deleteFollowUpEntry(source,entryId);}}
+            onEditRecord={record=>{const source=properties.find(item=>item.id===record.id);if(source)openPropertyForm(source);}}
+            onEditTask={task=>openTaskForm(task as TaskRecord)}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onOpenModule={name=>go(name)}
+            onWhatsApp={openWhatsAppFor}
           />}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
