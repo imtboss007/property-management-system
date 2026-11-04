@@ -1906,7 +1906,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
 
   return (
     <main
-      className={company?.role === "read_only" ? "app-shell workspace-readonly" : "app-shell"}
+      className={company?.role === "read_only" ? "app-shell ax-modern-shell workspace-readonly" : "app-shell ax-modern-shell"}
       onClickCapture={event => {
         if (!company) return;
         const target = event.target instanceof Element ? event.target : null;
