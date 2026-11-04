@@ -1,22 +1,22 @@
-# AXIVESTRA 17-Source Visual Refresh Implementation Plan
+# AXIVESTRA Interactive Orbital Command Interface Implementation Plan
 
 > **For agentic workers:** Apply this plan on the isolated feature branch and verify each task before merging to production.
 
-**Goal:** Upgrade AXIVESTRA's visual presentation and interaction feedback on desktop and mobile without changing its existing business behavior.
+**Goal:** Deliver the approved AXIVESTRA interactive 3D command experience on desktop and mobile: a central intelligence sphere, orbital tracks, clickable navigation to all 16 existing workspaces, holographic panels and live metrics, without changing business behavior.
 
-**Architecture:** Build from the current production `main` branch. Add one presentation-only class to the existing root element and a scoped CSS layer for the command workspace, navigation, panels, forms, focus states and responsive behavior. Keep the current React, TypeScript, CSS, Lucide, Vite, Electron and Capacitor stack; do not install or copy third-party components.
+**Architecture:** Build from the current production `main` branch. Add a typed React orbital command component connected to existing `go()` workspace navigation and live in-memory record totals, plus scoped CSS for the 3D sphere, orbit geometry, glass panels and responsive layouts. Keep the current React, TypeScript, CSS, Lucide, Vite, Electron and Capacitor stack; do not install third-party components.
 
 **Tech Stack:** React 18, TypeScript, Vite, CSS, Node built-in assertions, GitHub Actions.
 
-**Spec:** User-approved 17-source visual direction; existing AXIVESTRA design boundary that keeps its identity distinct from AXIMACH.
+**Spec:** User-approved AXIVESTRA visual direction, retaining AXIVESTRA identity and applying the interactive orbital design only to AXIVESTRA.
 
 ## Global Constraints
 
 - Modify AXIVESTRA only.
 - Preserve every current module, field, form, calculation, workflow, record, storage key, sync collection, integration, export and permission.
 - Do not change business logic, data models, navigation destinations or module content.
-- Do not add controls or options inside existing modules.
-- Do not add a rotating sphere or orbital navigation.
+- Keep existing module forms and controls intact; add the orbital navigation as a command-centre layer.
+- Include the central rotating 3D intelligence sphere, layered orbital tracks and clickable nodes for all 16 existing workspaces.
 - No new runtime dependencies.
 - Keep the desktop and Android layouts responsive.
 - Respect keyboard focus, reduced-motion preferences and mobile safe areas.
@@ -33,7 +33,7 @@
 
 - **Full feature-branch merge:** rejected because that branch has diverged and contains unrelated functional additions.
 - **New component system/dependency:** rejected because it adds runtime and integration risk for a visual-only task.
-- **Scoped CSS refresh on current main:** selected because it isolates presentation changes from existing application behavior.
+- **Typed React command component with scoped CSS:** selected because it adds real navigation and live workspace metrics without replacing existing business screens.
 
 ## Tasks
 
@@ -42,12 +42,13 @@
 - Include the check in the existing `npm test` command.
 - Run it through the repository's Windows build workflow.
 
-### Task 2: Apply the presentation-only refresh
-- Add `ax-modern-shell` to the existing root element without changing its read-only condition.
-- Append a scoped design layer to `src/styles.css`.
-- Keep the AXIVESTRA identity separate from AXIMACH: no central sphere or orbital navigation.
+### Task 2: Implement the orbital command centre
+- Add `AxivestraOrbitalHub.tsx` and connect it to the existing Overview and `go()` navigation.
+- Render all 16 current workspaces with live record counts and workspace metrics.
+- Add the 3D sphere, orbital tracks, holographic nodes and mobile grid fallback in scoped CSS.
+- Preserve the existing app shell, read-only behavior, keyboard focus and reduced-motion support.
 
 ### Task 3: Verify and deploy
-- Run the full existing test suite and TypeScript/Vite production build in GitHub Actions.
+- Run the full existing test suite, TypeScript/Vite production build and Windows/Android package builds in GitHub Actions.
 - Review the PR diff for presentation-only scope.
 - Merge to `main` only after checks pass, then verify the Cloudflare Pages production URL.

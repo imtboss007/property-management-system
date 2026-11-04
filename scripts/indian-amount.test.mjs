@@ -40,4 +40,5 @@ test("rejects invalid, negative and trailing text", () => {
 test("formats INR previews in Indian digit grouping", () => {
   assert.equal(formatIndianAmount("5 lakh"), "₹5,00,000");
   assert.equal(formatIndianAmount("2 crore"), "₹2,00,00,000");
+  assert.equal(formatIndianAmount("12.75"), "₹12.75");
 });

@@ -12,6 +12,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
@@ -2005,6 +2006,20 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 </div>}
           </section>}
           {active === "Overview" && !rangeSearch && <>
+            <AxivestraOrbitalHub
+              items={modules.map(item => ({
+                name: item.name,
+                group: item.group,
+                count: properties.filter(record => record.module === item.name).length,
+                color: item.color,
+                icon: <item.icon size={17} strokeWidth={1.8} />
+              }))}
+              totalRecords={properties.length}
+              portfolioValue={portfolioValue}
+              openActions={upcomingTasks.length}
+              activeModules={modules.filter(item => properties.some(record => record.module === item.name && !["Completed", "Closed"].includes(record.status))).length}
+              onOpen={name => go(name)}
+            />
             <section className="institutional-banner">
               <div className="institutional-copy">
                 <span className="institutional-label"><span className="live-dot"/> AXIVESTRA COMMAND MATRIX</span>

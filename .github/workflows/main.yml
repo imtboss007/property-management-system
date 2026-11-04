@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run visual-system contract
-        run: node scripts/axivestra-visual-system.test.cjs
+      - name: Run project regression tests
+        run: npm test
 
       - name: Build Windows EXE
         env:
