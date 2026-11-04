@@ -19,6 +19,7 @@ type Item = {
 };
 
 type Props = {
+  initialTab?: "All"|"Today"|"Overdue"|"Upcoming"|"Completed";
   properties: FollowUpRecordLike[];
   contacts: Contact[];
   tasks: Task[];
@@ -44,10 +45,10 @@ const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLoc
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
 export default function FollowUpRegistry({
-  properties, contacts, tasks, today, onAdd, onEditEntry, onUpdateEntry,
+  initialTab="All", properties, contacts, tasks, today, onAdd, onEditEntry, onUpdateEntry,
   onDeleteEntry, onEditRecord, onEditTask, onToggleTask, onDeleteTask, onOpenModule, onWhatsApp
 }: Props) {
-  const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">("All");
+  const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">(initialTab);
   const [query, setQuery] = useState("");
   const [personFilter, setPersonFilter] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
