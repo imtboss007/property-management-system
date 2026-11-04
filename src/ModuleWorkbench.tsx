@@ -20,6 +20,7 @@ type Props = {
   onDelete: (id: string) => void;
   onSchedule: (record: ModuleRecord, contact?: Contact) => void;
   onWhatsApp: (contactId?: string, propertyId?: string) => void;
+  onUpdateFollowUpContacts: (record: ModuleRecord, contactIds: string[]) => void;
 };
 
 const CLOSED = new Set(["completed", "closed", "settled", "rejected", "cancelled"]);
@@ -29,8 +30,12 @@ const dateLabel = (value?: string) => value ? new Date(value + "T00:00:00").toLo
 const contactIds = (record: ModuleRecord) => [
   record.primaryContactId || "",
   ...(record.moduleData?.__linkedContactIds || "").split(","),
+  ...(record.moduleData?.__followUpContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
 ].filter(Boolean);
+const followUpContactIds = (record: ModuleRecord) => Array.from(new Set(
+  (record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean)
+));
 
 function ModuleEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" }) {
   if (type === "donut") return <svg className="ax-empty-chart-ring" viewBox="0 0 180 180" role="img" aria-label="Empty donut chart preview"><circle cx="90" cy="90" r="62" fill="none" stroke="#1a354a" strokeWidth="21" strokeDasharray="6 7"/><circle cx="90" cy="90" r="45" fill="#0b1d2d"/><text x="90" y="86" textAnchor="middle" fill="#69879c" fontSize="9" letterSpacing="1">NO DATA</text><text x="90" y="105" textAnchor="middle" fill="#89a7bb" fontSize="14" fontWeight="800">0</text></svg>;
@@ -61,7 +66,7 @@ function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
   return <div className="ax-module-chart-line"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Module records trend"><defs><linearGradient id="axModuleLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#20d9ef" stopOpacity=".22"/><stop offset="100%" stopColor="#20d9ef" stopOpacity="0"/></linearGradient></defs>{[0,1,2,3,4].map(n=><line key={n} x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#203e55" strokeDasharray="4 6"/>)}{points.length>1&&<polygon points={points.map(point=>point.x+","+point.y).join(" ")+" "+points[points.length-1].x+","+(height-bottom)+" "+points[0].x+","+(height-bottom)} fill="url(#axModuleLineFill)"/>}<polyline points={points.map(point=>point.x+","+point.y).join(" ")} fill="none" stroke="#20d9ef" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>{points.map(point=><g key={point.name} tabIndex={0} role="button" onClick={()=>onSelect(point.name)} className="ax-chart-point"><circle cx={point.x} cy={point.y} r="5" fill={point.color} stroke="#071827" strokeWidth="2"/><text x={point.x} y={point.y-13} textAnchor="middle" fill="#e7f8ff" fontSize="10">{metric==="value"?currency(point.value):point.value}</text><text x={point.x} y={height-15} textAnchor="middle" fill="#8aa9bf" fontSize="10">{point.name.length>12?point.name.slice(0,11)+"…":point.name}</text></g>)}</svg></div>;
 }
 
-export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp }: Props) {
+export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onUpdateFollowUpContacts }: Props) {
   const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
@@ -178,6 +183,8 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     </div>
     : <div className="ax-module-record-grid">{filtered.map(record=>{
       const linked=linkedContacts(record);
+      const followUpIds=followUpContactIds(record);
+      const followUpPeople=followUpIds.map(id=>contacts.find(contact=>contact.id===id)).filter((person): person is Contact => Boolean(person));
       const expandedRow=expandedHas(record.id);
       const fieldsShown=dataFields.filter(field=>getFieldValue(record,field.key).trim());
       return <article className="ax-module-record-card" key={record.id}>
@@ -186,9 +193,23 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         <strong className="ax-record-value">{currency(Number(record.value)||0)}</strong>
         <div className="ax-record-progress"><span className="ax-progress-track"><i style={{width:(dataFields.length?presentFields(record)/dataFields.length*100:0)+"%"}}/></span><span>{presentFields(record)}/{dataFields.length} field groups</span></div>
         <div className="ax-record-next"><CalendarClock size={14}/><span>{record.nextAction || (record.nextFollowUpDate ? "Next follow-up " + dateLabel(record.nextFollowUpDate) : "No next action captured")}</span></div>
+        <div className="ax-record-followup-people">
+          <div className="ax-record-followup-people__heading"><Users size={13}/><span>FOLLOW-UP CONTACTS</span><small>{followUpPeople.length}</small></div>
+          <div className="ax-record-followup-people__content">
+            {followUpPeople.map(person=><span className="ax-followup-contact" key={person.id}>
+              <button type="button" className="ax-followup-contact__name" onClick={()=>onSchedule(record,person)} title={"Schedule a follow-up with "+person.name}>{person.name}</button>
+              <button type="button" className="ax-followup-contact__remove" onClick={()=>onUpdateFollowUpContacts(record,followUpIds.filter(id=>id!==person.id))} aria-label={"Remove "+person.name+" from follow-up contacts"}>×</button>
+            </span>)}
+            <label className="ax-followup-contact-add"><Plus size={13}/><select value="" aria-label={"Add follow-up contact for "+record.title} onChange={event=>{const id=event.target.value;if(id)onUpdateFollowUpContacts(record,[...followUpIds,id]);}}>
+              <option value="">Add follow-up person</option>
+              {contacts.filter(contact=>!followUpIds.includes(contact.id)).sort((a,b)=>a.name.localeCompare(b.name)).map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.role?" · "+contact.role:""}</option>)}
+            </select></label>
+            {!followUpPeople.length && <small className="ax-followup-contact-empty">No follow-up person linked</small>}
+          </div>
+        </div>
         {expandedRow&&<div className="ax-record-expanded">{fieldsShown.map(field=><p key={field.key}><span>{field.label}</span><strong>{getFieldValue(record,field.key)}</strong></p>)}{record.notes&&<p><span>Notes / evidence</span><strong>{record.notes}</strong></p>}<div className="ax-linked-people">{linked.length ? linked.map(contact=><span key={contact.id}><Users size={12}/>{contact.name} · {contact.role}</span>) : <span>No named stakeholder linked</span>}</div></div>}
         <div className="ax-record-actions"><button onClick={()=>toggleExpanded(record.id)}><Eye size={14}/>{expandedRow?"Hide details":"Inspect details"}</button><button onClick={()=>onEdit(record)}><Pencil size={14}/>Edit</button><button className="danger" onClick={()=>onDelete(record.id)}><Trash2 size={14}/>Delete</button></div>
-        <div className="ax-record-quick-actions"><button onClick={()=>onSchedule(record,linked[0])}><CalendarClock size={13}/>Follow-up</button>{linked.length ? linked.map(contact=><button key={contact.id} onClick={()=>onWhatsApp(contact.id,record.id)}><MessageCircle size={13}/>Message {contact.name.split(" ")[0]}</button>) : <button onClick={()=>onWhatsApp(undefined,record.id)}><MessageCircle size={13}/>WhatsApp</button>}<button onClick={()=>toggleExpanded(record.id)}><ArrowUpRight size={13}/> {expandedRow?"Collapse":"Open record"}</button></div>
+        <div className="ax-record-quick-actions"><button onClick={()=>onSchedule(record,followUpPeople[0]||linked[0])}><CalendarClock size={13}/>Follow-up</button>{linked.length ? linked.map(contact=><button key={contact.id} onClick={()=>onWhatsApp(contact.id,record.id)}><MessageCircle size={13}/>Message {contact.name.split(" ")[0]}</button>) : <button onClick={()=>onWhatsApp(undefined,record.id)}><MessageCircle size={13}/>WhatsApp</button>}<button onClick={()=>toggleExpanded(record.id)}><ArrowUpRight size={13}/> {expandedRow?"Collapse":"Open record"}</button></div>
       </article>;
     })}</div>}
     <div className="ax-module-footer"><span><CheckCircle2 size={14}/> Live module view · {filtered.length} shown of {records.length} saved records</span><button onClick={onAdd}><Plus size={15}/> Add another {moduleName.toLowerCase()} record</button></div>
