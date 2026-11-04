@@ -1571,6 +1571,69 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closePropertyForm();
     setNotice("Property record saved on this device.");
   };
+  const saveFollowUp = ({ propertyId, entry }: FollowUpDraft) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    const target = properties.find(item => item.id === propertyId);
+    if (!target) {
+      setNotice("Choose a valid source record before saving this follow-up.");
+      return;
+    }
+    const source = editingFollowUp?.record;
+    setProperties(previous => previous.map(record => {
+      if (source && source.id !== target.id && record.id === source.id) {
+        const remaining = parseFollowUps(record.moduleData).filter(item => item.id !== editingFollowUp.entry.id);
+        return { ...record, moduleData: { ...record.moduleData, __followUps: serializeFollowUps(remaining) } };
+      }
+      if (record.id !== target.id) return record;
+      const current = parseFollowUps(record.moduleData);
+      const exists = current.some(item => item.id === entry.id);
+      const next = exists ? current.map(item => item.id === entry.id ? entry : item) : [entry, ...current];
+      return { ...record, moduleData: { ...record.moduleData, __followUps: serializeFollowUps(next) } };
+    }));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: editingFollowUp ? "updated" as const : "created" as const,
+      entity: "Follow-up", recordId: target.id,
+      label: (editingFollowUp ? "Follow-up updated · " : "Follow-up created · ") + entry.description + " · " + target.title
+    }, ...previous].slice(0, 500));
+    closeFollowUpForm();
+    setNotice(editingFollowUp ? "Follow-up updated on the linked module record." : "Follow-up saved and linked to the source module record.");
+  };
+
+  const updateFollowUpEntry = (record: PropertyRecord, entry: FollowUpEntry) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot change follow-ups.");
+      return;
+    }
+    const next = parseFollowUps(record.moduleData).map(item => item.id === entry.id ? entry : item);
+    setProperties(previous => previous.map(item => item.id === record.id
+      ? { ...item, moduleData: { ...item.moduleData, __followUps: serializeFollowUps(next) } }
+      : item));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: "updated" as const, entity: "Follow-up",
+      recordId: record.id, label: "Follow-up status updated · " + entry.description
+    }, ...previous].slice(0, 500));
+  };
+
+  const deleteFollowUpEntry = (record: PropertyRecord, entryId: string) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot delete follow-ups.");
+      return;
+    }
+    const entry = parseFollowUps(record.moduleData).find(item => item.id === entryId);
+    if (!entry || !window.confirm("Delete this follow-up from " + record.title + "?")) return;
+    const next = parseFollowUps(record.moduleData).filter(item => item.id !== entryId);
+    setProperties(previous => previous.map(item => item.id === record.id
+      ? { ...item, moduleData: { ...item.moduleData, __followUps: serializeFollowUps(next) } }
+      : item));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: "deleted" as const, entity: "Follow-up",
+      recordId: record.id, label: "Follow-up deleted · " + entry.description
+    }, ...previous].slice(0, 500));
+  };
+
   const updateRecordFollowUpContacts = (record: PropertyRecord, contactIds: string[]) => {
     if (company?.role === "read_only") {
       setNotice("Read-only access cannot change follow-up contacts.");
