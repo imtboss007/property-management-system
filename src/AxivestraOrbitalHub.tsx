@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowUpRight, Command, Layers3, Orbit, Sparkles } from "lucide-react";
+import { Activity, ArrowUpRight, Command, Layers3, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type AxivestraOrbitalItem = {
