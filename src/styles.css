@@ -3071,6 +3071,7 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell .ax-orbit-core:focus-visible { outline: 2px solid rgba(139,255,227,.8); outline-offset: 8px; border-radius: 50%; }
 .ax-modern-shell .ax-orbit-core.is-zoomed { cursor: zoom-out; }
 .ax-modern-shell .ax-orbit-core.is-zoomed .ax-orbit-core__sphere {
+  transform: scale(1.2);
   animation: ax-orbit-zoom-in .38s cubic-bezier(.2,.8,.2,1) both;
   box-shadow: inset -22px -25px 40px rgba(0,0,0,.45), 0 0 35px rgba(72,227,203,.52), 0 0 105px rgba(32,168,177,.34);
 }
