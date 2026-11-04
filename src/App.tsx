@@ -1054,7 +1054,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     };
     documentSyncRunRef.current = runDocumentSync;
     const first = window.setTimeout(() => { void runDocumentSync(); }, 1400);
-    const interval = window.setInterval(() => { void runDocumentSync(); }, 15000);
+    const interval = window.setInterval(() => { void runDocumentSync(); }, 60000);
     return () => {
       disposed = true;
       window.clearTimeout(first);

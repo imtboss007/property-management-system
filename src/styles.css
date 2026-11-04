@@ -3150,3 +3150,26 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-intelligence-kpis article,.ax-modern-shell .ax-shift-kpis article { padding:9px; }
   .ax-modern-shell .ax-followup-contact__name { max-width:130px; }
 }
+
+
+/* AXIVESTRA 1.1.1: lower mobile workload and improve command navigation */
+.ax-modern-shell .ax-orbit-shortcuts { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.ax-modern-shell .ax-orbit-shortcut { display:inline-flex; align-items:center; gap:7px; min-height:38px; padding:0 12px; border:1px solid rgba(105,208,198,.25); border-radius:11px; background:rgba(12,45,57,.72); color:#b9e9e1; font-size:11px; font-weight:750; cursor:pointer; transition:transform .18s ease,border-color .18s ease,background .18s ease; }
+.ax-modern-shell .ax-orbit-shortcut:hover { transform:translateY(-2px); border-color:rgba(121,239,215,.65); background:rgba(21,77,83,.78); }
+.ax-modern-shell .ax-orbit-core.is-zoomed .ax-orbit-core__sphere { transform:scale(1.32); }
+.ax-modern-shell .ax-orbit-core.is-zoomed .ax-orbit-core__aura { transform:scale(1.2); opacity:1; }
+.ax-modern-shell .ax-module-record-card { content-visibility:auto; contain-intrinsic-size:280px; }
+.ax-modern-shell .ax-record-followup-people__content { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ax-modern-shell .ax-followup-contact-add { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:0 9px; border:1px dashed rgba(110,221,206,.55); border-radius:9px; color:#a9e7dc; background:rgba(9,40,51,.6); cursor:pointer; }
+.ax-modern-shell .ax-followup-contact-add select { max-width:190px; min-width:120px; border:0; outline:0; background:transparent; color:inherit; font:inherit; font-size:11px; }
+@media (max-width:720px) {
+  .ax-modern-shell .ax-orbit-hub__heading { align-items:flex-start; gap:12px; flex-direction:column; }
+  .ax-modern-shell .ax-orbit-shortcuts { justify-content:flex-start; width:100%; }
+  .ax-modern-shell .ax-orbit-shortcut, .ax-modern-shell .ax-orbit-all { min-height:40px; }
+  .ax-modern-shell .ax-module-record-card { contain-intrinsic-size:340px; }
+  .ax-modern-shell .ax-record-followup-people { padding:9px; }
+  .ax-modern-shell .ax-followup-contact-add { min-height:40px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ax-modern-shell .ax-orbit-shortcut { transition:none; }
+}
