@@ -7,6 +7,8 @@ const app = fs.readFileSync(path.join(root, "src", "App.tsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
 const orbit = fs.readFileSync(path.join(root, "src", "AxivestraOrbitalHub.tsx"), "utf8");
 const mw = fs.readFileSync(path.join(root, "src", "ModuleWorkbench.tsx"), "utf8");
+const supabase = fs.readFileSync(path.join(root, "src", "lib", "supabase.ts"), "utf8");
+const localDb = fs.readFileSync(path.join(root, "src", "lib", "local-db.ts"), "utf8");
 
 assert.match(
   app,
@@ -58,3 +60,9 @@ assert.match(orbit, /is-zoomed/, "Selecting the sphere or a module node must tri
 assert.match(css, /ax-record-followup-people/, "Follow-up people must have dedicated responsive UI.");
 assert.match(css, /ax-intelligence-hub-page/, "Intelligence Hub must have a dedicated responsive layout.");
 assert.match(css, /ax-shift-page/, "AXIVESTRA Shift must have a dedicated responsive layout.");
+
+assert.match(supabase, /saveCompanySyncBaseline\(/, "Company sync baselines must be persisted in IndexedDB.");
+assert.doesNotMatch(supabase, /localStorage\.setItem\(baselineKey/, "Company sync must not write large baselines to localStorage.");
+assert.match(localDb, /syncState: "&id,companyId,updatedAt"/, "IndexedDB must store company sync state.");
+assert.match(mw, /<span>Add person<\/span>/, "Follow-up add action must be visible and easy to find.");
+assert.match(css, /AXIVESTRA responsive and interaction corrections/, "Responsive and interaction corrections must remain present.");
