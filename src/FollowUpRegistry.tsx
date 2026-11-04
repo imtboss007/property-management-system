@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, CalendarClock, CheckCircle2, Clock3, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
@@ -24,7 +24,6 @@ type Props = {
   tasks: Task[];
   today: string;
   onAdd: () => void;
-  onAddForRecord: (record: FollowUpRecordLike) => void;
   onEditEntry: (record: FollowUpRecordLike, entry: FollowUpEntry) => void;
   onUpdateEntry: (record: FollowUpRecordLike, entry: FollowUpEntry) => void;
   onDeleteEntry: (record: FollowUpRecordLike, entryId: string) => void;
