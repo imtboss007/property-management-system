@@ -12,6 +12,7 @@ const localDb = fs.readFileSync(path.join(root, "src", "lib", "local-db.ts"), "u
 const followUps = fs.readFileSync(path.join(root, "src", "lib", "follow-ups.ts"), "utf8");
 const registry = fs.readFileSync(path.join(root, "src", "FollowUpRegistry.tsx"), "utf8");
 const followUpForm = fs.readFileSync(path.join(root, "src", "FollowUpForm.tsx"), "utf8");
+const intentCanvas = fs.readFileSync(path.join(root, "src", "IntentCanvas.tsx"), "utf8");
 
 assert.match(
   app,
@@ -90,3 +91,17 @@ assert.match(followUpForm, /Follow-up date/, "Follow-up form must capture a date
 assert.match(followUpForm, /Follow-up time/, "Follow-up form must capture a time.");
 assert.match(followUpForm, /Priority/, "Follow-up form must capture priority.");
 assert.match(followUpForm, /Next action/, "Follow-up form must capture next action.");
+
+
+assert.match(app, /import IntentCanvas from "\.\/IntentCanvas"/, "The Intelligence Hub must include the VESTRA SHIFT Intent Canvas.");
+assert.match(app, /<IntentCanvas/, "The Intent Canvas must be mounted in the Intelligence Hub route.");
+assert.match(intentCanvas, /Run command/, "The Intent Canvas must expose a working command composer.");
+assert.match(intentCanvas, /onOpenFollowUps\("Today"\)/, "The composer must route today's follow-ups to the date-filtered registry.");
+assert.match(intentCanvas, /onOpenApprovals\(\)/, "The composer must navigate to the approvals workflow.");
+assert.match(intentCanvas, /onOpenRisks\(\)/, "The composer must navigate to the risk workflow.");
+assert.match(intentCanvas, /localStorage\.setItem\("axivestra\.intentCanvas\.panels"/, "Users must be able to save their canvas panel arrangement.");
+assert.match(intentCanvas, /setFocus\(/, "The canvas must support a single-panel focus workspace.");
+assert.match(intentCanvas, /Temporal workspace/, "The canvas must include a dated activity timeline.");
+assert.match(intentCanvas, /Financial movement/, "The canvas must include source-linked financial movement.");
+assert.match(intentCanvas, /People & relationship signals/, "The canvas must include person-to-record relationship signals.");
+assert.match(css, /VESTRA SHIFT — live intent canvas/, "The responsive intent canvas styling must be present.");
