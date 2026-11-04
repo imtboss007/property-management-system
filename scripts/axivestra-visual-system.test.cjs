@@ -9,6 +9,9 @@ const orbit = fs.readFileSync(path.join(root, "src", "AxivestraOrbitalHub.tsx"),
 const mw = fs.readFileSync(path.join(root, "src", "ModuleWorkbench.tsx"), "utf8");
 const supabase = fs.readFileSync(path.join(root, "src", "lib", "supabase.ts"), "utf8");
 const localDb = fs.readFileSync(path.join(root, "src", "lib", "local-db.ts"), "utf8");
+const followUps = fs.readFileSync(path.join(root, "src", "lib", "follow-ups.ts"), "utf8");
+const registry = fs.readFileSync(path.join(root, "src", "FollowUpRegistry.tsx"), "utf8");
+const followUpForm = fs.readFileSync(path.join(root, "src", "FollowUpForm.tsx"), "utf8");
 
 assert.match(
   app,
@@ -67,3 +70,23 @@ assert.match(supabase, /saveCompanySyncBaseline\(/, "Company initialization and 
 assert.doesNotMatch(supabase, /localStorage\.setItem\([^\n]*syncBaseline/, "Large cloud baselines must not be written to localStorage.");
 assert.match(mw, /<span>Add person<\/span>/, "Every module record must show a visible add follow-up person action.");
 assert.match(css, /AXIVESTRA final mobile and follow-up control refinements/, "Final mobile refinements must remain present.");
+
+
+assert.match(app, /name: "Follow-up Registry"/, "Follow-up Registry must be available in primary navigation.");
+assert.match(app, /active === "Follow-up Registry"/, "Follow-up Registry must have a real route.");
+assert.match(app, /saveFollowUp =/, "Follow-up creation must save into the linked source record.");
+assert.match(app, /serializeFollowUps\(/, "Follow-up edits must persist back to linked source records.");
+assert.match(app, /overdueFollowUps/, "The Intelligence Hub must calculate overdue follow-ups from saved records.");
+assert.match(app, /followUpsWithMultiplePeople/, "The Intelligence Hub must surface multi-person assignments.");
+assert.match(mw, /Add follow-up/, "Every module record must expose an add follow-up action.");
+assert.match(registry, /peopleGroups/, "The registry must group assignments by person.");
+assert.match(registry, /Overdue/, "The registry must expose overdue follow-ups.");
+assert.match(registry, /Upcoming/, "The registry must expose upcoming follow-ups.");
+assert.match(registry, /Completed/, "The registry must expose completed follow-ups.");
+assert.match(registry, /amountSort/, "The registry must support amount-wise ordering.");
+assert.match(registry, /view === "calendar"/, "The registry must include a calendar view.");
+assert.match(followUps, /contactIds/, "Follow-up records must support multiple assigned people.");
+assert.match(followUpForm, /Follow-up date/, "Follow-up form must capture a date.");
+assert.match(followUpForm, /Follow-up time/, "Follow-up form must capture a time.");
+assert.match(followUpForm, /Priority/, "Follow-up form must capture priority.");
+assert.match(followUpForm, /Next action/, "Follow-up form must capture next action.");
