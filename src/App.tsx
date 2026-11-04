@@ -2319,7 +2319,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             tasks={tasks}
             today={today}
             onAdd={()=>openFollowUpForm()}
-            onAddForRecord={record=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpForm(source);}}
             onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
             onUpdateEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)updateFollowUpEntry(source,entry);}}
             onDeleteEntry={(record,entryId)=>{const source=properties.find(item=>item.id===record.id);if(source)deleteFollowUpEntry(source,entryId);}}
