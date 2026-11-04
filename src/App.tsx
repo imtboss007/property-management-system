@@ -2250,6 +2250,23 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <small>Saved records across {modules.length} operating modules</small>
               </div>
             </div>
+            <IntentCanvas
+              properties={properties}
+              contacts={contacts}
+              tasks={tasks}
+              financials={financials}
+              risks={riskRecords}
+              approvals={approvalRequests}
+              modules={modules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
+              followUps={registryDashboardItems}
+              today={today}
+              onOpenModule={name=>go(name)}
+              onOpenFollowUps={view=>openFollowUpRegistry(view)}
+              onOpenApprovals={()=>go("Approvals")}
+              onOpenRisks={()=>go("Risk & Compliance")}
+              onOpenContacts={query=>{if(query)setSearch(query);go("Contacts");}}
+              onOpenFinancials={()=>go("Financials")}
+            />
             <div className="ax-intelligence-kpis">
               <article><span>PORTFOLIO VALUE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Entered asset values only</small></article>
               <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
