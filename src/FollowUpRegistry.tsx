@@ -42,7 +42,6 @@ const money = (value: string) => {
 };
 const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not dated";
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
-const priorityOrder: Record<string,number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
 
 export default function FollowUpRegistry({
   properties, contacts, tasks, today, onAdd, onAddForRecord, onEditEntry, onUpdateEntry,
