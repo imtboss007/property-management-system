@@ -1313,6 +1313,33 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const today = new Date().toISOString().slice(0,10);
+  const registryDashboardItems = [
+    ...properties.flatMap(record => {
+      const entries = parseFollowUps(record.moduleData);
+      const structured = entries.map(entry => ({ entry, record, module: record.module, recordTitle: record.title, amount: entry.amount || record.value }));
+      const legacy = legacyRecordFollowUp(record);
+      return legacy && !entries.some(entry => entry.date === legacy.date)
+        ? [...structured, { entry: legacy, record, module: record.module, recordTitle: record.title, amount: legacy.amount || record.value }]
+        : structured;
+    }),
+    ...tasks.filter(task => String(task.type || "").toLowerCase().includes("follow")).map(task => {
+      const record = properties.find(item => item.id === task.propertyId);
+      const entry: FollowUpEntry = {
+        id: "task:" + task.id,
+        contactIds: Array.from(new Set([...(task.followUpContactIds || []), task.contactId || ""].filter(Boolean))),
+        description: task.title, amount: record?.value || "", date: task.date, time: task.time,
+        priority: task.priority || "Normal", status: task.done ? "Completed" : "Open",
+        notes: task.notes || "", nextAction: task.nextAction || "", assignedAt: task.createdAt || ""
+      };
+      return { entry, record: record || null, module: record?.module || task.type, recordTitle: task.property || record?.title || "No linked record", amount: record?.value || "" };
+    })
+  ];
+  const activeRegistryItems = registryDashboardItems.filter(item => !isFollowUpClosed(item.entry.status));
+  const followUpsDueToday = activeRegistryItems.filter(item => item.entry.date === today).length;
+  const overdueFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date < today).length;
+  const upcomingFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date > today).length;
+  const followUpsWithMultiplePeople = registryDashboardItems.filter(item => item.entry.contactIds.length > 1).length;
+  const followUpNavCount = overdueFollowUps + followUpsDueToday;
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
   const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
