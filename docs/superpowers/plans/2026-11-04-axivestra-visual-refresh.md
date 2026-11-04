@@ -1,14 +1,14 @@
-# AXIVESTRA 17-Source Visual Refresh Implementation Plan
+# AXIVESTRA Interactive Orbital Command Interface Implementation Plan
 
 > **For agentic workers:** Apply this plan on the isolated feature branch and verify each task before merging to production.
 
-**Goal:** Upgrade AXIVESTRA's visual presentation and interaction feedback on desktop and mobile without changing its existing business behavior.
+**Goal:** Deliver the approved AXIVESTRA interactive 3D command experience on desktop and mobile: a central intelligence sphere, orbital tracks, clickable navigation to all 16 existing workspaces, holographic panels and live metrics, without changing business behavior.
 
-**Architecture:** Build from the current production `main` branch. Add one presentation-only class to the existing root element and a scoped CSS layer for the command workspace, navigation, panels, forms, focus states and responsive behavior. Keep the current React, TypeScript, CSS, Lucide, Vite, Electron and Capacitor stack; do not install or copy third-party components.
+**Architecture:** Build from the current production `main` branch. Add a typed React orbital command component connected to existing `go()` workspace navigation and live in-memory record totals, plus scoped CSS for the 3D sphere, orbit geometry, glass panels and responsive layouts. Keep the current React, TypeScript, CSS, Lucide, Vite, Electron and Capacitor stack; do not install third-party components.
 
 **Tech Stack:** React 18, TypeScript, Vite, CSS, Node built-in assertions, GitHub Actions.
 
-**Spec:** User-approved 17-source visual direction; existing AXIVESTRA design boundary that keeps its identity distinct from AXIMACH.
+**Spec:** User-approved AXIVESTRA visual direction, retaining AXIVESTRA identity and applying the interactive orbital design only to AXIVESTRA.
 
 ## Global Constraints
 
@@ -33,7 +33,7 @@
 
 - **Full feature-branch merge:** rejected because that branch has diverged and contains unrelated functional additions.
 - **New component system/dependency:** rejected because it adds runtime and integration risk for a visual-only task.
-- **Scoped CSS refresh on current main:** selected because it isolates presentation changes from existing application behavior.
+- **Typed React command component with scoped CSS:** selected because it adds real navigation and live workspace metrics without replacing existing business screens.
 
 ## Tasks
 
@@ -48,6 +48,6 @@
 - Keep the AXIVESTRA identity separate from AXIMACH: no central sphere or orbital navigation.
 
 ### Task 3: Verify and deploy
-- Run the full existing test suite and TypeScript/Vite production build in GitHub Actions.
+- Run the full existing test suite, TypeScript/Vite production build and Windows/Android package builds in GitHub Actions.
 - Review the PR diff for presentation-only scope.
 - Merge to `main` only after checks pass, then verify the Cloudflare Pages production URL.
