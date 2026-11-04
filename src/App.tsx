@@ -1529,6 +1529,25 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const openWhatsAppFor = (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => { setWhatsAppPrefill({ contactId, propertyId, taskId, taskTitle }); setActive("WhatsApp Automation"); setMobileMenu(false); setNotice(""); };
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
+  const closeFollowUpForm = () => { setShowFollowUpForm(false); setEditingFollowUp(null); setFollowUpDefault(null); };
+  const openFollowUpForm = (record: PropertyRecord | null = null, contact?: ContactRecord) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    setEditingFollowUp(null);
+    setFollowUpDefault({ propertyId: record?.id, contactId: contact?.id });
+    setShowFollowUpForm(true);
+  };
+  const openFollowUpEditor = (record: PropertyRecord, entry: FollowUpEntry) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    setEditingFollowUp({ record, entry });
+    setFollowUpDefault({ propertyId: record.id });
+    setShowFollowUpForm(true);
+  };
 
   const saveProperty = (data: Omit<PropertyRecord, "id" | "createdAt">) => {
     const record: PropertyRecord = editingProperty
