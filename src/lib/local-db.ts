@@ -25,9 +25,17 @@ type StoredDeviceSyncBaseline = {
   updatedAt: string;
 };
 
+type StoredCompanySyncBaseline = {
+  id: string;
+  companyId: string;
+  value: Record<string, Record<string, string>>;
+  updatedAt: string;
+};
+
 class AxivestraLocalDatabase extends Dexie {
   documents!: Table<StoredDocument, string>;
   syncBaselines!: Table<StoredDeviceSyncBaseline, string>;
+  syncState!: Table<StoredCompanySyncBaseline, string>;
 
   constructor() {
     super("axivestra-local-vault");
@@ -40,6 +48,11 @@ class AxivestraLocalDatabase extends Dexie {
     this.version(3).stores({
       documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
       syncBaselines: "&id,companyId,updatedAt"
+    });
+    this.version(4).stores({
+      documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
+      syncBaselines: "&id,companyId,updatedAt",
+      syncState: "&id,companyId,updatedAt"
     });
   }
 }
@@ -88,6 +101,33 @@ export async function saveDeviceSyncBaseline(id: string, baseline: DeviceSyncBas
     id,
     companyId: id.replace(/^device-sync:/, ""),
     baseline: parseDeviceSyncBaseline(baseline),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+
+/**
+ * Keep company-wide cloud reconciliation shadows in IndexedDB rather than
+ * localStorage. These maps can grow with every saved record and exceed a
+ * phone browser's small synchronous storage quota.
+ */
+export async function loadCompanySyncBaseline(
+  id: string
+): Promise<Record<string, Record<string, string>> | null> {
+  const stored = await localDb.syncState.get(id);
+  if (!stored?.value || typeof stored.value !== "object" || Array.isArray(stored.value)) return null;
+  return stored.value;
+}
+
+export async function saveCompanySyncBaseline(
+  id: string,
+  companyId: string,
+  value: Record<string, Record<string, string>>
+): Promise<void> {
+  await localDb.syncState.put({
+    id,
+    companyId,
+    value,
     updatedAt: new Date().toISOString()
   });
 }

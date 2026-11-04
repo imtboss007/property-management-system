@@ -202,7 +202,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
               <button type="button" className="ax-followup-contact__name" onClick={()=>onSchedule(record,person)} title={"Schedule a follow-up with "+person.name}>{person.name}</button>
               <button type="button" className="ax-followup-contact__remove" onClick={()=>onUpdateFollowUpContacts(record,followUpIds.filter(id=>id!==person.id))} aria-label={"Remove "+person.name+" from follow-up contacts"}>×</button>
             </span>)}
-            <label className="ax-followup-contact-add"><Plus size={13}/><select value="" aria-label={"Add follow-up contact for "+record.title} onChange={event=>{const id=event.target.value;if(id)onUpdateFollowUpContacts(record,[...followUpIds,id]);}}>
+            <label className="ax-followup-contact-add" title="Add another follow-up person"><Plus size={15}/><span>Add person</span><select value="" aria-label={"Add follow-up contact for "+record.title} onChange={event=>{const id=event.target.value;if(id)onUpdateFollowUpContacts(record,Array.from(new Set([...followUpIds,id])));}}>
               <option value="">Add follow-up person</option>
               {sortedContacts.filter(contact=>!followUpIds.includes(contact.id)).map(contact=><option key={contact.id} value={contact.id}>{contact.name}{contact.role?" · "+contact.role:""}</option>)}
             </select></label>

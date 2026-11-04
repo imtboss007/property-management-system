@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { loadCompanySyncBaseline, saveCompanySyncBaseline } from "./local-db";
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim() || "";
 const publishableKey = (
@@ -95,12 +96,26 @@ export async function prepareCompanyWorkspace(
   }
 
   const initialized = localStorage.getItem(scopedStorageKey(company.id, "estateflow.initialized")) === "1";
-  const baselineText = localStorage.getItem(scopedStorageKey(company.id, "estateflow.syncBaseline"));
+  const baselineKey = scopedStorageKey(company.id, "estateflow.syncBaseline");
+  const baselineId = "company-sync:" + company.id;
+  let cachedBaseline = await loadCompanySyncBaseline(baselineId);
+  if (!cachedBaseline) {
+    let legacyBaseline: unknown = null;
+    try { legacyBaseline = JSON.parse(localStorage.getItem(baselineKey) || "null"); } catch { legacyBaseline = null; }
+    if (legacyBaseline && typeof legacyBaseline === "object" && !Array.isArray(legacyBaseline)) {
+      cachedBaseline = legacyBaseline as Record<string, Record<string, string>>;
+      // Commit the legacy copy to IndexedDB before clearing its localStorage source.
+      await saveCompanySyncBaseline(baselineId, company.id, cachedBaseline);
+    }
+  }
+  if (cachedBaseline) {
+    try { localStorage.removeItem(baselineKey); } catch { /* keep sync independent of legacy cleanup */ }
+  }
   const counts: Record<string, number> = {};
 
-  // Existing company caches are not blindly pushed on every login: the sync baseline lets
-  // the next sync distinguish local edits, cloud edits, offline new records and deletions.
-  if (initialized && baselineText && !importLegacy) {
+  // Existing company caches are not blindly pushed on every login: the IndexedDB baseline
+  // distinguishes local edits, cloud edits, offline new records and deletions.
+  if (initialized && cachedBaseline !== null && !importLegacy) {
     for (const item of collectionKeys) {
       const key = scopedStorageKey(company.id, item.storageKey);
       const scopedText = localStorage.getItem(key);
@@ -197,7 +212,8 @@ export async function prepareCompanyWorkspace(
       uploaded += batch.length;
     }
   }
-  localStorage.setItem(scopedStorageKey(company.id, "estateflow.syncBaseline"), JSON.stringify(baseline));
+  await saveCompanySyncBaseline(baselineId, company.id, baseline);
+  try { localStorage.removeItem(baselineKey); } catch { /* legacy cleanup is best effort */ }
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.initialized"), "1");
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.lastCloudSync"), new Date().toISOString());
   if (importLegacy) {
@@ -265,12 +281,23 @@ export async function syncCompanyWorkspace(
     remoteByType.set(row.record_type, items);
   }
 
-  let oldBaseline: Record<string, Record<string, string>> = {};
   const baselineKey = scopedStorageKey(company.id, "estateflow.syncBaseline");
-  try {
-    const parsed = JSON.parse(localStorage.getItem(baselineKey) || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) oldBaseline = parsed;
-  } catch { oldBaseline = {}; }
+  const baselineId = "company-sync:" + company.id;
+  let oldBaseline = await loadCompanySyncBaseline(baselineId);
+  if (!oldBaseline) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(baselineKey) || "null");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        oldBaseline = parsed as Record<string, Record<string, string>>;
+        // Preserve the old baseline in IndexedDB before removing the legacy entry.
+        await saveCompanySyncBaseline(baselineId, company.id, oldBaseline);
+      }
+    } catch { /* an invalid legacy baseline is treated as absent */ }
+  }
+  if (oldBaseline) {
+    try { localStorage.removeItem(baselineKey); } catch { /* legacy cleanup is best effort */ }
+  }
+  oldBaseline = oldBaseline || {};
 
   const currentRows = new Map<string, Map<string, SyncRow>>();
   for (const item of collectionKeys) {
@@ -405,7 +432,8 @@ export async function syncCompanyWorkspace(
     if (error) throw new Error("Could not upload changed company records: " + error.message);
   }
 
-  localStorage.setItem(baselineKey, JSON.stringify(nextBaseline));
+  await saveCompanySyncBaseline(baselineId, company.id, nextBaseline);
+  try { localStorage.removeItem(baselineKey); } catch { /* legacy cleanup is best effort */ }
   localStorage.setItem(scopedStorageKey(company.id, "estateflow.lastCloudSync"), new Date().toISOString());
   return mergedSnapshot;
 }
