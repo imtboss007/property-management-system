@@ -43,3 +43,17 @@ assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-nodes/, "Or
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-core__sphere/, "Orbital animation must respect reduced-motion preferences.");
 
 console.log("AXIVESTRA visual-system contract passed.");
+
+
+assert.match(app, /name: "Intelligence Hub"/, "The Intelligence Hub must be present in primary navigation.");
+assert.match(app, /name: "AXIVESTRA Shift"/, "AXIVESTRA Shift must be present in primary navigation.");
+assert.match(app, /loadDeviceSyncBaseline\(/, "Device sync baselines must load from IndexedDB.");
+assert.match(app, /saveDeviceSyncBaseline\(/, "Device sync baselines must be saved outside localStorage.");
+assert.doesNotMatch(app, /localStorage\.setItem\(baselineKey/, "The large sync baseline must no longer be written to localStorage.");
+assert.match(app, /onUpdateFollowUpContacts=\{updateRecordFollowUpContacts\}/, "Every module record must support multiple follow-up contacts.");
+assert.match(mw, /Add follow-up person/, "Record cards must provide a quick add follow-up contact control.");
+assert.match(mw, /__followUpContactIds/, "Follow-up contact links must persist independently from other stakeholders.");
+assert.match(orbit, /is-zoomed/, "Selecting the sphere or a module node must trigger a visible zoom state.");
+assert.match(css, /ax-record-followup-people/, "Follow-up people must have dedicated responsive UI.");
+assert.match(css, /ax-intelligence-hub-page/, "Intelligence Hub must have a dedicated responsive layout.");
+assert.match(css, /ax-shift-page/, "AXIVESTRA Shift must have a dedicated responsive layout.");
