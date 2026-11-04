@@ -3360,3 +3360,42 @@ h2,h3{color:#e5f2fc}
   .welcome-row { gap: 10px; }
   .welcome-row .primary-button { width: 100%; justify-content: center; }
 }
+
+
+/* Critical mobile navigation fix: the later shared sidebar rule changed the
+   mobile drawer back to position:relative, leaving its width in document flow.
+   Keep the drawer out of layout flow so the workspace starts at x=0. */
+@media (max-width: 720px) {
+  main.app-shell {
+    display: block !important;
+    position: relative;
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+  main.app-shell > .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: min(285px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100dvh;
+    min-height: 100dvh;
+    z-index: 50;
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+  }
+  main.app-shell > .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  main.app-shell > .main-panel {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
