@@ -44,7 +44,7 @@ const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLoc
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
 export default function FollowUpRegistry({
-  properties, contacts, tasks, today, onAdd, onAddForRecord, onEditEntry, onUpdateEntry,
+  properties, contacts, tasks, today, onAdd, onEditEntry, onUpdateEntry,
   onDeleteEntry, onEditRecord, onEditTask, onToggleTask, onDeleteTask, onOpenModule, onWhatsApp
 }: Props) {
   const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">("All");
