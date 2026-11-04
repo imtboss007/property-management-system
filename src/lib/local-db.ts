@@ -18,6 +18,8 @@ export type StoredDocument = {
   file: Blob;
 };
 
+type StoredSyncState = { id: string; companyId: string; value: unknown; updatedAt: string };
+
 type StoredDeviceSyncBaseline = {
   id: string;
   companyId: string;
@@ -28,6 +30,7 @@ type StoredDeviceSyncBaseline = {
 class AxivestraLocalDatabase extends Dexie {
   documents!: Table<StoredDocument, string>;
   syncBaselines!: Table<StoredDeviceSyncBaseline, string>;
+  syncState!: Table<StoredSyncState, string>;
 
   constructor() {
     super("axivestra-local-vault");
@@ -40,6 +43,11 @@ class AxivestraLocalDatabase extends Dexie {
     this.version(3).stores({
       documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
       syncBaselines: "&id,companyId,updatedAt"
+    });
+    this.version(4).stores({
+      documents: "&id,createdAt,companyId,propertyId,contactId,category,name",
+      syncBaselines: "&id,companyId,updatedAt",
+      syncState: "&id,companyId,updatedAt"
     });
   }
 }
@@ -90,4 +98,17 @@ export async function saveDeviceSyncBaseline(id: string, baseline: DeviceSyncBas
     baseline: parseDeviceSyncBaseline(baseline),
     updatedAt: new Date().toISOString()
   });
+}
+
+
+/** Store company reconciliation shadows in IndexedDB to avoid localStorage quota failures. */
+export async function loadCompanySyncBaseline(id: string, legacyValue?: unknown): Promise<Record<string, Record<string, string>>> {
+  const stored = await localDb.syncState.get(id);
+  const value = stored?.value ?? legacyValue;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, Record<string, string>>;
+}
+
+export async function saveCompanySyncBaseline(id: string, companyId: string, value: Record<string, Record<string, string>>): Promise<void> {
+  await localDb.syncState.put({ id, companyId, value, updatedAt: new Date().toISOString() });
 }
