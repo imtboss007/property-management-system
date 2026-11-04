@@ -181,7 +181,7 @@ export default function FollowUpRegistry({
       <div className="ax-followup-card__top"><span className="ax-followup-module">{item.module || "General"}</span><span className={"ax-followup-priority priority-"+item.entry.priority.toLowerCase()}>{item.entry.priority}</span></div>
       <h3>{item.entry.description || item.recordTitle}</h3>
       <p className="ax-followup-related">{item.recordTitle}{item.entry.amount ? " · "+money(item.entry.amount) : ""}</p>
-      <div className="ax-followup-meta"><span><CalendarClock size={13}/>{dateLabel(item.entry.date)}</span><span><Clock3 size={13}/>{item.entry.time || "Time not set"}</span></div>
+      <div className="ax-followup-meta"><span><CalendarClock size={13}/>{dateLabel(item.entry.date)}</span><span><Clock3 size={13}/>{item.entry.time || "Time not set"}</span>{item.entry.assignedAt && <span>Assigned {dateLabel(item.entry.assignedAt.slice(0,10))}</span>}</div>
       <div className="ax-followup-assignees"><Users size={13}/>{people.length ? people.map(person=>person.name).join(" · ") : "No follow-up person assigned"}</div>
       {item.entry.nextAction && <p className="ax-followup-next"><strong>Next:</strong> {item.entry.nextAction}</p>}
       {item.entry.notes && <p className="ax-followup-notes">{item.entry.notes}</p>}
