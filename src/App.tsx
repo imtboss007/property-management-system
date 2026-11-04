@@ -11,6 +11,7 @@ import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/l
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
+import IntentCanvas from "./IntentCanvas";
 import ModuleWorkbench from "./ModuleWorkbench";
 import FollowUpRegistry from "./FollowUpRegistry";
 import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
@@ -615,6 +616,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState<{ record: PropertyRecord; entry: FollowUpEntry } | null>(null);
   const [followUpDefault, setFollowUpDefault] = useState<{ propertyId?: string; contactId?: string } | null>(null);
+  const [followUpRegistryView, setFollowUpRegistryView] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">("All");
   const [editingProperty, setEditingProperty] = useState<PropertyRecord | null>(null);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(null);
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
@@ -1557,6 +1559,10 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
   const closeFollowUpForm = () => { setShowFollowUpForm(false); setEditingFollowUp(null); setFollowUpDefault(null); };
+  const openFollowUpRegistry = (view: "All"|"Today"|"Overdue"|"Upcoming"|"Completed" = "All") => {
+    setFollowUpRegistryView(view);
+    go("Follow-up Registry");
+  };
   const openFollowUpForm = (record: PropertyRecord | null = null, contact?: ContactRecord) => {
     if (company?.role === "read_only") {
       setNotice("Read-only company access cannot add or change follow-ups.");
@@ -2244,6 +2250,24 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
                 <small>Saved records across {modules.length} operating modules</small>
               </div>
             </div>
+            <IntentCanvas
+              properties={properties}
+              contacts={contacts}
+              tasks={tasks}
+              financials={financials}
+              risks={riskRecords}
+              approvals={approvalRequests}
+              modules={modules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
+              followUps={registryDashboardItems}
+              today={today}
+              onOpenModule={name=>go(name)}
+              onOpenFollowUps={view=>openFollowUpRegistry(view)}
+              onOpenApprovals={()=>go("Approvals")}
+              onOpenRisks={()=>go("Risk & Compliance")}
+              onOpenContacts={query=>{if(query)setSearch(query);go("Contacts");}}
+              onOpenFinancials={()=>go("Financials")}
+              onOpenSchedule={()=>go("Schedule & Tasks")}
+            />
             <div className="ax-intelligence-kpis">
               <article><span>PORTFOLIO VALUE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Entered asset values only</small></article>
               <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
@@ -2325,6 +2349,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onDeleteTask={deleteTask}
           />}
           {active === "Follow-up Registry" && <FollowUpRegistry
+            initialTab={followUpRegistryView}
             properties={properties}
             contacts={contacts}
             tasks={tasks}
