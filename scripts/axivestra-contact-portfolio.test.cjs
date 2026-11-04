@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const assert = require("node:assert/strict");
 const read = path => fs.readFileSync(path, "utf8");
 const app = read("src/App.tsx");
+const contactPicker = read("src/SearchableContactPicker.tsx");
 const contact = read("src/ContactPortfolioPanel.tsx");
 const workbench = read("src/ModuleWorkbench.tsx");
 const report = read("src/lib/axivestra-report.ts");
@@ -11,6 +12,7 @@ const mobile = read("src/lib/mobile-export.ts");
 const register = read("src/FollowUpRegisterPanel.tsx");
 const styles = read("src/styles.css");
 const registerReport = read("src/lib/follow-up-register-report.ts");
+const dealFinder = read("src/DealFinder.tsx");
 const contactDirectory = read("src/lib/contact-directory.mjs");
 const pkg = JSON.parse(read("package.json"));
 
@@ -118,6 +120,10 @@ assert.ok(app.indexOf('{ name: "Contact 360"') < app.indexOf('{ name: "Follow-up
 assert.ok(registerReport.includes("buildContactFollowUpRegisterHtml"), "Missing cross-contact PDF report builder.");
 for (const token of ["Module / transaction","Description","Final amount / principal","Monthly loan interest","Will reach back","WhatsApp groups","item.promisedTime","item.isPrimary"])
   assert.ok(registerReport.includes(token), "Missing follow-up register PDF field: " + token);
+assert.ok(!app.includes("startNavigation"), "Sidebar navigation must update synchronously rather than wait for a low-priority transition.");
+assert.ok(/const go = \(section: Section\) => \{ setActive\(section\)/.test(app), "Sidebar navigation must set the selected section immediately.");
+assert.ok(app.includes('type="button" key={name} className={`nav-item'), "Sidebar buttons must not submit surrounding forms.");
+
 console.log("AXIVESTRA standalone cross-contact follow-up register and PDF export contracts passed.");
 
 
@@ -129,10 +135,10 @@ for (const token of [
 ]) assert.ok(app.includes(token), "Missing required module-level follow-up assignment: " + token);
 
 for (const token of [
-  'type="search"', "const contactIndex=useMemo", "setQuery(event.target.value)",
+  'type="search"', "const contactsById = useMemo", "setQuery(event.target.value)",
   'role="listbox"', "Type to search contacts for "
-]) assert.ok(app.includes(token), "Contact selector must filter live as the user types: " + token);
-assert.ok(!app.includes('<select className="searchable-contact-picker__select"'), "Single-contact selector must not fall back to a native dropdown.");
+]) assert.ok(contactPicker.includes(token), "Shared contact selector must filter live as the user types: " + token);
+assert.ok(!contactPicker.includes('<select className="searchable-contact-picker__select"'), "Single-contact selector must not fall back to a native dropdown.");
 
 for (const token of [
   "FollowUpRegisterPanel", "matchingAddContacts",
@@ -224,4 +230,36 @@ for (const heading of ["Module","Description","Date","Time","Final Amount (INR)"
   assert.ok(register.includes(">"+heading+"</th>"), "Missing directly editable follow-up column: " + heading);
 console.log("AXIVESTRA person-grouped six-column editable follow-up grid layout contracts passed.");
 
+for (const token of [
+  "relationship-hub-filters", "Filter by module", "relationship-module-group",
+  "Search client / deal / contact number", "groupedProperties"
+]) assert.ok(app.includes(token), "Client & Deal Hub must categorize records by module and provide filters: " + token);
+for (const token of [
+  "commonModuleContactFields", "__contact_client", "__contact_borrower",
+  "__contact_lender", "__contact_lawyer", "__contact_advocate",
+  "__contact_broker", "__contact_owner", "__contact_investor",
+  "getModuleContactFields(form.module)"
+]) assert.ok(app.includes(token), "Every module must expose role-linked contact pickers: " + token);
+for (const token of [
+  "normalizePhone", "phoneMatches", "contact.verifiedName", "contact.whatsappName",
+  "contact.phone", "groupById.get(normalize(groupAlias))"
+]) assert.ok(contactPicker.includes(token), "Contact search must match synced names, aliases, groups and normalized phone numbers: " + token);
+assert.ok(registerReport.includes("__followUpContactIds") && registerReport.includes("record.followUpEntries"),
+  "Follow-up register PDF must include every assigned person, including legacy multi-person records.");
 
+for (const token of [
+  "locationTextFromData", "phoneQueryMatches", "followUpEntries",
+  "locationTerms.every(term => item.locationText.includes(term))",
+  "marketPreset", "settlementPreset", "customMarket", "customSettlement",
+  "categoryByModule", "onOpenRecord"
+]) assert.ok(dealFinder.includes(token), "Deal Finder must search linked contacts, legacy follow-ups, structured locations and custom amount limits: " + token);
+assert.ok(app.includes("__contact_primaryFollowUp"), "Every module must have a separately linked primary follow-up coordinator.");
+assert.ok(app.includes("__marketValue") && app.includes("__settlementAmount"), "Shared market and settlement value fields must exist in every module.");
+assert.ok(contactPicker.includes('normalize("NFKD")') && contactPicker.includes('contact.notes'),
+  "Contact search must tolerate accent variants and search saved contact notes as well as synced identity fields.");
+assert.ok(/replace\(\/\\D\/g, ""\)/.test(dealFinder), "Deal Finder phone searches must strip formatting before comparing synced numbers.");
+assert.ok(dealFinder.includes("getPropertyPriceForRangeSearch(record)"), "Deal amount caps must use module amount fields when headline value is blank.");
+assert.ok(dealFinder.includes("contact.verifiedName") && dealFinder.includes("contact.whatsappJid"), "Deal Finder must search synced WhatsApp and verified contact aliases.");
+assert.ok(register.includes("contact.verifiedName") && register.includes("contact.whatsappJid") && register.includes('replace(/[^0-9]/g,"")'), "Follow-up Register search must support synced identity aliases and formatted phone numbers.");
+assert.ok(app.includes("indexedPropertiesForGlobalSearch") && app.includes("contact.whatsappName"), "Workspace-wide search must include linked contact and synced names.");
+console.log("AXIVESTRA cross-module location/amount/phone search and primary follow-up coordinator contracts passed.");

@@ -21,11 +21,13 @@ export type FollowUpRegisterItem = {
 };
 type ContactRow = {
   id: string; name: string; phone: string; role: string; roles?: string[];
-  email?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
+  email?: string; whatsappName?: string; verifiedName?: string; notify?: string; whatsappJid?: string;
+  customRoles?: string; associatedCompany?: string; whatsappGroupIds?: string[]; followUps?: FollowUpRegisterItem[];
 };
 type RecordRow = {
   id: string; title: string; module: string; value: string; status: string;
   contact: string; primaryContactId?: string; followUpContactId?: string;
+  followUpEntries?: Array<{ followPersonId: string }>;
   nextFollowUpDate?: string; nextFollowUpTime?: string; nextResponseDate?: string; nextResponseTime?: string;
   nextResponseDescription?: string; nextAction?: string; notes?: string;
   moduleData: Record<string,string>;
@@ -53,16 +55,6 @@ const emptyRows = (contacts: ContactRow[]): Record<string,DraftRow> => Object.fr
     rowKey(contact.id,item.id), { contactId: contact.id, item: { ...item, amount: String(item.amount ?? "") }, isNew: false, dirty: false }
   ]))
 );
-const contactLinksRecord = (contact: ContactRow, record: RecordRow) => {
-  const data = record.moduleData || {};
-  const linkedIds = [
-    record.followUpContactId || "",
-    record.primaryContactId || "",
-    ...(data.__linkedContactIds || "").split(","),
-    ...Object.entries(data).filter(([key,value]) => key.startsWith("__contact_") && Boolean(value)).map(([,value]) => String(value))
-  ].filter(Boolean);
-  return linkedIds.includes(contact.id) || (record.contact || "").trim().toLocaleLowerCase() === contact.name.trim().toLocaleLowerCase();
-};
 const createFollowUp = (contact: ContactRow): FollowUpRegisterItem => {
   const now = new Date().toISOString();
   return {
@@ -87,7 +79,7 @@ export default function FollowUpRegisterPanel(props: Props) {
   const [addContactPickerOpen,setAddContactPickerOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
   const deferredAddContactSearch = useDeferredValue(addContactSearch);
-  const matchingAddContacts = useMemo(() => { const term=deferredAddContactSearch.trim().normalize("NFKC").toLocaleLowerCase(); return props.contacts.filter(contact=>!term||[contact.name,contact.role,...(contact.roles||[]),contact.phone,contact.email].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase().includes(term)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,30); },[props.contacts,deferredAddContactSearch]);
+
 
   useEffect(() => {
     const saved = emptyRows(props.contacts);
@@ -110,19 +102,62 @@ export default function FollowUpRegisterPanel(props: Props) {
 
   const contactIndex = useMemo(() => new Map(props.contacts.map(contact => [contact.id,contact])),[props.contacts]);
   const recordIndex = useMemo(() => new Map(props.properties.map(record => [record.id,record])),[props.properties]);
+  const contactRelations = useMemo(() => {
+    const contactByName = new Map(props.contacts.map(contact=>[contact.name.trim().toLocaleLowerCase(),contact.id]));
+    const linkedRecordsByContact = new Map<string,RecordRow[]>();
+    const groupIdsByContact = new Map<string,Set<string>>();
+    props.contacts.forEach(contact=>groupIdsByContact.set(contact.id,new Set(contact.whatsappGroupIds||[])));
+    for(const property of props.properties){
+      const data=property.moduleData||{};
+      const hasSavedFollowUpIds=Object.prototype.hasOwnProperty.call(data,"__followUpContactIds");
+      const followUpIds=hasSavedFollowUpIds
+        ? (data.__followUpContactIds||"").split(",")
+        : [property.followUpContactId||"",...(property.followUpEntries||[]).map(entry=>entry.followPersonId||"")];
+      const ids=new Set([
+        ...followUpIds,
+        property.primaryContactId||"",
+        ...(data.__linkedContactIds||"").split(","),
+        ...Object.entries(data).filter(([key,value])=>key.startsWith("__contact_")&&Boolean(value)).map(([,value])=>String(value))
+      ].filter(Boolean));
+      if(!property.primaryContactId){
+        const legacyId=contactByName.get((property.contact||"").trim().toLocaleLowerCase());
+        if(legacyId)ids.add(legacyId);
+      }
+      const linkedGroupIds=(data.__linkedWhatsAppGroupIds||"").split(",").map(id=>id.trim()).filter(Boolean);
+      ids.forEach(contactId=>{
+        const records=linkedRecordsByContact.get(contactId)||[];
+        records.push(property);
+        linkedRecordsByContact.set(contactId,records);
+        if(linkedGroupIds.length){
+          const groups=groupIdsByContact.get(contactId)||new Set<string>();
+          linkedGroupIds.forEach(id=>groups.add(id));
+          groupIdsByContact.set(contactId,groups);
+        }
+      });
+    }
+    const groupsById=new Map(props.groups.map(group=>[group.id,group.name]));
+    const groupNamesByContact=new Map<string,string[]>();
+    groupIdsByContact.forEach((ids,contactId)=>groupNamesByContact.set(contactId,Array.from(ids).map(id=>groupsById.get(id)||"").filter(Boolean)));
+    return {linkedRecordsByContact,groupIdsByContact,groupNamesByContact};
+  },[props.contacts,props.properties,props.groups]);
+  const matchingAddContacts = useMemo(() => {
+    const term=deferredAddContactSearch.trim().normalize("NFKC").toLocaleLowerCase();
+    const terms=term.split(/\\s+/).filter(Boolean);
+    return props.contacts.filter(contact=>{
+      const groupNames=contactRelations.groupNamesByContact.get(contact.id)||[];
+      const haystack=[contact.name,contact.whatsappName,contact.verifiedName,contact.notify,contact.whatsappJid,contact.role,...(contact.roles||[]),contact.customRoles,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.email,contact.associatedCompany,...groupNames].filter(Boolean).join(" ").normalize("NFKC").toLocaleLowerCase();
+      return !terms.length||terms.every(part=>haystack.includes(part));
+    }).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,30);
+  },[props.contacts,deferredAddContactSearch,contactRelations]);
   const rows = useMemo(() => Object.entries(drafts).flatMap(([key,draft]) => {
     const contact = contactIndex.get(draft.contactId);
     if (!contact) return [];
     const record = recordIndex.get(draft.item.linkedRecordId);
-    const linkedGroups = new Set([
-      ...(contact.whatsappGroupIds || []),
-      ...props.properties.filter(item => contactLinksRecord(contact,item))
-        .flatMap(item => (item.moduleData?.__linkedWhatsAppGroupIds || "").split(",").filter(Boolean))
-    ]);
-    const groupNames = props.groups.filter(group => linkedGroups.has(group.id)).map(group => group.name);
-    const linkedRecords = props.properties.filter(item => contactLinksRecord(contact,item));
+    const linkedGroups = contactRelations.groupIdsByContact.get(contact.id)||new Set<string>();
+    const groupNames = contactRelations.groupNamesByContact.get(contact.id)||[];
+    const linkedRecords = contactRelations.linkedRecordsByContact.get(contact.id)||[];
     const searchText = [
-      contact.name,contact.phone,contact.role,...(contact.roles || []),draft.item.person,draft.item.role,
+      contact.name,contact.phone,String(contact.phone||"").replace(/[^0-9]/g,""),contact.whatsappName,contact.verifiedName,contact.notify,contact.whatsappJid,contact.role,...(contact.roles || []),contact.customRoles,contact.email,contact.associatedCompany,draft.item.person,draft.item.role,
       draft.item.description,draft.item.amount,draft.item.promisedDate,draft.item.promisedTime,
       draft.item.responseType,draft.item.status,draft.item.notes,record?.module,record?.title,
       ...Object.entries(record?.moduleData||{}).flatMap(([key,value])=>[key,String(value??"")]),
@@ -135,7 +170,7 @@ export default function FollowUpRegisterPanel(props: Props) {
   }).sort((a,b) => {
     const byDate = (a.item.promisedDate || "9999-12-31").localeCompare(b.item.promisedDate || "9999-12-31");
     return byDate || a.contact.name.localeCompare(b.contact.name) || a.item.person.localeCompare(b.item.person);
-  }),[drafts,contactIndex,recordIndex,props.properties,props.groups]);
+  }),[drafts,contactIndex,recordIndex,contactRelations]);
   const visibleRows = useMemo(() => {
     const term = deferredQuery.trim().normalize("NFKC").toLocaleLowerCase();
     return rows.filter(row =>

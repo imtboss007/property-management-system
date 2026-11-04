@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
   Activity, ArrowUpRight, CalendarClock, CheckCircle2,
   CircleAlert, ClipboardList, MessageCircle, Search, Sparkles,
-  Users, X
+  Users, X, Filter, MapPin, Bookmark, GitCompare, BellRing, Network, TrendingUp, FileSearch, Layers, Wallet, Landmark, ShieldCheck
 } from "lucide-react";
 import { calculateMonthlyInterest, formatINR, parseDealNumber } from "./lib/deal-structure";
 import { extractWhatsAppCommitment } from "./lib/whatsapp-message-intelligence.mjs";
+import { buildIntelligenceActivityFeed, buildIntelligenceAlerts, buildIntelligenceConflictSignals, buildIntelligenceDecisionSupport, buildIntelligenceDocumentSearch, buildIntelligenceDuplicateSignals, buildIntelligenceExposure, buildIntelligenceLoanPropertyExposure, buildIntelligenceLocationSummary, buildIntelligenceOpportunitySignals, buildIntelligenceOwnershipChains, buildIntelligencePropertyCashflow, buildIntelligenceStakeholderNetwork, filterIntelligenceRecords, getIntelligenceRecordAmount, getIntelligenceMarketValue, getIntelligenceSettlementValue, getIntelligenceTransactionType, searchIntelligenceContacts, type IntelligenceFilters } from "./lib/intelligence-engine.mjs";
 
 type FollowUpRow = {
   id:string; person:string; role:string; linkedRecordId:string; description:string; amount:string;
@@ -16,9 +17,15 @@ type PropertyRow = {
   id:string; title:string; module:string; location:string; value:string; status:string; contact:string;
   primaryContactId?:string; followUpContactId?:string; nextFollowUpDate?:string; nextFollowUpTime?:string;
   nextResponseDate?:string; nextResponseTime?:string; nextResponseDescription?:string;
-  moduleData:Record<string,string>;
+  moduleData:Record<string,string>; surveyNumber?:string; ownershipDetails?:string; createdAt?:string; updatedAt?:string;
+  followUpEntries?:Array<{followPersonId?:string;isPrimary?:boolean;role?:string}>;
 };
-type ContactRow = {id:string;name:string;phone:string;role:string;roles?:string[];followUps?:FollowUpRow[]};
+type ContactRow = {id:string;name:string;phone:string;role:string;roles?:string[];customRoles?:string;email?:string;address?:string;profession?:string;employer?:string;designation?:string;businessType?:string;associatedCompany?:string;whatsappName?:string;verifiedName?:string;notify?:string;whatsappJid?:string;followUps?:FollowUpRow[]};
+type DocumentRow = {id:string;propertyId?:string;name:string;category?:string;expiresOn?:string;expiryDate?:string;notes?:string;createdAt?:string};
+type RiskRow = {id:string;title:string;category?:string;severity?:string;status?:string;owner?:string;dueDate?:string;entity?:string;propertyId?:string;createdAt?:string};
+type ApprovalRow = {id:string;title:string;status?:string;priority?:string;propertyId?:string;requestedAt?:string;decidedAt?:string};
+type AuditRow = {id:string;at:string;action?:string;entity?:string;recordId:string;label?:string;description?:string};
+type ModuleRow = {name:string;group?:string};
 type TaskRow = {id:string;title:string;date:string;time:string;type:string;property:string;propertyId?:string;contactId?:string;contactName?:string;notes:string;done:boolean};
 type FinancialRow = {id:string;property:string;type:string;amount:string;date:string;party:string;notes:string};
 type FollowUpDraft = {
@@ -27,8 +34,8 @@ type FollowUpDraft = {
 };
 type Props = {
   properties:PropertyRow[]; contacts:ContactRow[]; tasks:TaskRow[]; financials:FinancialRow[];
-  today:string; readOnly?:boolean;
-  onOpenModule:(name:string)=>void; onOpenContacts:()=>void; onOpenTasks:()=>void;
+  today:string; readOnly?:boolean; documents?:DocumentRow[]; riskRecords?:RiskRow[]; approvalRequests?:ApprovalRow[]; auditEvents?:AuditRow[]; modules?:ModuleRow[];
+  onOpenModule:(name:string)=>void; onOpenContacts:()=>void; onOpenTasks:()=>void; onOpenRecord?:(record:PropertyRow)=>void;
   onCreateFollowUp:(draft:FollowUpDraft)=>void;
 };
 type CopilotEntry = {title:string;detail:string;value?:string;module?:string};
@@ -85,13 +92,38 @@ function makeCopilotAnswer(query:string,properties:PropertyRow[],contacts:Contac
   return {summary:`I searched saved AXIVESTRA records and contacts for “${query.trim()}”. I found ${recordMatches.length} record(s) and ${contactMatches.length} contact(s). Open a result to inspect its complete details.`,entries,empty:"No matching records or contacts were found. Try a shorter name, module, location or transaction term."};
 }
 
-export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,onOpenModule,onOpenContacts,onOpenTasks,onCreateFollowUp}:Props){
+const amountPresets=[{label:"Any amount",value:""},{label:"Up to ₹1 Cr",value:"10000000"},{label:"Up to ₹10 Cr",value:"100000000"},{label:"Up to ₹50 Cr",value:"500000000"},{label:"Up to ₹100 Cr",value:"1000000000"},{label:"Custom up to",value:"custom"}];
+const savedSearchStorageKey="axivestra.intelligence.savedSearches.v1";
+type SavedIntelligenceSearch={id:string;name:string;filters:IntelligenceFilters};
+const formatIntelligenceMoney=(value:number|null|undefined)=>value===null||value===undefined?"Not recorded":"₹"+Math.round(value).toLocaleString("en-IN",{maximumFractionDigits:0});
+
+export default function IntelligenceHub({properties,contacts,tasks,financials,today,readOnly=false,documents=[],riskRecords=[],approvalRequests=[],auditEvents=[],modules=[],onOpenModule,onOpenContacts,onOpenTasks,onOpenRecord,onCreateFollowUp}:Props){
   const [copilotQuery,setCopilotQuery]=useState("");
   const [copilotAnswer,setCopilotAnswer]=useState<CopilotAnswer|null>(null);
   const [whatsAppMessage,setWhatsAppMessage]=useState("");
   const [whatsAppDraft,setWhatsAppDraft]=useState<WhatsAppDraft|null>(null);
   const [selectedContactId,setSelectedContactId]=useState("");
   const [successMessage,setSuccessMessage]=useState("");
+  const [intelQuery,setIntelQuery]=useState("");
+  const [intelLocation,setIntelLocation]=useState("");
+  const [intelCategory,setIntelCategory]=useState("All categories");
+  const [intelModule,setIntelModule]=useState("All modules");
+  const [intelTransaction,setIntelTransaction]=useState("All transaction types");
+  const [intelStatus,setIntelStatus]=useState("Any status");
+  const [dealMax,setDealMax]=useState("");
+  const [dealCustom,setDealCustom]=useState("");
+  const [marketMax,setMarketMax]=useState("");
+  const [marketCustom,setMarketCustom]=useState("");
+  const [settlementMax,setSettlementMax]=useState("");
+  const [settlementCustom,setSettlementCustom]=useState("");
+  const [savedSearchName,setSavedSearchName]=useState("");
+  const [savedSearches,setSavedSearches]=useState<SavedIntelligenceSearch[]>(()=>{try{const saved=JSON.parse(window.localStorage.getItem(savedSearchStorageKey)||"[]");return Array.isArray(saved)?saved:[];}catch{return [];}});
+  const [timelineRecordId,setTimelineRecordId]=useState("");
+  const [documentQuery,setDocumentQuery]=useState("");
+  const [compareIds,setCompareIds]=useState<string[]>([]);
+  const deferredIntelQuery=useDeferredValue(intelQuery);
+  const deferredIntelLocation=useDeferredValue(intelLocation);
+
 
   const openFollowUps=useMemo(()=>contacts.flatMap(contact=>(contact.followUps||[]).filter(item=>isOpen(item.status)).map(item=>({contact,item,record:properties.find(record=>record.id===item.linkedRecordId)}))),[contacts,properties]);
   const overdueFollowUps=openFollowUps.filter(row=>row.item.promisedDate&&row.item.promisedDate<today);
@@ -101,6 +133,37 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
   const portfolioValue=properties.reduce((sum,record)=>sum+parseDealNumber(record.value),0);
   const monthlyInterest=properties.filter(record=>LOAN_MODULES.has(record.module)||record.moduleData?.__transactionType==="Loan").reduce((sum,record)=>sum+calculateMonthlyInterest(record.moduleData,parseDealNumber(record.value)),0);
   const linkedRecords=useMemo(()=>{const contact=contacts.find(item=>item.id===(whatsAppDraft?.contactId||selectedContactId));return contact?properties.filter(record=>linkedToContact(contact,record)):[];},[contacts,properties,whatsAppDraft?.contactId,selectedContactId]);
+  const intelligenceFilters:IntelligenceFilters={query:deferredIntelQuery,location:deferredIntelLocation,category:intelCategory,module:intelModule,transactionType:intelTransaction,status:intelStatus,dealMax,dealCustom,marketMax,marketCustom,settlementMax,settlementCustom};
+  const intelligenceResults=useMemo(()=>filterIntelligenceRecords(properties,contacts,intelligenceFilters,modules),[properties,contacts,modules,deferredIntelQuery,deferredIntelLocation,intelCategory,intelModule,intelTransaction,intelStatus,dealMax,dealCustom,marketMax,marketCustom,settlementMax,settlementCustom]);
+  const intelligenceGroups=useMemo(()=>{const grouped=new Map<string,typeof intelligenceResults>();for(const item of intelligenceResults)grouped.set(item.record.module,[...(grouped.get(item.record.module)||[]),item]);return Array.from(grouped.entries()).sort(([a],[b])=>a.localeCompare(b));},[intelligenceResults]);
+  const categoryOptions=useMemo(()=>Array.from(new Set(modules.map(item=>item.group||"Other"))).sort(),[modules]);
+  const moduleOptions=useMemo(()=>Array.from(new Set(properties.map(item=>item.module).filter(Boolean))).sort(),[properties]);
+  const transactionOptions=useMemo(()=>Array.from(new Set(properties.map(getIntelligenceTransactionType).filter(Boolean))).sort(),[properties]);
+  const duplicateSignals=useMemo(()=>buildIntelligenceDuplicateSignals(properties,contacts),[properties,contacts]);
+  const opportunitySignals=useMemo(()=>buildIntelligenceOpportunitySignals(properties,contacts),[properties,contacts]);
+  const exposure=useMemo(()=>buildIntelligenceExposure(properties,financials),[properties,financials]);
+  const stakeholderNetwork=useMemo(()=>buildIntelligenceStakeholderNetwork(properties,contacts),[properties,contacts]);
+  const locationSummary=useMemo(()=>buildIntelligenceLocationSummary(intelligenceResults.map(item=>item.record)),[intelligenceResults]);
+  const intelligenceAlerts=useMemo(()=>buildIntelligenceAlerts({tasks,contacts,documents,riskRecords,approvalRequests,today}),[tasks,contacts,documents,riskRecords,approvalRequests,today]);
+  const selectedTimelineRecord=properties.find(record=>record.id===timelineRecordId)||intelligenceResults[0]?.record||null;
+  const activityFeed=useMemo(()=>buildIntelligenceActivityFeed({record:selectedTimelineRecord,records:properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,auditEvents}),[selectedTimelineRecord,properties,contacts,tasks,financials,documents,riskRecords,approvalRequests,auditEvents]);
+  const comparisonRecords=properties.filter(record=>compareIds.includes(record.id));
+  const contactMatches=useMemo(()=>searchIntelligenceContacts(contacts,deferredIntelQuery),[contacts,deferredIntelQuery]);
+  const conflictSignals=useMemo(()=>buildIntelligenceConflictSignals(properties),[properties]);
+  const ownershipChains=useMemo(()=>buildIntelligenceOwnershipChains(properties),[properties]);
+  const propertyCashflow=useMemo(()=>buildIntelligencePropertyCashflow(properties,financials),[properties,financials]);
+  const loanPropertyExposure=useMemo(()=>buildIntelligenceLoanPropertyExposure(properties),[properties]);
+  const documentMatches=useMemo(()=>buildIntelligenceDocumentSearch(documents,documentQuery),[documents,documentQuery]);
+  const decisionSupport=useMemo(()=>buildIntelligenceDecisionSupport(properties,contacts,documents,riskRecords,tasks,today),[properties,contacts,documents,riskRecords,tasks]);
+
+  const updateSavedSearches=(next:SavedIntelligenceSearch[])=>{setSavedSearches(next);try{window.localStorage.setItem(savedSearchStorageKey,JSON.stringify(next));}catch{}};
+  const currentFilterSnapshot=():IntelligenceFilters=>({query:intelQuery,location:intelLocation,category:intelCategory,module:intelModule,transactionType:intelTransaction,status:intelStatus,dealMax,dealCustom,marketMax,marketCustom,settlementMax,settlementCustom});
+  const saveIntelligenceSearch=()=>{const name=savedSearchName.trim();if(!name)return;const next=[{id:Date.now().toString(36),name,filters:currentFilterSnapshot()},...savedSearches].slice(0,20);updateSavedSearches(next);setSavedSearchName("");};
+  const loadIntelligenceSearch=(view:SavedIntelligenceSearch)=>{const f=view.filters||{};setIntelQuery(f.query||"");setIntelLocation(f.location||"");setIntelCategory(f.category||"All categories");setIntelModule(f.module||"All modules");setIntelTransaction(f.transactionType||"All transaction types");setIntelStatus(f.status||"Any status");setDealMax(f.dealMax||"");setDealCustom(f.dealCustom||"");setMarketMax(f.marketMax||"");setMarketCustom(f.marketCustom||"");setSettlementMax(f.settlementMax||"");setSettlementCustom(f.settlementCustom||"");};
+  const clearIntelligenceFilters=()=>{setIntelQuery("");setIntelLocation("");setIntelCategory("All categories");setIntelModule("All modules");setIntelTransaction("All transaction types");setIntelStatus("Any status");setDealMax("");setDealCustom("");setMarketMax("");setMarketCustom("");setSettlementMax("");setSettlementCustom("");};
+  const toggleCompare=(id:string)=>setCompareIds(current=>current.includes(id)?current.filter(value=>value!==id):current.length>=4?[...current.slice(1),id]:[...current,id]);
+  const openIntelligenceRecord=(record:PropertyRow)=>{if(onOpenRecord)onOpenRecord(record);else onOpenModule(record.module||"All Properties");};
+
 
   const runCopilot=(query=copilotQuery)=>{
     const value=query.trim();
@@ -190,5 +253,118 @@ export default function IntelligenceHub({properties,contacts,tasks,financials,to
         <small className="ax-whatsapp-capture-disclaimer">This first release uses paste-and-review capture. It does not silently read private chats or claim to receive live messages from WhatsApp.</small>
       </section>
     </div>
+
+    <section className="ax-intelligence-suite">
+      <header className="ax-intelligence-suite__heading">
+        <div><span className="section-kicker"><Filter size={13}/> UNIVERSAL INTELLIGENCE ENGINE</span><h3>Search, filter and connect every module</h3><p>One live view across saved records, linked stakeholders, locations, transaction types and all three independent value dimensions.</p></div>
+        <button type="button" className="secondary-button" onClick={clearIntelligenceFilters}>Clear filters</button>
+      </header>
+      <div className="ax-intelligence-suite__filters">
+        <label className="wide"><span>Universal search</span><input type="search" value={intelQuery} onChange={event=>setIntelQuery(event.target.value)} placeholder="Record, contact, WhatsApp name, phone, role, address, survey number…"/></label>
+        <label><span><MapPin size={12}/> Location / locality</span><input value={intelLocation} onChange={event=>setIntelLocation(event.target.value)} placeholder="Srirampuram, Bengaluru…"/></label>
+        <label><span>Category</span><select value={intelCategory} onChange={event=>setIntelCategory(event.target.value)}><option>All categories</option>{categoryOptions.map(value=><option key={value}>{value}</option>)}</select></label>
+        <label><span>Module</span><select value={intelModule} onChange={event=>setIntelModule(event.target.value)}><option>All modules</option>{moduleOptions.map(value=><option key={value}>{value}</option>)}</select></label>
+        <label><span>Transaction type</span><select value={intelTransaction} onChange={event=>setIntelTransaction(event.target.value)}><option>All transaction types</option>{transactionOptions.map(value=><option key={value}>{value}</option>)}</select></label>
+        <label><span>Status</span><select value={intelStatus} onChange={event=>setIntelStatus(event.target.value)}><option>Any status</option><option>Open</option><option>Closed</option></select></label>
+        <div className="ax-intelligence-suite__amounts">
+          <label><span>Deal amount · up to</span><select value={dealMax} onChange={event=>setDealMax(event.target.value)}>{amountPresets.map(item=><option value={item.value} key={item.value}>{item.label}</option>)}</select>{dealMax==="custom"&&<input value={dealCustom} onChange={event=>setDealCustom(event.target.value)} placeholder="e.g. 75cr"/>}</label>
+          <label><span>Market value · up to</span><select value={marketMax} onChange={event=>setMarketMax(event.target.value)}>{amountPresets.map(item=><option value={item.value} key={item.value}>{item.label}</option>)}</select>{marketMax==="custom"&&<input value={marketCustom} onChange={event=>setMarketCustom(event.target.value)} placeholder="e.g. 75cr"/>}</label>
+          <label><span>Settlement · up to</span><select value={settlementMax} onChange={event=>setSettlementMax(event.target.value)}>{amountPresets.map(item=><option value={item.value} key={item.value}>{item.label}</option>)}</select>{settlementMax==="custom"&&<input value={settlementCustom} onChange={event=>setSettlementCustom(event.target.value)} placeholder="e.g. 75cr"/>}</label>
+        </div>
+      </div>
+      <div className="ax-intelligence-suite__saved">
+        <div className="ax-intelligence-suite__save-form"><input value={savedSearchName} onChange={event=>setSavedSearchName(event.target.value)} placeholder="Name this search"/><button type="button" className="secondary-button" disabled={!savedSearchName.trim()} onClick={saveIntelligenceSearch}><Bookmark size={13}/> Save search</button></div>
+        <div className="ax-intelligence-suite__saved-list">{savedSearches.map(view=><span key={view.id}><button type="button" onClick={()=>loadIntelligenceSearch(view)}>{view.name}</button><button type="button" aria-label={"Delete saved search "+view.name} onClick={()=>updateSavedSearches(savedSearches.filter(item=>item.id!==view.id))}>×</button></span>)}</div>
+        <small>Saved filter views stay on this device. Amount ceilings exclude records where that value has not been entered.</small>
+      </div>
+      <div className="ax-intelligence-suite__summary">
+        <div><span>Matching records</span><strong>{intelligenceResults.length}</strong></div><div><span>Modules represented</span><strong>{intelligenceGroups.length}</strong></div><div><span>Potential signals</span><strong>{opportunitySignals.length}</strong></div><div><span>Alerts requiring review</span><strong>{intelligenceAlerts.length}</strong></div>
+      </div>
+      <div className="ax-intelligence-suite__results">
+        <div className="ax-intelligence-suite__section-head"><div><h4>Cross-module results</h4><p>Open source records directly. Similar spelling results are labelled for review, not merged.</p></div><span>{intelligenceResults.length} found</span></div>
+        {contactMatches.length>0&&<section className="ax-intelligence-suite__module ax-intelligence-suite__contacts">
+          <header><div><span className="section-kicker">PEOPLE & CONTACTS</span><strong>Standalone contact matches</strong></div><span>{contactMatches.length} matching contact(s)</span></header>
+          {contactMatches.slice(0,12).map(contact=><article className="ax-intelligence-suite__contact-result" key={contact.id}>
+            <button type="button" onClick={onOpenContacts}><strong>{contact.name}</strong><small>{contact.role||"Contact"} · {(contact.roles||[]).join(", ")||contact.customRoles||"No extra role saved"}</small></button>
+            <span>{contact.phone||"No phone saved"}{contact.whatsappName?" · WhatsApp: "+contact.whatsappName:""}{contact.verifiedName?" · "+contact.verifiedName:""}</span>
+          </article>)}
+        </section>}
+
+        {!intelligenceResults.length&&<div className="ax-command-empty">No records match these filters. Try a broader location or remove an amount ceiling.</div>}
+        {intelligenceGroups.map(([moduleName,items])=><section className="ax-intelligence-suite__module" key={moduleName}>
+          <header><div><span className="section-kicker">{items[0]?.group||"OTHER"}</span><strong>{moduleName}</strong></div><span>{items.length} record(s)</span></header>
+          {items.map(item=><article className="ax-intelligence-suite__record" key={item.record.id}>
+            <div className="ax-intelligence-suite__record-main"><button type="button" onClick={()=>openIntelligenceRecord(item.record)}><strong>{item.record.title||"Untitled record"}</strong><small>{item.record.location||"Location not recorded"} · {item.record.status||"Status not set"} · {item.transactionType||"Transaction type not set"}</small></button>{item.locationMatch.kind==="probable spelling match"&&<em>Possible spelling match · review</em>}<small>{item.linked.length?item.linked.map(person=>person.name+(person.phone?" · "+person.phone:"")).join(" | "):"No linked contact resolved"}</small></div>
+            <div className="ax-intelligence-suite__record-values"><span><small>Deal</small><strong>{formatIntelligenceMoney(item.amount)}</strong></span><span><small>Market</small><strong>{formatIntelligenceMoney(item.market)}</strong></span><span><small>Settlement</small><strong>{formatIntelligenceMoney(item.settlement)}</strong></span></div>
+            <label className="ax-intelligence-suite__compare"><input type="checkbox" checked={compareIds.includes(item.record.id)} onChange={()=>toggleCompare(item.record.id)}/> Compare</label><button type="button" className="secondary-button" onClick={()=>openIntelligenceRecord(item.record)}>Open linked record <ArrowUpRight size={13}/></button>
+          </article>)}
+        </section>)}
+      </div>
+      <div className="ax-intelligence-suite__insights">
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><TrendingUp size={12}/> FINANCIAL EXPOSURE</span><h4>Portfolio intelligence</h4></div></header>
+          <div className="ax-intelligence-suite__exposure"><div><small>Recorded deal values</small><strong>{formatIntelligenceMoney(exposure.dealValue)}</strong></div><div><small>Recorded market values</small><strong>{formatIntelligenceMoney(exposure.marketValue)}</strong></div><div><small>Expected settlements</small><strong>{formatIntelligenceMoney(exposure.expectedSettlement)}</strong></div><div><small>Known loan balances</small><strong>{formatIntelligenceMoney(exposure.knownLoanBalance)}</strong></div><div><small>Estimated loan exposure · not verified</small><strong>{formatIntelligenceMoney(exposure.estimatedLoanExposure)}</strong></div><div><small>Recorded inflow / outflow net</small><strong>{formatIntelligenceMoney(exposure.recordedNet)}</strong></div></div>
+          <small>Uses entered AXIVESTRA values and transactions; not bank-confirmed or valuation-certified.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><BellRing size={12}/> SMART ALERTS</span><h4>Requires attention</h4></div><strong>{intelligenceAlerts.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{intelligenceAlerts.slice(0,8).map((alert,index)=><article key={alert.kind+"-"+index}><b className={"severity-"+alert.severity}>{alert.severity}</b><span><strong>{alert.title}</strong><small>{alert.detail}</small></span></article>)}{!intelligenceAlerts.length&&<p>No overdue tasks, commitments, document expiries or configured critical risks are flagged.</p>}</div>
+          <small>Alerts are derived from recorded dates, statuses and risk severity.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><Sparkles size={12}/> OPPORTUNITY INTELLIGENCE</span><h4>Potential opportunities & gaps</h4></div><strong>{opportunitySignals.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{opportunitySignals.slice(0,8).map((signal,index)=><article key={signal.kind+"-"+signal.record.id+"-"+index}><b className={"severity-"+signal.severity}>{signal.severity}</b><span><strong>{signal.title}</strong><small>{signal.record.title} · {signal.detail}</small><button type="button" onClick={()=>openIntelligenceRecord(signal.record)}>Open source record</button></span></article>)}{!opportunitySignals.length&&<p>No opportunity signals or missing primary follow-up owners were detected.</p>}</div>
+          <small>Signals are review prompts, not confirmed facts or advice to transact.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><Network size={12}/> STAKEHOLDER NETWORK</span><h4>People connected to records</h4></div><strong>{stakeholderNetwork.length}</strong></header>
+          <div className="ax-intelligence-suite__network">{stakeholderNetwork.slice(0,10).map(item=><button type="button" key={item.contact.id} onClick={onOpenContacts}><span><strong>{item.contact.name}</strong><small>{item.roles.join(", ")||item.contact.role||"Stakeholder"}</small></span><em>{item.recordCount} linked</em></button>)}{!stakeholderNetwork.length&&<p>No stable contact-to-record links were found. Display-name matches are not treated as confirmed relationships.</p>}</div>
+        </section>
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><MapPin size={12}/> LOCATION PORTFOLIO</span><h4>Records by locality</h4></div><strong>{locationSummary.length}</strong></header>
+          <div className="ax-intelligence-suite__network">{locationSummary.slice(0,10).map(item=><button type="button" key={item.location} onClick={()=>setIntelLocation(item.location.split(" · ")[0])}><span><strong>{item.location}</strong><small>{item.modules.join(", ")}</small></span><em>{item.count} record(s)</em></button>)}{!locationSummary.length&&<p>No location data is available for the current filter.</p>}</div>
+        </section>
+        <section className="ax-intelligence-suite__panel"><header><div><span className="section-kicker"><FileSearch size={12}/> DUPLICATE & CONFLICT REVIEW</span><h4>Potential matches, not merged</h4></div><strong>{duplicateSignals.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{duplicateSignals.slice(0,8).map((signal,index)=><article key={signal.kind+"-"+index}><b className="severity-medium">review</b><span><strong>{signal.title}</strong><small>{signal.detail}</small></span></article>)}{!duplicateSignals.length&&<p>No obvious repeated contact numbers or property identifiers were detected.</p>}</div>
+          <small>Review suggestions only. No automatic merge, overwrite or deletion.</small>
+        </section>
+      </div>
+
+      <div className="ax-intelligence-suite__insights ax-intelligence-suite__expanded">
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><FileSearch size={12}/> DOCUMENT INTELLIGENCE</span><h4>Search document vault metadata</h4></div><strong>{documents.length}</strong></header>
+          <input className="ax-intelligence-suite__document-search" type="search" value={documentQuery} onChange={event=>setDocumentQuery(event.target.value)} placeholder="Search document name, type, property, notes…"/>
+          <div className="ax-intelligence-suite__signal-list">{documentMatches.slice(0,10).map(document=><article key={document.id}><b className="severity-medium">{document.category||"file"}</b><span><strong>{document.name}</strong><small>{document.property||"Unlinked property"} · {document.expiresOn?"Expires "+document.expiresOn:"No expiry date recorded"} · {document.mimeType||"File"}</small></span></article>)}{!documentMatches.length&&<p>No matching document metadata. PDF body text is not indexed by this feature.</p>}</div>
+          <button type="button" className="secondary-button" onClick={()=>onOpenModule("Documents")}>Open document vault <ArrowUpRight size={13}/></button>
+          <small>Search uses stored document metadata only; it does not claim OCR or extract PDF text.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><Layers size={12}/> PROPERTY TRANSACTION CHAIN</span><h4>Ownership and transaction record trail</h4></div><strong>{ownershipChains.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{ownershipChains.slice(0,8).map(chain=><article className="ax-intelligence-suite__chain" key={chain.key}><span><strong>{chain.title}</strong><small>{chain.surveyNumber?"Survey / ID "+chain.surveyNumber:"Matched by exact title and location"}</small>{chain.entries.map((entry:any)=><div className="ax-intelligence-suite__chain-entry" key={entry.id}><time>{entry.date||"Date not recorded"}</time><button type="button" onClick={()=>{const record=properties.find(item=>item.id===entry.id);if(record)openIntelligenceRecord(record);}}>{entry.transactionType||entry.module} · {entry.title}</button><small>{entry.transferFrom||entry.ownershipDetails||"Previous owner not recorded"} {entry.transferTo?" → "+entry.transferTo:""}</small></div>)}</span></article>)}{!ownershipChains.length&&<p>No multi-record property chain could be formed from exact survey IDs or exact title/location matches.</p>}</div>
+          <small>Record trail only, not a certified title search or legal ownership conclusion.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><Wallet size={12}/> RENTAL & PROPERTY CASHFLOW</span><h4>Property-wise recorded cashflow</h4></div><strong>{propertyCashflow.length}</strong></header>
+          <div className="ax-intelligence-suite__table-wrap"><table><thead><tr><th>Property</th><th>Rent received</th><th>Tenant advances</th><th>Operating costs</th><th>Net recorded</th></tr></thead><tbody>{propertyCashflow.slice(0,12).map(item=><tr key={item.record.id}><td>{item.record.title}</td><td>{formatIntelligenceMoney(item.rentReceived)}</td><td>{formatIntelligenceMoney(item.tenantAdvances)}</td><td>{formatIntelligenceMoney(item.operatingCosts)}</td><td>{formatIntelligenceMoney(item.recordedNet)}</td></tr>)}</tbody></table>{!propertyCashflow.length&&<p>No property-linked rent, advance, deposit or operating expense entries were found.</p>}</div>
+          <small>Only explicitly linked financial entries and recognized transaction types are included. Unrecorded or unpaid rent is not inferred.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><Landmark size={12}/> LOAN-TO-PROPERTY EXPOSURE</span><h4>Secured / linked loan records</h4></div><strong>{loanPropertyExposure.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{loanPropertyExposure.slice(0,10).map(item=><article key={item.loan.id}><b className={item.linked?"severity-opportunity":"severity-medium"}>{item.linked?"linked":"unlinked"}</b><span><strong>{item.loan.title}</strong><small>{item.property?.title||item.reference||"No explicit property link"} · Known balance: {formatIntelligenceMoney(item.knownOutstanding)} · Principal: {formatIntelligenceMoney(item.principal)}</small><button type="button" onClick={()=>openIntelligenceRecord(item.loan)}>Open loan record</button></span></article>)}{!loanPropertyExposure.length&&<p>No loan records were identified in the current modules.</p>}</div>
+          <small>Only explicit property IDs or exact saved property names are linked. Principal is not treated as current outstanding balance.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><ShieldCheck size={12}/> DECISION SUPPORT</span><h4>Evidence and action readiness</h4></div><strong>{decisionSupport.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{decisionSupport.slice(0,10).map(item=><article key={item.record.id}><b className={item.status==="Ready for human review"?"severity-opportunity":"severity-medium"}>{item.status}</b><span><strong>{item.record.title}</strong><small>{item.missing.length?"Missing: "+item.missing.join(", "):"Minimum linked evidence fields present"}{item.openRisk?" · Open risk":""}{item.overdue?" · Overdue task":""} · {item.docCount} linked document(s)</small><button type="button" onClick={()=>openIntelligenceRecord(item.record)}>Review source record</button></span></article>)}</div>
+          <small>Readiness is a checklist of saved evidence and actions, not a credit, legal, valuation or investment score.</small>
+        </section>
+        <section className="ax-intelligence-suite__panel">
+          <header><div><span className="section-kicker"><CircleAlert size={12}/> DATA CONFLICT REVIEW</span><h4>Conflicting values, addresses or owners</h4></div><strong>{conflictSignals.length}</strong></header>
+          <div className="ax-intelligence-suite__signal-list">{conflictSignals.slice(0,10).map((signal,index)=><article key={signal.kind+"-"+index}><b className="severity-medium">review</b><span><strong>{signal.title}</strong><small>{signal.detail}</small>{signal.items?.map((item:any)=><button type="button" key={item.id} onClick={()=>{const record=properties.find(row=>row.id===item.id);if(record)openIntelligenceRecord(record);}}>Open {item.module}</button>)}</span></article>)}{!conflictSignals.length&&<p>No cross-record value, address or ownership differences were detected for repeated property identifiers.</p>}</div>
+          <small>Signals require human verification; transactions can legitimately have different values over time.</small>
+        </section>
+      </div>
+      {comparisonRecords.length>=2&&<section className="ax-intelligence-suite__panel ax-intelligence-suite__comparison"><header><div><span className="section-kicker"><GitCompare size={12}/> CROSS-MODULE COMPARISON</span><h4>Side-by-side comparison</h4></div><button type="button" className="secondary-button" onClick={()=>setCompareIds([])}>Clear selection</button></header>
+        <div className="ax-intelligence-suite__table-wrap"><table><thead><tr><th>Field</th>{comparisonRecords.map(record=><th key={record.id}>{record.title}</th>)}</tr></thead><tbody><tr><th>Module</th>{comparisonRecords.map(record=><td key={record.id}>{record.module}</td>)}</tr><tr><th>Deal amount</th>{comparisonRecords.map(record=><td key={record.id}>{formatIntelligenceMoney(getIntelligenceRecordAmount(record))}</td>)}</tr><tr><th>Market value</th>{comparisonRecords.map(record=><td key={record.id}>{formatIntelligenceMoney(getIntelligenceMarketValue(record))}</td>)}</tr><tr><th>Settlement</th>{comparisonRecords.map(record=><td key={record.id}>{formatIntelligenceMoney(getIntelligenceSettlementValue(record))}</td>)}</tr><tr><th>Location</th>{comparisonRecords.map(record=><td key={record.id}>{record.location||"Not entered"}</td>)}</tr><tr><th>Owner / contact</th>{comparisonRecords.map(record=><td key={record.id}>{record.contact||"Not linked"}</td>)}</tr><tr><th>Transaction type</th>{comparisonRecords.map(record=><td key={record.id}>{getIntelligenceTransactionType(record)||"Not entered"}</td>)}</tr><tr><th>Status</th>{comparisonRecords.map(record=><td key={record.id}>{record.status}</td>)}</tr></tbody></table></div>
+      </section>}
+      <section className="ax-intelligence-suite__panel ax-intelligence-suite__timeline"><header><div><span className="section-kicker"><CalendarClock size={12}/> PROPERTY & DEAL HISTORY</span><h4>Unified activity timeline</h4><p>Linked commitments, tasks, financial activity, documents, risks, approvals and audit history.</p></div><select value={selectedTimelineRecord?.id||""} onChange={event=>setTimelineRecordId(event.target.value)}><option value="">Select a record</option>{properties.map(record=><option value={record.id} key={record.id}>{record.module} · {record.title}</option>)}</select></header>
+        <div className="ax-intelligence-suite__timeline-list">{activityFeed.slice(0,20).map(event=><article key={event.id}><time>{String(event.at).replace("T"," ").slice(0,16)}</time><span><strong>{event.title}</strong><small>{event.source} · {event.detail}</small></span></article>)}{!activityFeed.length&&<p>No linked activity history is available for the selected record.</p>}</div>
+      </section>
+    </section>
   </section>;
 }

@@ -2698,3 +2698,821 @@ h2,h3{color:#e5f2fc}
   .ax-record-followups__table{min-width:0;font-size:8px}
   .ax-record-followups__table input,.ax-record-followups__table select,.ax-record-followups__table textarea{border:0;padding:0;min-width:0}
 }
+
+
+/* AXIVESTRA mobile-only usability and performance corrections.
+   Desktop styles and existing module content/behaviour are intentionally unchanged. */
+@media (max-width: 720px) {
+  html { scroll-behavior: auto; }
+  .app-shell, .main-panel, .content,
+  .ax-analytics-panel, .ax-module-workbench {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .app-shell { overflow-x: clip; }
+  .content { width: 100%; }
+
+  /* Keep analytics and chart visualizations inside the phone viewport. */
+  .ax-analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+  }
+  .ax-chart-stage {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding-bottom: 10px;
+  }
+  .ax-donut-wrap,
+  .ax-horizontal-bars,
+  .ax-line-chart,
+  .ax-cashflow-bars,
+  .ax-module-chart-focus,
+  .ax-module-chart-bars,
+  .ax-module-chart-line {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ax-donut-wrap { padding: 14px 8px; gap: 8px; }
+  .ax-donut-wrap svg,
+  .ax-module-donut-chart svg,
+  .ax-line-chart svg,
+  .ax-cashflow-bars svg,
+  .ax-module-chart-line svg {
+    display: block;
+    width: min(100%, 260px);
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+  .ax-module-donut-chart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding: 12px 8px;
+    overflow: hidden;
+  }
+  .ax-module-chart-bars { overflow-x: hidden; }
+  .ax-module-chart-bar {
+    grid-template-columns: minmax(72px, 1fr) minmax(50px, 1.2fr) minmax(48px, auto);
+    gap: 8px;
+  }
+  .ax-chart-inspector { width: 100%; min-width: 0; }
+
+  /* Make compact desktop labels readable on phone screens. */
+  .content :is(p, label, input, select, textarea, button, td, th, small),
+  .ax-analytics-panel :is(p, label, input, select, textarea, button, small),
+  .ax-module-workbench :is(p, label, input, select, textarea, button, small),
+  .ax-inspector-pair span,
+  .ax-inspector-pair strong,
+  .ax-chart-legend button,
+  .ax-module-chart-legend button {
+    font-size: max(12px, 1em);
+  }
+  .module-card h3 { font-size: 13px; line-height: 1.4; }
+  .module-card p { font-size: 12px; line-height: 1.55; }
+  .nav-item { font-size: 14px; min-height: 46px; }
+  .breadcrumb { font-size: 12px; }
+  .ax-kicker, .ax-live-status { font-size: 10px; }
+
+  /* Reduce expensive motion and layered effects on mobile without changing actions. */
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .module-card:hover,
+  .ax-module-card:hover,
+  .ax-chart-point:hover {
+    transform: none;
+    filter: none;
+  }
+}
+@media (max-width: 380px) {
+  .ax-module-chart-bar {
+    grid-template-columns: minmax(65px, 1fr) minmax(42px, 1.1fr) minmax(44px, auto);
+    gap: 6px;
+  }
+}
+
+@media (max-width: 720px) {
+  /* The module trend chart previously forced a 400px SVG on narrow screens. */
+  .ax-module-chart-line { overflow: hidden; }
+  .ax-module-chart-line svg {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .ax-module-chart-center-note { max-width: 100%; text-align: center; }
+}
+
+
+/* AXIVESTRA desktop/tablet corrections: same navigation, chart and readability
+   issues reported on PC. Existing modules and desktop content are preserved. */
+@media (min-width: 721px) {
+  html { scroll-behavior: auto; }
+
+  /* Readability: bring the smallest dashboard and analytics labels up to 12px. */
+  .subtitle,
+  .section-heading p,
+  .panel-heading p,
+  .hero-copy p,
+  .module-card p,
+  .module-link,
+  .ax-chart-mode-title p,
+  .ax-chart-empty p,
+  .ax-chart-inspector > small,
+  .ax-inspector-pair span,
+  .ax-inspector-pair strong,
+  .ax-toggle-row,
+  .ax-inspector-action,
+  .ax-chart-legend button > span,
+  .ax-chart-legend button > strong,
+  .ax-module-analytics-head p,
+  .ax-module-metric-tabs button,
+  .ax-module-chart-bar > span,
+  .ax-module-chart-bar > strong,
+  .ax-module-chart-legend button > span,
+  .ax-module-chart-legend button > strong,
+  .ax-module-chart-legend button > small,
+  .ax-module-analytics-note {
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .module-card h3 { font-size: 14px; line-height: 1.4; }
+  .ax-chart-mode-title strong { font-size: 14px; }
+  .ax-chart-empty small { font-size: 11px; }
+
+  /* Keep charts centered in their available column instead of forcing
+     a wider chart canvas that creates sideways clipping. */
+  .ax-analytics-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(235px, 270px);
+    min-width: 0;
+    width: 100%;
+  }
+  .ax-chart-stage,
+  .ax-chart-inspector,
+  .ax-module-analytics,
+  .ax-module-chart-focus,
+  .ax-module-chart-line,
+  .ax-module-chart-bars {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .ax-chart-stage { width: 100%; }
+  .ax-donut-wrap { width: 100%; justify-content: center; }
+  .ax-donut-wrap svg {
+    display: block;
+    width: min(245px, 100%);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  .ax-module-donut-chart {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+  .ax-module-chart-line {
+    width: 100%;
+    overflow: hidden;
+  }
+  .ax-module-chart-line svg {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    margin-inline: auto;
+  }
+  .ax-module-chart-bars { width: 100%; }
+
+  /* Shorten chart/card effects that otherwise repaint large dashboard areas. */
+  .module-card,
+  .enterprise-module-card,
+  .ax-donut-segment,
+  .ax-chart-point,
+  .ax-module-chart-bar > i > b {
+    transition-duration: .16s;
+  }
+}
+@media (min-width: 721px) and (max-width: 1100px) {
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-analytics-grid { grid-template-columns: minmax(0, 1fr); }
+  .ax-chart-inspector { min-height: 0; }
+}
+
+
+/* Contact search: ensure results remain visible and usable in every module form. */
+.searchable-contact-picker--open {
+  z-index: 140;
+}
+.searchable-contact-picker__options {
+  position: relative;
+  z-index: 141;
+  width: 100%;
+  min-width: 0;
+  max-height: min(300px, 42vh);
+}
+.searchable-contact-picker__group-results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0 7px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(130,167,194,.18);
+}
+.searchable-contact-picker__section-label {
+  display: block;
+  padding: 4px 7px;
+  color: #74c8d6;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.searchable-contact-picker__group-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(54,145,170,.2);
+  border-radius: 8px;
+  background: rgba(17,56,77,.62);
+  color: #dceff8;
+  text-align: left;
+  cursor: pointer;
+}
+.searchable-contact-picker__group-option:hover,
+.searchable-contact-picker__group-option.selected,
+.searchable-contact-picker__group-option:focus-visible {
+  border-color: #38b6cd;
+  background: rgba(32,105,130,.35);
+}
+.searchable-contact-picker__group-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(43,155,179,.18);
+  color: #71d9e8;
+}
+.searchable-contact-picker__group-option > span:nth-child(2) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.searchable-contact-picker__group-option strong {
+  color: #e6f8ff;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.searchable-contact-picker__group-option small {
+  color: #90b4c6;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.searchable-contact-picker__group-action {
+  flex: 0 0 auto;
+  color: #78e0ed;
+  font-size: 10px;
+  font-weight: 800;
+}
+.searchable-contact-picker__option {
+  touch-action: manipulation;
+}
+.searchable-contact-picker__group-option,
+.searchable-contact-picker__clear,
+.searchable-contact-picker__close,
+.searchable-contact-picker__chip button {
+  touch-action: manipulation;
+}
+.searchable-contact-picker__option.active {
+  outline: 1px solid rgba(74,197,220,.55);
+  background: rgba(45,125,157,.2);
+}
+.ax-record-followup-owner {
+  flex-wrap: wrap;
+}
+.ax-record-followup-owner strong {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ax-record-quick-actions {
+  flex-wrap: wrap;
+}
+.ax-record-detail__people button {
+  touch-action: manipulation;
+}
+@media (max-width: 720px) {
+  .searchable-contact-picker__options {
+    max-height: min(260px, 38vh);
+  }
+  .searchable-contact-picker__group-option {
+    min-height: 46px;
+  }
+  .searchable-contact-picker__group-option strong {
+    font-size: 13px;
+  }
+  .searchable-contact-picker__group-option small,
+  .searchable-contact-picker__group-action {
+    font-size: 11px;
+  }
+  .ax-record-followup-owner {
+    align-items: flex-start;
+  }
+  .ax-record-followup-owner strong {
+    flex-basis: 100%;
+    margin-left: 20px;
+  }
+}
+
+/* Reliable sidebar interaction and scrolling on touch devices and desktop. */
+.sidebar {
+  position: relative;
+  z-index: 31;
+  isolation: isolate;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+.nav-list,
+.nav-item,
+.ax-sidebar-module-list,
+.ax-sidebar-module {
+  pointer-events: auto;
+}
+.nav-item,
+.ax-sidebar-module {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.nav-item:focus-visible,
+.ax-sidebar-module:focus-visible {
+  outline: 2px solid #62d5e7;
+  outline-offset: 2px;
+}
+@media (max-width: 720px) {
+  .sidebar {
+    z-index: 50;
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .sidebar.sidebar-open {
+    pointer-events: auto;
+  }
+  .sidebar .nav-item,
+  .sidebar .ax-sidebar-module {
+    min-height: 46px;
+  }
+  .scrim {
+    z-index: 40;
+  }
+}
+
+/* Client & Deal Hub: module grouping and filter controls. */
+.relationship-hub-filters {
+  display: grid;
+  grid-template-columns: minmax(190px, .8fr) minmax(240px, 1.4fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0 20px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.relationship-hub-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.relationship-hub-filters select,
+.relationship-hub-filters input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 11px;
+  background: #fff;
+  color: #172738;
+  font: inherit;
+  font-size: 13px;
+}
+.relationship-hub-result-count {
+  align-self: center;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.relationship-module-group {
+  margin: 18px 0 26px;
+}
+.relationship-module-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--green, #173c2c);
+  border-radius: 8px;
+  background: var(--green-light, #e8f0e8);
+}
+.relationship-module-group > header h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+.relationship-module-group > header > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+@media (max-width: 720px) {
+  .relationship-hub-filters {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 11px;
+  }
+  .relationship-hub-result-count {
+    justify-self: start;
+  }
+  .relationship-module-group > header h3 {
+    font-size: 14px;
+  }
+}
+
+/* AXIVESTRA Intelligence Suite — responsive cross-module intelligence workspace. */
+.ax-intelligence-suite{display:flex;flex-direction:column;gap:16px;margin-top:22px;min-width:0}
+.ax-intelligence-suite__heading,.ax-intelligence-suite__section-head,.ax-intelligence-suite__panel>header,.ax-intelligence-suite__module>header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.ax-intelligence-suite__heading h3,.ax-intelligence-suite__panel h4{margin:4px 0;color:var(--text,#eaf4fb)}
+.ax-intelligence-suite__heading p,.ax-intelligence-suite__section-head p,.ax-intelligence-suite__panel>small,.ax-intelligence-suite__timeline header p{margin:4px 0 0;color:var(--muted,#8ea5b8);font-size:12px;line-height:1.5}
+.ax-intelligence-suite__filters,.ax-intelligence-suite__panel{min-width:0;padding:14px;border:1px solid var(--border,rgba(116,154,184,.2));border-radius:13px;background:var(--surface,rgba(12,29,45,.65))}
+.ax-intelligence-suite__filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}
+.ax-intelligence-suite__filters label,.ax-intelligence-suite__amounts label{display:flex;flex-direction:column;gap:6px;min-width:0;color:var(--muted,#91a9bc);font-size:11px;font-weight:700}
+.ax-intelligence-suite__filters label.wide{grid-column:span 2}
+.ax-intelligence-suite__filters label>span,.ax-intelligence-suite__amounts label>span{display:flex;align-items:center;gap:5px}
+.ax-intelligence-suite__filters input,.ax-intelligence-suite__filters select,.ax-intelligence-suite__amounts input,.ax-intelligence-suite__amounts select,.ax-intelligence-suite__save-form input,.ax-intelligence-suite__timeline select{width:100%;min-width:0;min-height:40px;border:1px solid var(--border,rgba(116,154,184,.25));border-radius:8px;padding:8px 10px;background:var(--input-bg,#0b2032);color:var(--text,#e8f4fb);font:inherit;font-size:12px}
+.ax-intelligence-suite__amounts{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:10px;border-top:1px solid var(--border,rgba(116,154,184,.18))}
+.ax-intelligence-suite__saved{display:flex;flex-direction:column;gap:9px;padding:11px 13px;border:1px solid var(--border,rgba(116,154,184,.2));border-radius:11px;background:rgba(9,25,40,.48);min-width:0}
+.ax-intelligence-suite__save-form{display:flex;gap:8px;min-width:0}
+.ax-intelligence-suite__saved-list{display:flex;flex-wrap:wrap;gap:7px}
+.ax-intelligence-suite__saved-list>span{display:inline-flex;border:1px solid rgba(77,180,207,.28);border-radius:20px;overflow:hidden}
+.ax-intelligence-suite__saved-list button{border:0;background:rgba(38,111,136,.17);color:var(--text,#dcebf6);padding:6px 10px;font-size:11px;cursor:pointer}
+.ax-intelligence-suite__saved-list button+button{border-left:1px solid rgba(77,180,207,.25);padding-inline:8px}
+.ax-intelligence-suite__saved>small{color:var(--muted,#8ea5b8);font-size:10px;line-height:1.5}
+.ax-intelligence-suite__summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.ax-intelligence-suite__summary>div{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--border,rgba(116,154,184,.18));border-radius:10px;background:rgba(14,37,55,.6);min-width:0}
+.ax-intelligence-suite__summary span,.ax-intelligence-suite__record-values small,.ax-intelligence-suite__exposure small{color:var(--muted,#91a9bc);font-size:10px}
+.ax-intelligence-suite__summary strong{color:var(--text,#eef8ff);font-size:20px}
+.ax-intelligence-suite__results,.ax-intelligence-suite__insights{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ax-intelligence-suite__section-head h4{margin:0;font-size:15px}
+.ax-intelligence-suite__section-head>span{color:var(--muted,#91a9bc);font-size:11px;white-space:nowrap}
+.ax-intelligence-suite__module{border:1px solid var(--border,rgba(116,154,184,.18));border-radius:11px;overflow:hidden;min-width:0}
+.ax-intelligence-suite__module>header{padding:10px 13px;background:rgba(37,97,121,.16);border-bottom:1px solid var(--border,rgba(116,154,184,.18))}
+.ax-intelligence-suite__module>header>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ax-intelligence-suite__module>header strong{color:var(--text,#eaf4fb)}
+.ax-intelligence-suite__module>header>span{color:var(--muted,#91a9bc);font-size:11px}
+.ax-intelligence-suite__record{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(260px,1.1fr) auto auto;align-items:center;gap:12px;padding:11px 13px;border-bottom:1px solid var(--border,rgba(116,154,184,.13));min-width:0}
+.ax-intelligence-suite__record:last-child{border-bottom:0}
+.ax-intelligence-suite__record-main{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ax-intelligence-suite__record-main>button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;border:0;padding:0;background:none;color:var(--text,#eef8ff);text-align:left;cursor:pointer}
+.ax-intelligence-suite__record-main>button strong{overflow-wrap:anywhere}
+.ax-intelligence-suite__record-main small{color:var(--muted,#91a9bc);font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+.ax-intelligence-suite__record-main em{color:#e6bc74;font-size:10px;font-style:normal}
+.ax-intelligence-suite__record-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-width:0}
+.ax-intelligence-suite__record-values span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ax-intelligence-suite__record-values strong{color:var(--text,#eaf4fb);font-size:11px;overflow-wrap:anywhere}
+.ax-intelligence-suite__compare{display:flex;align-items:center;gap:5px;white-space:nowrap;color:var(--muted,#91a9bc);font-size:10px}
+.ax-intelligence-suite__compare input{accent-color:#56c2d8}
+.ax-intelligence-suite__record>.secondary-button{white-space:nowrap}
+.ax-intelligence-suite__insights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.ax-intelligence-suite__panel{display:flex;flex-direction:column;gap:10px}
+.ax-intelligence-suite__panel>header h4{font-size:14px}
+.ax-intelligence-suite__panel>header .section-kicker{display:flex;align-items:center;gap:5px}
+.ax-intelligence-suite__exposure{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ax-intelligence-suite__exposure>div{display:flex;flex-direction:column;gap:5px;padding:9px;border-radius:8px;background:rgba(35,86,111,.18);min-width:0}
+.ax-intelligence-suite__exposure strong{font-size:13px;color:var(--text,#eaf4fb);overflow-wrap:anywhere}
+.ax-intelligence-suite__signal-list,.ax-intelligence-suite__network,.ax-intelligence-suite__timeline-list{display:flex;flex-direction:column;gap:7px;min-width:0}
+.ax-intelligence-suite__signal-list>article,.ax-intelligence-suite__timeline-list>article{display:flex;align-items:flex-start;gap:9px;padding:9px;border-radius:8px;background:rgba(33,64,86,.2);min-width:0}
+.ax-intelligence-suite__signal-list>article>span,.ax-intelligence-suite__timeline-list>article>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ax-intelligence-suite__signal-list strong,.ax-intelligence-suite__timeline-list strong{color:var(--text,#eaf4fb);font-size:11px}
+.ax-intelligence-suite__signal-list small,.ax-intelligence-suite__timeline-list small{color:var(--muted,#91a9bc);font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.ax-intelligence-suite__signal-list b{flex:0 0 auto;padding:3px 6px;border-radius:5px;background:rgba(192,151,83,.15);color:#dfc184;font-size:9px;text-transform:uppercase}
+.ax-intelligence-suite__signal-list b.severity-high{background:rgba(200,76,76,.16);color:#f2a4a4}
+.ax-intelligence-suite__signal-list b.severity-medium{background:rgba(192,151,83,.15);color:#dfc184}
+.ax-intelligence-suite__signal-list b.severity-opportunity{background:rgba(66,155,120,.16);color:#8ed7b5}
+.ax-intelligence-suite__signal-list button{align-self:flex-start;border:0;padding:0;background:none;color:#72cfe1;font-size:10px;cursor:pointer}
+.ax-intelligence-suite__network>button{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--border,rgba(116,154,184,.12));border-radius:8px;padding:9px;background:rgba(33,64,86,.18);color:var(--text,#eaf4fb);text-align:left;cursor:pointer;min-width:0}
+.ax-intelligence-suite__network>button>span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ax-intelligence-suite__network strong{overflow-wrap:anywhere;font-size:11px}
+.ax-intelligence-suite__network small{color:var(--muted,#91a9bc);font-size:10px;overflow-wrap:anywhere}
+.ax-intelligence-suite__network em{flex:0 0 auto;color:#7dd5e5;font-size:10px;font-style:normal}
+.ax-intelligence-suite__comparison>header,.ax-intelligence-suite__timeline>header{align-items:flex-start}
+.ax-intelligence-suite__table-wrap{width:100%;max-width:100%;overflow-x:auto;border:1px solid var(--border,rgba(116,154,184,.18));border-radius:8px}
+.ax-intelligence-suite__table-wrap table{min-width:620px;width:100%;border-collapse:collapse;font-size:11px}
+.ax-intelligence-suite__table-wrap th,.ax-intelligence-suite__table-wrap td{padding:9px;border-bottom:1px solid var(--border,rgba(116,154,184,.12));text-align:left;vertical-align:top}
+.ax-intelligence-suite__table-wrap th{color:var(--text,#eaf4fb)}
+.ax-intelligence-suite__table-wrap td{color:var(--muted,#b1c0cc)}
+.ax-intelligence-suite__timeline>header select{max-width:320px}
+.ax-intelligence-suite__timeline-list>article{display:grid;grid-template-columns:130px minmax(0,1fr)}
+.ax-intelligence-suite__timeline-list time{color:#78cada;font-size:10px}
+.ax-intelligence-suite__timeline-list>p,.ax-intelligence-suite__signal-list>p,.ax-intelligence-suite__network>p{color:var(--muted,#91a9bc);font-size:11px}
+@media(max-width:900px){.ax-intelligence-suite__record{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ax-intelligence-suite__record-values{grid-column:1/-1;grid-row:2}}
+@media(max-width:720px){.ax-intelligence-suite__heading,.ax-intelligence-suite__section-head,.ax-intelligence-suite__panel>header{align-items:flex-start;flex-direction:column}.ax-intelligence-suite__filters{grid-template-columns:1fr;padding:11px}.ax-intelligence-suite__filters label.wide{grid-column:1}.ax-intelligence-suite__amounts{grid-template-columns:1fr}.ax-intelligence-suite__summary{grid-template-columns:repeat(2,minmax(0,1fr))}.ax-intelligence-suite__insights{grid-template-columns:1fr}.ax-intelligence-suite__record{grid-template-columns:1fr;gap:8px}.ax-intelligence-suite__record-values{grid-column:auto;grid-row:auto}.ax-intelligence-suite__record>.secondary-button{justify-self:start}.ax-intelligence-suite__save-form{flex-direction:column}.ax-intelligence-suite__timeline>header select{max-width:none;width:100%}.ax-intelligence-suite__timeline-list>article{grid-template-columns:1fr;gap:4px}}
+
+.ax-intelligence-suite__expanded{margin-top:0}
+.ax-intelligence-suite__document-search{width:100%;min-height:40px;border:1px solid var(--border,rgba(116,154,184,.25));border-radius:8px;padding:8px 10px;background:var(--input-bg,#0b2032);color:var(--text,#e8f4fb);font-size:12px}
+.ax-intelligence-suite__chain>span{display:flex;flex-direction:column;gap:7px;width:100%;min-width:0}
+.ax-intelligence-suite__chain-entry{display:grid;grid-template-columns:110px minmax(0,1fr);gap:4px 8px;padding:7px 0 7px 10px;border-left:2px solid rgba(83,190,211,.4);min-width:0}
+.ax-intelligence-suite__chain-entry time{color:#7fcada;font-size:10px}
+.ax-intelligence-suite__chain-entry button{justify-self:start;border:0;padding:0;background:none;color:var(--text,#eaf4fb);font-size:11px;text-align:left;cursor:pointer}
+.ax-intelligence-suite__chain-entry small{grid-column:2;color:var(--muted,#91a9bc);font-size:10px;overflow-wrap:anywhere}
+@media(max-width:720px){.ax-intelligence-suite__chain-entry{grid-template-columns:1fr}.ax-intelligence-suite__chain-entry small{grid-column:1}}
+
+.ax-intelligence-suite__contact-result{display:grid;grid-template-columns:minmax(0,1fr) minmax(130px,.7fr);align-items:center;gap:10px;padding:10px 13px;border-bottom:1px solid var(--border,rgba(116,154,184,.14));min-width:0}
+.ax-intelligence-suite__contact-result:last-child{border-bottom:0}
+.ax-intelligence-suite__contact-result>button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;border:0;padding:0;background:none;color:var(--text,#eaf4fb);text-align:left;cursor:pointer;min-width:0}
+.ax-intelligence-suite__contact-result strong{font-size:12px;overflow-wrap:anywhere}
+.ax-intelligence-suite__contact-result small,.ax-intelligence-suite__contact-result>span{font-size:10px;color:var(--muted,#91a9bc);overflow-wrap:anywhere}
+@media(max-width:720px){.ax-intelligence-suite__contact-result{grid-template-columns:1fr;gap:5px}}
+
+
+/* Final mobile viewport containment: prevent the workspace from rendering
+   wider than the device and pushing the whole screen sideways. */
+@media (max-width: 720px) {
+  html, body, #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .app-shell {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: clip;
+  }
+  .main-panel {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow-x: clip;
+  }
+  .topbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .top-actions {
+    min-width: 0;
+    max-width: 58%;
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+  .company-session {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .company-session-name,
+  .company-session-role {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    margin: 0;
+    overflow-x: clip;
+  }
+  .welcome-row {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .welcome-row > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .welcome-row .primary-button {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .content > *,
+  .content section,
+  .content article,
+  .content header,
+  .content form,
+  .content .card,
+  .content .panel {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sidebar {
+    width: min(285px, 86vw);
+    max-width: 86vw;
+  }
+  /* Wide data tables remain locally scrollable; they must not widen the page. */
+  .ax-followup-register__grid-wrap,
+  .ax-record-followups__table-wrap,
+  .ax-intelligence-suite__table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+@media (max-width: 380px) {
+  .topbar { padding-left: 9px; padding-right: 9px; gap: 6px; }
+  .breadcrumb { min-width: 0; }
+  .content { padding-left: 10px; padding-right: 10px; }
+  .welcome-row { gap: 10px; }
+  .welcome-row .primary-button { width: 100%; justify-content: center; }
+}
+
+
+/* Critical mobile navigation fix: the later shared sidebar rule changed the
+   mobile drawer back to position:relative, leaving its width in document flow.
+   Keep the drawer out of layout flow so the workspace starts at x=0. */
+@media (max-width: 720px) {
+  main.app-shell {
+    display: block !important;
+    position: relative;
+    width: 100vw;
+    max-width: 100vw;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+  main.app-shell > .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: min(285px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100dvh;
+    min-height: 100dvh;
+    z-index: 50;
+    transform: translateX(-105%);
+    transition: transform .25s ease;
+  }
+  main.app-shell > .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  main.app-shell > .main-panel {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+
+/* Mobile layout correction v2 — the closed drawer must not reserve any
+   horizontal space in the document. Keep it as an overlay only while open. */
+@media (max-width: 720px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow-x: clip;
+  }
+
+  main.app-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start;
+    justify-items: stretch;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: clip;
+  }
+
+  main.app-shell > aside.sidebar:not(.sidebar-open) {
+    display: none !important;
+  }
+
+  main.app-shell > aside.sidebar.sidebar-open {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: min(285px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh !important;
+    margin: 0 !important;
+    transform: translateX(0) !important;
+    z-index: 1000 !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  main.app-shell > .main-panel {
+    grid-column: 1;
+    display: block !important;
+    position: relative !important;
+    inset: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: clip;
+  }
+
+  main.app-shell > .scrim {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 999 !important;
+  }
+
+  .topbar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .top-actions {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .ax-command-center,
+  .ax-universal-search.search-box,
+  .ax-command-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .ax-universal-search.search-box {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  .content {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}

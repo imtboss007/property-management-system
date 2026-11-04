@@ -134,7 +134,7 @@ export function remapWorkspaceContactReferences(workspace, remap) {
     const moduleData = { ...(property.moduleData || {}) };
     for (const [key, value] of Object.entries(moduleData)) {
       if (key.startsWith("__contact_")) moduleData[key] = remapId(value, remap);
-      if (key === "__linkedContactIds") {
+      if (key === "__linkedContactIds" || key === "__followUpContactIds") {
         moduleData[key] = [...new Set(String(value || "").split(",").map(id => remapId(id.trim(), remap)).filter(Boolean))].join(",");
       }
     }
