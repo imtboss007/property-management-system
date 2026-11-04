@@ -4,10 +4,10 @@ import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import QRCode from "qrcode";
 import {
-  reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
+  reconcileDeviceSync, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
-import { localDb } from "./lib/local-db";
+import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -21,7 +21,8 @@ import {
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
-  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck
+  Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
+  BrainCircuit, Workflow
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -113,6 +114,8 @@ const modules = [
 ];
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
+  { name: "Intelligence Hub", icon: BrainCircuit },
+  { name: "AXIVESTRA Shift", icon: Workflow },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
   { name: "Client & Deal Hub", icon: Handshake },
@@ -862,17 +865,21 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       if (manual) setSyncBusy(true);
       try {
         let remote = await readRemote();
-        const baselineKey = "axivestra.deviceSyncBaseline";
-        let baselineValue: unknown = null;
-        try { baselineValue = JSON.parse(localStorage.getItem(baselineKey) || "null"); } catch {}
-        const baseline = parseDeviceSyncBaseline(baselineValue);
+        const legacyBaselineKey = "axivestra.deviceSyncBaseline";
+        let legacyBaselineValue: unknown = null;
+        try { legacyBaselineValue = JSON.parse(localStorage.getItem(legacyBaselineKey) || "null"); } catch {}
+        const baselineId = "device-sync:personal";
+        const baseline = await loadDeviceSyncBaseline(baselineId, legacyBaselineValue);
+        if (legacyBaselineValue) {
+          try { localStorage.removeItem(legacyBaselineKey); } catch {}
+        }
         let completed = false;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (disposed) return;
           const result = reconcileDeviceSync(localSnapshot, remote.snapshot || {}, baseline);
           if (deviceSyncSnapshotsEqual(result.snapshot, remote.snapshot || {})) {
-            localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
-            applySnapshot(result.snapshot);
+            await saveDeviceSyncBaseline(baselineId, result.baseline);
+            if (!deviceSyncSnapshotsEqual(result.snapshot, localSnapshot)) applySnapshot(result.snapshot);
             completed = true;
             break;
           }
@@ -883,15 +890,19 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           }
           if (saved.ok === false) throw new Error(saved.error || "The PC did not save the shared data.");
           if (disposed) return;
-          localStorage.setItem(baselineKey, JSON.stringify(result.baseline));
+          await saveDeviceSyncBaseline(baselineId, result.baseline);
+          try { localStorage.removeItem(legacyBaselineKey); } catch {}
           applySnapshot(result.snapshot);
           completed = true;
           break;
         }
         if (!completed) throw new Error("The shared data changed on both devices. Tap Sync now to retry.");
         if (!disposed) {
-          const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-          setSyncStatus(desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
+          setSyncStatus(previous => {
+            if (!manual && (previous.startsWith("Connected · synced") || previous.startsWith("PC ready · synced"))) return previous;
+            const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+            return desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time;
+          });
         }
       } catch (error) {
         if (!disposed) {
@@ -907,8 +918,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       }
     };
     deviceSyncRunRef.current = runSync;
-    const firstSync = window.setTimeout(() => { void runSync(false); }, 700);
-    const syncInterval = window.setInterval(() => { void runSync(false); }, 15000);
+    const firstSync = window.setTimeout(() => { void runSync(false); }, 1200);
+    const syncInterval = window.setInterval(() => { void runSync(false); }, 60000);
     return () => {
       disposed = true;
       window.clearTimeout(firstSync);
@@ -1534,6 +1545,23 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closePropertyForm();
     setNotice("Property record saved on this device.");
   };
+  const updateRecordFollowUpContacts = (record: PropertyRecord, contactIds: string[]) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only access cannot change follow-up contacts.");
+      return;
+    }
+    const ids = Array.from(new Set(contactIds.filter(id => contacts.some(contact => contact.id === id))));
+    const updated: PropertyRecord = {
+      ...record,
+      moduleData: { ...record.moduleData, __followUpContactIds: ids.join(",") }
+    };
+    setProperties(previous => previous.map(item => item.id === record.id ? updated : item));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: "updated" as const, entity: "Property",
+      recordId: record.id, label: "Follow-up contacts updated · " + record.title
+    }, ...previous].slice(0, 500));
+  };
+
   const saveContact = (data: Omit<ContactRecord, "id">) => {
     const record: ContactRecord = editingContact ? { ...editingContact, ...data } : { ...data, id: uid() };
     const possibleDuplicate = !editingContact && Boolean(record.phone) && contacts.find(item => sameContactPhone(item.phone, record.phone));
@@ -1964,7 +1992,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : active === "Intelligence Hub" ? go("Schedule & Tasks") : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Intelligence Hub" ? "Open action queue" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
             <div className="ax-property-range-results__head">
@@ -2075,6 +2103,49 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             </div>
           </>}
           
+
+          {active === "Intelligence Hub" && <section className="ax-intelligence-hub-page">
+            <div className="institutional-banner ax-intelligence-banner">
+              <div className="institutional-copy">
+                <span className="institutional-label"><span className="live-dot"/> AXIVESTRA INTELLIGENCE HUB</span>
+                <h2>One decision layer across your entire portfolio.</h2>
+                <p>Live portfolio signals, financial movement, operating pipeline and decisions waiting for action.</p>
+              </div>
+              <div className="banner-aside">
+                <span>LIVE WORKSPACE RECORDS</span>
+                <strong>{properties.length.toLocaleString("en-IN")}</strong>
+                <small>Saved records across {modules.length} operating modules</small>
+              </div>
+            </div>
+            <div className="ax-intelligence-kpis">
+              <article><span>PORTFOLIO VALUE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Entered asset values only</small></article>
+              <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
+              <article><span>PENDING APPROVALS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting a recorded decision</small></article>
+              <article><span>OPEN HIGH RISKS</span><strong>{riskRecords.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase())).length}</strong><small>High / critical open risk records</small></article>
+            </div>
+            <PortfolioAnalytics
+              properties={properties.map(item => ({ id:item.id,title:item.title,module:item.module,value:item.value,status:item.status }))}
+              financials={financials.map(item => ({ id:item.id,type:item.type,amount:item.amount,date:item.date }))}
+              tasks={tasks.map(item => ({ id:item.id,date:item.date,done:item.done,type:item.type }))}
+              modules={modules.map(item => ({ name:item.name,value:0,count:properties.filter(property=>property.module===item.name).length }))}
+              onOpenModule={name=>go(name)}
+            />
+            <div className="ax-intelligence-lower">
+              <section className="data-panel">
+                <div className="section-heading"><div><h2>Decisions waiting</h2><p>Approval requests still marked pending.</p></div><button className="text-button" onClick={()=>go("Approvals")}>Open approvals <ArrowUpRight size={14}/></button></div>
+                {approvalRequests.filter(item=>item.status==="pending").length
+                  ? <div className="governance-list">{approvalRequests.filter(item=>item.status==="pending").slice(0,6).map(item=><div className="governance-row" key={item.id}><span className={`priority-dot priority-${item.priority.toLowerCase()}`}/><div><strong>{item.title}</strong><small>{item.area}{item.entity ? " · "+item.entity : ""}</small></div><button className="text-button" onClick={()=>go("Approvals")}>Review</button></div>)}</div>
+                  : <Empty icon={<ClipboardCheck size={20}/>} title="No pending decisions" text="New approvals will appear here when a review is requested." action="Create approval" onClick={()=>setShowApprovalForm(true)}/>}
+              </section>
+              <section className="data-panel">
+                <div className="section-heading"><div><h2>Upcoming obligations</h2><p>Next dated tasks from your saved schedule.</p></div><button className="text-button" onClick={()=>go("Schedule & Tasks")}>Open schedule <ArrowUpRight size={14}/></button></div>
+                {tasks.filter(item=>!item.done).length
+                  ? <TaskList tasks={tasks.filter(item=>!item.done).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time)).slice(0,6)} toggle={toggleTask} remove={deleteTask} edit={openTaskForm} onWhatsApp={openWhatsAppFor}/>
+                  : <Empty icon={<CalendarClock size={20}/>} title="No open actions" text="Schedule a dated next step to keep work moving." action="Add a task" onClick={()=>openTaskForm()}/>}
+              </section>
+            </div>
+          </section>}
+
           {active === "All Properties" || modules.some(m=>m.name===active) ? <ModuleWorkbench
             moduleName={active === "All Properties" ? "All Properties" : active}
             description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : modules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
@@ -2084,6 +2155,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
+            onUpdateFollowUpContacts={updateRecordFollowUpContacts}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
@@ -2105,6 +2177,51 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
             {tasks.length ? <TaskList tasks={[...tasks].sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm}/> : <Empty icon={<CalendarClock size={22}/>} title="Nothing scheduled yet" text="Add a dated task for a payment, meeting, registration or follow-up." action="Create schedule" onClick={()=>openTaskForm()}/>}</section>}
+
+          {active === "AXIVESTRA Shift" && <section className="ax-shift-page">
+            <div className="institutional-banner ax-shift-banner">
+              <div className="institutional-copy">
+                <span className="institutional-label"><span className="live-dot"/> AXIVESTRA SHIFT · DAILY OPERATIONS</span>
+                <h2>Start with what needs attention today.</h2>
+                <p>A live handover view of overdue work, today’s tasks, pending contacts and next actions. All items are linked to your existing records.</p>
+                <div className="banner-actions"><button className="hero-button" onClick={()=>openTaskForm()}><Plus size={15}/> Add shift action</button><button className="banner-ghost" onClick={()=>go("Schedule & Tasks")}>Open full schedule <ArrowUpRight size={14}/></button></div>
+              </div>
+              <div className="banner-aside">
+                <span>SHIFT DATE</span>
+                <strong>{new Date(today+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})}</strong>
+                <small>{new Date(today+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",year:"numeric"})}</small>
+              </div>
+            </div>
+            <div className="ax-shift-kpis">
+              <article><span>OVERDUE</span><strong>{tasks.filter(item=>!item.done && item.date<today).length}</strong><small>Open tasks past their date</small></article>
+              <article><span>DUE TODAY</span><strong>{tasks.filter(item=>!item.done && item.date===today).length}</strong><small>Actions scheduled for today</small></article>
+              <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Outstanding tasks overall</small></article>
+              <article><span>PENDING DECISIONS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting approval</small></article>
+            </div>
+            <div className="ax-shift-columns">
+              <section className="data-panel">
+                <div className="section-heading"><div><h2>Today’s shift actions</h2><p>Overdue items first, followed by today’s scheduled work.</p></div><button className="text-button" onClick={()=>go("Schedule & Tasks")}>Full schedule <ArrowUpRight size={14}/></button></div>
+                {tasks.filter(item=>!item.done && item.date<=today).length
+                  ? <TaskList tasks={tasks.filter(item=>!item.done && item.date<=today).sort((a,b)=>(a.date+"T"+a.time).localeCompare(b.date+"T"+b.time))} toggle={toggleTask} remove={deleteTask} edit={openTaskForm} onWhatsApp={openWhatsAppFor}/>
+                  : <Empty icon={<CircleCheck size={20}/>} title="No overdue or due-today actions" text="Your daily action queue is clear. Add a follow-up or meeting when work comes in." action="Add action" onClick={()=>openTaskForm()}/>}
+              </section>
+              <section className="data-panel">
+                <div className="section-heading"><div><h2>Follow-up handover</h2><p>Records with a follow-up date on or before today.</p></div><span className="ax-shift-count">{properties.filter(item=>item.nextFollowUpDate && item.nextFollowUpDate<=today && !["completed","closed","settled"].includes(String(item.status).toLowerCase())).length}</span></div>
+                <div className="ax-shift-followup-list">
+                  {properties.filter(item=>item.nextFollowUpDate && item.nextFollowUpDate<=today && !["completed","closed","settled"].includes(String(item.status).toLowerCase())).sort((a,b)=>a.nextFollowUpDate!.localeCompare(b.nextFollowUpDate!)).slice(0,12).map(record=>{
+                    const ids=(record.moduleData?.__followUpContactIds ?? "").split(",").filter(Boolean);
+                    const people=contacts.filter(contact=>ids.includes(contact.id));
+                    return <article key={record.id}>
+                      <div><strong>{record.title}</strong><small>{record.module} · {record.nextFollowUpDate}</small><p>{people.length ? people.map(person=>person.name).join(" · ") : "No follow-up contact linked yet"}</p></div>
+                      <div className="ax-shift-actions"><button className="secondary-button" onClick={()=>openTaskForm(null,{title:"Follow up · "+record.title,date:record.nextFollowUpDate || today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:people[0]?.id || record.primaryContactId,contactName:people[0]?.name || record.contact})}>Schedule</button><button className="secondary-button" onClick={()=>go(record.module)}>Open record</button></div>
+                    </article>;
+                  })}
+                  {properties.filter(item=>item.nextFollowUpDate && item.nextFollowUpDate<=today && !["completed","closed","settled"].includes(String(item.status).toLowerCase())).length===0 && <div className="ax-shift-empty">No dated record follow-ups are due today or overdue.</div>}
+                </div>
+              </section>
+            </div>
+          </section>}
+
           {active === "Financials" && <section className="data-panel">
             <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
             <div className="finance-summary"><div><span>Tracked inflows</span><strong>₹{totalInflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Tracked outflows</span><strong>₹{totalOutflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Net recorded movement</span><strong>₹{(totalInflow-totalOutflow).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div></div>
@@ -2406,6 +2523,7 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    <SearchableContactPicker label="Follow-up contacts (multiple people)" contacts={contacts} multiple value={(form.moduleData.__followUpContactIds ?? "").split(",").filter(Boolean)} placeholder="Search people responsible for the next follow-up…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__followUpContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Add every person who must be contacted for this record. This is saved separately from the primary contact and other stakeholders."/>
     {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
