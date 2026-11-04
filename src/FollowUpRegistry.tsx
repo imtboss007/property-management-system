@@ -56,7 +56,7 @@ export default function FollowUpRegistry({
   const [amountSort, setAmountSort] = useState<"none"|"high"|"low">("none");
   const [month, setMonth] = useState(today.slice(0,7));
   const [view, setView] = useState<"people"|"timeline"|"calendar">("people");
-  const contactById = useMemo(() => new Map(contacts.map(contact => [contact.id, contact])), [contacts]);
+  const contactById = useMemo(() => new Map<string, Contact>(contacts.map(contact => [contact.id, contact] as const)), [contacts]);
 
   const items = useMemo<Item[]>(() => {
     const result: Item[] = [];
