@@ -19,6 +19,7 @@ type Props = {
   onEdit: (record: ModuleRecord) => void;
   onDelete: (id: string) => void;
   onSchedule: (record: ModuleRecord, contact?: Contact) => void;
+  onAddFollowUp: (record: ModuleRecord, contact?: Contact) => void;
   onWhatsApp: (contactId?: string, propertyId?: string) => void;
   onUpdateFollowUpContacts: (record: ModuleRecord, contactIds: string[]) => void;
 };
@@ -209,6 +210,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
             {!followUpPeople.length && <small className="ax-followup-contact-empty">No follow-up person linked</small>}
           </div>
         </div>
+        <button type="button" className="ax-record-add-followup" onClick={()=>onAddFollowUp(record,followUpPeople[0]||linked[0])}><Plus size={15}/> Add follow-up</button>
         {expandedRow&&<div className="ax-record-expanded">{fieldsShown.map(field=><p key={field.key}><span>{field.label}</span><strong>{getFieldValue(record,field.key)}</strong></p>)}{record.notes&&<p><span>Notes / evidence</span><strong>{record.notes}</strong></p>}<div className="ax-linked-people">{linked.length ? linked.map(contact=><span key={contact.id}><Users size={12}/>{contact.name} · {contact.role}</span>) : <span>No named stakeholder linked</span>}</div></div>}
         <div className="ax-record-actions"><button onClick={()=>toggleExpanded(record.id)}><Eye size={14}/>{expandedRow?"Hide details":"Inspect details"}</button><button onClick={()=>onEdit(record)}><Pencil size={14}/>Edit</button><button className="danger" onClick={()=>onDelete(record.id)}><Trash2 size={14}/>Delete</button></div>
         <div className="ax-record-quick-actions"><button onClick={()=>onSchedule(record,followUpPeople[0]||linked[0])}><CalendarClock size={13}/>Follow-up</button>{linked.length ? linked.map(contact=><button key={contact.id} onClick={()=>onWhatsApp(contact.id,record.id)}><MessageCircle size={13}/>Message {contact.name.split(" ")[0]}</button>) : <button onClick={()=>onWhatsApp(undefined,record.id)}><MessageCircle size={13}/>WhatsApp</button>}<button onClick={()=>toggleExpanded(record.id)}><ArrowUpRight size={13}/> {expandedRow?"Collapse":"Open record"}</button></div>
