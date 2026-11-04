@@ -4,7 +4,7 @@ import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { BarcodeFormat, BarcodeScanner } from "@capacitor-mlkit/barcode-scanning";
 import QRCode from "qrcode";
 import {
-  reconcileDeviceSync, parseDeviceSyncBaseline, deviceSyncSnapshotsEqual,
+  reconcileDeviceSync, deviceSyncSnapshotsEqual,
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
 import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
@@ -898,10 +898,11 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         }
         if (!completed) throw new Error("The shared data changed on both devices. Tap Sync now to retry.");
         if (!disposed) {
-          if (manual || !syncStatus.startsWith("Connected · synced") && !syncStatus.startsWith("PC ready · synced")) {
+          setSyncStatus(previous => {
+            if (!manual && (previous.startsWith("Connected · synced") || previous.startsWith("PC ready · synced"))) return previous;
             const time = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-            setSyncStatus(desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time);
-          }
+            return desktopTransport ? "PC ready · synced " + time : "Connected · synced " + time;
+          });
         }
       } catch (error) {
         if (!disposed) {
@@ -1987,7 +1988,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : active === "Intelligence Hub" ? go("Schedule & Tasks") : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Intelligence Hub" ? "Open action queue" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
             <div className="ax-property-range-results__head">
