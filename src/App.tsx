@@ -2266,6 +2266,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               onOpenRisks={()=>go("Risk & Compliance")}
               onOpenContacts={query=>{if(query)setSearch(query);go("Contacts");}}
               onOpenFinancials={()=>go("Financials")}
+              onOpenSchedule={()=>go("Schedule & Tasks")}
             />
             <div className="ax-intelligence-kpis">
               <article><span>PORTFOLIO VALUE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Entered asset values only</small></article>
