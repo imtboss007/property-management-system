@@ -2239,6 +2239,28 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               <article><span>PENDING APPROVALS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting a recorded decision</small></article>
               <article><span>OPEN HIGH RISKS</span><strong>{riskRecords.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase())).length}</strong><small>High / critical open risk records</small></article>
             </div>
+            <section className="data-panel ax-intelligence-followups">
+              <div className="section-heading">
+                <div><h2>Follow-up intelligence</h2><p>Live assignments across all modules, grouped and linked to their source records.</p></div>
+                <div className="ax-intelligence-followup-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open full registry <ArrowUpRight size={14}/></button><button className="primary-button" onClick={()=>openFollowUpForm()}><Plus size={15}/> Add follow-up</button></div>
+              </div>
+              <div className="ax-intelligence-followup-metrics">
+                <button onClick={()=>{go("Follow-up Registry");}}><span>OVERDUE</span><strong>{overdueFollowUps}</strong><small>Need attention now</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>DUE TODAY</span><strong>{followUpsDueToday}</strong><small>Scheduled today</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>UPCOMING</span><strong>{upcomingFollowUps}</strong><small>Future commitments</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>MULTI-PERSON</span><strong>{followUpsWithMultiplePeople}</strong><small>Shared assignments</small></button>
+              </div>
+              <div className="ax-intelligence-followup-list">
+                {registryDashboardItems.filter(item=>!isFollowUpClosed(item.entry.status)).sort((a,b)=>(a.entry.date||"9999-12-31").localeCompare(b.entry.date||"9999-12-31")).slice(0,5).map(item=>{
+                  const people=item.entry.contactIds.map(id=>contacts.find(contact=>contact.id===id)?.name).filter(Boolean);
+                  return <article key={item.record?.id+":"+item.entry.id}>
+                    <div><span className={"ax-followup-priority priority-"+item.entry.priority.toLowerCase()}>{item.entry.priority}</span><strong>{item.entry.description}</strong><small>{item.module} · {item.recordTitle} · {item.entry.date || "No date"}{item.entry.time ? " · "+item.entry.time : ""}</small><p>{people.length ? people.join(" · ") : "No follow-up person assigned"}{item.amount ? " · ₹"+Number(item.amount).toLocaleString("en-IN",{maximumFractionDigits:0}) : ""}</p></div>
+                    <div className="ax-shift-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open</button>{item.record && <button className="secondary-button" onClick={()=>openFollowUpForm(item.record as PropertyRecord)}>Add linked</button>}</div>
+                  </article>;
+                })}
+                {registryDashboardItems.filter(item=>!isFollowUpClosed(item.entry.status)).length===0 && <p className="ax-followup-empty">No active follow-ups are currently recorded. Add the first assignment from any module.</p>}
+              </div>
+            </section>
             <PortfolioAnalytics
               properties={properties.map(item => ({ id:item.id,title:item.title,module:item.module,value:item.value,status:item.status }))}
               financials={financials.map(item => ({ id:item.id,type:item.type,amount:item.amount,date:item.date }))}
