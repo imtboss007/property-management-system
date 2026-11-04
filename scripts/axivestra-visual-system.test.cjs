@@ -84,7 +84,7 @@ assert.match(registry, /Overdue/, "The registry must expose overdue follow-ups."
 assert.match(registry, /Upcoming/, "The registry must expose upcoming follow-ups.");
 assert.match(registry, /Completed/, "The registry must expose completed follow-ups.");
 assert.match(registry, /amountSort/, "The registry must support amount-wise ordering.");
-assert.match(registry, /view === "calendar"/, "The registry must include a calendar view.");
+assert.match(registry, /view==="calendar"/, "The registry must include a calendar view.");
 assert.match(followUps, /contactIds/, "Follow-up records must support multiple assigned people.");
 assert.match(followUpForm, /Follow-up date/, "Follow-up form must capture a date.");
 assert.match(followUpForm, /Follow-up time/, "Follow-up form must capture a time.");
