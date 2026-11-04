@@ -44,7 +44,7 @@ export default function AxivestraOrbitalHub({
     openTimer.current = setTimeout(() => {
       setZoomed(false);
       onOpen(name);
-    }, 380);
+    }, 620);
   };
 
   const orbitItems = useMemo(() => items.map((item, index) => {
@@ -74,9 +74,11 @@ export default function AxivestraOrbitalHub({
           <h2>Command your connected workspaces.</h2>
           <p>Choose an orbit to open the live workspace. Each node is linked to your existing AXIVESTRA records.</p>
         </div>
-        <button type="button" className="ax-orbit-all" onClick={() => onOpen("All Properties")}>
-          Open all records <ArrowUpRight size={15} />
-        </button>
+        <div className="ax-orbit-shortcuts">
+          <button type="button" className="ax-orbit-shortcut" onClick={() => onOpen("Intelligence Hub")}><Sparkles size={14}/> Intelligence Hub</button>
+          <button type="button" className="ax-orbit-shortcut" onClick={() => onOpen("AXIVESTRA Shift")}><Activity size={14}/> AXIVESTRA Shift</button>
+          <button type="button" className="ax-orbit-all" onClick={() => onOpen("All Properties")}>Open all records <ArrowUpRight size={15}/></button>
+        </div>
       </div>
 
       <div className="ax-orbit-stage">
