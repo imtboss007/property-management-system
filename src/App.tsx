@@ -12,6 +12,9 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, type CompanyR
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import ModuleWorkbench from "./ModuleWorkbench";
+import FollowUpRegistry from "./FollowUpRegistry";
+import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
+import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
@@ -22,7 +25,7 @@ import {
   Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow
+  BrainCircuit, Workflow, ListTodo
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -34,7 +37,7 @@ type PropertyRecord = {
 type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string };
 type SavedWhatsAppGroup = { id: string; jid: string; name: string; subject?: string; description?: string; size?: number; lastSyncedAt?: string };
 type SyncedWhatsAppContact = { id: string; jid: string; phone: string; name: string; whatsappName?: string; notify?: string; verifiedName?: string };
-type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean };
+type TaskRecord = { id: string; title: string; date: string; time: string; type: string; property: string; propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean; followUpContactIds?: string[]; priority?: "Low"|"Normal"|"High"|"Urgent"; nextAction?: string; createdAt?: string };
 type DocumentRecord = { id: string; propertyId: string; property: string; contactId?: string; name: string; category: string; storagePath: string; mimeType: string; sizeBytes: number; expiresOn: string; notes: string; createdAt: string };
 
 type FinancialRecord = { id: string; propertyId: string; property: string; contactId?: string; type: string; amount: string; date: string; party: string; reference: string; notes: string };
@@ -118,6 +121,7 @@ const navigation = [
   { name: "AXIVESTRA Shift", icon: Workflow },
   { name: "All Properties", icon: LandPlot },
   { name: "Contacts", icon: Users },
+  { name: "Follow-up Registry", icon: ListTodo },
   { name: "Client & Deal Hub", icon: Handshake },
   { name: "Financials", icon: Calculator },
   { name: "Documents", icon: FileText },
@@ -608,6 +612,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [editingFollowUp, setEditingFollowUp] = useState<{ record: PropertyRecord; entry: FollowUpEntry } | null>(null);
+  const [followUpDefault, setFollowUpDefault] = useState<{ propertyId?: string; contactId?: string } | null>(null);
   const [editingProperty, setEditingProperty] = useState<PropertyRecord | null>(null);
   const [editingContact, setEditingContact] = useState<ContactRecord | null>(null);
   const [editingTask, setEditingTask] = useState<TaskRecord | null>(null);
@@ -1306,6 +1313,33 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   };
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const today = new Date().toISOString().slice(0,10);
+  const registryDashboardItems = [
+    ...properties.flatMap(record => {
+      const entries = parseFollowUps(record.moduleData);
+      const structured = entries.map(entry => ({ entry, record, module: record.module, recordTitle: record.title, amount: entry.amount || record.value }));
+      const legacy = legacyRecordFollowUp(record);
+      return legacy && !entries.some(entry => entry.date === legacy.date)
+        ? [...structured, { entry: legacy, record, module: record.module, recordTitle: record.title, amount: legacy.amount || record.value }]
+        : structured;
+    }),
+    ...tasks.filter(task => String(task.type || "").toLowerCase().includes("follow")).map(task => {
+      const record = properties.find(item => item.id === task.propertyId);
+      const entry: FollowUpEntry = {
+        id: "task:" + task.id,
+        contactIds: Array.from(new Set([...(task.followUpContactIds || []), task.contactId || ""].filter(Boolean))),
+        description: task.title, amount: record?.value || "", date: task.date, time: task.time,
+        priority: task.priority || "Normal", status: task.done ? "Completed" : "Open",
+        notes: task.notes || "", nextAction: task.nextAction || "", assignedAt: task.createdAt || ""
+      };
+      return { entry, record: record || null, module: record?.module || task.type, recordTitle: task.property || record?.title || "No linked record", amount: record?.value || "" };
+    })
+  ];
+  const activeRegistryItems = registryDashboardItems.filter(item => !isFollowUpClosed(item.entry.status));
+  const followUpsDueToday = activeRegistryItems.filter(item => item.entry.date === today).length;
+  const overdueFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date < today).length;
+  const upcomingFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date > today).length;
+  const followUpsWithMultiplePeople = registryDashboardItems.filter(item => item.entry.contactIds.length > 1).length;
+  const followUpNavCount = overdueFollowUps + followUpsDueToday;
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
   const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -1522,6 +1556,25 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const openWhatsAppFor = (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => { setWhatsAppPrefill({ contactId, propertyId, taskId, taskTitle }); setActive("WhatsApp Automation"); setMobileMenu(false); setNotice(""); };
   const openFinancialForm = (record: FinancialRecord | null = null) => { setEditingFinancial(record); setShowFinancialForm(true); };
   const closeFinancialForm = () => { setShowFinancialForm(false); setEditingFinancial(null); };
+  const closeFollowUpForm = () => { setShowFollowUpForm(false); setEditingFollowUp(null); setFollowUpDefault(null); };
+  const openFollowUpForm = (record: PropertyRecord | null = null, contact?: ContactRecord) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    setEditingFollowUp(null);
+    setFollowUpDefault({ propertyId: record?.id, contactId: contact?.id });
+    setShowFollowUpForm(true);
+  };
+  const openFollowUpEditor = (record: PropertyRecord, entry: FollowUpEntry) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    setEditingFollowUp({ record, entry });
+    setFollowUpDefault({ propertyId: record.id });
+    setShowFollowUpForm(true);
+  };
 
   const saveProperty = (data: Omit<PropertyRecord, "id" | "createdAt">) => {
     const record: PropertyRecord = editingProperty
@@ -1545,6 +1598,80 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     closePropertyForm();
     setNotice("Property record saved on this device.");
   };
+  const saveFollowUp = ({ propertyId, entry }: FollowUpDraft) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot add or change follow-ups.");
+      return;
+    }
+    const target = properties.find(item => item.id === propertyId);
+    if (!target) {
+      setNotice("Choose a valid source record before saving this follow-up.");
+      return;
+    }
+    const source = editingFollowUp?.record;
+    const targetEntries = parseFollowUps(target.moduleData);
+    const assignedPeopleKey = [...entry.contactIds].sort().join(",");
+    const duplicate = targetEntries.find(item => item.id !== entry.id
+      && item.description.trim().toLocaleLowerCase() === entry.description.trim().toLocaleLowerCase()
+      && item.date === entry.date && item.time === entry.time
+      && [...item.contactIds].sort().join(",") === assignedPeopleKey
+      && !isFollowUpClosed(item.status));
+    if (duplicate) {
+      setNotice("A matching follow-up already exists for this record, date, time and assigned people. Edit the existing item instead of creating a duplicate.");
+      return;
+    }
+    setProperties(previous => previous.map(record => {
+      if (source && source.id !== target.id && record.id === source.id) {
+        const remaining = parseFollowUps(record.moduleData).filter(item => item.id !== editingFollowUp.entry.id);
+        return { ...record, moduleData: { ...record.moduleData, __followUps: serializeFollowUps(remaining) } };
+      }
+      if (record.id !== target.id) return record;
+      const current = parseFollowUps(record.moduleData);
+      const exists = current.some(item => item.id === entry.id);
+      const next = exists ? current.map(item => item.id === entry.id ? entry : item) : [entry, ...current];
+      return { ...record, moduleData: { ...record.moduleData, __followUps: serializeFollowUps(next) } };
+    }));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: editingFollowUp ? "updated" as const : "created" as const,
+      entity: "Follow-up", recordId: target.id,
+      label: (editingFollowUp ? "Follow-up updated · " : "Follow-up created · ") + entry.description + " · " + target.title
+    }, ...previous].slice(0, 500));
+    closeFollowUpForm();
+    setNotice(editingFollowUp ? "Follow-up updated on the linked module record." : "Follow-up saved and linked to the source module record.");
+  };
+
+  const updateFollowUpEntry = (record: PropertyRecord, entry: FollowUpEntry) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot change follow-ups.");
+      return;
+    }
+    const next = parseFollowUps(record.moduleData).map(item => item.id === entry.id ? entry : item);
+    setProperties(previous => previous.map(item => item.id === record.id
+      ? { ...item, moduleData: { ...item.moduleData, __followUps: serializeFollowUps(next) } }
+      : item));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: "updated" as const, entity: "Follow-up",
+      recordId: record.id, label: "Follow-up status updated · " + entry.description
+    }, ...previous].slice(0, 500));
+  };
+
+  const deleteFollowUpEntry = (record: PropertyRecord, entryId: string) => {
+    if (company?.role === "read_only") {
+      setNotice("Read-only company access cannot delete follow-ups.");
+      return;
+    }
+    const entry = parseFollowUps(record.moduleData).find(item => item.id === entryId);
+    if (!entry || !window.confirm("Delete this follow-up from " + record.title + "?")) return;
+    const next = parseFollowUps(record.moduleData).filter(item => item.id !== entryId);
+    setProperties(previous => previous.map(item => item.id === record.id
+      ? { ...item, moduleData: { ...item.moduleData, __followUps: serializeFollowUps(next) } }
+      : item));
+    setAuditEvents(previous => [{
+      id: uid(), at: new Date().toISOString(), action: "deleted" as const, entity: "Follow-up",
+      recordId: record.id, label: "Follow-up deleted · " + entry.description
+    }, ...previous].slice(0, 500));
+  };
+
   const updateRecordFollowUpContacts = (record: PropertyRecord, contactIds: string[]) => {
     if (company?.role === "read_only") {
       setNotice("Read-only access cannot change follow-up contacts.");
@@ -1978,7 +2105,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         <div className="brand"><div className="brand-mark ax-brand-mark"><img src="./axivestra-mark.svg" alt="" /></div><div><strong>AXIVESTRA</strong><span>ASSET INTELLIGENCE</span></div>
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
-        <nav className="nav-list">{navigation.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}</button>)}</nav>
+        <nav className="nav-list">{navigation.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
         <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
@@ -1992,7 +2119,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
-            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : active === "Intelligence Hub" ? go("Schedule & Tasks") : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Intelligence Hub" ? "Open action queue" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
+            <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Follow-up Registry" || active === "Intelligence Hub" ? openFollowUpForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Follow-up Registry" || active === "Intelligence Hub" ? "Add follow-up" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
             <div className="ax-property-range-results__head">
@@ -2123,6 +2250,28 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
               <article><span>PENDING APPROVALS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting a recorded decision</small></article>
               <article><span>OPEN HIGH RISKS</span><strong>{riskRecords.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase())).length}</strong><small>High / critical open risk records</small></article>
             </div>
+            <section className="data-panel ax-intelligence-followups">
+              <div className="section-heading">
+                <div><h2>Follow-up intelligence</h2><p>Live assignments across all modules, grouped and linked to their source records.</p></div>
+                <div className="ax-intelligence-followup-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open full registry <ArrowUpRight size={14}/></button><button className="primary-button" onClick={()=>openFollowUpForm()}><Plus size={15}/> Add follow-up</button></div>
+              </div>
+              <div className="ax-intelligence-followup-metrics">
+                <button onClick={()=>{go("Follow-up Registry");}}><span>OVERDUE</span><strong>{overdueFollowUps}</strong><small>Need attention now</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>DUE TODAY</span><strong>{followUpsDueToday}</strong><small>Scheduled today</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>UPCOMING</span><strong>{upcomingFollowUps}</strong><small>Future commitments</small></button>
+                <button onClick={()=>{go("Follow-up Registry");}}><span>MULTI-PERSON</span><strong>{followUpsWithMultiplePeople}</strong><small>Shared assignments</small></button>
+              </div>
+              <div className="ax-intelligence-followup-list">
+                {registryDashboardItems.filter(item=>!isFollowUpClosed(item.entry.status)).sort((a,b)=>(a.entry.date||"9999-12-31").localeCompare(b.entry.date||"9999-12-31")).slice(0,5).map(item=>{
+                  const people=item.entry.contactIds.map(id=>contacts.find(contact=>contact.id===id)?.name).filter(Boolean);
+                  return <article key={item.record?.id+":"+item.entry.id}>
+                    <div><span className={"ax-followup-priority priority-"+item.entry.priority.toLowerCase()}>{item.entry.priority}</span><strong>{item.entry.description}</strong><small>{item.module} · {item.recordTitle} · {item.entry.date || "No date"}{item.entry.time ? " · "+item.entry.time : ""}</small><p>{people.length ? people.join(" · ") : "No follow-up person assigned"}{item.amount ? " · ₹"+Number(item.amount).toLocaleString("en-IN",{maximumFractionDigits:0}) : ""}</p></div>
+                    <div className="ax-shift-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open</button>{item.record && <button className="secondary-button" onClick={()=>openFollowUpForm(item.record as PropertyRecord)}>Add linked</button>}</div>
+                  </article>;
+                })}
+                {registryDashboardItems.filter(item=>!isFollowUpClosed(item.entry.status)).length===0 && <p className="ax-followup-empty">No active follow-ups are currently recorded. Add the first assignment from any module.</p>}
+              </div>
+            </section>
             <PortfolioAnalytics
               properties={properties.map(item => ({ id:item.id,title:item.title,module:item.module,value:item.value,status:item.status }))}
               financials={financials.map(item => ({ id:item.id,type:item.type,amount:item.amount,date:item.date }))}
@@ -2156,6 +2305,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
             onUpdateFollowUpContacts={updateRecordFollowUpContacts}
+            onAddFollowUp={(record,contact)=>openFollowUpForm(record as PropertyRecord,contact as ContactRecord)}
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
@@ -2173,6 +2323,22 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onEditTask={openTaskForm}
             onToggleTask={toggleTask}
             onDeleteTask={deleteTask}
+          />}
+          {active === "Follow-up Registry" && <FollowUpRegistry
+            properties={properties}
+            contacts={contacts}
+            tasks={tasks}
+            today={today}
+            onAdd={()=>openFollowUpForm()}
+            onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
+            onUpdateEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)updateFollowUpEntry(source,entry);}}
+            onDeleteEntry={(record,entryId)=>{const source=properties.find(item=>item.id===record.id);if(source)deleteFollowUpEntry(source,entryId);}}
+            onEditRecord={record=>{const source=properties.find(item=>item.id===record.id);if(source)openPropertyForm(source);}}
+            onEditTask={task=>openTaskForm(task as TaskRecord)}
+            onToggleTask={toggleTask}
+            onDeleteTask={deleteTask}
+            onOpenModule={name=>go(name)}
+            onWhatsApp={openWhatsAppFor}
           />}
           {active === "Schedule & Tasks" && <section className="data-panel"><div className="section-heading"><div><h2>One-time schedule</h2><p>Tasks and reminders saved on this device.</p></div><button className="primary-button" onClick={()=>openTaskForm()}><Plus size={16}/> Schedule task</button></div>
             <div className="notice notice-warn"><Clock3 size={17}/> These are stored reminders, not background alarms. For reliable notifications after closing the app, we must add a deployed server scheduler in the next stage.</div>
@@ -2285,6 +2451,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
+      {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
       {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} contacts={contacts} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
       {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} contacts={contacts} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
