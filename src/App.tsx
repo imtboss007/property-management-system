@@ -1609,6 +1609,17 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       return;
     }
     const source = editingFollowUp?.record;
+    const targetEntries = parseFollowUps(target.moduleData);
+    const assignedPeopleKey = [...entry.contactIds].sort().join(",");
+    const duplicate = targetEntries.find(item => item.id !== entry.id
+      && item.description.trim().toLocaleLowerCase() === entry.description.trim().toLocaleLowerCase()
+      && item.date === entry.date && item.time === entry.time
+      && [...item.contactIds].sort().join(",") === assignedPeopleKey
+      && !isFollowUpClosed(item.status));
+    if (duplicate) {
+      setNotice("A matching follow-up already exists for this record, date, time and assigned people. Edit the existing item instead of creating a duplicate.");
+      return;
+    }
     setProperties(previous => previous.map(record => {
       if (source && source.id !== target.id && record.id === source.id) {
         const remaining = parseFollowUps(record.moduleData).filter(item => item.id !== editingFollowUp.entry.id);
