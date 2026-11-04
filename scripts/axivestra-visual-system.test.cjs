@@ -6,6 +6,7 @@ const root = path.resolve(__dirname, "..");
 const app = fs.readFileSync(path.join(root, "src", "App.tsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
 const orbit = fs.readFileSync(path.join(root, "src", "AxivestraOrbitalHub.tsx"), "utf8");
+const mw = fs.readFileSync(path.join(root, "src", "ModuleWorkbench.tsx"), "utf8");
 
 assert.match(
   app,
