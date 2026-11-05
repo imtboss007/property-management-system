@@ -24,6 +24,7 @@ function check(name, condition) {
 function has(source, regex) { return regex.test(source); }
 
 const baseMigration = read("supabase/migrations/20261030164420_auth_company_rbac.sql");
+const personalMigration = read("supabase/migrations/20261105210412_axivestra_personal_workspaces.sql");
 const hardening = read("supabase/migrations/20261030164546_rbac_hardening.sql");
 const metadata = read("supabase/migrations/20261030164550_metadata_audit_hardening.sql");
 const approvals = read("supabase/migrations/20261030164556_approval_permissions.sql");
@@ -81,11 +82,35 @@ check("sign-in, sign-up, recovery and explicit local-only mode are implemented",
   has(authGate, /resetPasswordForEmail/i) &&
   (has(authGate, /LOCAL WORKSPACE/i) || has(authGate, /if \(!supabase\) return <App \/>/i)));
 check("read-only membership cannot invoke the legacy local-record import path",
-  has(authGate, /company\.role !== "read_only" && !initialized && hasLegacyLocalRecords\(\)/));
+  has(authGate, /company\.role !== "read_only" && \(personalNotYetImported \|\| \(!initialized && hasLegacyLocalRecords\(\)\)\)/));
 check("cloud sync is company scoped and enforces role-aware deletion",
   has(cloud, /\.eq\("company_id", company\.id\)/i) &&
   has(cloud, /company\.role === "read_only"/i) &&
   has(cloud, /softDeleteCompanyRecords/i));
+
+check("personal workspace records are isolated by user_id with RLS on and least-privilege grants",
+  has(personalMigration, /create table if not exists public\.personal_records/i) &&
+  has(personalMigration, /alter table public\.personal_records enable row level security/i) &&
+  has(personalMigration, /for select to authenticated using \(\(select auth\.uid\(\)\) = user_id\)/i) &&
+  has(personalMigration, /for insert to authenticated with check/i) &&
+  has(personalMigration, /grant select, insert, update, delete on table public\.personal_records to authenticated/i));
+check("personal record ownership and record identity cannot be reassigned",
+  has(personalMigration, /new\.user_id is distinct from auth\.uid\(\)/i) &&
+  has(personalMigration, /old\.user_id is distinct from new\.user_id/i) &&
+  has(personalMigration, /old\.record_key is distinct from new\.record_key/i));
+check("new accounts with no company membership automatically open their personal workspace",
+  has(authGate, /memberships\.length === 0[\s\S]{0,180}choosePersonal\(\)/i) &&
+  has(authGate, /return <App key=\{"personal:" \+ userId\} personalUserId=\{userId\} userId=\{userId\}/i));
+check("personal cloud initialization and bidirectional sync are user-scoped",
+  has(cloud, /export async function preparePersonalWorkspace/i) &&
+  has(cloud, /export async function syncPersonalWorkspace/i) &&
+  has(cloud, /from\("personal_records"\)[\s\S]{0,180}eq\("user_id", userId\)/i) &&
+  has(read("src/App.tsx"), /syncPersonalWorkspace\(personalUserId!/i));
+check("personal-to-company transfer is an explicit copy and leaves personal source records intact",
+  has(authGate, /personalNotYetImported/i) &&
+  has(authGate, /importingPersonalWorkspace/i) &&
+  has(cloud, /personalStorageKey\(userId, item\.storageKey\)/i));
+
 check("overlapping cloud sync runs queue the newest snapshot instead of dropping changes",
   has(read("src/App.tsx"), /cloudSyncPendingRef/i) &&
   has(read("src/App.tsx"), /Coalesce edits that occur while a previous cloud sync is in flight/i));

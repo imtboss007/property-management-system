@@ -51,6 +51,277 @@ export function scopedStorageKey(companyId: string, key: string) {
   return `axivestra.company.${companyId}.${key}`;
 }
 
+export function personalStorageKey(userId: string, key: string) {
+  return `axivestra.personal.${userId}.${key}`;
+}
+
+export function hasPersonalWorkspaceCache(userId: string) {
+  return typeof localStorage !== "undefined"
+    && localStorage.getItem(personalStorageKey(userId, "estateflow.initialized")) === "1";
+}
+
+type PersonalRecordRow = {
+  user_id: string;
+  record_type: string;
+  record_key: string;
+  payload: Record<string, unknown>;
+  created_by: string;
+  updated_by: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+/** Initialize the signed-in user's independent personal workspace. Legacy local data is
+ * imported only after an explicit choice; otherwise it remains untouched on the device. */
+export async function preparePersonalWorkspace(
+  userId: string,
+  importLegacy: boolean
+): Promise<{ counts: Record<string, number>; uploaded: number }> {
+  if (!supabase || !userId) throw new Error("Sign in to prepare a personal workspace.");
+  const { data: rows, error } = await supabase.from("personal_records")
+    .select("record_type,record_key,payload,deleted_at")
+    .eq("user_id", userId);
+  if (error) throw new Error("Could not load your personal cloud workspace: " + error.message);
+
+  const remoteByType = new Map<string, Array<Record<string, unknown> & { id: string }>>();
+  const deletedByType = new Map<string, Set<string>>();
+  for (const row of rows || []) {
+    if (row.deleted_at) {
+      const removed = deletedByType.get(row.record_type) || new Set<string>();
+      removed.add(String(row.record_key));
+      deletedByType.set(row.record_type, removed);
+      continue;
+    }
+    const payload = row.payload as (Record<string, unknown> & { id?: string }) | null;
+    if (!payload || typeof payload.id !== "string" || payload.id !== row.record_key) continue;
+    const bucket = remoteByType.get(row.record_type) || [];
+    bucket.push(payload as Record<string, unknown> & { id: string });
+    remoteByType.set(row.record_type, bucket);
+  }
+
+  const initializedKey = personalStorageKey(userId, "estateflow.initialized");
+  const counts: Record<string, number> = {};
+  const baseline: Record<string, Record<string, string>> = {};
+  const initialized = localStorage.getItem(initializedKey) === "1";
+
+  for (const item of collectionKeys) {
+    const scopedKey = personalStorageKey(userId, item.storageKey);
+    let localRows: Array<Record<string, unknown> & { id: string }> = [];
+    const localText = localStorage.getItem(scopedKey);
+    if (initialized && localText !== null) {
+      try {
+        const parsed = JSON.parse(localText);
+        if (!Array.isArray(parsed)) throw new Error("Expected an array.");
+        localRows = parsed.filter((row): row is Record<string, unknown> & { id: string } => !!row && typeof row.id === "string");
+      } catch {
+        throw new Error("Your saved personal data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
+      }
+    } else if (!initialized && importLegacy) {
+      const legacyText = localStorage.getItem(item.storageKey);
+      if (legacyText) {
+        try {
+          const parsed = JSON.parse(legacyText);
+          if (!Array.isArray(parsed)) throw new Error("Expected an array.");
+          localRows = parsed.filter((row): row is Record<string, unknown> & { id: string } => !!row && typeof row.id === "string");
+        } catch {
+          throw new Error("Existing device data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
+        }
+      }
+    }
+
+    const merged = new Map<string, Record<string, unknown> & { id: string }>();
+    for (const row of remoteByType.get(item.recordType) || []) merged.set(row.id, row);
+    for (const row of localRows) merged.set(row.id, row);
+    const tombstones = deletedByType.get(item.recordType) || new Set<string>();
+    const safeRows = Array.from(merged.values()).filter(row => !tombstones.has(row.id));
+    localStorage.setItem(scopedKey, JSON.stringify(safeRows));
+    counts[item.storageKey] = safeRows.length;
+    baseline[item.recordType] = {};
+    for (const payload of safeRows) baseline[item.recordType][payload.id] = JSON.stringify(payload);
+  }
+
+  // On first initialization, existing personal cloud rows are enough. Device-local legacy
+  // rows are merged and uploaded only when the user explicitly opted into that import.
+  if (!initialized && importLegacy) {
+    const toUpload: PersonalRecordRow[] = [];
+    for (const item of collectionKeys) {
+      const key = personalStorageKey(userId, item.storageKey);
+      const records = JSON.parse(localStorage.getItem(key) || "[]") as Array<Record<string, unknown> & { id: string }>;
+      for (const payload of records) {
+        toUpload.push({
+          user_id: userId, record_type: item.recordType, record_key: payload.id, payload,
+          created_by: userId, updated_by: userId, updated_at: new Date().toISOString(), deleted_at: null
+        });
+      }
+    }
+    for (let i = 0; i < toUpload.length; i += 250) {
+      const { error: writeError } = await supabase.from("personal_records")
+        .upsert(toUpload.slice(i, i + 250), { onConflict: "user_id,record_type,record_key" });
+      if (writeError) throw new Error("Could not import this device's records into your personal workspace: " + writeError.message);
+    }
+    // Keep the original device data until the cloud copy is verified and marked initialized.
+    for (const item of collectionKeys) localStorage.removeItem(item.storageKey);
+  }
+
+  localStorage.setItem(personalStorageKey(userId, "estateflow.syncBaseline"), JSON.stringify(baseline));
+  localStorage.setItem(initializedKey, "1");
+  localStorage.setItem(personalStorageKey(userId, "estateflow.lastCloudSync"), new Date().toISOString());
+  return { counts, uploaded: 0 };
+}
+
+/** Two-way personal cloud sync. Database RLS restricts every operation to auth.uid(). */
+export async function syncPersonalWorkspace(
+  userId: string,
+  collections: WorkspaceCollections
+): Promise<WorkspaceCollections> {
+  if (!supabase || !userId) throw new Error("Personal cloud sync requires a signed-in user.");
+  const { data: remoteRows, error: readError } = await supabase.from("personal_records")
+    .select("record_type,record_key,payload,updated_at,deleted_at")
+    .eq("user_id", userId);
+  if (readError) throw new Error("Could not refresh personal cloud records: " + readError.message);
+
+  type SyncRow = Record<string, unknown> & { id: string };
+  type RemoteRow = { payload: SyncRow; updatedAt: string };
+  const remoteByType = new Map<string, Map<string, RemoteRow>>();
+  const deletedByType = new Map<string, Set<string>>();
+  for (const row of remoteRows || []) {
+    const id = String(row.record_key || "");
+    if (!id) continue;
+    if (row.deleted_at) {
+      const bucket = deletedByType.get(row.record_type) || new Set<string>();
+      bucket.add(id);
+      deletedByType.set(row.record_type, bucket);
+      continue;
+    }
+    const payload = row.payload as SyncRow | null;
+    if (!payload || payload.id !== id) continue;
+    const bucket = remoteByType.get(row.record_type) || new Map<string, RemoteRow>();
+    bucket.set(id, { payload, updatedAt: String(row.updated_at || "") });
+    remoteByType.set(row.record_type, bucket);
+  }
+
+  const baselineKey = personalStorageKey(userId, "estateflow.syncBaseline");
+  let oldBaseline: Record<string, Record<string, string>> = {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(baselineKey) || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) oldBaseline = parsed;
+  } catch { oldBaseline = {}; }
+
+  const currentRows = new Map<string, Map<string, SyncRow>>();
+  for (const item of collectionKeys) {
+    const rows = collections[item.stateKey] || [];
+    currentRows.set(item.recordType, new Map(rows
+      .filter(row => row && typeof row.id === "string" && row.id)
+      .map(row => [row.id, row as SyncRow])));
+  }
+
+  const auditEntityByType: Record<string, string> = {
+    property: "Property", contact: "Contact", task: "Task", financial: "Financial",
+    risk: "Risk", approval: "Approval"
+  };
+  const localChangedAt = (recordType: string, recordId: string, payload: SyncRow): number => {
+    if (recordType === "audit_event") {
+      const stamp = Date.parse(String(payload.at || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
+    if (recordType === "whatsapp_group") {
+      const stamp = Date.parse(String(payload.lastSyncedAt || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
+    const entity = auditEntityByType[recordType];
+    if (!entity) return 0;
+    return collections.auditEvents
+      .filter(event => event.recordId === recordId && event.entity === entity)
+      .reduce((latest, event) => Math.max(latest, Date.parse(String(event.at || "")) || 0), 0);
+  };
+
+  const mergedSnapshot = {} as WorkspaceCollections;
+  const nextBaseline: Record<string, Record<string, string>> = {};
+  const toUpsert: PersonalRecordRow[] = [];
+  const toDelete: Array<{ recordType: string; recordKey: string }> = [];
+  const now = new Date().toISOString();
+
+  for (const item of collectionKeys) {
+    const local = currentRows.get(item.recordType) || new Map<string, SyncRow>();
+    const remote = remoteByType.get(item.recordType) || new Map<string, RemoteRow>();
+    const tombstones = deletedByType.get(item.recordType) || new Set<string>();
+    const baseline = oldBaseline[item.recordType] || {};
+    const ids = new Set<string>([...local.keys(), ...remote.keys(), ...Object.keys(baseline)]);
+    const result: SyncRow[] = [];
+    nextBaseline[item.recordType] = {};
+
+    for (const id of ids) {
+      if (tombstones.has(id)) continue;
+      const localPayload = local.get(id);
+      const remoteRow = remote.get(id);
+      const baseText = typeof baseline[id] === "string" ? baseline[id] : "";
+      const localText = localPayload ? JSON.stringify(localPayload) : "";
+      const remoteText = remoteRow ? JSON.stringify(remoteRow.payload) : "";
+
+      if (!localPayload && remoteRow) {
+        if (baseText) { toDelete.push({ recordType: item.recordType, recordKey: id }); continue; }
+        result.push(remoteRow.payload);
+        nextBaseline[item.recordType][id] = remoteText;
+        continue;
+      }
+      if (localPayload && !remoteRow) {
+        // A remote absence after a known baseline is treated as a deletion, never resurrected.
+        if (baseText) continue;
+        result.push(localPayload);
+        nextBaseline[item.recordType][id] = localText;
+        toUpsert.push({
+          user_id: userId, record_type: item.recordType, record_key: id, payload: localPayload,
+          created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
+        });
+        continue;
+      }
+      if (!localPayload || !remoteRow) continue;
+
+      let selected: SyncRow;
+      if (localText === remoteText) selected = localPayload;
+      else if (!baseText) selected = remoteRow.payload;
+      else {
+        const localChanged = localText !== baseText;
+        const remoteChanged = remoteText !== baseText;
+        if (localChanged && !remoteChanged) selected = localPayload;
+        else if (!localChanged && remoteChanged) selected = remoteRow.payload;
+        else if (!localChanged && !remoteChanged) selected = localPayload;
+        else {
+          const localStamp = localChangedAt(item.recordType, id, localPayload);
+          const remoteStamp = Date.parse(remoteRow.updatedAt) || 0;
+          selected = localStamp > remoteStamp ? localPayload : remoteRow.payload;
+        }
+      }
+      const selectedText = JSON.stringify(selected);
+      result.push(selected);
+      nextBaseline[item.recordType][id] = selectedText;
+      if (selectedText !== remoteText) toUpsert.push({
+        user_id: userId, record_type: item.recordType, record_key: id, payload: selected,
+        created_by: userId, updated_by: userId, updated_at: now, deleted_at: null
+      });
+    }
+    (mergedSnapshot[item.stateKey] as SyncRow[]) = result;
+    localStorage.setItem(personalStorageKey(userId, item.storageKey), JSON.stringify(result));
+  }
+
+  for (const item of toDelete) {
+    const { error } = await supabase.from("personal_records").update({
+      deleted_at: now, updated_by: userId, updated_at: now
+    }).eq("user_id", userId).eq("record_type", item.recordType)
+      .eq("record_key", item.recordKey).is("deleted_at", null);
+    if (error) throw new Error("Could not sync a personal deletion: " + error.message);
+  }
+  for (let i = 0; i < toUpsert.length; i += 250) {
+    const { error } = await supabase.from("personal_records")
+      .upsert(toUpsert.slice(i, i + 250), { onConflict: "user_id,record_type,record_key" });
+    if (error) throw new Error("Could not upload personal workspace changes: " + error.message);
+  }
+
+  localStorage.setItem(baselineKey, JSON.stringify(nextBaseline));
+  localStorage.setItem(personalStorageKey(userId, "estateflow.lastCloudSync"), now);
+  return mergedSnapshot;
+}
+
 export function hasLegacyLocalRecords() {
   if (typeof localStorage === "undefined") return false;
   const keys = [...collectionKeys.map(item => item.storageKey), "estateflow.documents"];
@@ -160,22 +431,22 @@ export async function prepareCompanyWorkspace(
       }
     }
     if (importLegacy) {
-      const legacyText = localStorage.getItem(item.storageKey);
-      if (legacyText) {
-        let legacyRows: Array<Record<string, unknown> & { id: string }> = [];
+      const importedById = new Map<string, Record<string, unknown> & { id: string }>();
+      const sourceKeys = [item.storageKey, personalStorageKey(userId, item.storageKey)];
+      for (const sourceKey of sourceKeys) {
+        const sourceText = localStorage.getItem(sourceKey);
+        if (!sourceText) continue;
         try {
-          const value = JSON.parse(legacyText);
+          const value = JSON.parse(sourceText);
           if (!Array.isArray(value)) throw new Error("Expected a JSON array.");
-          legacyRows = value.filter(row => row && typeof row.id === "string");
+          for (const row of value) if (row && typeof row.id === "string") importedById.set(row.id, row);
         } catch {
-          throw new Error("Legacy local data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
+          throw new Error("Existing local / personal data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
         }
-        // Keep company-scoped versions on ID collision; import only legacy-only records.
-        const localById = new Map<string, Record<string, unknown> & { id: string }>();
-        for (const row of legacyRows) localById.set(row.id, row);
-        for (const row of localRows) localById.set(row.id, row);
-        localRows = Array.from(localById.values());
       }
+      // Company-scoped copies take priority; personal source records are copied, never removed.
+      for (const row of localRows) importedById.set(row.id, row);
+      localRows = Array.from(importedById.values());
     }
 
     const merged = new Map<string, Record<string, unknown> & { id: string }>();
