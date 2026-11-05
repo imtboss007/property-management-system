@@ -586,6 +586,9 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
+  const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
+  const [contactProfessionFilter, setContactProfessionFilter] = useState("");
+  const [contactCompanyFilter, setContactCompanyFilter] = useState("");
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
@@ -1340,6 +1343,20 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const upcomingFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date > today).length;
   const followUpsWithMultiplePeople = registryDashboardItems.filter(item => item.entry.contactIds.length > 1).length;
   const followUpNavCount = overdueFollowUps + followUpsDueToday;
+  const contactRolesOf = (contact: ContactRecord) => [...new Set([...(contact.roles?.length ? contact.roles : [contact.role || "Contact"]), ...(contact.customRoles || "").split(",").map(role => role.trim()).filter(Boolean)])];
+  const contactRoleOptions = [...new Set(contacts.flatMap(contactRolesOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const contactProfessionOptions = [...new Set(contacts.flatMap(contact => [contact.profession, contact.designation]).filter((value): value is string => Boolean(value?.trim())).map(value=>value.trim()))].sort((a,b)=>a.localeCompare(b));
+  const contactCompanyOptions = [...new Set(contacts.flatMap(contact => [contact.associatedCompany, contact.employer]).filter((value): value is string => Boolean(value?.trim())).map(value=>value.trim()))].sort((a,b)=>a.localeCompare(b));
+  const filteredContacts = contacts.filter(contact => {
+    const text = [contact.name, contact.phone, contact.email, contact.role, ...contactRolesOf(contact), contact.customRoles, contact.profession, contact.designation, contact.employer, contact.associatedCompany, contact.relationshipNotes, contact.notes].filter(Boolean).join(" ").toLowerCase();
+    const matchesSearch = text.includes(search.toLowerCase().trim());
+    const roles = contactRolesOf(contact).map(role=>role.toLowerCase());
+    const matchesRole = contactRoleFilters.length === 0 || contactRoleFilters.some(role=>roles.includes(role.toLowerCase()));
+    const matchesProfession = !contactProfessionFilter || [contact.profession,contact.designation].some(value=>value?.trim()===contactProfessionFilter);
+    const matchesCompany = !contactCompanyFilter || [contact.associatedCompany,contact.employer].some(value=>value?.trim()===contactCompanyFilter);
+    return matchesSearch && matchesRole && matchesProfession && matchesCompany;
+  });
+  const activeContactFilterCount = contactRoleFilters.length + Number(Boolean(contactProfessionFilter)) + Number(Boolean(contactCompanyFilter));
   const universalEntities: UniversalEntity[] = [
     ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? "₹"+Number(record.value).toLocaleString("en-IN") : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
@@ -2345,7 +2362,20 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
           {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
-            {contacts.length ? <div className="record-list">{contacts.filter(c=>`${c.name} ${c.phone} ${c.role} ${(c.roles ?? []).join(" ")} ${c.customRoles ?? ""} ${c.profession ?? ""} ${c.employer ?? ""} ${c.associatedCompany ?? ""}`.toLowerCase().includes(search.toLowerCase())).map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {[...new Set([...(c.roles?.length ? c.roles : [c.role || "Contact"]),...(c.customRoles || "").split(",").map(role=>role.trim()).filter(Boolean)])].join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
+            {contacts.length ? <>
+            <div className="ax-contact-filter-panel">
+              <div className="ax-contact-filter-topline"><div><strong>Find contacts by role and profile</strong><small>{filteredContacts.length} of {contacts.length} contacts shown{activeContactFilterCount ? ` · ${activeContactFilterCount} filters active` : ""}</small></div>
+                {activeContactFilterCount > 0 && <button type="button" className="ax-contact-clear" onClick={()=>{setContactRoleFilters([]);setContactProfessionFilter("");setContactCompanyFilter("");}}>Clear filters</button>}
+              </div>
+              <div className="ax-contact-filter-selects">
+                <label>Profession / designation<select value={contactProfessionFilter} onChange={event=>setContactProfessionFilter(event.target.value)}><option value="">All professions</option>{contactProfessionOptions.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
+                <label>Company / employer<select value={contactCompanyFilter} onChange={event=>setContactCompanyFilter(event.target.value)}><option value="">All companies</option>{contactCompanyOptions.map(value=><option key={value} value={value}>{value}</option>)}</select></label>
+              </div>
+              <div className="ax-contact-role-filter"><span>Filter by role <small>· select multiple</small></span><div className="ax-contact-role-chips">
+                {contactRoleOptions.map(role=><button type="button" key={role} aria-pressed={contactRoleFilters.includes(role)} className={contactRoleFilters.includes(role)?"active":""} onClick={()=>setContactRoleFilters(current=>current.includes(role)?current.filter(value=>value!==role):[...current,role])}>{role}</button>)}
+              </div></div>
+            </div>
+            {filteredContacts.length ? <div className="record-list">{filteredContacts.map(c=><article className="record-card" key={c.id}>:<Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</> : <Empty icon={<Users size={22}/>} title="No contacts match these filters" text="Clear the role, profession or company filters to see more contacts." action="Clear filters" onClick={()=>{setContactRoleFilters([]);setContactProfessionFilter("");setContactCompanyFilter("");setSearch("");}}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
             onEditProperty={openPropertyForm}
