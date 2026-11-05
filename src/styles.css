@@ -3568,3 +3568,10 @@ h2,h3{color:#e5f2fc}
  .ax-contact-role-chips button{padding:7px 10px;font-size:9px}
  .ax-contact-filter-topline strong{font-size:11px}
 }
+
+/* Shared phone-first / PC-first cloud synchronization status */
+.ax-cloud-sync-last{display:block;margin-top:8px;color:var(--muted,#8193a1);font-size:10px}
+@media(max-width:600px){
+ .settings-actions .sync-status{flex-basis:100%;line-height:1.5}
+ .ax-cloud-sync-last{font-size:9px}
+}
