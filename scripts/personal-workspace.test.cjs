@@ -23,6 +23,7 @@ const checks = [
   ["Personal Mode passes a user-scoped identity into the app", /<App personalUserId=\{userId\} userId=\{userId\}/i.test(gate)],
   ["Personal cloud sync is used by the app's workspace sync loop", /syncPersonalWorkspace\(personalUserId!/i.test(app)],
   ["company migration leaves personal records in the personal scope", /personalStorageKey\(userId, item\.storageKey\)/i.test(client) && /importingPersonalWorkspace/i.test(gate)],
+  ["switching between workspace modes remounts isolated app state", /key=\{"company:"[\s\S]{0,160}key=\{"personal:"/.test(gate)],
   ["Personal Mode can switch workspaces without deleting its records", /const openWorkspaceChooser = \(\) => \{[\s\S]{0,220}removeItem\("axivestra\.activePersonalUserId"\)/i.test(gate) && /personalStorageKey/i.test(app)]
 ];
 
