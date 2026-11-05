@@ -26,3 +26,9 @@ assert(app.includes("aria-pressed={contactRoleFilters.includes(role)}"), "Role f
 assert(read("src/styles.css").includes(".ax-contact-filter-selects") && read("src/styles.css").includes("@media(max-width:600px)"), "Contact filters must have responsive mobile styling.");
 console.log("AXIVESTRA contact filter regression checks passed.");
 
+
+assert(app.includes("cloudSyncRunRef") && app.includes("cloudSyncRunRef.current?.(true)"), "Company cloud sync must be manually triggerable from the shared app UI.");
+assert(app.includes("This phone or PC can be your starting device"), "Phone-first and PC-first cloud sync must both be supported.");
+assert(app.includes("Last successful sync") && app.includes("Sync now"), "Company cloud sync must expose manual refresh and last-success time.");
+assert(app.includes("onClick={()=>void syncWithPc()}"), "The Windows local-device link must expose a manual sync action too.");
+console.log("AXIVESTRA phone-first and cross-device manual sync regression checks passed.");
