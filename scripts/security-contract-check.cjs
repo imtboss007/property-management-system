@@ -100,7 +100,7 @@ check("personal record ownership and record identity cannot be reassigned",
   has(personalMigration, /old\.record_key is distinct from new\.record_key/i));
 check("new accounts with no company membership automatically open their personal workspace",
   has(authGate, /memberships\.length === 0[\s\S]{0,180}choosePersonal\(\)/i) &&
-  has(authGate, /return <App personalUserId=\{userId\} userId=\{userId\}/i));
+  has(authGate, /return <App key=\{"personal:" \+ userId\} personalUserId=\{userId\} userId=\{userId\}/i));
 check("personal cloud initialization and bidirectional sync are user-scoped",
   has(cloud, /export async function preparePersonalWorkspace/i) &&
   has(cloud, /export async function syncPersonalWorkspace/i) &&
