@@ -24,7 +24,7 @@ function check(name, condition) {
 function has(source, regex) { return regex.test(source); }
 
 const baseMigration = read("supabase/migrations/20261030164420_auth_company_rbac.sql");
-const personalMigration = read("supabase/migrations/20261106010000_axivestra_personal_workspaces.sql");
+const personalMigration = read("supabase/migrations/20261105210412_axivestra_personal_workspaces.sql");
 const hardening = read("supabase/migrations/20261030164546_rbac_hardening.sql");
 const metadata = read("supabase/migrations/20261030164550_metadata_audit_hardening.sql");
 const approvals = read("supabase/migrations/20261030164556_approval_permissions.sql");
