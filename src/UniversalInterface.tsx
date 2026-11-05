@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Bell, CheckCircle2, ChevronRight, Clock3, Command, Plus, Search, Star, X } from "lucide-react";
+import { ArrowUpRight, Bell, CheckCircle2, ChevronRight, Command, Plus, Search, Star, X } from "lucide-react";
 
 export type UniversalEntity = {
   id: string;
