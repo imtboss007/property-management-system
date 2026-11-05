@@ -89,27 +89,27 @@ check("cloud sync is company scoped and enforces role-aware deletion",
   has(cloud, /softDeleteCompanyRecords/i));
 
 check("personal workspace records are isolated by user_id with RLS on and least-privilege grants",
-  has(personalMigration, /create table if not exists public\\.personal_records/i) &&
-  has(personalMigration, /alter table public\\.personal_records enable row level security/i) &&
-  has(personalMigration, /for select to authenticated using \\(\\(select auth\\.uid\\(\\)\\) = user_id\\)/i) &&
+  has(personalMigration, /create table if not exists public\.personal_records/i) &&
+  has(personalMigration, /alter table public\.personal_records enable row level security/i) &&
+  has(personalMigration, /for select to authenticated using \(\(select auth\.uid\(\)\) = user_id\)/i) &&
   has(personalMigration, /for insert to authenticated with check/i) &&
-  has(personalMigration, /grant select, insert, update, delete on table public\\.personal_records to authenticated/i));
+  has(personalMigration, /grant select, insert, update, delete on table public\.personal_records to authenticated/i));
 check("personal record ownership and record identity cannot be reassigned",
-  has(personalMigration, /new\\.user_id is distinct from auth\\.uid\\(\\)/i) &&
-  has(personalMigration, /old\\.user_id is distinct from new\\.user_id/i) &&
-  has(personalMigration, /old\\.record_key is distinct from new\\.record_key/i));
+  has(personalMigration, /new\.user_id is distinct from auth\.uid\(\)/i) &&
+  has(personalMigration, /old\.user_id is distinct from new\.user_id/i) &&
+  has(personalMigration, /old\.record_key is distinct from new\.record_key/i));
 check("new accounts with no company membership automatically open their personal workspace",
-  has(authGate, /memberships\\.length === 0[\\s\\S]{0,180}choosePersonal\\(\\)/i) &&
-  has(authGate, /return <App personalUserId=\\{userId\\} userId=\\{userId\\}/i));
+  has(authGate, /memberships\.length === 0[\s\S]{0,180}choosePersonal\(\)/i) &&
+  has(authGate, /return <App personalUserId=\{userId\} userId=\{userId\}/i));
 check("personal cloud initialization and bidirectional sync are user-scoped",
   has(cloud, /export async function preparePersonalWorkspace/i) &&
   has(cloud, /export async function syncPersonalWorkspace/i) &&
-  has(cloud, /from\\("personal_records"\\)[\\s\\S]{0,180}eq\\("user_id", userId\\)/i) &&
-  has(read("src/App.tsx"), /syncPersonalWorkspace\\(personalUserId!/i));
+  has(cloud, /from\("personal_records"\)[\s\S]{0,180}eq\("user_id", userId\)/i) &&
+  has(read("src/App.tsx"), /syncPersonalWorkspace\(personalUserId!/i));
 check("personal-to-company transfer is an explicit copy and leaves personal source records intact",
   has(authGate, /personalNotYetImported/i) &&
   has(authGate, /importingPersonalWorkspace/i) &&
-  has(cloud, /personalStorageKey\\(userId, item\\.storageKey\\)/i));
+  has(cloud, /personalStorageKey\(userId, item\.storageKey\)/i));
 
 check("overlapping cloud sync runs queue the newest snapshot instead of dropping changes",
   has(read("src/App.tsx"), /cloudSyncPendingRef/i) &&
