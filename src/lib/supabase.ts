@@ -163,7 +163,9 @@ export async function preparePersonalWorkspace(
     for (const item of collectionKeys) localStorage.removeItem(item.storageKey);
   }
 
-  localStorage.setItem(personalStorageKey(userId, "estateflow.syncBaseline"), JSON.stringify(baseline));
+  const personalBaselineId = "personal-sync:" + userId;
+  await saveCompanySyncBaseline(personalBaselineId, userId, baseline);
+  localStorage.removeItem(personalStorageKey(userId, "estateflow.syncBaseline"));
   localStorage.setItem(initializedKey, "1");
   localStorage.setItem(personalStorageKey(userId, "estateflow.lastCloudSync"), new Date().toISOString());
   return { counts, uploaded: 0 };
@@ -201,11 +203,18 @@ export async function syncPersonalWorkspace(
   }
 
   const baselineKey = personalStorageKey(userId, "estateflow.syncBaseline");
-  let oldBaseline: Record<string, Record<string, string>> = {};
-  try {
-    const parsed = JSON.parse(localStorage.getItem(baselineKey) || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) oldBaseline = parsed;
-  } catch { oldBaseline = {}; }
+  const personalBaselineId = "personal-sync:" + userId;
+  let oldBaseline = await loadCompanySyncBaseline(personalBaselineId);
+  if (!oldBaseline) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(baselineKey) || "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        oldBaseline = parsed as Record<string, Record<string, string>>;
+        await saveCompanySyncBaseline(personalBaselineId, userId, oldBaseline);
+      }
+    } catch { oldBaseline = null; }
+  }
+  if (!oldBaseline) oldBaseline = {};
 
   const currentRows = new Map<string, Map<string, SyncRow>>();
   for (const item of collectionKeys) {
@@ -317,7 +326,8 @@ export async function syncPersonalWorkspace(
     if (error) throw new Error("Could not upload personal workspace changes: " + error.message);
   }
 
-  localStorage.setItem(baselineKey, JSON.stringify(nextBaseline));
+  await saveCompanySyncBaseline(personalBaselineId, userId, nextBaseline);
+  localStorage.removeItem(baselineKey);
   localStorage.setItem(personalStorageKey(userId, "estateflow.lastCloudSync"), now);
   return mergedSnapshot;
 }
