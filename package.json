@@ -1,6 +1,6 @@
 {
   "name": "axivestra-property-intelligence",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "private": true,
   "type": "module",
   "description": "AXIVESTRA asset intelligence workspace for Windows, Android, and web.",
@@ -14,7 +14,7 @@
     "desktop:dir": "npm run build && electron-builder --dir",
     "android:sync": "npm run build && cap sync android",
     "cap:sync": "cap sync",
-    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs && node scripts/axivestra-visual-system.test.cjs"
+    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs && node scripts/axivestra-visual-system.test.cjs && node scripts/universal-interface.test.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
@@ -50,7 +50,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "build/**/*"
     ],
     "win": {
       "target": [
@@ -61,7 +62,8 @@
           ]
         }
       ],
-      "artifactName": "AXIVESTRA-Setup-${version}-${arch}.${ext}"
+      "artifactName": "AXIVESTRA-Setup-${version}-${arch}.${ext}",
+      "icon": "build/axivestra.ico"
     },
     "nsis": {
       "oneClick": false,

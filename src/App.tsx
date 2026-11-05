@@ -13,6 +13,7 @@ import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import IntentCanvas from "./IntentCanvas";
 import ModuleWorkbench from "./ModuleWorkbench";
+import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
 import FollowUpRegistry from "./FollowUpRegistry";
 import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
@@ -23,7 +24,7 @@ import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContact
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
-  Search, Bell, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
+  Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
   BrainCircuit, Workflow, ListTodo
@@ -649,10 +650,6 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        document.querySelector<HTMLInputElement>(".topbar .search-box input")?.focus();
-      }
       if (event.key === "Escape") {
         setMobileMenu(false);
         if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -1314,7 +1311,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     return value === null ? "Value not entered" : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
   };
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
-  const today = new Date().toISOString().slice(0,10);
+  const nowForLocalDate = new Date();
+  const today = [nowForLocalDate.getFullYear(), String(nowForLocalDate.getMonth()+1).padStart(2,"0"), String(nowForLocalDate.getDate()).padStart(2,"0")].join("-");
   const registryDashboardItems = [
     ...properties.flatMap(record => {
       const entries = parseFollowUps(record.moduleData);
@@ -1342,6 +1340,19 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const upcomingFollowUps = activeRegistryItems.filter(item => item.entry.date && item.entry.date > today).length;
   const followUpsWithMultiplePeople = registryDashboardItems.filter(item => item.entry.contactIds.length > 1).length;
   const followUpNavCount = overdueFollowUps + followUpsDueToday;
+  const universalEntities: UniversalEntity[] = [
+    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? "₹"+Number(record.value).toLocaleString("en-IN") : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
+    ...tasks.slice(0,250).map(record => ({ id: record.id, kind: "Task", title: record.title, section: "Schedule & Tasks", subtitle: [record.date,record.time,record.done?"Completed":"Open"].filter(Boolean).join(" · "), details: [{label:"Date",value:record.date},{label:"Time",value:record.time},{label:"Related property",value:record.property},{label:"Contact",value:record.contactName || ""},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...documents.slice(0,250).map(record => ({ id: record.id, kind: "Document", title: record.name, section: "Documents", subtitle: [record.category,record.property].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Property",value:record.property},{label:"Expiry",value:record.expiresOn},{label:"Notes",value:record.notes}] })),
+    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,"₹"+Number(record.amount||0).toLocaleString("en-IN")].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:"₹"+Number(record.amount||0).toLocaleString("en-IN")},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
+    ...riskRecords.slice(0,150).map(record => ({ id: record.id, kind: "Risk", title: record.title, section: "Risk & Compliance", subtitle: [record.category,record.severity,record.status].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Severity",value:record.severity},{label:"Status",value:record.status},{label:"Owner",value:record.owner},{label:"Due date",value:record.dueDate},{label:"Mitigation",value:record.mitigation}] })),
+    ...approvalRequests.slice(0,150).map(record => ({ id: record.id, kind: "Approval", title: record.title, section: "Approvals", subtitle: [record.area,record.priority,record.status].filter(Boolean).join(" · "), details: [{label:"Area",value:record.area},{label:"Priority",value:record.priority},{label:"Status",value:record.status},{label:"Approver",value:record.approver},{label:"Rationale",value:record.rationale}] }))
+  ];
+  const universalNotifications = [
+    { id:"followups", title:"Follow-ups due or overdue", description:"Review today's and overdue commitments", count:followUpNavCount, section:"Follow-up Registry" },
+    { id:"tasks", title:"Open scheduled tasks", description:"Review your outstanding work items", count:upcomingTasks.length, section:"Schedule & Tasks" }
+  ];
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
   const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -2121,7 +2132,7 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active}</strong></div>
-          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<button className="icon-button" aria-label="Notifications" onClick={() => go("Schedule & Tasks")}><Bell size={19} /><i /></button></div>
+          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch company" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={String(active)} sections={[...navigation.map(item=>item.name),...modules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;}}}/></div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>

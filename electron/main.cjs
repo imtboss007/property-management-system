@@ -23,6 +23,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 940, minWidth: 980, minHeight: 700,
     show: false, autoHideMenuBar: true, title: "AXIVESTRA — Asset Intelligence",
+    icon: path.join(__dirname, "..", "build", "axivestra.ico"),
     backgroundColor: "#071525",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
