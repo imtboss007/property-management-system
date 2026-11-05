@@ -74,7 +74,7 @@ export default function FollowUpRegistry({
     }
     for (const task of tasks) {
       if (!String(task.type || "").toLowerCase().includes("follow")) continue;
-      if (task.propertyId && knownRecordDates.has(task.propertyId + ":" + task.date)) continue;
+      // Keep each scheduled task as its own follow-up item; matching dates do not make two commitments duplicates.
       const record = task.propertyId ? properties.find(item => item.id === task.propertyId) || null : null;
       const contactIds = Array.from(new Set([...(task.followUpContactIds || []), task.contactId || ""].filter(Boolean)));
       const entry: FollowUpEntry = {
