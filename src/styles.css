@@ -3575,3 +3575,19 @@ h2,h3{color:#e5f2fc}
  .settings-actions .sync-status{flex-basis:100%;line-height:1.5}
  .ax-cloud-sync-last{font-size:9px}
 }
+
+/* Contact portability controls */
+.ax-contact-heading{align-items:flex-start;gap:14px}
+.ax-contact-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.ax-contact-actions .secondary-button,.ax-contact-actions .primary-button{white-space:nowrap}
+.ax-contact-file-input{display:none}
+.ax-contact-transfer-note{display:flex;flex-direction:column;gap:4px;margin:0 0 14px;padding:11px 13px;border:1px solid #dce8ee;border-radius:10px;background:#f5fafc}
+.ax-contact-transfer-note strong{font-size:10px;color:#31566d}
+.ax-contact-transfer-note span{font-size:10px;line-height:1.55;color:#708797}
+@media(max-width:720px){
+ .ax-contact-heading{flex-direction:column;align-items:stretch}
+ .ax-contact-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+ .ax-contact-actions button{width:100%;justify-content:center;padding:9px 8px;font-size:10px}
+ .ax-contact-transfer-note{padding:10px}
+}
+@media(max-width:380px){.ax-contact-actions{grid-template-columns:1fr}}
