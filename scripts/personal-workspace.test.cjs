@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-const migration = read("supabase/migrations/20261106010000_axivestra_personal_workspaces.sql");
+const migration = read("supabase/migrations/20261105210412_axivestra_personal_workspaces.sql");
 const client = read("src/lib/supabase.ts");
 const gate = read("src/AuthGate.tsx");
 const app = read("src/App.tsx");
