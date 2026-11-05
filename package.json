@@ -1,6 +1,6 @@
 {
   "name": "axivestra-property-intelligence",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "private": true,
   "type": "module",
   "description": "AXIVESTRA asset intelligence workspace for Windows, Android, and web.",
@@ -61,7 +61,8 @@
           ]
         }
       ],
-      "artifactName": "AXIVESTRA-Setup-${version}-${arch}.${ext}"
+      "artifactName": "AXIVESTRA-Setup-${version}-${arch}.${ext}",
+      "icon": "build/axivestra.ico"
     },
     "nsis": {
       "oneClick": false,
