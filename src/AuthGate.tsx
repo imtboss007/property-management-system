@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, UserPlus } from "lucide-react";
 import App from "./App";
 import { assignLegacyVaultToCompany } from "./lib/local-db";
-import { hasLegacyLocalRecords, prepareCompanyWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
+import { hasLegacyLocalRecords, hasPersonalWorkspaceCache, prepareCompanyWorkspace, preparePersonalWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
 
 type AuthMode = "signin" | "signup" | "reset";
 type Membership = { company_id: string; role: CompanyRole };
@@ -22,7 +22,10 @@ export default function AuthGate() {
   const [memberships, setMemberships] = useState<WorkspaceCompany[]>([]);
   const [companyName, setCompanyName] = useState("");
   const [activeCompany, setActiveCompany] = useState<WorkspaceCompany | null>(null);
+  const [activePersonal, setActivePersonal] = useState(false);
+  const [membershipsReady, setMembershipsReady] = useState(false);
   const [migrationCompany, setMigrationCompany] = useState<WorkspaceCompany | null>(null);
+  const [migrationPersonal, setMigrationPersonal] = useState(false);
 
   const clearMessages = () => { setError(""); setInfo(""); };
 
@@ -52,8 +55,12 @@ export default function AuthGate() {
         setRecoverySession(false);
         setMemberships([]);
         setActiveCompany(null);
+        setActivePersonal(false);
+        setMembershipsReady(false);
         setMigrationCompany(null);
+        setMigrationPersonal(false);
         localStorage.removeItem("axivestra.activeCompanyId");
+        localStorage.removeItem("axivestra.activePersonalUserId");
       }
     });
     return () => { active = false; subscription.unsubscribe(); };
@@ -70,6 +77,7 @@ export default function AuthGate() {
       const rows = (membershipsData || []) as Membership[];
       if (!rows.length) {
         setMemberships([]);
+        setMembershipsReady(true);
         return;
       }
       const { data: companiesData, error: companiesError } = await supabase
@@ -80,16 +88,18 @@ export default function AuthGate() {
         const company = companyById.get(row.company_id);
         return company ? [{ id: company.id, name: company.name, role: row.role }] : [];
       }));
+      setMembershipsReady(true);
     } catch (cause) {
-      setError("Could not load your company memberships. Confirm the AXIVESTRA SQL migrations are applied and retry. " + (cause instanceof Error ? cause.message : String(cause)));
+      setError("Could not load your company memberships. " + (cause instanceof Error ? cause.message : String(cause)));
+      setMembershipsReady(true);
     } finally {
       setBusy(false);
     }
   }, [userId]);
 
   useEffect(() => {
-    if (userId) void loadMemberships();
-    else setMemberships([]);
+    if (userId) { setMembershipsReady(false); void loadMemberships(); }
+    else { setMemberships([]); setMembershipsReady(false); }
   }, [userId, loadMemberships]);
 
   const submitAuth = async (event: FormEvent) => {
@@ -101,7 +111,7 @@ export default function AuthGate() {
       if (mode === "signin") {
         const { error: authError } = await supabase.auth.signInWithPassword({ email: emailInput.trim(), password });
         if (authError) throw authError;
-        setInfo("Signed in. Loading company access…");
+        setInfo("Signed in. Opening your workspace…");
       } else if (mode === "signup") {
         const { data, error: authError } = await supabase.auth.signUp({ email: emailInput.trim(), password });
         if (authError) throw authError;
@@ -109,7 +119,7 @@ export default function AuthGate() {
           setInfo("Account created. Check your email to confirm it, then return here to sign in.");
           setMode("signin");
         } else {
-          setInfo("Account created. You can now create a company or accept access from an existing owner.");
+          setInfo("Account created. Your private Personal Mode workspace is ready; Company Mode is optional.");
         }
       } else {
         const { error: authError } = await supabase.auth.resetPasswordForEmail(emailInput.trim());
@@ -176,6 +186,7 @@ export default function AuthGate() {
     clearMessages();
     setBusy(true);
     try {
+      localStorage.removeItem("axivestra.activePersonalUserId");
       localStorage.setItem("axivestra.activeCompanyId", company.id);
       await prepareCompanyWorkspace(company, userId, importLegacy);
       if (importLegacy && company.role !== "read_only") {
@@ -192,6 +203,8 @@ export default function AuthGate() {
         localStorage.removeItem("estateflow.documents");
       }
       setMigrationCompany(null);
+      setMigrationPersonal(false);
+      setActivePersonal(false);
       setActiveCompany(company);
       setInfo("");
     } catch (cause) {
@@ -214,13 +227,61 @@ export default function AuthGate() {
     void openCompany(company, false);
   };
 
+
+  const openPersonal = async (importLegacy: boolean) => {
+    if (!supabase || !userId) return;
+    clearMessages();
+    setBusy(true);
+    try {
+      localStorage.removeItem("axivestra.activeCompanyId");
+      localStorage.setItem("axivestra.activePersonalUserId", userId);
+      await preparePersonalWorkspace(userId, importLegacy);
+      setMigrationPersonal(false);
+      setMigrationCompany(null);
+      setActiveCompany(null);
+      setActivePersonal(true);
+      setInfo("");
+    } catch (cause) {
+      localStorage.removeItem("axivestra.activePersonalUserId");
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally { setBusy(false); }
+  };
+
+  const choosePersonal = () => {
+    if (!userId) return;
+    if (!hasPersonalWorkspaceCache(userId) && hasLegacyLocalRecords()) {
+      setMigrationPersonal(true);
+      setMigrationCompany(null);
+      clearMessages();
+      return;
+    }
+    void openPersonal(false);
+  };
+
+  useEffect(() => {
+    if (userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
+      choosePersonal();
+    }
+  }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
+
+  const openWorkspaceChooser = () => {
+    setActivePersonal(false);
+    setActiveCompany(null);
+    localStorage.removeItem("axivestra.activePersonalUserId");
+    localStorage.removeItem("axivestra.activeCompanyId");
+    clearMessages();
+  };
+
   const signOut = async () => {
     setBusy(true);
     try { if (supabase) await supabase.auth.signOut(); }
     finally {
       setActiveCompany(null);
+      setActivePersonal(false);
       setMigrationCompany(null);
+      setMigrationPersonal(false);
       localStorage.removeItem("axivestra.activeCompanyId");
+      localStorage.removeItem("axivestra.activePersonalUserId");
       setBusy(false);
     }
   };
@@ -235,16 +296,25 @@ export default function AuthGate() {
   }
 
   if (!userId) {
-    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Secure workspace</span></div></div><div className="auth-icon"><LockKeyhole size={25}/></div><span className="auth-kicker">COMPANY ACCESS</span><h1>{mode === "signin" ? "Welcome back." : mode === "signup" ? "Create your account." : "Recover access."}</h1><p className="auth-copy">Your company workspace is protected by Supabase Auth and database row-level policies when configured by your administrator.</p><form className="auth-form" onSubmit={submitAuth}><label>Email address<div className="auth-input"><Mail size={17}/><input type="email" autoComplete="email" required value={emailInput} onChange={event=>setEmailInput(event.target.value)} placeholder="you@company.com"/></div></label>{mode !== "reset" && <label>Password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>}{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : mode === "signin" ? <LockKeyhole size={17}/> : mode === "signup" ? <UserPlus size={17}/> : <Mail size={17}/>} {busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : mode === "signup" ? "Create account" : "Send recovery email"}</button></form><div className="auth-links">{mode !== "signup" && <button onClick={()=>{setMode("signup");clearMessages();}}>Create an account</button>}{mode !== "signin" && <button onClick={()=>{setMode("signin");clearMessages();}}>Back to sign in</button>}{mode !== "reset" && <button onClick={()=>{setMode("reset");clearMessages();}}>Forgot password?</button>}</div><p className="auth-footnote"><ShieldCheck size={14}/> Never use your WhatsApp pairing code as your account password.</p></div></div>;
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Personal + company workspace</span></div></div><div className="auth-icon"><LockKeyhole size={25}/></div><span className="auth-kicker">SECURE ACCOUNT ACCESS</span><h1>{mode === "signin" ? "Welcome back." : mode === "signup" ? "Create your account." : "Recover access."}</h1><p className="auth-copy">Start with a private Personal Mode workspace. No company is required. Company Mode is optional and can be added later.</p><form className="auth-form" onSubmit={submitAuth}><label>Email address<div className="auth-input"><Mail size={17}/><input type="email" autoComplete="email" required value={emailInput} onChange={event=>setEmailInput(event.target.value)} placeholder="you@company.com"/></div></label>{mode !== "reset" && <label>Password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>}{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : mode === "signin" ? <LockKeyhole size={17}/> : mode === "signup" ? <UserPlus size={17}/> : <Mail size={17}/>} {busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : mode === "signup" ? "Create account" : "Send recovery email"}</button></form><div className="auth-links">{mode !== "signup" && <button onClick={()=>{setMode("signup");clearMessages();}}>Create an account</button>}{mode !== "signin" && <button onClick={()=>{setMode("signin");clearMessages();}}>Back to sign in</button>}{mode !== "reset" && <button onClick={()=>{setMode("reset");clearMessages();}}>Forgot password?</button>}</div><p className="auth-footnote"><ShieldCheck size={14}/> Never use your WhatsApp pairing code as your account password.</p></div></div>;
   }
 
   if (migrationCompany) {
     return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Device-to-company migration</span></div></div><div className="auth-icon"><Cloud size={25}/></div><span className="auth-kicker">BACKUP BEFORE IMPORT</span><h1>Import this device's records?</h1><p className="auth-copy">This device has existing local records. Choose whether to copy them into <strong>{migrationCompany.name}</strong>. Existing cloud-only records are preserved and matching IDs use this device's version. This does not upload document file bytes or WhatsApp session credentials.</p>{error && <div className="auth-error" role="alert">{error}</div>}<button className="auth-primary" disabled={busy} onClick={()=>void openCompany(migrationCompany,true)}>{busy ? "Preparing…" : "Import and merge local records"} <ArrowRight size={17}/></button><button className="auth-secondary" disabled={busy} onClick={()=>void openCompany(migrationCompany,false)}>Use this company's cloud data</button><button className="auth-link-button" disabled={busy} onClick={()=>setMigrationCompany(null)}>Back to companies</button></div></div>;
   }
 
-  if (activeCompany) {
-    return <App company={activeCompany} userId={userId} onSignOut={signOut} onSwitchCompany={()=>{setActiveCompany(null);localStorage.removeItem("axivestra.activeCompanyId");}}/>;
+
+  if (migrationPersonal) {
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Personal workspace setup</span></div></div><div className="auth-icon"><Cloud size={25}/></div><span className="auth-kicker">DEVICE DATA FOUND</span><h1>Bring your existing records?</h1><p className="auth-copy">This device already has AXIVESTRA records. You can copy those records into your private cloud workspace so they are available on any signed-in phone or PC. Original document files remain in the local document vault.</p>{error && <div className="auth-error" role="alert">{error}</div>}<button className="auth-primary" disabled={busy} onClick={()=>void openPersonal(true)}>{busy ? "Importing…" : "Import this device's records"} <ArrowRight size={17}/></button><button className="auth-secondary" disabled={busy} onClick={()=>void openPersonal(false)}>Start with personal cloud data</button><button className="auth-link-button" disabled={busy} onClick={()=>setMigrationPersonal(false)}>Back to workspace options</button></div></div>;
   }
 
-  return <div className="auth-shell auth-company-shell"><div className="auth-card auth-company-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Multi-company command workspace</span></div><button className="auth-signout" onClick={()=>void signOut()} disabled={busy}><LogOut size={15}/> Sign out</button></div><div className="auth-icon"><Building2 size={25}/></div><span className="auth-kicker">CHOOSE YOUR WORKSPACE</span><h1>Your companies.</h1><p className="auth-copy">Signed in as <strong>{email}</strong>. Each company uses a separate local cache and cloud record scope.</p>{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<div className="auth-company-list">{memberships.map(company=><button className="auth-company-row" key={company.id} onClick={()=>chooseCompany(company)} disabled={busy}><span className="auth-company-icon"><Building2 size={19}/></span><span className="auth-company-details"><strong>{company.name}</strong><small>{company.role.replace("_"," ")} · cloud workspace</small></span><ArrowRight size={17}/></button>)}{memberships.length===0&&!busy&&<div className="auth-empty">No company access found. Create a company below or ask an existing owner to add your account.</div>}</div><form className="auth-create-company" onSubmit={createCompany}><label>Create a new company workspace</label><div className="auth-create-row"><input required maxLength={160} value={companyName} onChange={event=>setCompanyName(event.target.value)} placeholder="Company name"/><button className="auth-primary auth-create-button" disabled={busy}><Plus size={17}/> Create company</button></div><small>You'll be assigned as its owner. Other users must be added by an owner or admin.</small></form><button className="auth-link-button" disabled={busy} onClick={()=>void loadMemberships()}>{busy ? "Refreshing…" : "Refresh company access"}</button></div></div>;
+  if (activeCompany) {
+    return <App company={activeCompany} userId={userId} onSignOut={signOut} onSwitchCompany={openWorkspaceChooser}/>;
+  }
+
+  if (activePersonal) {
+    return <App personalUserId={userId} userId={userId} onSignOut={signOut} onSwitchCompany={openWorkspaceChooser}/>;
+  }
+
+  return <div className="auth-shell auth-company-shell"><div className="auth-card auth-company-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Choose your workspace</span></div><button className="auth-signout" onClick={()=>void signOut()} disabled={busy}><LogOut size={15}/> Sign out</button></div><div className="auth-icon"><UserPlus size={25}/></div><span className="auth-kicker">PERSONAL BY DEFAULT · COMPANY OPTIONAL</span><h1>Select your workspace.</h1><p className="auth-copy">Signed in as <strong>{email}</strong>. Personal Mode is private to your account. Company Mode is available when you need shared team access.</p>{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-company-row personal-choice-row" onClick={choosePersonal} disabled={busy}><span className="auth-company-icon"><UserPlus size={19}/></span><span className="auth-company-details"><strong>Open Personal Workspace</strong><small>Private records · independent phone or PC · cloud sync</small></span><ArrowRight size={17}/></button><div className="auth-company-list"><h2 className="auth-workspace-subheading">Company Mode</h2>{memberships.map(company=><button className="auth-company-row" key={company.id} onClick={()=>chooseCompany(company)} disabled={busy}><span className="auth-company-icon"><Building2 size={19}/></span><span className="auth-company-details"><strong>{company.name}</strong><small>{company.role.replace("_"," ")} · shared cloud workspace</small></span><ArrowRight size={17}/></button>)}{memberships.length===0&&!busy&&<div className="auth-empty">You do not belong to a company. Personal Mode works independently.</div>}</div><form className="auth-create-company" onSubmit={createCompany}><label>Optional: create a company workspace</label><div className="auth-create-row"><input required maxLength={160} value={companyName} onChange={event=>setCompanyName(event.target.value)} placeholder="Company name"/><button className="auth-primary auth-create-button" disabled={busy}><Plus size={17}/> Create company</button></div><small>You remain the owner. Team members can be added later. Your personal workspace is not deleted or overwritten.</small></form><button className="auth-link-button" disabled={busy} onClick={()=>void loadMemberships()}>{busy ? "Refreshing…" : "Refresh company access"}</button></div></div>;
 }
