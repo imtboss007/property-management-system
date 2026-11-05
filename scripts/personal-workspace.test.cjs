@@ -20,10 +20,10 @@ const checks = [
   ["personal workspace initialization reads personal_records", /preparePersonalWorkspace[\s\S]{0,900}from\("personal_records"\)/i.test(client)],
   ["personal workspace sync uses owner filtering", /syncPersonalWorkspace[\s\S]{0,900}from\("personal_records"\)[\s\S]{0,120}eq\("user_id", userId\)/i.test(client)],
   ["new users without company memberships default to Personal Mode", /memberships\.length === 0[\s\S]{0,220}choosePersonal\(\)/i.test(gate)],
-  ["Personal Mode passes a user-scoped identity into the app", /<App personalUserId=\{userId\} userId=\{userId\}/i.test(gate)],
+  ["Personal Mode passes a user-scoped identity into the app", /<App key=\{"personal:" \+ userId\} personalUserId=\{userId\} userId=\{userId\}/i.test(gate)],
   ["Personal cloud sync is used by the app's workspace sync loop", /syncPersonalWorkspace\(personalUserId!/i.test(app)],
   ["company migration leaves personal records in the personal scope", /personalStorageKey\(userId, item\.storageKey\)/i.test(client) && /importingPersonalWorkspace/i.test(gate)],
-  ["switching between workspace modes remounts isolated app state", /key=\{"company:"[\s\S]{0,160}key=\{"personal:"/.test(gate)],
+  ["switching between workspace modes remounts isolated app state", /key=\{"company:"[\s\S]{0,400}key=\{"personal:"/.test(gate)],
   ["Personal Mode can switch workspaces without deleting its records", /const openWorkspaceChooser = \(\) => \{[\s\S]{0,220}removeItem\("axivestra\.activePersonalUserId"\)/i.test(gate) && /personalStorageKey/i.test(app)]
 ];
 
