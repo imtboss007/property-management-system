@@ -431,22 +431,22 @@ export async function prepareCompanyWorkspace(
       }
     }
     if (importLegacy) {
-      const legacyText = localStorage.getItem(item.storageKey);
-      if (legacyText) {
-        let legacyRows: Array<Record<string, unknown> & { id: string }> = [];
+      const importedById = new Map<string, Record<string, unknown> & { id: string }>();
+      const sourceKeys = [item.storageKey, personalStorageKey(userId, item.storageKey)];
+      for (const sourceKey of sourceKeys) {
+        const sourceText = localStorage.getItem(sourceKey);
+        if (!sourceText) continue;
         try {
-          const value = JSON.parse(legacyText);
+          const value = JSON.parse(sourceText);
           if (!Array.isArray(value)) throw new Error("Expected a JSON array.");
-          legacyRows = value.filter(row => row && typeof row.id === "string");
+          for (const row of value) if (row && typeof row.id === "string") importedById.set(row.id, row);
         } catch {
-          throw new Error("Legacy local data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
+          throw new Error("Existing local / personal data is damaged for " + item.storageKey + ". Export a backup before proceeding.");
         }
-        // Keep company-scoped versions on ID collision; import only legacy-only records.
-        const localById = new Map<string, Record<string, unknown> & { id: string }>();
-        for (const row of legacyRows) localById.set(row.id, row);
-        for (const row of localRows) localById.set(row.id, row);
-        localRows = Array.from(localById.values());
       }
+      // Company-scoped copies take priority; personal source records are copied, never removed.
+      for (const row of localRows) importedById.set(row.id, row);
+      localRows = Array.from(importedById.values());
     }
 
     const merged = new Map<string, Record<string, unknown> & { id: string }>();
