@@ -32,3 +32,7 @@ assert(app.includes("This phone or PC can be your starting device"), "Phone-firs
 assert(app.includes("Last successful sync") && app.includes("Sync now"), "Company cloud sync must expose manual refresh and last-success time.");
 assert(app.includes("onClick={()=>void syncWithPc()}"), "The Windows local-device link must expose a manual sync action too.");
 console.log("AXIVESTRA phone-first and cross-device manual sync regression checks passed.");
+
+assert(app.includes("Company records already sync through your account."), "Company cloud users must not be told a PC is required to sync records.");
+assert(app.includes("Company records sync directly from this phone"), "Phone-only users must be told they can sync company records directly from Android.");
+console.log("AXIVESTRA phone-only sync guidance regression checks passed.");
