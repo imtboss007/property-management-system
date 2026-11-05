@@ -173,7 +173,12 @@ export default function AuthGate() {
       if (companyError) throw companyError;
       const companyById = new Map((companiesData || []).map(row => [row.id, row]));
       const company = rows.map(row => { const value=companyById.get(row.company_id); return value ? {id:value.id,name:value.name,role:row.role} as WorkspaceCompany : null; }).find(item => item?.id === data) || null;
-      if (company) await openCompany(company, false);
+      if (company) {
+        if (hasPersonalWorkspaceCache(userId) || hasLegacyLocalRecords()) {
+          setMigrationCompany(company);
+          setInfo("");
+        } else await openCompany(company, false);
+      }
     } catch (cause) {
       setError("Company creation failed. " + (cause instanceof Error ? cause.message : String(cause)));
     } finally {
@@ -186,10 +191,11 @@ export default function AuthGate() {
     clearMessages();
     setBusy(true);
     try {
+      const importingPersonalWorkspace = hasPersonalWorkspaceCache(userId);
       localStorage.removeItem("axivestra.activePersonalUserId");
       localStorage.setItem("axivestra.activeCompanyId", company.id);
       await prepareCompanyWorkspace(company, userId, importLegacy);
-      if (importLegacy && company.role !== "read_only") {
+      if (importLegacy && company.role !== "read_only" && !importingPersonalWorkspace) {
         // The vault is device-local and intentionally is not uploaded to cloud.
         // Migrate legacy file metadata and file bytes only after the user explicitly chooses import.
         const legacyDocumentMetadata = localStorage.getItem("estateflow.documents");
@@ -202,6 +208,7 @@ export default function AuthGate() {
         // later company switches from offering the same document metadata for a second import.
         localStorage.removeItem("estateflow.documents");
       }
+      if (importLegacy) localStorage.setItem("axivestra.personalImportedIntoCompany." + userId + "." + company.id, "1");
       setMigrationCompany(null);
       setMigrationPersonal(false);
       setActivePersonal(false);
@@ -219,7 +226,8 @@ export default function AuthGate() {
     const initialized = localStorage.getItem(scopedStorageKey(company.id, "estateflow.initialized")) === "1";
     // Read-only memberships must never be offered an import action that can change local
     // records. Open only their authorized company cloud snapshot and leave legacy data untouched.
-    if (company.role !== "read_only" && !initialized && hasLegacyLocalRecords()) {
+    const personalNotYetImported = Boolean(userId && hasPersonalWorkspaceCache(userId) && localStorage.getItem("axivestra.personalImportedIntoCompany." + userId + "." + company.id) !== "1");
+    if (company.role !== "read_only" && (personalNotYetImported || (!initialized && hasLegacyLocalRecords()))) {
       setMigrationCompany(company);
       clearMessages();
       return;
@@ -300,7 +308,7 @@ export default function AuthGate() {
   }
 
   if (migrationCompany) {
-    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Device-to-company migration</span></div></div><div className="auth-icon"><Cloud size={25}/></div><span className="auth-kicker">BACKUP BEFORE IMPORT</span><h1>Import this device's records?</h1><p className="auth-copy">This device has existing local records. Choose whether to copy them into <strong>{migrationCompany.name}</strong>. Existing cloud-only records are preserved and matching IDs use this device's version. This does not upload document file bytes or WhatsApp session credentials.</p>{error && <div className="auth-error" role="alert">{error}</div>}<button className="auth-primary" disabled={busy} onClick={()=>void openCompany(migrationCompany,true)}>{busy ? "Preparing…" : "Import and merge local records"} <ArrowRight size={17}/></button><button className="auth-secondary" disabled={busy} onClick={()=>void openCompany(migrationCompany,false)}>Use this company's cloud data</button><button className="auth-link-button" disabled={busy} onClick={()=>setMigrationCompany(null)}>Back to companies</button></div></div>;
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Device-to-company migration</span></div></div><div className="auth-icon"><Cloud size={25}/></div><span className="auth-kicker">BACKUP BEFORE IMPORT</span><h1>Import this device's records?</h1><p className="auth-copy">Your Personal Mode workspace or this device has existing records. Choose whether to copy them into <strong>{migrationCompany.name}</strong>. This is a copy: your Personal Mode records remain intact. Existing company cloud-only records are preserved. Document file bytes and WhatsApp session credentials are not uploaded.</p>{error && <div className="auth-error" role="alert">{error}</div>}<button className="auth-primary" disabled={busy} onClick={()=>void openCompany(migrationCompany,true)}>{busy ? "Preparing…" : "Import and merge local records"} <ArrowRight size={17}/></button><button className="auth-secondary" disabled={busy} onClick={()=>void openCompany(migrationCompany,false)}>Use this company's cloud data</button><button className="auth-link-button" disabled={busy} onClick={()=>setMigrationCompany(null)}>Back to companies</button></div></div>;
   }
 
 
