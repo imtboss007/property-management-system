@@ -91,7 +91,7 @@ export default function AuthGate() {
       setMembershipsReady(true);
     } catch (cause) {
       setError("Could not load your company memberships. " + (cause instanceof Error ? cause.message : String(cause)));
-      setMembershipsReady(true);
+      setMembershipsReady(false);
     } finally {
       setBusy(false);
     }
