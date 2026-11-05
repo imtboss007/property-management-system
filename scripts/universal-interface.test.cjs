@@ -36,3 +36,8 @@ console.log("AXIVESTRA phone-first and cross-device manual sync regression check
 assert(app.includes("Company records already sync through your account."), "Company cloud users must not be told a PC is required to sync records.");
 assert(app.includes("Company records sync directly from this phone"), "Phone-only users must be told they can sync company records directly from Android.");
 console.log("AXIVESTRA phone-only sync guidance regression checks passed.");
+
+const portabilityApp = read("src/App.tsx");
+assert(portabilityApp.includes("parseContactImport") && portabilityApp.includes("contactsToVCard"), "Contacts must expose import and export portability.");
+assert(portabilityApp.includes("Import contacts") && portabilityApp.includes("Export .vcf"), "Contacts view must expose both transfer actions.");
+assert(portabilityApp.includes("contacts will sync") || portabilityApp.includes("Cloud sync will send the changes"), "Import should explain cross-device sync behavior.");
