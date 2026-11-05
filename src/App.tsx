@@ -21,6 +21,7 @@ import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
 import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
+import { parseContactImport, contactsToVCard } from "./lib/contact-portability.mjs";
 import {
   Building2, LayoutDashboard, LandPlot, HandCoins, Handshake, Calculator,
   Wheat, Store, CalendarClock, MessageCircle, Users, FileText, Settings,
@@ -589,6 +590,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
   const [contactProfessionFilter, setContactProfessionFilter] = useState("");
   const [contactCompanyFilter, setContactCompanyFilter] = useState("");
+  const contactImportInputRef = useRef<HTMLInputElement>(null);
+  const [contactImportBusy, setContactImportBusy] = useState(false);
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
@@ -1739,6 +1742,67 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
     }, ...previous].slice(0, 500));
   };
 
+  const importPortableContacts = async (file: File) => {
+    setContactImportBusy(true);
+    try {
+      if (file.size > 15 * 1024 * 1024) throw new Error("Contact file is larger than 15 MB. Split it into smaller files.");
+      const imported = parseContactImport(await file.text(), file.name);
+      if (!imported.length) throw new Error("No usable contacts were found in this file.");
+      const current = contactsRef.current;
+      const next = [...current];
+      let added = 0, enriched = 0, skipped = 0;
+      for (const source of imported) {
+        const name = String(source.name || "").trim();
+        const phone = String(source.phone || "").trim();
+        const email = String(source.email || "").trim();
+        const phoneKey = canonicalContactPhone(phone);
+        const emailKey = email.toLowerCase();
+        const match = next.find(item => {
+          const samePhoneAndName = phoneKey && canonicalContactPhone(item.phone) === phoneKey
+            && String(item.name || "").trim().toLowerCase() === name.toLowerCase();
+          const sameEmailAndName = emailKey && String(item.email || "").trim().toLowerCase() === emailKey
+            && String(item.name || "").trim().toLowerCase() === name.toLowerCase();
+          return Boolean(samePhoneAndName || sameEmailAndName);
+        });
+        if (match) {
+          const merged = { ...match,
+            phone: match.phone || phone, email: match.email || email, address: match.address || source.address || "",
+            name: match.name || name
+          };
+          if (JSON.stringify(merged) !== JSON.stringify(match)) {
+            const index = next.findIndex(item => item.id === match.id);
+            next[index] = merged; enriched++;
+          } else skipped++;
+        } else {
+          next.unshift({ id: uid(), name: name || phone || email, phone, email,
+            address: source.address || "", role: "Contact", notes: "" });
+          added++;
+        }
+      }
+      if (added || enriched) {
+        setContacts(next);
+        setAuditEvents(previous => [{ id: uid(), at: new Date().toISOString(), action: "created" as const,
+          entity: "Contact", recordId: "bulk-import", label: `Imported contacts · ${added} new, ${enriched} updated` }, ...previous].slice(0,500));
+      }
+      setNotice(`Contact import complete: ${added} added, ${enriched} enriched, ${skipped} already up to date. ${company ? "Cloud sync will send the changes to your other signed-in devices." : "Connect this device to your AXIVESTRA PC companion to sync across devices."}`);
+    } catch (error) {
+      setNotice("Contact import failed: " + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setContactImportBusy(false);
+      if (contactImportInputRef.current) contactImportInputRef.current.value = "";
+    }
+  };
+  const exportPortableContacts = () => {
+    const content = contactsToVCard(contacts);
+    const blob = new Blob([content], { type: "text/vcard;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "axivestra-contacts-" + new Date().toISOString().slice(0,10) + ".vcf";
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    setNotice(`Exported ${contacts.length} AXIVESTRA contacts as a vCard file. Import it on your phone or PC; app-to-app changes sync separately through your connected cloud or paired device.`);
+  };
+
   const saveContact = (data: Omit<ContactRecord, "id">) => {
     const record: ContactRecord = editingContact ? { ...editingContact, ...data } : { ...data, id: uid() };
     const possibleDuplicate = !editingContact && Boolean(record.phone) && contacts.find(item => sameContactPhone(item.phone, record.phone));
@@ -2377,7 +2441,8 @@ export default function App({ company, userId, onSignOut, onSwitchCompany }: App
             onSchedule={(record,contact)=>openTaskForm(null,{title:`Follow up · ${record.title}`,date:record.nextFollowUpDate||record.targetDeadline||today,time:"10:00",type:"Follow-up",property:record.title,propertyId:record.id,contactId:contact?.id||record.primaryContactId,contactName:contact?.name})}
             onWhatsApp={(contactId,propertyId)=>openWhatsAppFor(contactId,propertyId)}
           /> : null}
-          {active === "Contacts" && <section className="data-panel"><div className="section-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts</p></div><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div>
+          {active === "Contacts" && <section className="data-panel"><div className="section-heading ax-contact-heading"><div><h2>Contacts</h2><p>{contacts.length} saved contacts · import, export and sync across devices</p></div><div className="ax-contact-actions"><input ref={contactImportInputRef} type="file" accept=".vcf,.csv,text/vcard,text/csv" className="ax-contact-file-input" onChange={event=>{const file=event.target.files?.[0];if(file)void importPortableContacts(file);}}/><button className="secondary-button" type="button" disabled={contactImportBusy} onClick={()=>contactImportInputRef.current?.click()}>{contactImportBusy?"Importing…":"Import contacts"}</button><button className="secondary-button" type="button" disabled={!contacts.length} onClick={exportPortableContacts}>Export .vcf</button><button className="primary-button" onClick={()=>openContactForm()}><Plus size={16}/> Add contact</button></div></div>
+            <div className="ax-contact-transfer-note"><strong>Use on phone or PC</strong><span>Import a .vcf address-book export from your phone, or a .csv contacts file from your PC. Export .vcf to move AXIVESTRA contacts to either device. With the same AXIVESTRA account, company cloud sync carries app changes both ways; personal device pairing syncs when a PC companion is connected.</span></div>
             {contacts.length ? <>
               <div className="ax-contact-filter-panel">
                 <div className="ax-contact-filter-topline"><div><strong>Find contacts by role and profile</strong><small>{filteredContacts.length} of {contacts.length} contacts shown{activeContactFilterCount ? ` · ${activeContactFilterCount} filters active` : ""}</small></div>
