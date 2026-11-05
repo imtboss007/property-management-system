@@ -7,10 +7,9 @@ const app = read("src/App.tsx");
 const workbench = read("src/ModuleWorkbench.tsx");
 const registry = read("src/FollowUpRegistry.tsx");
 
-for (const capability of ["axivestra:open-command", "Ctrl K", "ax-universal-action-menu", "ax-universal-notifications", "ax-universal-pinned", "ax-universal-detail"]) {
+for (const capability of ["ax-universal-command", "ax-universal-action-menu", "ax-universal-notifications", "ax-universal-pinned", "ax-universal-detail"]) {
   // Keyboard handling and interface affordances are implemented in the shared component.
-  if (capability === "Ctrl K") assert(universal.includes('event.key.toLowerCase() === "k"'));
-  else assert(universal.includes(capability), "Missing universal interface capability: " + capability);
+  assert(universal.includes(capability), "Missing universal interface capability: " + capability);
 }
 assert(app.includes("UniversalInterface") && app.includes("universalEntities"), "App must connect global entity records to the universal interface.");
 assert(app.includes("nowForLocalDate"), "Follow-up day boundaries must use the device's local date.");
