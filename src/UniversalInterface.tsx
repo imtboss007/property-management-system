@@ -135,7 +135,7 @@ export default function UniversalInterface({ activeSection, sections, entities, 
           {results.length > 0 && <div className="ax-universal-results-group"><div className="ax-universal-group-label">RECORDS <span>{results.length} shown</span></div>{results.map(entity => <button type="button" className="ax-universal-result" key={entity.kind+":"+entity.id} onClick={() => chooseEntity(entity)}><span className="ax-universal-result-icon"><Search size={15}/></span><span><strong>{entity.title}</strong><small>{entity.kind}{entity.subtitle ? " · "+entity.subtitle : ""}</small></span><ChevronRight size={14}/></button>)}</div>}
           {term && !results.length && !matchingSections.length && <div className="ax-universal-empty-state">No matching records or workspaces. Try another name, phone number, location or keyword.</div>}
         </div>}
-        <footer className="ax-universal-palette-footer"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate by touch or keyboard</span><span><kbd>ENTER</kbd> Select</span><span>Universal workspace search</span></footer>
+        <footer className="ax-universal-palette-footer"><span><kbd>↑</kbd><kbd>↓</kbd> Search or select a result</span><span><kbd>ENTER</kbd> Select</span><span>Universal workspace search</span></footer>
       </section>
     </div>}
 
