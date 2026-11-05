@@ -3542,3 +3542,36 @@ h2,h3{color:#e5f2fc}
   .ax-universal-palette-footer span:last-child{display:none}
   .ax-universal-notifications,.ax-universal-action-menu{right:-48px}
 }
+
+/* Contact directory filters — responsive on desktop, tablet and phone */
+.ax-contact-filter-panel{margin:0 0 16px;padding:15px;border:1px solid var(--line,#dfe7ec);border-radius:13px;background:linear-gradient(145deg,#fff,#f7fafc);display:flex;flex-direction:column;gap:13px}
+.ax-contact-filter-topline{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ax-contact-filter-topline>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ax-contact-filter-topline strong{font-size:12px;color:var(--ink,#17354b);font-weight:800}
+.ax-contact-filter-topline small{font-size:10px;color:var(--muted,#8193a1)}
+.ax-contact-clear{border:1px solid #d9e3e9;border-radius:8px;background:#fff;color:#477086;padding:7px 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+.ax-contact-filter-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ax-contact-filter-selects label{display:flex;flex-direction:column;gap:6px;color:#61798a;font-size:10px;font-weight:800}
+.ax-contact-filter-selects select{width:100%;min-width:0;height:38px;border:1px solid #dce6ec;border-radius:8px;background:#fff;color:#25475d;padding:0 10px;font:500 11px inherit;outline:none}
+.ax-contact-filter-selects select:focus{border-color:#65a7c2;box-shadow:0 0 0 3px #65a7c21c}
+.ax-contact-role-filter{display:flex;flex-direction:column;gap:8px}
+.ax-contact-role-filter>span{font-size:10px;color:#536f82;font-weight:800}
+.ax-contact-role-filter>span small{font-size:9px;color:#91a0aa;font-weight:500}
+.ax-contact-role-chips{display:flex;flex-wrap:wrap;gap:7px}
+.ax-contact-role-chips button{border:1px solid #dce6ec;border-radius:20px;background:#fff;color:#587286;padding:7px 11px;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.ax-contact-role-chips button:hover{border-color:#9fc6d5;background:#f1f8fa}
+.ax-contact-role-chips button.active{border-color:#1a688a;background:#123d59;color:#fff;box-shadow:0 2px 7px #123d5922}
+@media(max-width:600px){
+ .ax-contact-filter-panel{padding:12px;gap:11px}
+ .ax-contact-filter-selects{grid-template-columns:1fr}
+ .ax-contact-role-chips{gap:6px}
+ .ax-contact-role-chips button{padding:7px 10px;font-size:9px}
+ .ax-contact-filter-topline strong{font-size:11px}
+}
+
+/* Shared phone-first / PC-first cloud synchronization status */
+.ax-cloud-sync-last{display:block;margin-top:8px;color:var(--muted,#8193a1);font-size:10px}
+@media(max-width:600px){
+ .settings-actions .sync-status{flex-basis:100%;line-height:1.5}
+ .ax-cloud-sync-last{font-size:9px}
+}
