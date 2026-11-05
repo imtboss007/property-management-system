@@ -52,12 +52,14 @@ export function parseContactImport(text, fileName="") {
 }
 const escapeVCard=value=>String(value||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;");
 export function contactsToVCard(contacts) {
-  return ["BEGIN:VCARD","VERSION:3.0",...contacts.flatMap(contact=>{
-    const lines=[`FN:${escapeVCard(contact.name)}`];
-    if(contact.phone) lines.push(`TEL;TYPE=CELL:${escapeVCard(contact.phone)}`);
-    if(contact.email) lines.push(`EMAIL:${escapeVCard(contact.email)}`);
-    if(contact.address) lines.push(`ADR;TYPE=HOME:;;${escapeVCard(contact.address)};;;;`);
-    if(contact.role) lines.push(`NOTE:${escapeVCard([contact.role,contact.customRoles,contact.profession,contact.designation,contact.employer,contact.associatedCompany].filter(Boolean).join(" · "))}`);
-    return lines;
-  },"END:VCARD"].join("\r\n");
+  return contacts.map(contact => {
+    const lines = ["BEGIN:VCARD", "VERSION:3.0", `FN:${escapeVCard(contact.name)}`];
+    if (contact.phone) lines.push(`TEL;TYPE=CELL:${escapeVCard(contact.phone)}`);
+    if (contact.email) lines.push(`EMAIL:${escapeVCard(contact.email)}`);
+    if (contact.address) lines.push(`ADR;TYPE=HOME:;;${escapeVCard(contact.address)};;;;`);
+    const profile = [contact.role, contact.customRoles, contact.profession, contact.designation, contact.employer, contact.associatedCompany].filter(Boolean).join(" · ");
+    if (profile) lines.push(`NOTE:${escapeVCard(profile)}`);
+    lines.push("END:VCARD");
+    return lines.join("\r\n");
+  }).join("\r\n");
 }
