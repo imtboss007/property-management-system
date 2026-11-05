@@ -3454,3 +3454,91 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-intent-big-number { font-size:21px; }
   .ax-modern-shell .ax-intent-timeline button { grid-template-columns:85px minmax(0,1fr) 16px; }
 }
+
+/* AXIVESTRA universal interaction layer — shared across modules and devices */
+.ax-universal-controls{display:flex;align-items:center;gap:7px;position:relative;min-width:0}
+.ax-universal-command,.ax-universal-plus,.ax-universal-bell,.ax-universal-pin{height:36px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #dbe5ee;border-radius:9px;background:#f7fafc;color:#17354b;padding:0 10px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer;transition:background .16s,border-color .16s,transform .16s}
+.ax-universal-command:hover,.ax-universal-plus:hover,.ax-universal-bell:hover,.ax-universal-pin:hover{background:#edf6f8;border-color:#9bc5d0}
+.ax-universal-command kbd,.ax-universal-palette kbd{font:700 9px "DM Sans",sans-serif;color:#71879a;background:#edf2f6;border:1px solid #dce5ec;border-radius:4px;padding:3px 5px}
+.ax-universal-plus{background:linear-gradient(135deg,#0c2b45,#154768);color:#fff;border-color:#174b68;padding:0 12px;box-shadow:0 3px 9px #0c2b4518}
+.ax-universal-plus:hover{background:linear-gradient(135deg,#174b68,#1c6588);color:#fff}
+.ax-universal-bell,.ax-universal-pin{width:36px;padding:0;position:relative}
+.ax-universal-bell.has-alerts{color:#9b6823;border-color:#e7cf9f;background:#fffaf0}
+.ax-universal-bell i{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 3px;border-radius:20px;background:#cb8e37;color:white;font-size:8px;font-style:normal;display:grid;place-items:center;border:2px solid white}
+.ax-universal-pin{color:#8294a3}
+.ax-universal-pin.active{color:#b27b2a;background:#fff7e8;border-color:#e4c68f}
+.ax-universal-pinned{display:flex;align-items:center;gap:4px;max-width:235px;overflow:auto;scrollbar-width:none}
+.ax-universal-pinned::-webkit-scrollbar{display:none}
+.ax-universal-pinned button{flex:0 0 auto;border:1px solid #e1e9ee;border-radius:7px;background:#fff;color:#668093;padding:6px 8px;font-size:9px;font-weight:700;cursor:pointer}
+.ax-universal-pinned button:hover{border-color:#c9a56c;color:#9b6a27;background:#fffaf2}
+.ax-universal-popover-anchor{position:relative}
+.ax-universal-popover{position:absolute;z-index:1600;top:calc(100% + 9px);right:0;width:min(330px,88vw);border:1px solid #dce6ed;border-radius:13px;background:#fff;box-shadow:0 18px 50px #0c26352a;padding:9px;color:#153249}
+.ax-universal-popover-title{display:flex;justify-content:space-between;align-items:center;padding:8px 9px 10px;font-size:9px;font-weight:900;letter-spacing:1.2px;color:#758b9c}
+.ax-universal-popover-title span{letter-spacing:0;color:#a06e2b}
+.ax-universal-action-menu>button,.ax-universal-notifications>button:not(.ax-universal-open-registry){width:100%;display:flex;align-items:center;gap:10px;padding:10px 9px;border:0;border-radius:9px;background:transparent;color:#28465b;text-align:left;cursor:pointer}
+.ax-universal-action-menu>button:hover,.ax-universal-notifications>button:hover{background:#f3f7fa}
+.ax-universal-action-menu>button>span:nth-child(2),.ax-universal-notifications>button>span:nth-child(2){display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.ax-universal-action-menu strong,.ax-universal-notifications strong{font-size:11px;color:#17374e}
+.ax-universal-action-menu small,.ax-universal-notifications small{font-size:9px;color:#7f93a2}
+.ax-universal-action-icon,.ax-universal-notice-count{width:30px;height:30px;border-radius:8px;background:#eaf4f8;color:#17698a;display:grid;place-items:center;flex-shrink:0}
+.ax-universal-notice-count{font-weight:900;font-size:12px;color:#986522;background:#fff2d9}
+.ax-universal-open-registry{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-top:1px solid #edf1f4;background:white;color:#176887;font-size:10px;font-weight:800;padding:12px 8px 5px;margin-top:5px;cursor:pointer}
+.ax-universal-empty{display:flex;align-items:center;gap:8px;padding:12px;color:#4c7f66;font-size:11px}
+.ax-universal-overlay{position:fixed;z-index:2500;inset:0;background:#061525a8;backdrop-filter:blur(7px);display:flex;align-items:flex-start;justify-content:center;padding:clamp(15px,7vh,70px) 16px 20px;overflow:auto}
+.ax-universal-palette{width:min(760px,100%);max-height:min(82vh,820px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #d3e0e8;border-radius:18px;background:#fdfefe;box-shadow:0 30px 90px #0007;color:#17364b}
+.ax-universal-searchline{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid #e5edf2;color:#2d8bb2}
+.ax-universal-searchline input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:#15384f;font:500 14px "DM Sans",sans-serif}
+.ax-universal-searchline input::placeholder{color:#92a2af}
+.ax-universal-searchline button{display:grid;place-items:center;border:0;background:transparent;color:#8395a3;cursor:pointer}
+.ax-universal-palette-body{overflow:auto;padding:8px 17px 18px}
+.ax-universal-results-group{margin:10px 0 14px}
+.ax-universal-group-label{display:flex;justify-content:space-between;padding:7px 8px;color:#8194a2;font-size:9px;font-weight:900;letter-spacing:1.4px}
+.ax-universal-group-label span{letter-spacing:0;font-weight:600}
+.ax-universal-result{width:100%;display:flex;align-items:center;gap:11px;padding:10px 9px;border:0;border-radius:10px;background:transparent;text-align:left;color:#456276;cursor:pointer}
+.ax-universal-result:hover{background:#edf5f8}
+.ax-universal-result>span:nth-child(2){display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.ax-universal-result strong{font-size:11px;color:#173a52;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax-universal-result small{font-size:9px;color:#7c91a0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax-universal-result-icon{width:31px;height:31px;border-radius:9px;background:#eaf3f7;color:#247d9e;display:grid;place-items:center;flex-shrink:0}
+.ax-universal-shortcuts{display:flex;flex-wrap:wrap;gap:7px;padding:0 7px}
+.ax-universal-shortcuts button{display:flex;align-items:center;gap:6px;border:1px solid #e0e8ee;border-radius:8px;background:#fff;color:#3f6074;padding:8px 10px;font-size:9px;font-weight:800;cursor:pointer}
+.ax-universal-shortcuts button:hover{border-color:#d9b36e;background:#fffaf0}
+.ax-universal-empty-state{padding:36px 15px;text-align:center;color:#8396a5;font-size:12px}
+.ax-universal-palette-footer{display:flex;justify-content:space-between;gap:8px;padding:10px 17px;border-top:1px solid #e7edf1;background:#f8fafc;color:#8a9aa6;font-size:8px}
+.ax-universal-palette-footer span{display:flex;align-items:center;gap:4px}
+.ax-universal-palette-footer kbd{font-size:8px;padding:2px 4px}
+.ax-universal-detail{padding:23px;overflow:auto}
+.ax-universal-detail-kicker{font-size:9px;font-weight:900;letter-spacing:1.5px;color:#b17a2d}
+.ax-universal-detail h2{font:800 23px "Manrope",sans-serif;letter-spacing:-.5px;color:#16364d;margin:9px 0}
+.ax-universal-detail>p{color:#758a99;font-size:11px;line-height:1.7}
+.ax-universal-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0}
+.ax-universal-detail-grid>div{padding:12px;border:1px solid #e4ebef;border-radius:9px;background:#f8fafb;min-width:0}
+.ax-universal-detail-grid span{display:block;color:#8395a2;font-size:9px;margin-bottom:6px}
+.ax-universal-detail-grid strong{display:block;color:#23465c;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ax-universal-detail-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.ax-universal-detail-actions button{display:flex;align-items:center;gap:7px;border-radius:8px;padding:10px 12px;font-size:10px;font-weight:800;cursor:pointer}
+.ax-universal-back{background:white;color:#597286;border:1px solid #dce6ec}
+.ax-universal-open{background:#103c58;color:white;border:1px solid #103c58}
+.ax-brand-mark{background:#071b31!important;border:1px solid #bd8a42;box-shadow:0 5px 16px #0b263e24}
+.ax-brand-mark img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
+.auth-brand-mark{overflow:hidden;background:#071b31!important;border:1px solid #d6a85b!important;box-shadow:0 8px 20px #0b263e20}
+.auth-brand-mark img{width:100%;height:100%;display:block;object-fit:cover}
+.ax-health-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media(max-width:1180px){.ax-universal-pinned{display:none}}
+@media(max-width:800px){
+  .ax-universal-controls{gap:5px}
+  .ax-universal-command{width:36px;padding:0;gap:0}.ax-universal-command span,.ax-universal-command kbd{display:none}
+  .ax-universal-plus{width:36px;padding:0}.ax-universal-plus span{display:none}
+  .ax-universal-palette{max-height:88vh;border-radius:14px}
+  .ax-universal-searchline{padding:13px}.ax-universal-searchline input{font-size:12px}
+  .ax-universal-palette-footer{flex-wrap:wrap}
+}
+@media(max-width:520px){
+  .ax-universal-pinned{display:none}
+  .ax-universal-detail{padding:17px}
+  .ax-universal-detail-grid{grid-template-columns:1fr}
+  .ax-universal-overlay{padding:8px}
+  .ax-universal-palette{max-height:94vh}
+  .ax-universal-palette-footer span:last-child{display:none}
+  .ax-universal-notifications,.ax-universal-action-menu{right:-48px}
+}
