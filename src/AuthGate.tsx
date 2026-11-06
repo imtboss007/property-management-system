@@ -8,6 +8,9 @@ import { hasLegacyLocalRecords, hasPersonalWorkspaceCache, prepareCompanyWorkspa
 type AuthMode = "signin" | "signup" | "reset";
 type Membership = { company_id: string; role: CompanyRole };
 
+// Always return hosted account emails to the permanent production website, not localhost.
+const AUTH_REDIRECT_URL = "https://axivestra.pages.dev";
+
 export default function AuthGate() {
   const [checked, setChecked] = useState(false);
   const [recoverySession, setRecoverySession] = useState(false);
@@ -113,7 +116,7 @@ export default function AuthGate() {
         if (authError) throw authError;
         setInfo("Signed in. Opening your workspace…");
       } else if (mode === "signup") {
-        const { data, error: authError } = await supabase.auth.signUp({ email: emailInput.trim(), password });
+        const { data, error: authError } = await supabase.auth.signUp({ email: emailInput.trim(), password, options: { emailRedirectTo: AUTH_REDIRECT_URL } });
         if (authError) throw authError;
         if (!data.session) {
           setInfo("Account created. Check your email to confirm it, then return here to sign in.");
@@ -122,7 +125,7 @@ export default function AuthGate() {
           setInfo("Account created. Your private Personal Mode workspace is ready; Company Mode is optional.");
         }
       } else {
-        const { error: authError } = await supabase.auth.resetPasswordForEmail(emailInput.trim());
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(emailInput.trim(), { redirectTo: AUTH_REDIRECT_URL });
         if (authError) throw authError;
         setInfo("Password recovery instructions have been sent if the account exists.");
       }
