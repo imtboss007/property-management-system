@@ -195,7 +195,8 @@ assert.match(css, /\.ax-orbit-detail__body/, "The module detail panel must have 
 assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.ax-orbit-detail__side/, "The module detail panel must adapt to mobile.");
 
 assert.match(app, /name: "Workspace Explorer"/, "The orbital navigator must have a dedicated Workspace Explorer route.");
-assert.match(app, /active === "Workspace Explorer" && <>[\s\S]*?<AxivestraOrbitalHub/, "The orbital navigator must be mounted only by the Workspace Explorer route.");
+const explorerStart = app.indexOf('active === "Workspace Explorer" && <>');
+assert.ok(explorerStart >= 0 && app.indexOf("<AxivestraOrbitalHub", explorerStart) > explorerStart, "The orbital navigator must be mounted only by the Workspace Explorer route.");
 const overviewStart = app.indexOf('{active === "Overview" && !rangeSearch && <>');
 const intelligenceStart = app.indexOf('{active === "Intelligence Hub" && <section', overviewStart);
 assert.ok(overviewStart >= 0 && intelligenceStart > overviewStart, "The primary Asset Intelligence Overview route must be present.");
