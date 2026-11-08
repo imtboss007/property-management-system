@@ -105,3 +105,16 @@ assert.match(intentCanvas, /Temporal workspace/, "The canvas must include a date
 assert.match(intentCanvas, /Financial movement/, "The canvas must include source-linked financial movement.");
 assert.match(intentCanvas, /People & relationship signals/, "The canvas must include person-to-record relationship signals.");
 assert.match(css, /VESTRA SHIFT — live intent canvas/, "The responsive intent canvas styling must be present.");
+
+
+assert.match(orbit, /ringName:\s*ring === 0 \? "outer" : "inner"/, "Workspace nodes must be split into two independently rotating rings.");
+assert.match(orbit, /ax-orbit-ring--\$\{ring\}/, "Each orbital ring must have a dedicated animation scope.");
+assert.match(orbit, /rotationPaused/, "Users must be able to pause and resume automatic orbital motion.");
+assert.match(orbit, /Pause rotation|Resume rotation/, "The orbital motion control must have a clear accessible action label.");
+assert.match(css, /@keyframes ax-orbit-node-orbit\s*\{/, "The outer module ring must have an automatic rotation animation.");
+assert.match(css, /@keyframes ax-orbit-node-orbit-reverse\s*\{/, "The inner module ring must rotate independently in the opposite direction.");
+assert.match(css, /ax-orbit-node-counter-outer/, "Outer-ring module cards must remain upright while orbiting.");
+assert.match(css, /ax-orbit-node-counter-inner/, "Inner-ring module cards must remain upright while orbiting.");
+assert.match(css, /is-rotation-paused[\s\S]*?animation-play-state:\s*paused/, "The pause control must stop decorative and module-orbit animation.");
+assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-ring\s*\{[^}]*display:\s*contents/, "Mobile orbit nodes must reflow into the existing responsive grid.");
+assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-ring/, "Reduced-motion users must not receive automatic orbital movement.");
