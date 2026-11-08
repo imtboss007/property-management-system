@@ -124,6 +124,8 @@ jobs:
           import re
           wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
           text = wrapper.read_text(encoding="utf-8")
+          # CI needs the runtime binaries, not the much larger sources/docs archive.
+          text = text.replace("-all.zip", "-bin.zip")
           if re.search(r"^networkTimeout=", text, flags=re.MULTILINE):
               text = re.sub(r"^networkTimeout=.*$", "networkTimeout=120000", text, flags=re.MULTILINE)
           else:
