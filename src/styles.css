@@ -3824,3 +3824,6 @@ h2,h3{color:#e5f2fc}
     transition: none !important;
   }
 }
+
+/* Keep route lines underneath the rotating selectable workspace cards. */
+.ax-modern-shell .ax-orbit-nodes { z-index: 3; }
