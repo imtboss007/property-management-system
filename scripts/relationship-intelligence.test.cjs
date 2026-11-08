@@ -42,6 +42,8 @@ assert.equal(result.unresolvedReferences, 1, "unknown contact IDs are surfaced, 
 assert.ok(person2.records.some(item => item.relations.includes("seller")));
 assert.equal(person2.records.find(item => item.relations.includes("seller")).recordId, "deal-1", "relationship results retain the source record ID for navigation and traceability");
 assert.ok(person1.records.some(item => item.relations.includes("Primary contact")));
+assert.equal(person1.records.find(item => item.kind === "task").workspace, "Commercial Land", "task links inherit the workspace from their stable property ID");
+assert.equal(person2.records.find(item => item.kind === "financial").workspace, "Commercial Land", "financial links inherit the workspace from their stable property ID");
 assert.equal(result.contacts.filter(item => item.name === "Alex Morgan").length, 2,
   "same-name people remain separate; display-name matching is not a relationship");
 const noLinks = buildRelationshipIntelligence({
