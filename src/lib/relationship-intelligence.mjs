@@ -14,6 +14,7 @@ function addReference(target, contactId, record, kind, relation, unresolved) {
     kind,
     title: String(record?.title || record?.name || record?.reference || record?.type || kind),
     workspace: String(record?.module || ""),
+    recordId: String(record?.id || ""),
     relations: []
   };
   if (relation && !current.relations.includes(relation)) current.relations.push(relation);
