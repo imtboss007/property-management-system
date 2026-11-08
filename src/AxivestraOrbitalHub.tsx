@@ -292,6 +292,7 @@ export default function AxivestraOrbitalHub({
             <article><span>OPEN WORKSTREAMS</span><strong>{inspectedDetail.records.filter(record => !["completed","closed","settled","rejected","cancelled"].includes(record.status.toLowerCase())).length}</strong></article>
             <article><span>FOLLOW-UPS SET</span><strong>{inspectedDetail.records.filter(record => record.nextFollowUpDate).length}</strong></article>
             <article><span>CONNECTED CONTACTS</span><strong>{inspectedDetail.contacts.length}</strong></article>
+            <article><span>RECORDED VALUE</span><strong>{formatINR(inspectedDetail.records.reduce((sum, record) => sum + (Number(String(record.value).replace(/[^0-9.-]/g, "")) || 0), 0))}</strong></article>
           </div>
 
           <div className="ax-orbit-detail__body">
@@ -351,6 +352,37 @@ export default function AxivestraOrbitalHub({
                     <span>{workflow.icon}<b>{workflow.label}</b></span><strong>{workflow.count}</strong><ArrowUpRight size={12}/>
                   </button>
                 ))}
+              </section>
+
+              <section className="ax-orbit-detail__related">
+                <div className="ax-orbit-detail__section-head"><div><span>LIVE LINKED ITEMS</span><h4>Recent workflow activity</h4></div></div>
+                {inspectedDetail.tasks.slice(0, 2).map(task => (
+                  <div className="ax-orbit-detail-activity" key={"task-" + task.id}>
+                    <span className="ax-orbit-detail-activity__kind">TASK</span>
+                    <div><strong>{task.title}</strong><small>{task.date || "No date"} · {task.done ? "Completed" : "Open"}</small></div>
+                  </div>
+                ))}
+                {inspectedDetail.financials.slice(0, 2).map(entry => (
+                  <div className="ax-orbit-detail-activity" key={"financial-" + entry.id}>
+                    <span className="ax-orbit-detail-activity__kind">FINANCE</span>
+                    <div><strong>{entry.type} · {entry.amount}</strong><small>{entry.date || "No date"}{entry.party ? " · " + entry.party : ""}</small></div>
+                  </div>
+                ))}
+                {inspectedDetail.risks.slice(0, 2).map(risk => (
+                  <div className="ax-orbit-detail-activity" key={"risk-" + risk.id}>
+                    <span className="ax-orbit-detail-activity__kind">RISK</span>
+                    <div><strong>{risk.title}</strong><small>{risk.severity} · {risk.status}{risk.dueDate ? " · Due " + risk.dueDate : ""}</small></div>
+                  </div>
+                ))}
+                {inspectedDetail.approvals.slice(0, 2).map(approval => (
+                  <div className="ax-orbit-detail-activity" key={"approval-" + approval.id}>
+                    <span className="ax-orbit-detail-activity__kind">APPROVAL</span>
+                    <div><strong>{approval.title}</strong><small>{approval.priority} · {approval.status}</small></div>
+                  </div>
+                ))}
+                {!inspectedDetail.tasks.length && !inspectedDetail.financials.length && !inspectedDetail.risks.length && !inspectedDetail.approvals.length && (
+                  <p className="ax-orbit-detail__empty">No linked task, financial, risk or approval entries are saved for this module yet.</p>
+                )}
               </section>
             </aside>
           </div>
