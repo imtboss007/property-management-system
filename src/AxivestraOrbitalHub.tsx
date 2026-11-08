@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowUpRight, CalendarClock, CheckCircle2, CircleAlert, ClipboardCheck, Coins, Command, FileText, Grid3X3, Link2, MapPin, Layers3, Orbit, Pause, Play, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { Activity, ArrowUpRight, CalendarClock, ClipboardCheck, Coins, Command, Grid3X3, Link2, Layers3, Orbit, Pause, Play, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type AxivestraOrbitalItem = {
@@ -52,6 +52,7 @@ const formatINR = (value: number) => new Intl.NumberFormat("en-IN", {
 
 export default function AxivestraOrbitalHub({
   items,
+  details,
   totalRecords,
   portfolioValue,
   openActions,
@@ -63,7 +64,8 @@ export default function AxivestraOrbitalHub({
   const [rotationPaused, setRotationPaused] = useState(false);
   const [viewMode, setViewMode] = useState<"orbit" | "grid">("orbit");
   const [selectedGroup, setSelectedGroup] = useState("All");
-  const [moduleSearch, setModuleSearch] = useState("");\n  const [inspectedModule, setInspectedModule] = useState<string | null>(null);
+  const [moduleSearch, setModuleSearch] = useState("");
+  const [inspectedModule, setInspectedModule] = useState<string | null>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
