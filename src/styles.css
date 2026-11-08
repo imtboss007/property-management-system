@@ -4394,3 +4394,40 @@ h2,h3{color:#e5f2fc}
 @media (prefers-reduced-motion: reduce) {
   .ax-modern-shell .ax-orbit-detail { animation: none; }
 }
+
+
+.ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.ax-modern-shell .ax-orbit-detail-activity {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(116,190,184,.09);
+}
+.ax-modern-shell .ax-orbit-detail-activity__kind {
+  flex: 0 0 48px;
+  padding: 4px 5px;
+  border: 1px solid rgba(108,198,177,.18);
+  border-radius: 5px;
+  color: #8ed8bd;
+  background: rgba(48,124,104,.13);
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: .65px;
+  text-align: center;
+}
+.ax-modern-shell .ax-orbit-detail-activity > div { display: grid; min-width: 0; gap: 3px; }
+.ax-modern-shell .ax-orbit-detail-activity strong {
+  overflow-wrap: anywhere;
+  color: #d3e9e1;
+  font-size: 8px;
+  line-height: 1.35;
+}
+.ax-modern-shell .ax-orbit-detail-activity small {
+  color: #83a8a4;
+  font-size: 7px;
+  line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
