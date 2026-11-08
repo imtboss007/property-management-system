@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowUpRight, Command, Grid3X3, Layers3, Orbit, Pause, Play, Search, Sparkles, X } from "lucide-react";
+import { Activity, ArrowUpRight, CalendarClock, CheckCircle2, CircleAlert, ClipboardCheck, Coins, Command, FileText, Grid3X3, Link2, MapPin, Layers3, Orbit, Pause, Play, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type AxivestraOrbitalItem = {
@@ -10,8 +10,33 @@ export type AxivestraOrbitalItem = {
   icon: ReactNode;
 };
 
+type ModuleDetailRecord = {
+  id: string;
+  title: string;
+  status: string;
+  value: string;
+  location: string;
+  contact: string;
+  nextAction: string;
+  nextFollowUpDate: string;
+  fieldValues: { label: string; value: string }[];
+};
+type ModuleDetail = {
+  name: string;
+  group: string;
+  description: string;
+  fields: { key: string; label: string }[];
+  records: ModuleDetailRecord[];
+  contacts: { id: string; name: string; role: string; phone: string }[];
+  tasks: { id: string; title: string; date: string; done: boolean; type: string }[];
+  financials: { id: string; type: string; amount: string; date: string; party: string }[];
+  risks: { id: string; title: string; severity: string; status: string; dueDate: string }[];
+  approvals: { id: string; title: string; status: string; priority: string }[];
+};
+
 type AxivestraOrbitalHubProps = {
   items: AxivestraOrbitalItem[];
+  details: ModuleDetail[];
   totalRecords: number;
   portfolioValue: number;
   openActions: number;
@@ -38,7 +63,7 @@ export default function AxivestraOrbitalHub({
   const [rotationPaused, setRotationPaused] = useState(false);
   const [viewMode, setViewMode] = useState<"orbit" | "grid">("orbit");
   const [selectedGroup, setSelectedGroup] = useState("All");
-  const [moduleSearch, setModuleSearch] = useState("");
+  const [moduleSearch, setModuleSearch] = useState("");\n  const [inspectedModule, setInspectedModule] = useState<string | null>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
@@ -105,7 +130,7 @@ export default function AxivestraOrbitalHub({
       .sort((a, b) => b.records - a.records || a.name.localeCompare(b.name));
   }, [items]);
 
-  const selectedItem = visibleOrbitItems.find(item => item.name === focused);
+  const selectedItem = visibleOrbitItems.find(item => item.name === focused);\n  const inspectedDetail = details.find(item => item.name === inspectedModule) || null;
   const safeCount = items.length;
 
   return (
@@ -223,7 +248,7 @@ export default function AxivestraOrbitalHub({
                       onMouseEnter={() => setFocused(item.name)}
                       onFocus={() => setFocused(item.name)}
                       onBlur={() => setFocused(null)}
-                      onClick={() => openWorkspace(item.name)}
+                      onClick={() => { setFocused(item.name); setInspectedModule(item.name); }}
                       aria-label={`Open ${item.name}, ${item.count} records`}
                     >
                       <span className="ax-orbit-node__icon">{item.icon}</span>
@@ -248,6 +273,92 @@ export default function AxivestraOrbitalHub({
           )}
         </div>
       </div>
+
+      {inspectedDetail && (
+        <section className="ax-orbit-detail" aria-label={inspectedDetail.name + " module details"}>
+          <div className="ax-orbit-detail__header">
+            <div>
+              <span className="ax-orbit-detail__eyebrow">{inspectedDetail.group} · MODULE INTELLIGENCE</span>
+              <h3>{inspectedDetail.name}</h3>
+              <p>{inspectedDetail.description}</p>
+            </div>
+            <button type="button" className="ax-orbit-detail__close" onClick={() => setInspectedModule(null)} aria-label="Close module details"><X size={16}/></button>
+          </div>
+
+          <div className="ax-orbit-detail__metrics">
+            <article><span>SAVED RECORDS</span><strong>{inspectedDetail.records.length}</strong></article>
+            <article><span>OPEN WORKSTREAMS</span><strong>{inspectedDetail.records.filter(record => !["completed","closed","settled","rejected","cancelled"].includes(record.status.toLowerCase())).length}</strong></article>
+            <article><span>FOLLOW-UPS SET</span><strong>{inspectedDetail.records.filter(record => record.nextFollowUpDate).length}</strong></article>
+            <article><span>CONNECTED CONTACTS</span><strong>{inspectedDetail.contacts.length}</strong></article>
+          </div>
+
+          <div className="ax-orbit-detail__body">
+            <div className="ax-orbit-detail__main">
+              <div className="ax-orbit-detail__section-head"><div><span>LIVE REGISTER</span><h4>Saved records</h4></div><small>{inspectedDetail.records.length} total</small></div>
+              {inspectedDetail.records.length ? (
+                <div className="ax-orbit-detail__records">
+                  {inspectedDetail.records.slice(0, 4).map(record => (
+                    <article className="ax-orbit-detail-record" key={record.id}>
+                      <div className="ax-orbit-detail-record__top">
+                        <div><strong>{record.title}</strong><small>{record.location || "Location not recorded"}</small></div>
+                        <span className="ax-orbit-detail-record__status">{record.status || "Unspecified"}</span>
+                      </div>
+                      <div className="ax-orbit-detail-record__meta">
+                        {record.value && <span><Coins size={12}/>{record.value}</span>}
+                        {record.contact && <span><Users size={12}/>{record.contact}</span>}
+                        {record.nextFollowUpDate && <span><CalendarClock size={12}/>{record.nextFollowUpDate}</span>}
+                      </div>
+                      {record.nextAction && <p className="ax-orbit-detail-record__action"><b>Next:</b> {record.nextAction}</p>}
+                      {record.fieldValues.length > 0 && (
+                        <div className="ax-orbit-detail-record__fields">
+                          {record.fieldValues.slice(0, 4).map(field => <span key={field.label}><small>{field.label}</small><strong>{field.value}</strong></span>)}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="ax-orbit-detail__empty">No saved records in this module yet. The configured fields are ready when you create its first record.</p>}
+
+              <div className="ax-orbit-detail__section-head ax-orbit-detail__section-head--sub"><div><span>CONFIGURED DATA MODEL</span><h4>Subcategories & fields</h4></div><small>{inspectedDetail.fields.length} fields</small></div>
+              <div className="ax-orbit-detail__field-list">
+                {inspectedDetail.fields.length ? inspectedDetail.fields.map(field => <span key={field.key}>{field.label}</span>) : <span>Core record fields</span>}
+              </div>
+            </div>
+
+            <aside className="ax-orbit-detail__side">
+              <section className="ax-orbit-detail__related">
+                <div className="ax-orbit-detail__section-head"><div><span>RELATIONSHIP GRAPH</span><h4>Linked contacts</h4></div><small>{inspectedDetail.contacts.length}</small></div>
+                {inspectedDetail.contacts.length ? inspectedDetail.contacts.slice(0, 5).map(contact => (
+                  <div className="ax-orbit-detail-contact" key={contact.id}>
+                    <span className="ax-orbit-detail-contact__avatar">{contact.name.slice(0,1).toUpperCase()}</span>
+                    <div><strong>{contact.name}</strong><small>{contact.role || "Contact"}{contact.phone ? " · " + contact.phone : ""}</small></div>
+                  </div>
+                )) : <p className="ax-orbit-detail__empty">No linked contacts in saved module records.</p>}
+                <button type="button" className="ax-orbit-detail__text-action" onClick={() => onOpen("Contacts")}>Open contact directory <ArrowUpRight size={13}/></button>
+              </section>
+
+              <section className="ax-orbit-detail__related">
+                <div className="ax-orbit-detail__section-head"><div><span>CONNECTED WORKFLOWS</span><h4>Operational links</h4></div></div>
+                {[
+                  {label:"Scheduled tasks",count:inspectedDetail.tasks.filter(task=>!task.done).length,icon:<CalendarClock size={14}/>,target:"Schedule & Tasks"},
+                  {label:"Financial entries",count:inspectedDetail.financials.length,icon:<Coins size={14}/>,target:"Financials"},
+                  {label:"Risk items",count:inspectedDetail.risks.length,icon:<ShieldCheck size={14}/>,target:"Risk & Compliance"},
+                  {label:"Approvals",count:inspectedDetail.approvals.length,icon:<ClipboardCheck size={14}/>,target:"Approvals"}
+                ].map(workflow => (
+                  <button type="button" className="ax-orbit-detail-workflow" key={workflow.target} onClick={() => onOpen(workflow.target)}>
+                    <span>{workflow.icon}<b>{workflow.label}</b></span><strong>{workflow.count}</strong><ArrowUpRight size={12}/>
+                  </button>
+                ))}
+              </section>
+            </aside>
+          </div>
+
+          <div className="ax-orbit-detail__footer">
+            <span><Link2 size={13}/> Detail view uses records already saved in AXIVESTRA.</span>
+            <button type="button" onClick={() => openWorkspace(inspectedDetail.name)}>Open full workspace <ArrowUpRight size={14}/></button>
+          </div>
+        </section>
+      )}
 
       <div className="ax-orbit-metrics">
         <div className="ax-orbit-metric">
