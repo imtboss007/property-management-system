@@ -37,7 +37,19 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        shell: pwsh
+        run: |
+          $attempt = 0
+          do {
+            $attempt += 1
+            npm install --no-audit --no-fund
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($attempt -lt 3) {
+              Write-Host "Dependency install failed (attempt $attempt). Retrying Electron's platform binary download..."
+              Start-Sleep -Seconds (10 * $attempt)
+            }
+          } while ($attempt -lt 3)
+          exit 1
 
       - name: Run project regression tests
         run: npm test
@@ -91,6 +103,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Build web app
         env:
@@ -102,6 +116,22 @@ jobs:
 
       - name: Create Android project
         run: npx cap add android
+
+      - name: Increase Gradle distribution download timeout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          wrapper = Path("android/gradle/wrapper/gradle-wrapper.properties")
+          text = wrapper.read_text(encoding="utf-8")
+          # CI needs the runtime binaries, not the much larger sources/docs archive.
+          text = text.replace("-all.zip", "-bin.zip")
+          if re.search(r"^networkTimeout=", text, flags=re.MULTILINE):
+              text = re.sub(r"^networkTimeout=.*$", "networkTimeout=120000", text, flags=re.MULTILINE)
+          else:
+              text = text.rstrip() + "\\nnetworkTimeout=120000\\n"
+          wrapper.write_text(text, encoding="utf-8")
+          PY
 
       - name: Generate AXIVESTRA Android launcher icons
         run: |
@@ -123,10 +153,22 @@ jobs:
           PY
 
       - name: Build Android APK
+        shell: bash
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          attempt=0
+          until [ "$attempt" -ge 3 ]; do
+            attempt=$((attempt + 1))
+            if ./gradlew assembleDebug; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Gradle build/download failed (attempt $attempt); retrying after a short wait."
+              sleep $((attempt * 15))
+            fi
+          done
+          exit 1
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v7

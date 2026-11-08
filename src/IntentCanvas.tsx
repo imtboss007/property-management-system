@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, ArrowUpRight, Bookmark, CalendarClock, ChevronRight, CircleAlert, Command, Focus, ListTodo, Pin, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from "lucide-react";
 import type { FollowUpEntry } from "./lib/follow-ups";
+import { buildRelationshipIntelligence } from "./lib/relationship-intelligence.mjs";
 
 type Property = {
   id:string; title:string; module:string; value:string; status:string; location?:string;
-  contact?:string; primaryContactId?:string; nextFollowUpDate?:string; nextAction?:string;
+  contact?:string; primaryContactId?:string; moduleData?:Record<string,string>; nextFollowUpDate?:string; nextAction?:string;
 };
-type Contact = { id:string; name:string; phone?:string; role?:string };
-type Task = { id:string; title:string; date:string; time:string; type:string; property:string; propertyId?:string; contactId?:string; done:boolean; notes?:string };
-type Financial = { id:string; type:string; amount:string; date:string; property?:string; party?:string };
-type Risk = { id:string; title:string; severity:string; status:string; owner?:string; dueDate?:string; entity?:string };
-type Approval = { id:string; title:string; priority:string; status:string; area:string; entity?:string; approver?:string };
+type Contact = { id:string; name:string; phone?:string; role?:string; roles?:string[]; customRoles?:string };
+type Task = { id:string; title:string; date:string; time:string; type:string; property:string; propertyId?:string; contactId?:string; followUpContactIds?:string[]; done:boolean; notes?:string };
+type Financial = { id:string; type:string; amount:string; date:string; property?:string; party?:string; contactId?:string; reference?:string };
+type Risk = { id:string; title:string; severity:string; status:string; owner?:string; dueDate?:string; entity?:string; contactId?:string };
+type Approval = { id:string; title:string; priority:string; status:string; area:string; entity?:string; approver?:string; contactId?:string };
+type Document = { id:string; name:string; category:string; property:string; contactId?:string; expiresOn?:string };
 type Module = { name:string; count:number };
 type FollowUp = {
   entry:FollowUpEntry;
@@ -30,14 +32,14 @@ const amount=(raw:string)=>{const n=Number(String(raw??"").trim());return raw &&
 const dateLabel=(raw:string)=>raw?new Date(raw+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"Unscheduled";
 
 type Props={
-  properties:Property[]; contacts:Contact[]; tasks:Task[]; financials:Financial[];
+  properties:Property[]; contacts:Contact[]; tasks:Task[]; financials:Financial[]; documents:Document[];
   risks:Risk[]; approvals:Approval[]; modules:Module[]; followUps:FollowUp[]; today:string;
   onOpenModule:(name:string)=>void; onOpenFollowUps:(view:"Today"|"Overdue"|"Upcoming"|"Completed"|"All")=>void;
-  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void; onOpenSchedule:()=>void;
+  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void; onOpenSchedule:()=>void; onOpenDocuments:()=>void;
 };
 
 export default function IntentCanvas(props:Props) {
-  const {properties,contacts,tasks,financials,risks,approvals,modules,followUps,today}=props;
+  const {properties,contacts,tasks,financials,documents,risks,approvals,modules,followUps,today}=props;
   const [command,setCommand]=useState("");
   const [commandResult,setCommandResult]=useState("");
   const [focus,setFocus]=useState<Panel|null>(null);
@@ -68,8 +70,7 @@ export default function IntentCanvas(props:Props) {
   const highRisks=risks.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase()));
   const inflows=financials.filter(item=>IN_KEY.has(item.type)).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
   const outflows=financials.filter(item=>OUT_KEY.has(item.type)).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
-  const linkedCount=(person:Contact)=>properties.filter(item=>item.primaryContactId===person.id || item.contact?.trim().toLowerCase()===person.name.trim().toLowerCase()).length;
-  const peopleWithMultipleRecords=contacts.map(person=>({person,count:linkedCount(person)})).filter(item=>item.count>1).sort((a,b)=>b.count-a.count);
+  const relationshipIntelligence=useMemo(()=>buildRelationshipIntelligence({contacts,properties,tasks,financials,risks,approvals,documents}),[contacts,properties,tasks,financials,risks,approvals,documents]);
   const tasksOpen=tasks.filter(item=>!item.done);
   const statusGroups=useMemo(()=>{
     const counts=new Map<string,number>();
@@ -160,8 +161,8 @@ export default function IntentCanvas(props:Props) {
     <div className={"ax-intent-panels"+(focus?" is-focused":"")}>
       {visible.filter(panel=>!focus||panel===focus).map(panel=>{
         if(panel==="portfolio") return <section className="ax-intent-panel" key={panel}>
-          {panelHeader(panel,"Portfolio intelligence","Entered record values and live status",<TrendingUp size={16}/>,()=>props.onOpenModule("All Properties"),"Open portfolio")}
-          <div className="ax-intent-big-number">{INR.format(totalValue)}<small>Recorded portfolio value · {properties.length} records</small></div>
+          {panelHeader(panel,"Portfolio & exposure intelligence","Entered record values and live status",<TrendingUp size={16}/>,()=>props.onOpenModule("All Properties"),"Open portfolio")}
+          <div className="ax-intent-big-number">{INR.format(totalValue)}<small>Recorded value / exposure · {properties.length} records</small></div>
           <div className="ax-intent-stat-row"><span>Active records <strong>{activeRecords.length}</strong></span><span>Operating modules <strong>{modules.length}</strong></span><span>Tasks open <strong>{tasksOpen.length}</strong></span></div>
           <div className="ax-intent-module-bars">{moduleValues.slice(0,5).map(item=><button type="button" key={item.name} onClick={()=>props.onOpenModule(item.name)}><span>{item.name}</span><i><b style={{width:(totalValue>0?Math.max(2,item.value/totalValue*100):0)+"%"}}/></i><strong>{item.count}</strong></button>)}</div>
         </section>;
@@ -179,9 +180,21 @@ export default function IntentCanvas(props:Props) {
         </section>;
 
         if(panel==="people") return <section className="ax-intent-panel" key={panel}>
-          {panelHeader(panel,"People & relationship signals","Connected records resolved from saved contact links",<Users size={16}/>,()=>props.onOpenContacts(),"Open contacts")}
-          <div className="ax-intent-big-number">{contacts.length}<small>Saved contacts · {peopleWithMultipleRecords.length} linked to multiple records</small></div>
-          <div className="ax-intent-rows">{peopleWithMultipleRecords.slice(0,5).map(item=><button type="button" key={item.person.id} onClick={()=>props.onOpenContacts(item.person.name)}><strong>{item.person.name}</strong><small>{item.count} linked records · {item.person.role||"Contact"}</small><ArrowUpRight size={12}/></button>)}</div>
+          {panelHeader(panel,"Cross-workspace relationship intelligence","Direct links resolved from saved contact IDs; no name matching",<Users size={16}/>,()=>props.onOpenContacts(),"Open contacts")}
+          <div className="ax-intent-big-number">{relationshipIntelligence.linkedContacts}<small>Contacts with verified in-app ID links · {relationshipIntelligence.linkedRecords} linked records</small></div>
+          <div className="ax-intent-relationship-people">{relationshipIntelligence.contacts.filter(person=>person.recordCount>0).slice(0,6).map(person=><article className="ax-intent-relationship-person" key={person.id}>
+            <button type="button" className="ax-intent-relationship-person__contact" onClick={()=>props.onOpenContacts(person.name)}><strong>{person.name}</strong><small>{person.roles.join(" · ")||"Contact"} · {person.recordCount} linked records · {person.workspaces.join(", ")||"Operational records"}</small><ArrowUpRight size={12}/></button>
+            <div className="ax-intent-relationship-person__records">{person.records.slice(0,4).map(record=><button type="button" key={record.key} className="ax-intent-relationship-record" onClick={()=>{
+              if(record.kind==="workspace"&&record.workspace) props.onOpenModule(record.workspace);
+              else if(record.kind==="task") props.onOpenSchedule();
+              else if(record.kind==="financial") props.onOpenFinancials();
+              else if(record.kind==="risk") props.onOpenRisks();
+              else if(record.kind==="approval") props.onOpenApprovals();
+              else if(record.kind==="document") props.onOpenDocuments();
+            }}><span>{record.workspace||record.kind}</span><strong>{record.title}</strong><small>{record.relations.join(" · ")||"Linked by saved contact ID"}</small><ArrowUpRight size={11}/></button>)}</div>
+          </article>)}</div>
+          {relationshipIntelligence.unresolvedReferences>0&&<p className="ax-intent-integrity-note"><CircleAlert size={13}/> {relationshipIntelligence.unresolvedReferences} saved contact references do not resolve to a current contact ID. They are excluded from relationship totals and should be reviewed.</p>}
+          {relationshipIntelligence.linkedContacts===0&&<p className="ax-intent-footnote">No explicit contact-ID relationships are saved yet. Name similarity is not treated as proof of a relationship.</p>}
         </section>;
 
         if(panel==="workflow") return <section className="ax-intent-panel" key={panel}>

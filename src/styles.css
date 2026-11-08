@@ -3591,3 +3591,1025 @@ h2,h3{color:#e5f2fc}
  .ax-contact-transfer-note{padding:10px}
 }
 @media(max-width:380px){.ax-contact-actions{grid-template-columns:1fr}}
+
+
+/* AXIVESTRA orbital navigation: independently rotating rings with upright, selectable module cards. */
+.ax-modern-shell .ax-orbit-shortcuts { flex-wrap: wrap; }
+.ax-modern-shell .ax-orbit-motion-toggle { border-color: rgba(124,211,202,.36); color: #bceee2; background: rgba(19,72,76,.5); }
+.ax-modern-shell .ax-orbit-motion-toggle[aria-pressed="true"] { border-color: rgba(255,205,132,.55); color: #ffdfad; background: rgba(91,63,36,.32); }
+.ax-modern-shell .ax-orbit-motion-toggle svg { flex: 0 0 auto; }
+.ax-modern-shell .ax-orbit-ring {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.ax-modern-shell .ax-orbit-ring--outer { animation: ax-orbit-node-orbit 84s linear infinite; }
+.ax-modern-shell .ax-orbit-ring--inner { animation: ax-orbit-node-orbit-reverse 68s linear infinite; }
+.ax-modern-shell .ax-orbit-node-slot {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-node-slot:hover,
+.ax-modern-shell .ax-orbit-node-slot:focus-within { z-index: 9; }
+.ax-modern-shell .ax-orbit-node-counter {
+  display: block;
+  width: max-content;
+  transform-origin: 50% 50%;
+  pointer-events: auto;
+}
+.ax-modern-shell .ax-orbit-node-counter--outer { animation: ax-orbit-node-counter-outer 84s linear infinite; }
+.ax-modern-shell .ax-orbit-node-counter--inner { animation: ax-orbit-node-counter-inner 68s linear infinite; }
+.ax-modern-shell .ax-orbit-node { position: relative; transform: none; animation: none; pointer-events: auto; }
+.ax-modern-shell .ax-orbit-node:hover,
+.ax-modern-shell .ax-orbit-node:focus-visible,
+.ax-modern-shell .ax-orbit-node.is-focused { transform: scale(1.045); }
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-ring,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-node-counter,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__sphere,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__aura {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-node-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ax-orbit-node-orbit-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ax-orbit-node-counter-outer { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ax-orbit-node-counter-inner { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-ring { position: static; inset: auto; display: contents; animation: none !important; }
+  .ax-modern-shell .ax-orbit-node-slot { position: relative; left: auto !important; top: auto !important; transform: none; width: 100%; min-width: 0; }
+  .ax-modern-shell .ax-orbit-node-counter { width: 100%; animation: none !important; }
+  .ax-modern-shell .ax-orbit-node { width: 100%; transform: none !important; }
+  .ax-modern-shell .ax-orbit-node-slot:hover .ax-orbit-node,
+  .ax-modern-shell .ax-orbit-node-slot:focus-within .ax-orbit-node { transform: translateY(-1px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-ring,
+  .ax-modern-shell .ax-orbit-node-counter { animation: none !important; }
+}
+
+
+/* Directional route overlays: colour-coded orbit paths plus hub-to-workspace spokes. */
+.ax-modern-shell .ax-orbit-routes {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-route-ring {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer { animation: ax-orbit-node-orbit 84s linear infinite; }
+.ax-modern-shell .ax-orbit-route-ring--inner { animation: ax-orbit-node-orbit-reverse 68s linear infinite; }
+.ax-modern-shell .ax-orbit-route-path {
+  fill: none;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 10;
+  animation: ax-orbit-route-flow 15s linear infinite;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer .ax-orbit-route-path { stroke: #55d8c0; opacity: .62; }
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-route-path { stroke: #7eb8f4; opacity: .56; animation-duration: 12s; }
+.ax-modern-shell #ax-orbit-route-arrow-outer path { fill: #55d8c0; }
+.ax-modern-shell #ax-orbit-route-arrow-inner path { fill: #7eb8f4; }
+.ax-modern-shell .ax-orbit-spoke {
+  fill: none;
+  stroke-width: .85;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+  opacity: .2;
+  animation: ax-orbit-spoke-flow 20s linear infinite;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer .ax-orbit-spoke { stroke: #55d8c0; }
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-spoke { stroke: #7eb8f4; }
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-path,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-spoke {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-route-flow { to { stroke-dashoffset: -60; } }
+@keyframes ax-orbit-spoke-flow { to { stroke-dashoffset: -44; } }
+
+/* Live workspace distribution panels (all values derive from supplied workspace records). */
+.ax-modern-shell .ax-orbit-distribution {
+  margin-top: 13px;
+  padding: 17px;
+  border: 1px solid rgba(106,186,189,.17);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(11,37,51,.82), rgba(8,27,40,.88));
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+.ax-modern-shell .ax-orbit-distribution__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading span {
+  color: #70aeb0;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 1.45px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading h3 {
+  margin: 5px 0 0;
+  color: #e4f3ef;
+  font: 750 13px/1.35 "Manrope", sans-serif;
+  letter-spacing: -.2px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading > small {
+  color: #83a9aa;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-distribution__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 9px;
+}
+.ax-modern-shell .ax-orbit-distribution-card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(116,190,190,.14);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(23,60,70,.62), rgba(12,37,51,.78));
+  transition: border-color .2s ease, transform .2s ease, background .2s ease;
+}
+.ax-modern-shell .ax-orbit-distribution-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(111,225,204,.4);
+  background: linear-gradient(145deg, rgba(28,76,82,.7), rgba(14,43,57,.88));
+}
+.ax-modern-shell .ax-orbit-distribution-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 7px;
+}
+.ax-modern-shell .ax-orbit-distribution-card__top strong {
+  min-width: 0;
+  color: #d7eae4;
+  font-size: 9px;
+  line-height: 1.4;
+}
+.ax-modern-shell .ax-orbit-distribution-card__top span {
+  flex: 0 0 auto;
+  color: #80aaa8;
+  font-size: 7px;
+  text-align: right;
+}
+.ax-modern-shell .ax-orbit-distribution-card__value {
+  color: #f0fbf5;
+  font: 800 19px/1.1 "Manrope", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-distribution-card__value small {
+  color: #8caeaa;
+  font: 600 8px "DM Sans", sans-serif;
+}
+.ax-modern-shell .ax-orbit-distribution-card__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(143,187,178,.14);
+}
+.ax-modern-shell .ax-orbit-distribution-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #42b99f, #8fe2c6);
+  box-shadow: 0 0 12px rgba(80,220,186,.3);
+  transition: width .45s ease;
+}
+.ax-modern-shell .ax-orbit-distribution-card__share {
+  color: #779d9b;
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-distribution__empty {
+  margin: 0;
+  color: #9bb7b0;
+  font-size: 10px;
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-routes { display: none; }
+  .ax-modern-shell .ax-orbit-distribution { padding: 13px 11px; }
+  .ax-modern-shell .ax-orbit-distribution__heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .ax-modern-shell .ax-orbit-distribution__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .ax-modern-shell .ax-orbit-distribution-card { padding: 9px; }
+  .ax-modern-shell .ax-orbit-distribution-card__value { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .ax-modern-shell .ax-orbit-distribution__grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-route-ring,
+  .ax-modern-shell .ax-orbit-route-path,
+  .ax-modern-shell .ax-orbit-spoke,
+  .ax-modern-shell .ax-orbit-distribution-card__bar span {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Keep route lines underneath the rotating selectable workspace cards. */
+.ax-modern-shell .ax-orbit-nodes { z-index: 3; }
+
+
+/* Workspace layout, search and group-scope controls. */
+.ax-modern-shell .ax-orbit-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+.ax-modern-shell .ax-orbit-view-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(106,186,189,.18);
+  border-radius: 9px;
+  background: rgba(7,27,40,.72);
+}
+.ax-modern-shell .ax-orbit-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 31px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #8eafb2;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 750;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.ax-modern-shell .ax-orbit-view-switch button:hover { color: #d7f0e8; }
+.ax-modern-shell .ax-orbit-view-switch button.is-active {
+  border-color: rgba(119,222,201,.25);
+  color: #d9fff1;
+  background: linear-gradient(145deg, rgba(38,109,97,.6), rgba(20,66,73,.7));
+  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.16);
+}
+.ax-modern-shell .ax-orbit-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: min(360px, 52%);
+  min-height: 37px;
+  padding: 0 10px;
+  border: 1px solid rgba(106,186,189,.2);
+  border-radius: 9px;
+  color: #7eaaa9;
+  background: rgba(7,27,40,.68);
+}
+.ax-modern-shell .ax-orbit-search:focus-within { border-color: rgba(116,226,204,.62); box-shadow: 0 0 0 3px rgba(75,204,178,.08); }
+.ax-modern-shell .ax-orbit-search input {
+  min-width: 0;
+  flex: 1;
+  height: 35px;
+  border: 0;
+  outline: none;
+  color: #e4f6f0;
+  background: transparent;
+  font-size: 9px;
+}
+.ax-modern-shell .ax-orbit-search input::placeholder { color: #719394; }
+.ax-modern-shell .ax-orbit-search input::-webkit-search-cancel-button { display: none; }
+.ax-modern-shell .ax-orbit-search > button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #9cc4b9;
+  background: rgba(116,196,179,.12);
+}
+.ax-modern-shell .ax-orbit-search > span {
+  flex: 0 0 auto;
+  color: #80aaa8;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-group-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 1px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(111,190,177,.35) transparent;
+}
+.ax-modern-shell .ax-orbit-group-filters button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  padding: 0 9px;
+  border: 1px solid rgba(106,186,189,.16);
+  border-radius: 7px;
+  color: #91afb0;
+  background: rgba(7,27,40,.54);
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.ax-modern-shell .ax-orbit-group-filters button:hover { border-color: rgba(117,220,198,.4); color: #e0f4ec; }
+.ax-modern-shell .ax-orbit-group-filters button.is-active {
+  border-color: rgba(119,222,201,.42);
+  color: #d7fff0;
+  background: rgba(37,111,98,.4);
+}
+.ax-modern-shell .ax-orbit-group-filters button span {
+  display: inline-grid;
+  min-width: 15px;
+  height: 15px;
+  place-items: center;
+  border-radius: 5px;
+  color: #9de2d1;
+  background: rgba(109,218,191,.12);
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-empty-state {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  width: min(320px, 80%);
+  padding: 18px;
+  border: 1px dashed rgba(115,204,190,.32);
+  border-radius: 12px;
+  color: #9ec6bd;
+  background: rgba(6,26,39,.88);
+  text-align: center;
+  transform: translate(-50%,-50%);
+}
+.ax-modern-shell .ax-orbit-empty-state strong { color: #e0f4eb; font-size: 10px; }
+.ax-modern-shell .ax-orbit-empty-state span { color: #82a7a5; font-size: 8px; }
+
+ /* Explicit grid view: all existing workspaces become a stable, non-rotating card wall. */
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-stage {
+  display: block;
+  height: auto;
+  min-height: 0;
+  margin: 12px auto 0;
+  padding: 0;
+  overflow: visible;
+  perspective: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-halo,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-axis,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-routes,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-core { display: none !important; }
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes {
+  position: relative;
+  inset: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 9px;
+  width: 100%;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-ring {
+  position: static;
+  inset: auto;
+  display: contents;
+  animation: none !important;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node-slot {
+  position: relative;
+  left: auto !important;
+  top: auto !important;
+  width: 100%;
+  transform: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node-counter {
+  width: 100%;
+  animation: none !important;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node {
+  width: 100%;
+  min-height: 65px;
+  transform: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node:hover,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node:focus-visible,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node.is-focused {
+  transform: translateY(-2px);
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-empty-state {
+  position: relative;
+  left: auto;
+  top: auto;
+  grid-column: 1 / -1;
+  justify-self: center;
+  transform: none;
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-controls { align-items: stretch; flex-direction: column; }
+  .ax-modern-shell .ax-orbit-view-switch { width: 100%; }
+  .ax-modern-shell .ax-orbit-view-switch button { flex: 1; }
+  .ax-modern-shell .ax-orbit-search { width: 100%; }
+  .ax-modern-shell .ax-orbit-group-filters { margin: 1px -2px 0; padding-bottom: 7px; }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-stage { display: block; height: auto; margin-top: 10px; padding: 0; }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node { min-height: 69px; padding: 8px 7px; gap: 7px; }
+}
+@media (max-width: 380px) {
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-view-switch button,
+  .ax-modern-shell .ax-orbit-group-filters button,
+  .ax-modern-shell .ax-orbit-search,
+  .ax-modern-shell .ax-orbit-node { transition: none !important; }
+}
+
+
+/* Inline module intelligence detail panel, connected to the saved workspace data. */
+.ax-modern-shell .ax-orbit-detail {
+  margin: 13px 0 5px;
+  padding: 17px;
+  border: 1px solid rgba(105,195,183,.24);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(41,137,126,.14), transparent 42%),
+    linear-gradient(145deg, rgba(10,34,49,.97), rgba(7,24,38,.98));
+  box-shadow: 0 15px 40px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.045);
+  animation: ax-orbit-detail-enter .24s ease both;
+}
+@keyframes ax-orbit-detail-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ax-modern-shell .ax-orbit-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid rgba(116,190,184,.13);
+}
+.ax-modern-shell .ax-orbit-detail__eyebrow,
+.ax-modern-shell .ax-orbit-detail__section-head > div > span {
+  color: #73b8b0;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+.ax-modern-shell .ax-orbit-detail__header h3 {
+  margin: 5px 0 4px;
+  color: #e8f8f1;
+  font: 800 19px/1.2 "Manrope", sans-serif;
+  letter-spacing: -.45px;
+}
+.ax-modern-shell .ax-orbit-detail__header p {
+  max-width: 720px;
+  margin: 0;
+  color: #93b3b2;
+  font-size: 9px;
+  line-height: 1.55;
+}
+.ax-modern-shell .ax-orbit-detail__close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid rgba(119,190,185,.2);
+  border-radius: 8px;
+  color: #9bc2bc;
+  background: rgba(115,181,174,.08);
+}
+.ax-modern-shell .ax-orbit-detail__close:hover { color: #fff; border-color: rgba(119,222,201,.5); }
+.ax-modern-shell .ax-orbit-detail__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.ax-modern-shell .ax-orbit-detail__metrics article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid rgba(113,186,180,.13);
+  border-radius: 9px;
+  background: rgba(22,58,68,.34);
+}
+.ax-modern-shell .ax-orbit-detail__metrics article span {
+  color: #80a9a8;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .8px;
+}
+.ax-modern-shell .ax-orbit-detail__metrics article strong {
+  color: #e7fff3;
+  font: 800 20px/1 "Manrope",sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-detail__body {
+  display: grid;
+  grid-template-columns: minmax(0,1.65fr) minmax(230px,.85fr);
+  gap: 13px;
+}
+.ax-modern-shell .ax-orbit-detail__main,
+.ax-modern-shell .ax-orbit-detail__side { min-width: 0; }
+.ax-modern-shell .ax-orbit-detail__section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0 9px;
+}
+.ax-modern-shell .ax-orbit-detail__section-head h4 {
+  margin: 4px 0 0;
+  color: #dff2eb;
+  font: 750 12px/1.3 "Manrope",sans-serif;
+}
+.ax-modern-shell .ax-orbit-detail__section-head > small {
+  color: #82aaa7;
+  font-size: 7px;
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-detail__records { display: grid; gap: 7px; }
+.ax-modern-shell .ax-orbit-detail-record {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(109,180,178,.14);
+  border-radius: 9px;
+  background: linear-gradient(130deg,rgba(21,55,67,.54),rgba(9,31,45,.62));
+}
+.ax-modern-shell .ax-orbit-detail-record__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 9px;
+}
+.ax-modern-shell .ax-orbit-detail-record__top > div { display: grid; gap: 4px; min-width: 0; }
+.ax-modern-shell .ax-orbit-detail-record__top strong {
+  overflow-wrap: anywhere;
+  color: #e1f3ec;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.ax-modern-shell .ax-orbit-detail-record__top small {
+  color: #83a8a7;
+  font-size: 8px;
+}
+.ax-modern-shell .ax-orbit-detail-record__status {
+  flex: 0 0 auto;
+  max-width: 42%;
+  padding: 4px 7px;
+  border: 1px solid rgba(105,199,171,.22);
+  border-radius: 99px;
+  color: #9de2c5;
+  background: rgba(55,147,119,.12);
+  font-size: 7px;
+  overflow-wrap: anywhere;
+}
+.ax-modern-shell .ax-orbit-detail-record__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+.ax-modern-shell .ax-orbit-detail-record__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #9dbbb5;
+  font-size: 8px;
+  overflow-wrap: anywhere;
+}
+.ax-modern-shell .ax-orbit-detail-record__action {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid rgba(116,190,184,.1);
+  color: #b5ccc5;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.ax-modern-shell .ax-orbit-detail-record__action b { color: #7ed8bd; }
+.ax-modern-shell .ax-orbit-detail-record__fields {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.ax-modern-shell .ax-orbit-detail-record__fields span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 7px;
+  border-radius: 6px;
+  background: rgba(5,23,35,.48);
+}
+.ax-modern-shell .ax-orbit-detail-record__fields small {
+  color: #739c9b;
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-detail-record__fields strong {
+  overflow-wrap: anywhere;
+  color: #d5e9e1;
+  font-size: 8px;
+  font-weight: 650;
+}
+.ax-modern-shell .ax-orbit-detail__section-head--sub { margin-top: 14px; }
+.ax-modern-shell .ax-orbit-detail__field-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ax-modern-shell .ax-orbit-detail__field-list span {
+  padding: 5px 8px;
+  border: 1px solid rgba(110,183,180,.15);
+  border-radius: 6px;
+  color: #a9c8bf;
+  background: rgba(21,58,66,.3);
+  font-size: 7px;
+  line-height: 1.35;
+}
+.ax-modern-shell .ax-orbit-detail__side { display: grid; align-content: start; gap: 10px; }
+.ax-modern-shell .ax-orbit-detail__related {
+  padding: 11px;
+  border: 1px solid rgba(109,180,178,.14);
+  border-radius: 9px;
+  background: rgba(9,31,44,.62);
+}
+.ax-modern-shell .ax-orbit-detail-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(116,190,184,.09);
+}
+.ax-modern-shell .ax-orbit-detail-contact__avatar {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  place-items: center;
+  border: 1px solid rgba(111,209,186,.25);
+  border-radius: 8px;
+  color: #b3f0d8;
+  background: rgba(57,145,119,.17);
+  font-size: 10px;
+  font-weight: 800;
+}
+.ax-modern-shell .ax-orbit-detail-contact > div { display: grid; min-width: 0; gap: 3px; }
+.ax-modern-shell .ax-orbit-detail-contact strong {
+  overflow: hidden;
+  color: #dcefe8;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-detail-contact small {
+  overflow: hidden;
+  color: #83a9a5;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-detail__text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  color: #81d8bd;
+  background: transparent;
+  font-size: 8px;
+  font-weight: 750;
+}
+.ax-modern-shell .ax-orbit-detail-workflow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid rgba(116,190,184,.09);
+  color: #90b5ad;
+  background: transparent;
+  text-align: left;
+}
+.ax-modern-shell .ax-orbit-detail-workflow > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.ax-modern-shell .ax-orbit-detail-workflow b { color: #c6ded5; font-size: 8px; font-weight: 650; }
+.ax-modern-shell .ax-orbit-detail-workflow strong {
+  margin-left: auto;
+  color: #a7e8d1;
+  font: 800 11px "Manrope",sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-detail-workflow:hover b,
+.ax-modern-shell .ax-orbit-detail-workflow:hover > svg { color: #d8fff0; }
+.ax-modern-shell .ax-orbit-detail__empty {
+  margin: 0;
+  padding: 9px;
+  border: 1px dashed rgba(114,183,176,.19);
+  border-radius: 7px;
+  color: #83a8a4;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.ax-modern-shell .ax-orbit-detail__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(116,190,184,.13);
+}
+.ax-modern-shell .ax-orbit-detail__footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #779f9c;
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-detail__footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 33px;
+  padding: 0 12px;
+  border: 1px solid rgba(116,224,198,.28);
+  border-radius: 8px;
+  color: #d9fff0;
+  background: linear-gradient(120deg,rgba(35,131,112,.65),rgba(23,91,100,.75));
+  font-size: 8px;
+  font-weight: 800;
+}
+.ax-modern-shell .ax-orbit-detail__footer button:hover { border-color: rgba(140,255,222,.62); filter: brightness(1.08); }
+@media (max-width: 850px) {
+  .ax-modern-shell .ax-orbit-detail__body { grid-template-columns: 1fr; }
+  .ax-modern-shell .ax-orbit-detail__side { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 600px) {
+  .ax-modern-shell .ax-orbit-detail { padding: 12px; }
+  .ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+  .ax-modern-shell .ax-orbit-detail__metrics article { padding: 9px; }
+  .ax-modern-shell .ax-orbit-detail__metrics article strong { font-size: 17px; }
+  .ax-modern-shell .ax-orbit-detail__side { grid-template-columns: 1fr; }
+  .ax-modern-shell .ax-orbit-detail__footer { align-items: stretch; flex-direction: column; }
+  .ax-modern-shell .ax-orbit-detail__footer button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-detail { animation: none; }
+}
+
+
+.ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(6,minmax(0,1fr)); }
+.ax-modern-shell .ax-orbit-detail-activity {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(116,190,184,.09);
+}
+.ax-modern-shell .ax-orbit-detail-activity__kind {
+  flex: 0 0 48px;
+  padding: 4px 5px;
+  border: 1px solid rgba(108,198,177,.18);
+  border-radius: 5px;
+  color: #8ed8bd;
+  background: rgba(48,124,104,.13);
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: .65px;
+  text-align: center;
+}
+.ax-modern-shell .ax-orbit-detail-activity > div { display: grid; min-width: 0; gap: 3px; }
+.ax-modern-shell .ax-orbit-detail-activity strong {
+  overflow-wrap: anywhere;
+  color: #d3e9e1;
+  font-size: 8px;
+  line-height: 1.35;
+}
+.ax-modern-shell .ax-orbit-detail-activity small {
+  color: #83a8a4;
+  font-size: 7px;
+  line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+
+/* AXIVESTRA relationship intelligence: linked records stay navigable on desktop and mobile. */
+.ax-intent-relationship-people {
+  display: grid;
+  gap: 12px;
+}
+.ax-intent-relationship-person {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(113, 154, 186, .18);
+  border-radius: 12px;
+  background: rgba(8, 24, 39, .42);
+}
+.ax-intent-relationship-person__contact {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0 0 9px;
+  cursor: pointer;
+}
+.ax-intent-relationship-person__contact strong,
+.ax-intent-relationship-record strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ax-intent-relationship-person__contact small {
+  grid-column: 1;
+  color: var(--muted, #8ba6b8);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ax-intent-relationship-person__contact svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.ax-intent-relationship-person__records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.ax-intent-relationship-record {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  text-align: left;
+  padding: 8px 9px;
+  border: 1px solid rgba(113, 154, 186, .14);
+  border-radius: 9px;
+  color: inherit;
+  background: rgba(15, 39, 58, .58);
+  cursor: pointer;
+}
+.ax-intent-relationship-record span,
+.ax-intent-relationship-record small {
+  grid-column: 1 / -1;
+  color: var(--muted, #8ba6b8);
+  font-size: 10px;
+  line-height: 1.35;
+  text-transform: none;
+}
+.ax-intent-relationship-record strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ax-intent-relationship-record svg {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+}
+.ax-intent-relationship-person__contact:hover,
+.ax-intent-relationship-record:hover {
+  border-color: rgba(75, 183, 236, .48);
+}
+@media (max-width: 600px) {
+  .ax-intent-relationship-person__records {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Cross-workspace relationship intelligence */
+.ax-relationship-intelligence { margin-top: 22px; }
+.ax-relationship-search { min-width: min(100%, 310px); }
+.ax-relationship-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.ax-relationship-metrics article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 9px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border, rgba(112,145,170,.2));
+  border-radius: 13px;
+  background: rgba(12,31,48,.42);
+}
+.ax-relationship-metrics article svg { grid-row: span 2; color: #69cde5; }
+.ax-relationship-metrics article strong { font-size: 20px; line-height: 1.1; }
+.ax-relationship-metrics article span { color: var(--muted, #8da6b8); font-size: 11px; }
+.ax-relationship-list { display: grid; gap: 8px; }
+.ax-relationship-person {
+  overflow: hidden;
+  border: 1px solid rgba(112,145,170,.2);
+  border-radius: 12px;
+  background: rgba(8,25,40,.46);
+}
+.ax-relationship-person summary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 64px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.ax-relationship-person summary::-webkit-details-marker { display: none; }
+.ax-relationship-person summary::after { content: "＋"; margin-left: 4px; color: #83a4b8; }
+.ax-relationship-person[open] summary::after { content: "−"; }
+.ax-relationship-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #7bd7e9;
+  background: rgba(39,164,195,.12);
+}
+.ax-relationship-person-main { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.ax-relationship-person-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ax-relationship-person-main small,
+.ax-relationship-records small { color: #8ca7ba; font-size: 11px; }
+.ax-relationship-person-count {
+  flex: 0 0 auto;
+  color: #9fc7d7;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ax-relationship-records { display: grid; gap: 7px; padding: 0 12px 12px 58px; }
+.ax-relationship-records article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(112,145,170,.15);
+  border-radius: 9px;
+  background: rgba(16,39,57,.55);
+}
+.ax-relationship-records article > div { display: grid; min-width: 0; gap: 4px; }
+.ax-relationship-records article strong { font-size: 12px; }
+.ax-relationship-records .text-button { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.ax-relationship-unlinked,
+.ax-relationship-footnote { color: #8ca7ba; font-size: 11px; line-height: 1.55; }
+.ax-relationship-unlinked { margin: 0; padding: 12px 16px 16px; }
+.ax-relationship-footnote { margin: 13px 0 0; }
+@media (max-width: 760px) {
+  .ax-relationship-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-relationship-search { width: 100%; }
+  .ax-relationship-records { padding-left: 12px; }
+}
+@media (max-width: 440px) {
+  .ax-relationship-records article { align-items: flex-start; flex-direction: column; }
+  .ax-relationship-person-count { font-size: 10px; }
+}
+
+
+/* Do not expose a pause control when the responsive or accessibility mode has no orbit motion. */
+@media (max-width: 720px), (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-motion-toggle { display: none; }
+}

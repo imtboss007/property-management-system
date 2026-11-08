@@ -2,7 +2,20 @@
 **Live web app:** https://axivestra.pages.dev (Cloudflare Pages Free, production branch `main`). The optional official WhatsApp cloud sender remains disabled until Meta Business Platform setup is complete.
 
 
-AXIVESTRA is a local-first property, finance, investment, legal and operations workspace packaged for Windows desktop, Android and browser use. It includes an animated navy/cyan command centre, interactive charts, module-specific workbenches, data-completeness audits and a 16-module directory.
+AXIVESTRA is a multi-asset, capital and relationship intelligence operating platform for Windows desktop, Android and browser use. It brings together property and deal workflows, credit and lending, ventures and equity, funds and investor relations, legal matters, risk and compliance, financial movements, counterparties, evidence and operational commitments. Its primary experience is an asset-intelligence overview and decision workspace; the orbital interface is an optional visual workspace explorer, not the product itself. The platform includes interactive record-derived analytics, domain workbenches, relationship workflows, data-completeness audits and a 16-workspace directory.
+
+## Product and intelligence boundary
+
+AXIVESTRA is designed around four connected layers:
+
+1. **System of record** — assets, opportunities/deals, facilities, investments, funds, investors/counterparties, legal matters, financial movements, documents, tasks, risks and approvals.
+2. **Relationship intelligence** — stable links between people, organisations, assets, deals, loans, investments, funds, transactions, documents and cases.
+3. **Asset and decision intelligence** — explainable portfolio/exposure views, capital movement, pipeline health, counterparty concentration, deadlines, risk signals, data completeness and decision readiness.
+4. **Execution** — tasks, follow-ups, approvals, communications and auditable next actions.
+
+**Important scope boundary:** figures labelled as live in the app are derived from records currently stored in the AXIVESTRA workspace. This does not mean that external market feeds, title/registry data, global investor databases, court systems, sanctions/KYC providers or third-party valuation systems are connected. Investor Relations currently provides a workspace for managing entered investor records; it is not yet a globally sourced investor-intelligence database. A recorded value/exposure total is not a verified net asset value, market valuation or consolidated balance sheet.
+
+See [AXIVESTRA-PRODUCT-ARCHITECTURE.md](AXIVESTRA-PRODUCT-ARCHITECTURE.md) for the canonical product definition, current maturity assessment, target architecture and delivery gates.
 
 ## Included workspaces
 

@@ -51,6 +51,10 @@ jobs:
           node-version: 22
       - name: Check company isolation, RBAC and secret-handling contracts
         run: node scripts/security-contract-check.cjs
+      - name: Run AXIVESTRA visual-system regression checks
+        run: node scripts/axivestra-visual-system.test.cjs
+      - name: Test ID-based cross-workspace relationship intelligence
+        run: node scripts/relationship-intelligence.test.cjs
 
   test:
     runs-on: ubuntu-latest
@@ -80,9 +84,10 @@ jobs:
           node-version: 22
       - name: Install repository npm dependencies for Deno's npm resolver
         run: npm install --no-audit --no-fund
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Install pinned Deno runtime from npm
+        run: npm install --global deno@2.9.6 && deno --version
       - name: Type-check Supabase Edge Functions
         run: deno check supabase/functions/invite-company-member/index.ts && deno check supabase/functions/whatsapp-cloud-proxy/index.ts
 
@@ -94,6 +99,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Test property price/area range search and combined filters
         run: node scripts/property-range-search.test.cjs
       - name: Test WhatsApp phone normalisation and deduplication helper

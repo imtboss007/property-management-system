@@ -67,7 +67,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
   const chartItems = focus === "allocation" ? moduleRows.map(row => ({ name: row.name, value: metric === "value" ? row.value : row.count, count: row.count, color: row.color })) : stageRows;
   const totalChart = chartItems.reduce((sum, item) => sum + item.value, 0);
   const visibleItems = chartItems.filter(item => item.value > 0);
-  const title = focus === "allocation" ? metric === "value" ? "Asset allocation" : "Records by workspace" : focus === "pipeline" ? "Portfolio status mix" : "Cashflow movement";
+  const title = focus === "allocation" ? metric === "value" ? "Recorded value / exposure by workspace" : "Records by workspace" : focus === "pipeline" ? "Portfolio status mix" : "Cashflow movement";
   const subtitle = focus === "allocation" ? "Select any segment to open that module." : focus === "pipeline" ? "Real status values from your saved records." : "Recorded inflows and outflows by month; no forecast is fabricated.";
   const activeModuleName = selected && moduleRows.some(row => row.name === selected) ? selected : "";
 
@@ -90,7 +90,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       </div>
     </div>
     <div className="ax-analytics-tabs" role="tablist" aria-label="Analytics view">
-      <button className={focus === "allocation" ? "active" : ""} onClick={() => setFocusView("allocation")} role="tab" aria-selected={focus === "allocation"}>Asset allocation</button>
+      <button className={focus === "allocation" ? "active" : ""} onClick={() => setFocusView("allocation")} role="tab" aria-selected={focus === "allocation"}>Recorded amounts</button>
       <button className={focus === "pipeline" ? "active" : ""} onClick={() => setFocusView("pipeline")} role="tab" aria-selected={focus === "pipeline"}>Pipeline health</button>
       <button className={focus === "cashflow" ? "active" : ""} onClick={() => setFocusView("cashflow")} role="tab" aria-selected={focus === "cashflow"}>Cashflow</button>
       {focus === "cashflow" && <select value={period} onChange={event => setPeriod(Number(event.target.value) as 3 | 6 | 12)} aria-label="Cashflow period"><option value={3}>3 months</option><option value={6}>6 months</option><option value={12}>12 months</option></select>}
@@ -99,9 +99,9 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
     <div className="ax-analytics-grid">
       <div className="ax-chart-stage">
         <div className="ax-chart-mode-title"><strong>{title}</strong><p>{subtitle}</p></div>
-        {empty ? <div className="ax-chart-empty"><PortfolioEmptyChartPreview type={chartType}/><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : focus === "pipeline" || properties.length === 0 ? "Add your first property/deal record to activate interactive charts." : "No asset values have been entered yet. Switch to Count to chart saved records, or enter value/exposure in the relevant module."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
+        {empty ? <div className="ax-chart-empty"><PortfolioEmptyChartPreview type={chartType}/><strong>Waiting for your data</strong><p>{focus === "cashflow" ? "Add financial transactions to compare monthly inflows and outflows." : focus === "pipeline" || properties.length === 0 ? "Add your first property/deal record to activate interactive charts." : "No record values have been entered yet. Switch to Count to inspect saved records, or enter the relevant value or exposure in its workspace."}</p><small>Empty states are intentional—no sample data is counted as real.</small></div>
         : focus === "cashflow" ? <CashflowChart rows={cashflowRows} type={chartType} showLabels={showLabels} onSelect={setSelected} selected={selected}/>
-        : chartType === "donut" ? <DonutChart items={visibleItems} total={totalChart} selected={selected} onSelect={setSelected} centerLabel={focus === "allocation" ? "TRACKED VALUE" : "RECORDS"} centerValue={focus === "allocation" && metric === "value" ? compact(totalChart) : String(totalChart)} showLabels={showLabels}/>
+        : chartType === "donut" ? <DonutChart items={visibleItems} total={totalChart} selected={selected} onSelect={setSelected} centerLabel={focus === "allocation" ? "RECORDED VALUE" : "RECORDS"} centerValue={focus === "allocation" && metric === "value" ? compact(totalChart) : String(totalChart)} showLabels={showLabels}/>
         : chartType === "bar" ? <HorizontalBars items={visibleItems} selected={selected} onSelect={setSelected} showLabels={showLabels}/>
         : <TrendChart items={visibleItems} selected={selected} onSelect={setSelected} showLabels={showLabels}/>}
       </div>
@@ -118,9 +118,9 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
           <div className="ax-inspector-pair"><span>Closed records</span><strong>{properties.filter(row => ["Completed", "Closed"].includes(row.status)).length}</strong></div>
           <div className="ax-inspector-pair"><span>Tasks open</span><strong>{openTasks}</strong></div><div className="ax-inspector-pair"><span>Overdue tasks</span><strong>{overdueTasks}</strong></div>
         </> : <>
-          <strong className="ax-inspector-total">{compact(trackedValue)}</strong><small>Total entered asset value</small>
+          <strong className="ax-inspector-total">{compact(trackedValue)}</strong><small>Total recorded value / exposure</small>
           <div className="ax-inspector-pair"><span>Active modules</span><strong>{moduleRows.filter(row => row.count > 0).length}</strong></div>
-          <div className="ax-inspector-pair"><span>Missing value</span><strong>{properties.filter(row => !(Number(row.value) > 0)).length}</strong></div>
+          <div className="ax-inspector-pair"><span>Records without a value</span><strong>{properties.filter(row => !(Number(row.value) > 0)).length}</strong></div>
           <div className="ax-inspector-pair"><span>Modules available</span><strong>{modules.length}</strong></div>
         </>}
         <div className="ax-inspector-divider"/>
