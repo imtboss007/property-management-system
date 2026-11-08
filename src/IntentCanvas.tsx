@@ -35,7 +35,7 @@ type Props={
   properties:Property[]; contacts:Contact[]; tasks:Task[]; financials:Financial[]; documents:Document[];
   risks:Risk[]; approvals:Approval[]; modules:Module[]; followUps:FollowUp[]; today:string;
   onOpenModule:(name:string)=>void; onOpenFollowUps:(view:"Today"|"Overdue"|"Upcoming"|"Completed"|"All")=>void;
-  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void; onOpenSchedule:()=>void;
+  onOpenApprovals:()=>void; onOpenRisks:()=>void; onOpenContacts:(search?:string)=>void; onOpenFinancials:()=>void; onOpenSchedule:()=>void; onOpenDocuments:()=>void;
 };
 
 export default function IntentCanvas(props:Props) {
@@ -182,7 +182,17 @@ export default function IntentCanvas(props:Props) {
         if(panel==="people") return <section className="ax-intent-panel" key={panel}>
           {panelHeader(panel,"Cross-workspace relationship intelligence","Direct links resolved from saved contact IDs; no name matching",<Users size={16}/>,()=>props.onOpenContacts(),"Open contacts")}
           <div className="ax-intent-big-number">{relationshipIntelligence.linkedContacts}<small>Contacts with verified in-app ID links · {relationshipIntelligence.linkedRecords} linked records</small></div>
-          <div className="ax-intent-rows">{relationshipIntelligence.contacts.filter(person=>person.recordCount>0).slice(0,6).map(person=><button type="button" key={person.id} onClick={()=>props.onOpenContacts(person.name)}><strong>{person.name}</strong><small>{person.roles.join(" · ")||"Contact"} · {person.recordCount} linked records · {person.workspaces.join(", ")||"Operational records"}</small><ArrowUpRight size={12}/></button>)}</div>
+          <div className="ax-intent-relationship-people">{relationshipIntelligence.contacts.filter(person=>person.recordCount>0).slice(0,6).map(person=><article className="ax-intent-relationship-person" key={person.id}>
+            <button type="button" className="ax-intent-relationship-person__contact" onClick={()=>props.onOpenContacts(person.name)}><strong>{person.name}</strong><small>{person.roles.join(" · ")||"Contact"} · {person.recordCount} linked records · {person.workspaces.join(", ")||"Operational records"}</small><ArrowUpRight size={12}/></button>
+            <div className="ax-intent-relationship-person__records">{person.records.slice(0,4).map(record=><button type="button" key={record.key} className="ax-intent-relationship-record" onClick={()=>{
+              if(record.kind==="workspace"&&record.workspace) props.onOpenModule(record.workspace);
+              else if(record.kind==="task") props.onOpenSchedule();
+              else if(record.kind==="financial") props.onOpenFinancials();
+              else if(record.kind==="risk") props.onOpenRisks();
+              else if(record.kind==="approval") props.onOpenApprovals();
+              else if(record.kind==="document") props.onOpenDocuments();
+            }}><span>{record.workspace||record.kind}</span><strong>{record.title}</strong><small>{record.relations.join(" · ")||"Linked by saved contact ID"}</small><ArrowUpRight size={11}/></button>)}</div>
+          </article>)}</div>
           {relationshipIntelligence.unresolvedReferences>0&&<p className="ax-intent-integrity-note"><CircleAlert size={13}/> {relationshipIntelligence.unresolvedReferences} saved contact references do not resolve to a current contact ID. They are excluded from relationship totals and should be reviewed.</p>}
           {relationshipIntelligence.linkedContacts===0&&<p className="ax-intent-footnote">No explicit contact-ID relationships are saved yet. Name similarity is not treated as proof of a relationship.</p>}
         </section>;
