@@ -39,7 +39,7 @@ type Props={
 };
 
 export default function IntentCanvas(props:Props) {
-  const {properties,contacts,tasks,financials,risks,approvals,modules,followUps,today}=props;
+  const {properties,contacts,tasks,financials,documents,risks,approvals,modules,followUps,today}=props;
   const [command,setCommand]=useState("");
   const [commandResult,setCommandResult]=useState("");
   const [focus,setFocus]=useState<Panel|null>(null);
