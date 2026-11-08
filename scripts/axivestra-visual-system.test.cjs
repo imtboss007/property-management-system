@@ -172,9 +172,10 @@ assert.match(orbit, /Recent workflow activity/, "The module panel must preview l
 assert.match(orbit, /inspectedDetail\.financials\.slice/, "The module panel must preview saved financial entries.");
 assert.match(orbit, /inspectedDetail\.risks\.slice/, "The module panel must preview saved risk items.");
 assert.match(orbit, /inspectedDetail\.approvals\.slice/, "The module panel must preview saved approval items.");
-assert.match(orbit, /onOpen\("Schedule & Tasks"\)/, "The module panel must link to the schedule workflow.");
-assert.match(orbit, /onOpen\("Financials"\)/, "The module panel must link to the financial workflow.");
-assert.match(orbit, /onOpen\("Risk & Compliance"\)/, "The module panel must link to risk management.");
-assert.match(orbit, /onOpen\("Approvals"\)/, "The module panel must link to approvals.");
+assert.match(orbit, /target:"Schedule & Tasks"/, "The module panel must link to the schedule workflow.");
+assert.match(orbit, /target:"Financials"/, "The module panel must link to the financial workflow.");
+assert.match(orbit, /target:"Risk & Compliance"/, "The module panel must link to risk management.");
+assert.match(orbit, /target:"Approvals"/, "The module panel must link to approvals.");
+assert.match(orbit, /onClick=\{\(\) => onOpen\(workflow\.target\)\}/, "Connected workflow actions must route through the existing navigation callback.");
 assert.match(css, /\.ax-orbit-detail__body/, "The module detail panel must have a responsive two-column layout.");
 assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.ax-orbit-detail__side/, "The module detail panel must adapt to mobile.");
