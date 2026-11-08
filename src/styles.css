@@ -3652,3 +3652,175 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-orbit-ring,
   .ax-modern-shell .ax-orbit-node-counter { animation: none !important; }
 }
+
+
+/* Directional route overlays: colour-coded orbit paths plus hub-to-workspace spokes. */
+.ax-modern-shell .ax-orbit-routes {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-route-ring {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer { animation: ax-orbit-node-orbit 84s linear infinite; }
+.ax-modern-shell .ax-orbit-route-ring--inner { animation: ax-orbit-node-orbit-reverse 68s linear infinite; }
+.ax-modern-shell .ax-orbit-route-path {
+  fill: none;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 10;
+  animation: ax-orbit-route-flow 15s linear infinite;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer .ax-orbit-route-path { stroke: #55d8c0; opacity: .62; }
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-route-path { stroke: #7eb8f4; opacity: .56; animation-duration: 12s; }
+.ax-modern-shell #ax-orbit-route-arrow-outer path { fill: #55d8c0; }
+.ax-modern-shell #ax-orbit-route-arrow-inner path { fill: #7eb8f4; }
+.ax-modern-shell .ax-orbit-spoke {
+  fill: none;
+  stroke-width: .85;
+  stroke-dasharray: 2 9;
+  stroke-linecap: round;
+  opacity: .2;
+  animation: ax-orbit-spoke-flow 20s linear infinite;
+}
+.ax-modern-shell .ax-orbit-route-ring--outer .ax-orbit-spoke { stroke: #55d8c0; }
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-spoke { stroke: #7eb8f4; }
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-path,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-spoke {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-route-flow { to { stroke-dashoffset: -60; } }
+@keyframes ax-orbit-spoke-flow { to { stroke-dashoffset: -44; } }
+
+/* Live workspace distribution panels (all values derive from supplied workspace records). */
+.ax-modern-shell .ax-orbit-distribution {
+  margin-top: 13px;
+  padding: 17px;
+  border: 1px solid rgba(106,186,189,.17);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(11,37,51,.82), rgba(8,27,40,.88));
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+.ax-modern-shell .ax-orbit-distribution__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading span {
+  color: #70aeb0;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 1.45px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading h3 {
+  margin: 5px 0 0;
+  color: #e4f3ef;
+  font: 750 13px/1.35 "Manrope", sans-serif;
+  letter-spacing: -.2px;
+}
+.ax-modern-shell .ax-orbit-distribution__heading > small {
+  color: #83a9aa;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-distribution__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 9px;
+}
+.ax-modern-shell .ax-orbit-distribution-card {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(116,190,190,.14);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(23,60,70,.62), rgba(12,37,51,.78));
+  transition: border-color .2s ease, transform .2s ease, background .2s ease;
+}
+.ax-modern-shell .ax-orbit-distribution-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(111,225,204,.4);
+  background: linear-gradient(145deg, rgba(28,76,82,.7), rgba(14,43,57,.88));
+}
+.ax-modern-shell .ax-orbit-distribution-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 7px;
+}
+.ax-modern-shell .ax-orbit-distribution-card__top strong {
+  min-width: 0;
+  color: #d7eae4;
+  font-size: 9px;
+  line-height: 1.4;
+}
+.ax-modern-shell .ax-orbit-distribution-card__top span {
+  flex: 0 0 auto;
+  color: #80aaa8;
+  font-size: 7px;
+  text-align: right;
+}
+.ax-modern-shell .ax-orbit-distribution-card__value {
+  color: #f0fbf5;
+  font: 800 19px/1.1 "Manrope", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-distribution-card__value small {
+  color: #8caeaa;
+  font: 600 8px "DM Sans", sans-serif;
+}
+.ax-modern-shell .ax-orbit-distribution-card__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(143,187,178,.14);
+}
+.ax-modern-shell .ax-orbit-distribution-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #42b99f, #8fe2c6);
+  box-shadow: 0 0 12px rgba(80,220,186,.3);
+  transition: width .45s ease;
+}
+.ax-modern-shell .ax-orbit-distribution-card__share {
+  color: #779d9b;
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-distribution__empty {
+  margin: 0;
+  color: #9bb7b0;
+  font-size: 10px;
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-routes { display: none; }
+  .ax-modern-shell .ax-orbit-distribution { padding: 13px 11px; }
+  .ax-modern-shell .ax-orbit-distribution__heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .ax-modern-shell .ax-orbit-distribution__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .ax-modern-shell .ax-orbit-distribution-card { padding: 9px; }
+  .ax-modern-shell .ax-orbit-distribution-card__value { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .ax-modern-shell .ax-orbit-distribution__grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-route-ring,
+  .ax-modern-shell .ax-orbit-route-path,
+  .ax-modern-shell .ax-orbit-spoke,
+  .ax-modern-shell .ax-orbit-distribution-card__bar span {
+    animation: none !important;
+    transition: none !important;
+  }
+}
