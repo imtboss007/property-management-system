@@ -2333,7 +2333,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                     contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
                       id: contact.id, name: contact.name, role: contact.role || "", phone: contact.phone || ""
                     })),
-                    tasks: tasks.filter(task => (task.propertyId && recordIds.has(task.propertyId)) || moduleRecords.some(record => task.property === record.title))
+                    tasks: tasks.filter(task => Boolean(task.propertyId && recordIds.has(task.propertyId)))
                       .map(task => ({ id: task.id, title: task.title, date: task.date, done: task.done, type: task.type })),
                     financials: financials.filter(entry => recordIds.has(entry.propertyId))
                       .map(entry => ({ id: entry.id, type: entry.type, amount: entry.amount, date: entry.date, party: entry.party })),
@@ -2442,7 +2442,13 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenDocuments={()=>go("Documents")}
             />
             <RelationshipIntelligencePanel
-              {...relationshipIntelligenceSources}
+              contacts={contacts}
+              properties={properties}
+              tasks={tasks}
+              financials={financials}
+              risks={riskRecords}
+              approvals={approvalRequests}
+              documents={documents}
               onOpenWorkspace={name => go(name)}
             />
             <div className="ax-intelligence-kpis">
@@ -2683,21 +2689,9 @@ function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactR
   const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
-  if (unique.length) return unique;
-  const legacy = contacts.find(contact => contact.name.trim().toLowerCase() === (property.contact || "").trim().toLowerCase());
-  return legacy ? [legacy] : [];
+  return unique;
 }
 function getLinkedContactRoleLabels(property: PropertyRecord, contacts: ContactRecord[]): string[] {
-  const relationshipIntelligenceSources = {
-    contacts,
-    properties,
-    tasks,
-    financials,
-    risks: riskRecords,
-    approvals: approvalRequests,
-    documents
-  };
-
   return (moduleContactFields[property.module] ?? [])
     .map(field => ({ label: field.label, contact: contacts.find(contact => contact.id === property.moduleData?.[field.key]) }))
     .filter((item): item is { label: string; contact: ContactRecord } => Boolean(item.contact))
