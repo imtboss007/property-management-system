@@ -2438,9 +2438,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenContacts={query=>{if(query)setSearch(query);go("Contacts");}}
               onOpenFinancials={()=>go("Financials")}
               onOpenSchedule={()=>go("Schedule & Tasks")}
+              onOpenDocuments={()=>go("Documents")}
             />
             <div className="ax-intelligence-kpis">
-              <article><span>PORTFOLIO VALUE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Entered asset values only</small></article>
+              <article><span>RECORDED VALUE / EXPOSURE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Sum of entered record values across all workspaces; not a net asset valuation</small></article>
               <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
               <article><span>PENDING APPROVALS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting a recorded decision</small></article>
               <article><span>OPEN HIGH RISKS</span><strong>{riskRecords.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase())).length}</strong><small>High / critical open risk records</small></article>
