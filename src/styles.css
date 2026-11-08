@@ -4517,3 +4517,93 @@ h2,h3{color:#e5f2fc}
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Cross-workspace relationship intelligence */
+.ax-relationship-intelligence { margin-top: 22px; }
+.ax-relationship-search { min-width: min(100%, 310px); }
+.ax-relationship-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.ax-relationship-metrics article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 9px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border, rgba(112,145,170,.2));
+  border-radius: 13px;
+  background: rgba(12,31,48,.42);
+}
+.ax-relationship-metrics article svg { grid-row: span 2; color: #69cde5; }
+.ax-relationship-metrics article strong { font-size: 20px; line-height: 1.1; }
+.ax-relationship-metrics article span { color: var(--muted, #8da6b8); font-size: 11px; }
+.ax-relationship-list { display: grid; gap: 8px; }
+.ax-relationship-person {
+  overflow: hidden;
+  border: 1px solid rgba(112,145,170,.2);
+  border-radius: 12px;
+  background: rgba(8,25,40,.46);
+}
+.ax-relationship-person summary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 64px;
+  padding: 10px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+.ax-relationship-person summary::-webkit-details-marker { display: none; }
+.ax-relationship-person summary::after { content: "＋"; margin-left: 4px; color: #83a4b8; }
+.ax-relationship-person[open] summary::after { content: "−"; }
+.ax-relationship-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #7bd7e9;
+  background: rgba(39,164,195,.12);
+}
+.ax-relationship-person-main { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.ax-relationship-person-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ax-relationship-person-main small,
+.ax-relationship-records small { color: #8ca7ba; font-size: 11px; }
+.ax-relationship-person-count {
+  flex: 0 0 auto;
+  color: #9fc7d7;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ax-relationship-records { display: grid; gap: 7px; padding: 0 12px 12px 58px; }
+.ax-relationship-records article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(112,145,170,.15);
+  border-radius: 9px;
+  background: rgba(16,39,57,.55);
+}
+.ax-relationship-records article > div { display: grid; min-width: 0; gap: 4px; }
+.ax-relationship-records article strong { font-size: 12px; }
+.ax-relationship-records .text-button { display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.ax-relationship-unlinked,
+.ax-relationship-footnote { color: #8ca7ba; font-size: 11px; line-height: 1.55; }
+.ax-relationship-unlinked { margin: 0; padding: 12px 16px 16px; }
+.ax-relationship-footnote { margin: 13px 0 0; }
+@media (max-width: 760px) {
+  .ax-relationship-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-relationship-search { width: 100%; }
+  .ax-relationship-records { padding-left: 12px; }
+}
+@media (max-width: 440px) {
+  .ax-relationship-records article { align-items: flex-start; flex-direction: column; }
+  .ax-relationship-person-count { font-size: 10px; }
+}
