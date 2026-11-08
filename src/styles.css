@@ -3591,3 +3591,64 @@ h2,h3{color:#e5f2fc}
  .ax-contact-transfer-note{padding:10px}
 }
 @media(max-width:380px){.ax-contact-actions{grid-template-columns:1fr}}
+
+
+/* AXIVESTRA orbital navigation: independently rotating rings with upright, selectable module cards. */
+.ax-modern-shell .ax-orbit-shortcuts { flex-wrap: wrap; }
+.ax-modern-shell .ax-orbit-motion-toggle { border-color: rgba(124,211,202,.36); color: #bceee2; background: rgba(19,72,76,.5); }
+.ax-modern-shell .ax-orbit-motion-toggle[aria-pressed="true"] { border-color: rgba(255,205,132,.55); color: #ffdfad; background: rgba(91,63,36,.32); }
+.ax-modern-shell .ax-orbit-motion-toggle svg { flex: 0 0 auto; }
+.ax-modern-shell .ax-orbit-ring {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+.ax-modern-shell .ax-orbit-ring--outer { animation: ax-orbit-node-orbit 84s linear infinite; }
+.ax-modern-shell .ax-orbit-ring--inner { animation: ax-orbit-node-orbit-reverse 68s linear infinite; }
+.ax-modern-shell .ax-orbit-node-slot {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-node-slot:hover,
+.ax-modern-shell .ax-orbit-node-slot:focus-within { z-index: 9; }
+.ax-modern-shell .ax-orbit-node-counter {
+  display: block;
+  width: max-content;
+  transform-origin: 50% 50%;
+  pointer-events: auto;
+}
+.ax-modern-shell .ax-orbit-node-counter--outer { animation: ax-orbit-node-counter-outer 84s linear infinite; }
+.ax-modern-shell .ax-orbit-node-counter--inner { animation: ax-orbit-node-counter-inner 68s linear infinite; }
+.ax-modern-shell .ax-orbit-node { position: relative; transform: none; animation: none; pointer-events: auto; }
+.ax-modern-shell .ax-orbit-node:hover,
+.ax-modern-shell .ax-orbit-node:focus-visible,
+.ax-modern-shell .ax-orbit-node.is-focused { transform: scale(1.045); }
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-ring,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-node-counter,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__sphere,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__aura {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-node-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ax-orbit-node-orbit-reverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ax-orbit-node-counter-outer { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+@keyframes ax-orbit-node-counter-inner { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-ring { position: static; inset: auto; display: contents; animation: none !important; }
+  .ax-modern-shell .ax-orbit-node-slot { position: relative; left: auto !important; top: auto !important; transform: none; width: 100%; min-width: 0; }
+  .ax-modern-shell .ax-orbit-node-counter { width: 100%; animation: none !important; }
+  .ax-modern-shell .ax-orbit-node { width: 100%; transform: none !important; }
+  .ax-modern-shell .ax-orbit-node-slot:hover .ax-orbit-node,
+  .ax-modern-shell .ax-orbit-node-slot:focus-within .ax-orbit-node { transform: translateY(-1px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-ring,
+  .ax-modern-shell .ax-orbit-node-counter { animation: none !important; }
+}
