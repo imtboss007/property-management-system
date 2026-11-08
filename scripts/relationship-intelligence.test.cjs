@@ -50,4 +50,10 @@ const noLinks = buildRelationshipIntelligence({
 });
 assert.equal(noLinks.contacts[0].recordCount, 0, "matching display text without a saved contact ID creates no relationship");
 
+const appSource = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/App.tsx"), "utf8");
+const panelSource = require("node:fs").readFileSync(require("node:path").join(__dirname, "../src/RelationshipIntelligencePanel.tsx"), "utf8");
+assert.ok(appSource.includes('import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";'), "App imports the relationship panel");
+assert.ok(appSource.includes("<RelationshipIntelligencePanel"), "Intelligence Hub mounts the relationship panel");
+assert.ok(panelSource.includes("buildRelationshipIntelligence"), "visible panel calls the tested resolver");
+
 process.stdout.write("AXIVESTRA ID-based relationship intelligence tests passed.\n");
