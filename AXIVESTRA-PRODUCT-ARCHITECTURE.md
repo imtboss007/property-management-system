@@ -127,10 +127,11 @@ This is a code/document review, not a production certification.
 | 16 domain workspaces and field maps | Present in `src/App.tsx` | Implemented foundation |
 | Shared property/deal record workbench | Cards, table, pipeline, analytics and data-health views in `src/ModuleWorkbench.tsx` | Partial; domain-specific depth varies |
 | Contact directory and multiple roles | Present; additional roles/profile details are stored on contact records | Partial |
-| Role-in-record links | Some primary and role-specific contact IDs stored in existing records | Partial; not a complete graph |
-| Tasks, financials, risks, approvals and follow-ups | Present as separate application collections | Partial; entity linkage is inconsistent across types |
+| Role-in-record links | Primary and role-specific contact IDs are stored in existing records; the new relationship resolver reads those IDs without name matching | Partial foundation; not a normalized person/organisation graph or complete role coverage |
+| Tasks, financials, risks, approvals and follow-ups | Present as separate collections; explicit contactId links are used by the relationship resolver, while entity linkage varies by record type | Partial; broader entity links and workflow coverage remain incomplete |
 | Documents | IndexedDB document vault exists | Partial; file bytes remain local to the device |
 | Portfolio and cashflow charts | Derived from stored records | Basic record-derived analytics |
+| Cross-workspace relationship intelligence | Read-only contact relationship summary from explicit IDs on workspace records, tasks, financials, risks, approvals and documents; unresolved IDs are surfaced | First usable slice; organisation/entity graph, deal-specific canonical party links, verification and relationship history remain future work |
 | Intent Canvas | Panels, rule/keyword command handling and saved layout exist | Basic rule-based navigation/summary; not a general AI reasoning engine |
 | Orbital workspace visual | Present | Navigation only |
 | Cloud and device sync | Auth/company and sync code plus migrations exist; configuration and end-to-end acceptance are required | Conditional / not universally verified |
