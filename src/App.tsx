@@ -2289,6 +2289,46 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 color: item.color,
                 icon: <item.icon size={17} strokeWidth={1.8} />
               }))}
+              details={modules.map(module => {
+                const moduleRecords = properties.filter(record => record.module === module.name);
+                const recordIds = new Set(moduleRecords.map(record => record.id));
+                const linkedContactIds = new Set(moduleRecords.flatMap(record => [
+                  record.primaryContactId || "",
+                  ...(record.moduleData?.__linkedContactIds || "").split(","),
+                  ...(record.moduleData?.__followUpContactIds || "").split(","),
+                  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([, value]) => String(value || ""))
+                ]).map(id => id.trim()).filter(Boolean));
+                return {
+                  name: module.name,
+                  group: module.group,
+                  description: module.description,
+                  fields: (moduleFields[module.name] || []).map(field => ({ key: field.key, label: field.label })),
+                  records: moduleRecords.map(record => ({
+                    id: record.id,
+                    title: record.title,
+                    status: record.status || "Unspecified",
+                    value: record.value || "",
+                    location: record.location || "",
+                    contact: record.contact || "",
+                    nextAction: record.nextAction || "",
+                    nextFollowUpDate: record.nextFollowUpDate || "",
+                    fieldValues: (moduleFields[module.name] || [])
+                      .map(field => ({ label: field.label, value: String(record.moduleData?.[field.key] || "").trim() }))
+                      .filter(field => field.value)
+                  })),
+                  contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
+                    id: contact.id, name: contact.name, role: contact.role || "", phone: contact.phone || ""
+                  })),
+                  tasks: tasks.filter(task => (task.propertyId && recordIds.has(task.propertyId)) || moduleRecords.some(record => task.property === record.title))
+                    .map(task => ({ id: task.id, title: task.title, date: task.date, done: task.done, type: task.type })),
+                  financials: financials.filter(entry => recordIds.has(entry.propertyId))
+                    .map(entry => ({ id: entry.id, type: entry.type, amount: entry.amount, date: entry.date, party: entry.party })),
+                  risks: riskRecords.filter(risk => Boolean(risk.propertyId && recordIds.has(risk.propertyId)))
+                    .map(risk => ({ id: risk.id, title: risk.title, severity: risk.severity, status: risk.status, dueDate: risk.dueDate })),
+                  approvals: approvalRequests.filter(approval => Boolean(approval.propertyId && recordIds.has(approval.propertyId)))
+                    .map(approval => ({ id: approval.id, title: approval.title, status: approval.status, priority: approval.priority }))
+                };
+              })}
               totalRecords={properties.length}
               portfolioValue={portfolioValue}
               openActions={upcomingTasks.length}
