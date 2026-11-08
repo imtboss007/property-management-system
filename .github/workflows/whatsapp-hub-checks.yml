@@ -51,6 +51,8 @@ jobs:
           node-version: 22
       - name: Check company isolation, RBAC and secret-handling contracts
         run: node scripts/security-contract-check.cjs
+      - name: Run AXIVESTRA visual-system regression checks
+        run: node scripts/axivestra-visual-system.test.cjs
 
   test:
     runs-on: ubuntu-latest
