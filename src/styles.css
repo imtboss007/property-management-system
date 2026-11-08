@@ -4431,3 +4431,89 @@ h2,h3{color:#e5f2fc}
 @media (max-width: 600px) {
   .ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
+
+
+/* AXIVESTRA relationship intelligence: linked records stay navigable on desktop and mobile. */
+.ax-intent-relationship-people {
+  display: grid;
+  gap: 12px;
+}
+.ax-intent-relationship-person {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(113, 154, 186, .18);
+  border-radius: 12px;
+  background: rgba(8, 24, 39, .42);
+}
+.ax-intent-relationship-person__contact {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0 0 9px;
+  cursor: pointer;
+}
+.ax-intent-relationship-person__contact strong,
+.ax-intent-relationship-record strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ax-intent-relationship-person__contact small {
+  grid-column: 1;
+  color: var(--muted, #8ba6b8);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ax-intent-relationship-person__contact svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.ax-intent-relationship-person__records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.ax-intent-relationship-record {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  text-align: left;
+  padding: 8px 9px;
+  border: 1px solid rgba(113, 154, 186, .14);
+  border-radius: 9px;
+  color: inherit;
+  background: rgba(15, 39, 58, .58);
+  cursor: pointer;
+}
+.ax-intent-relationship-record span,
+.ax-intent-relationship-record small {
+  grid-column: 1 / -1;
+  color: var(--muted, #8ba6b8);
+  font-size: 10px;
+  line-height: 1.35;
+  text-transform: none;
+}
+.ax-intent-relationship-record strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ax-intent-relationship-record svg {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+}
+.ax-intent-relationship-person__contact:hover,
+.ax-intent-relationship-record:hover {
+  border-color: rgba(75, 183, 236, .48);
+}
+@media (max-width: 600px) {
+  .ax-intent-relationship-person__records {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
