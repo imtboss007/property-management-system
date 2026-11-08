@@ -40,6 +40,7 @@ assert.equal(person3.recordCount, 1, "explicit participant ID is counted");
 assert.equal(result.unlinkedContacts, 0);
 assert.equal(result.unresolvedReferences, 1, "unknown contact IDs are surfaced, not silently discarded");
 assert.ok(person2.records.some(item => item.relations.includes("seller")));
+assert.equal(person2.records.find(item => item.relations.includes("seller")).recordId, "deal-1", "relationship results retain the source record ID for navigation and traceability");
 assert.ok(person1.records.some(item => item.relations.includes("Primary contact")));
 assert.equal(result.contacts.filter(item => item.name === "Alex Morgan").length, 2,
   "same-name people remain separate; display-name matching is not a relationship");
