@@ -23,11 +23,11 @@ const result = buildRelationshipIntelligence({
       moduleData: { __contact_lender: "missing-person" }
     }
   ],
-  tasks: [{ id: "task-1", title: "Due diligence call", contactId: "person-1", followUpContactIds: ["person-2"] }],
-  financials: [{ id: "txn-1", reference: "Receipt 001", contactId: "person-2" }],
-  risks: [{ id: "risk-1", title: "Title check", contactId: "person-1" }],
-  approvals: [{ id: "approval-1", title: "Purchase approval", contactId: "person-2" }],
-  documents: [{ id: "doc-1", name: "Sale deed", contactId: "person-1" }]
+  tasks: [{ id: "task-1", title: "Due diligence call", propertyId: "deal-1", contactId: "person-1", followUpContactIds: ["person-2"] }],
+  financials: [{ id: "txn-1", propertyId: "deal-1", reference: "Receipt 001", contactId: "person-2" }],
+  risks: [{ id: "risk-1", propertyId: "deal-1", title: "Title check", contactId: "person-1" }],
+  approvals: [{ id: "approval-1", propertyId: "deal-1", title: "Purchase approval", contactId: "person-2" }],
+  documents: [{ id: "doc-1", propertyId: "deal-1", name: "Sale deed", contactId: "person-1" }]
 });
 
 const person1 = result.contacts.find(item => item.id === "person-1");
