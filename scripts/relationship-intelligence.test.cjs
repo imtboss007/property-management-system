@@ -55,5 +55,7 @@ const panelSource = require("node:fs").readFileSync(require("node:path").join(__
 assert.ok(appSource.includes('import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";'), "App imports the relationship panel");
 assert.ok(appSource.includes("<RelationshipIntelligencePanel"), "Intelligence Hub mounts the relationship panel");
 assert.ok(panelSource.includes("buildRelationshipIntelligence"), "visible panel calls the tested resolver");
+assert.ok(!appSource.includes("task.property === record.title"), "orbital detail links tasks only by stable record ID");
+assert.ok(!appSource.includes("const legacy = contacts.find(contact => contact.name.trim().toLowerCase()"), "contact relationships are not inferred from display-name equality");
 
 process.stdout.write("AXIVESTRA ID-based relationship intelligence tests passed.\n");
