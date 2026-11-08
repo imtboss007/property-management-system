@@ -2425,6 +2425,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               contacts={contacts}
               tasks={tasks}
               financials={financials}
+              documents={documents}
               risks={riskRecords}
               approvals={approvalRequests}
               modules={modules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
