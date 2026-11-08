@@ -28,7 +28,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow, ListTodo
+  BrainCircuit, Workflow, ListTodo, Orbit
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -120,6 +120,7 @@ const modules = [
 ];
 const navigation = [
   { name: "Overview", icon: LayoutDashboard },
+  { name: "Workspace Explorer", icon: Orbit },
   { name: "Intelligence Hub", icon: BrainCircuit },
   { name: "AXIVESTRA Shift", icon: Workflow },
   { name: "All Properties", icon: LandPlot },
@@ -2238,7 +2239,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}{personalUserId && <div className="company-session personal-session"><span className="company-session-name">Personal workspace</span><span className="company-session-role">Private cloud</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={String(active)} sections={[...navigation.map(item=>item.name),...modules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;}}}/></div>
         </header>
         <div className="content">
-          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> INTELLIGENCE COMMAND CENTRE</div><h1>{active === "Overview" ? "See your entire portfolio clearly." : active}</h1><p className="subtitle">{active === "Overview" ? "One live workspace for assets, capital, counterparties, obligations and decisions." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
+          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> {active === "Overview" ? "ASSET INTELLIGENCE OVERVIEW" : active === "Workspace Explorer" ? "WORKSPACE NAVIGATION" : "AXIVESTRA WORKSPACE"}</div><h1>{active === "Overview" ? "Understand assets, capital and exposure." : active}</h1><p className="subtitle">{active === "Overview" ? "A connected operating view across property, lending, investments, funds, investors, legal matters, risk and execution." : active === "Workspace Explorer" ? "Explore the 16 domain workspaces. The orbital map is navigation—not the intelligence engine." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             <button className="primary-button" onClick={() => active === "Contacts" ? openContactForm() : active === "Follow-up Registry" || active === "Intelligence Hub" ? openFollowUpForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Contacts" ? "New contact" : active === "Follow-up Registry" || active === "Intelligence Hub" ? "Add follow-up" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
@@ -2280,61 +2281,76 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                   <div><strong>No saved records match these ranges.</strong><small>Every entered range must match the same record. Check the price and area fields; missing data is not guessed into results.</small></div>
                 </div>}
           </section>}
+          {active === "Workspace Explorer" && <>
+            <section className="institutional-banner ax-workspace-explorer-intro">
+              <div className="institutional-copy">
+                <span className="institutional-label"><span className="live-dot"/> AXIVESTRA · WORKSPACE EXPLORER</span>
+                <h2>Navigate the operating system behind your asset intelligence.</h2>
+                <p>The orbital map is a visual workspace navigator. Your records, analytics, relationships and decisions live in the operating modules and intelligence workspace.</p>
+              </div>
+              <div className="banner-aside">
+                <span>AVAILABLE WORKSPACES</span>
+                <strong>{modules.length}</strong>
+                <small>Open a node to inspect its saved records and connected activity.</small>
+              </div>
+            </section>
+              <AxivestraOrbitalHub
+                items={modules.map(item => ({
+                  name: item.name,
+                  group: item.group,
+                  count: properties.filter(record => record.module === item.name).length,
+                  color: item.color,
+                  icon: <item.icon size={17} strokeWidth={1.8} />
+                }))}
+                details={modules.map(module => {
+                  const moduleRecords = properties.filter(record => record.module === module.name);
+                  const recordIds = new Set(moduleRecords.map(record => record.id));
+                  const linkedContactIds = new Set(moduleRecords.flatMap(record => [
+                    record.primaryContactId || "",
+                    ...(record.moduleData?.__linkedContactIds || "").split(","),
+                    ...(record.moduleData?.__followUpContactIds || "").split(","),
+                    ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([, value]) => String(value || ""))
+                  ]).map(id => id.trim()).filter(Boolean));
+                  return {
+                    name: module.name,
+                    group: module.group,
+                    description: module.description,
+                    fields: (moduleFields[module.name] || []).map(field => ({ key: field.key, label: field.label })),
+                    records: moduleRecords.map(record => ({
+                      id: record.id,
+                      title: record.title,
+                      status: record.status || "Unspecified",
+                      value: record.value || "",
+                      location: record.location || "",
+                      contact: record.contact || "",
+                      nextAction: record.nextAction || "",
+                      nextFollowUpDate: record.nextFollowUpDate || "",
+                      fieldValues: (moduleFields[module.name] || [])
+                        .map(field => ({ label: field.label, value: String(record.moduleData?.[field.key] || "").trim() }))
+                        .filter(field => field.value)
+                    })),
+                    contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
+                      id: contact.id, name: contact.name, role: contact.role || "", phone: contact.phone || ""
+                    })),
+                    tasks: tasks.filter(task => (task.propertyId && recordIds.has(task.propertyId)) || moduleRecords.some(record => task.property === record.title))
+                      .map(task => ({ id: task.id, title: task.title, date: task.date, done: task.done, type: task.type })),
+                    financials: financials.filter(entry => recordIds.has(entry.propertyId))
+                      .map(entry => ({ id: entry.id, type: entry.type, amount: entry.amount, date: entry.date, party: entry.party })),
+                    risks: riskRecords.filter(risk => Boolean(risk.propertyId && recordIds.has(risk.propertyId)))
+                      .map(risk => ({ id: risk.id, title: risk.title, severity: risk.severity, status: risk.status, dueDate: risk.dueDate })),
+                    approvals: approvalRequests.filter(approval => Boolean(approval.propertyId && recordIds.has(approval.propertyId)))
+                      .map(approval => ({ id: approval.id, title: approval.title, status: approval.status, priority: approval.priority }))
+                  };
+                })}
+                totalRecords={properties.length}
+                portfolioValue={portfolioValue}
+                openActions={upcomingTasks.length}
+                activeModules={modules.filter(item => properties.some(record => record.module === item.name && !["Completed", "Closed"].includes(record.status))).length}
+                onOpen={name => go(name)}
+              />
+          </>}
+
           {active === "Overview" && !rangeSearch && <>
-            <AxivestraOrbitalHub
-              items={modules.map(item => ({
-                name: item.name,
-                group: item.group,
-                count: properties.filter(record => record.module === item.name).length,
-                color: item.color,
-                icon: <item.icon size={17} strokeWidth={1.8} />
-              }))}
-              details={modules.map(module => {
-                const moduleRecords = properties.filter(record => record.module === module.name);
-                const recordIds = new Set(moduleRecords.map(record => record.id));
-                const linkedContactIds = new Set(moduleRecords.flatMap(record => [
-                  record.primaryContactId || "",
-                  ...(record.moduleData?.__linkedContactIds || "").split(","),
-                  ...(record.moduleData?.__followUpContactIds || "").split(","),
-                  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([, value]) => String(value || ""))
-                ]).map(id => id.trim()).filter(Boolean));
-                return {
-                  name: module.name,
-                  group: module.group,
-                  description: module.description,
-                  fields: (moduleFields[module.name] || []).map(field => ({ key: field.key, label: field.label })),
-                  records: moduleRecords.map(record => ({
-                    id: record.id,
-                    title: record.title,
-                    status: record.status || "Unspecified",
-                    value: record.value || "",
-                    location: record.location || "",
-                    contact: record.contact || "",
-                    nextAction: record.nextAction || "",
-                    nextFollowUpDate: record.nextFollowUpDate || "",
-                    fieldValues: (moduleFields[module.name] || [])
-                      .map(field => ({ label: field.label, value: String(record.moduleData?.[field.key] || "").trim() }))
-                      .filter(field => field.value)
-                  })),
-                  contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
-                    id: contact.id, name: contact.name, role: contact.role || "", phone: contact.phone || ""
-                  })),
-                  tasks: tasks.filter(task => (task.propertyId && recordIds.has(task.propertyId)) || moduleRecords.some(record => task.property === record.title))
-                    .map(task => ({ id: task.id, title: task.title, date: task.date, done: task.done, type: task.type })),
-                  financials: financials.filter(entry => recordIds.has(entry.propertyId))
-                    .map(entry => ({ id: entry.id, type: entry.type, amount: entry.amount, date: entry.date, party: entry.party })),
-                  risks: riskRecords.filter(risk => Boolean(risk.propertyId && recordIds.has(risk.propertyId)))
-                    .map(risk => ({ id: risk.id, title: risk.title, severity: risk.severity, status: risk.status, dueDate: risk.dueDate })),
-                  approvals: approvalRequests.filter(approval => Boolean(approval.propertyId && recordIds.has(approval.propertyId)))
-                    .map(approval => ({ id: approval.id, title: approval.title, status: approval.status, priority: approval.priority }))
-                };
-              })}
-              totalRecords={properties.length}
-              portfolioValue={portfolioValue}
-              openActions={upcomingTasks.length}
-              activeModules={modules.filter(item => properties.some(record => record.module === item.name && !["Completed", "Closed"].includes(record.status))).length}
-              onOpen={name => go(name)}
-            />
             <section className="institutional-banner">
               <div className="institutional-copy">
                 <span className="institutional-label"><span className="live-dot"/> AXIVESTRA COMMAND MATRIX</span>
@@ -2343,12 +2359,12 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 <div className="banner-actions"><button className="hero-button" onClick={()=>go("All Properties")}>Open deal pipeline <ArrowUpRight size={16}/></button><button className="banner-ghost" onClick={()=>go("Risk & Compliance")}>Review risk signals <ShieldCheck size={15}/></button></div>
               </div>
               <div className="banner-aside">
-                <span>TRACKED PORTFOLIO VALUE</span>
+                <span>RECORDED VALUE / EXPOSURE</span>
                 <strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong>
-                <small>Based on values entered in AXIVESTRA</small>
+                <small>Sum of entered record values across all workspaces; not a net asset valuation</small>
                 <div className="banner-divider"/>
                 <div className="banner-aside-row"><span>Last refreshed</span><strong>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
-                <div className="banner-aside-row"><span>Data mode</span><strong>Local device</strong></div>
+                <div className="banner-aside-row"><span>Data mode</span><strong>{company ? "Company cloud" : personalUserId ? "Personal cloud" : "Local-only"}</strong></div>
               </div>
             </section>
             <div className="stats-grid institutional-stats">
