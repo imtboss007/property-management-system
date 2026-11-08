@@ -54,16 +54,43 @@ export default function AxivestraOrbitalHub({
     const angle = (-Math.PI / 2) + (Math.PI * 2 * position / 8) + (ring ? Math.PI / 8 : 0);
     const radiusX = ring === 0 ? 43 : 30;
     const radiusY = ring === 0 ? 38 : 26;
+    const xPercent = 50 + Math.cos(angle) * radiusX;
+    const yPercent = 50 + Math.sin(angle) * radiusY;
     return {
       ...item,
       ringName: ring === 0 ? "outer" : "inner",
+      xPercent,
+      yPercent,
       style: {
-        left: `calc(50% + ${Math.cos(angle) * radiusX}%)`,
-        top: `calc(50% + ${Math.sin(angle) * radiusY}%)`,
+        left: `calc(${xPercent}%)`,
+        top: `calc(${yPercent}%)`,
       },
       number: String(index + 1).padStart(2, "0"),
     };
   }), [items]);
+
+  const routePaths = useMemo(() => {
+    const buildPath = (ring: "outer" | "inner") => {
+      const points = orbitItems.filter(item => item.ringName === ring);
+      if (points.length < 2) return "";
+      return points
+        .map((item, index) => `${index === 0 ? "M" : "L"} ${(item.xPercent * 10).toFixed(2)} ${(item.yPercent * 10).toFixed(2)}`)
+        .join(" ") + " Z";
+    };
+    return { outer: buildPath("outer"), inner: buildPath("inner") };
+  }, [orbitItems]);
+
+  const groupSummaries = useMemo(() => {
+    const summary = new Map<string, { modules: number; records: number }>();
+    for (const item of items) {
+      const current = summary.get(item.group) || { modules: 0, records: 0 };
+      current.modules += 1;
+      current.records += Math.max(0, Number.isFinite(item.count) ? item.count : 0);
+      summary.set(item.group, current);
+    }
+    return Array.from(summary, ([name, value]) => ({ name, ...value }))
+      .sort((a, b) => b.records - a.records || a.name.localeCompare(b.name));
+  }, [items]);
 
   const selectedItem = items.find(item => item.name === focused);
   const safeCount = items.length;
@@ -95,6 +122,27 @@ export default function AxivestraOrbitalHub({
         <div className="ax-orbit-track ax-orbit-track--inner" aria-hidden="true" />
         <div className="ax-orbit-axis ax-orbit-axis--horizontal" aria-hidden="true" />
         <div className="ax-orbit-axis ax-orbit-axis--vertical" aria-hidden="true" />
+
+        <svg className="ax-orbit-routes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="ax-orbit-route-arrow" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="5" markerHeight="5" orient="auto" markerUnits="strokeWidth">
+              <path d="M 0 0 L 8 4 L 0 8 z" />
+            </marker>
+          </defs>
+          {(["outer", "inner"] as const).map(ring => (
+            <g className={`ax-orbit-route-ring ax-orbit-route-ring--${ring}`} key={ring}>
+              <path className="ax-orbit-route-path" d={routePaths[ring]} markerMid="url(#ax-orbit-route-arrow)" markerEnd="url(#ax-orbit-route-arrow)" />
+              {orbitItems.filter(item => item.ringName === ring).map(item => (
+                <path
+                  className="ax-orbit-spoke"
+                  key={item.name}
+                  d={`M 500 500 L ${(item.xPercent * 10).toFixed(2)} ${(item.yPercent * 10).toFixed(2)}`}
+                  markerEnd="url(#ax-orbit-route-arrow)"
+                />
+              ))}
+            </g>
+          ))}
+        </svg>
 
         <div
           className={"ax-orbit-core" + (zoomed ? " is-zoomed" : "")}
@@ -169,6 +217,37 @@ export default function AxivestraOrbitalHub({
           <span><small>RECORDED PORTFOLIO VALUE</small><strong>{formatINR(portfolioValue)}</strong></span>
         </div>
       </div>
+      <section className="ax-orbit-distribution" aria-label="Live workspace distribution">
+        <div className="ax-orbit-distribution__heading">
+          <div>
+            <span>LIVE WORKSPACE BREAKDOWN</span>
+            <h3>Records across intelligence groups</h3>
+          </div>
+          <small>{groupSummaries.length} groups · {safeCount} workspaces</small>
+        </div>
+        {groupSummaries.length > 0 ? (
+          <div className="ax-orbit-distribution__grid">
+            {groupSummaries.map(group => {
+              const share = totalRecords > 0 ? Math.min(100, (group.records / totalRecords) * 100) : 0;
+              return (
+                <article className="ax-orbit-distribution-card" key={group.name}>
+                  <div className="ax-orbit-distribution-card__top">
+                    <strong>{group.name}</strong>
+                    <span>{group.modules} {group.modules === 1 ? "workspace" : "workspaces"}</span>
+                  </div>
+                  <div className="ax-orbit-distribution-card__value">{group.records.toLocaleString("en-IN")} <small>records</small></div>
+                  <div className="ax-orbit-distribution-card__bar" role="progressbar" aria-label={`${group.name} share of records`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share)}>
+                    <span style={{ width: `${share}%` }} />
+                  </div>
+                  <small className="ax-orbit-distribution-card__share">{share.toFixed(1)}% of saved records</small>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="ax-orbit-distribution__empty">Workspace group totals will appear when modules are available.</p>
+        )}
+      </section>
       <p className="ax-orbit-footnote">Live totals are calculated from records currently saved in this workspace. No sample data or estimated valuations are added.</p>
     </section>
   );
