@@ -12,6 +12,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, syncPersonalW
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import IntentCanvas from "./IntentCanvas";
+import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";
 import ModuleWorkbench from "./ModuleWorkbench";
 import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
 import FollowUpRegistry from "./FollowUpRegistry";
@@ -2440,6 +2441,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenSchedule={()=>go("Schedule & Tasks")}
               onOpenDocuments={()=>go("Documents")}
             />
+            <RelationshipIntelligencePanel
+              {...relationshipIntelligenceSources}
+              onOpenWorkspace={name => go(name)}
+            />
             <div className="ax-intelligence-kpis">
               <article><span>RECORDED VALUE / EXPOSURE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Sum of entered record values across all workspaces; not a net asset valuation</small></article>
               <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
@@ -2683,6 +2688,16 @@ function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactR
   return legacy ? [legacy] : [];
 }
 function getLinkedContactRoleLabels(property: PropertyRecord, contacts: ContactRecord[]): string[] {
+  const relationshipIntelligenceSources = {
+    contacts,
+    properties,
+    tasks,
+    financials,
+    risks: riskRecords,
+    approvals: approvalRequests,
+    documents
+  };
+
   return (moduleContactFields[property.module] ?? [])
     .map(field => ({ label: field.label, contact: contacts.find(contact => contact.id === property.moduleData?.[field.key]) }))
     .filter((item): item is { label: string; contact: ContactRecord } => Boolean(item.contact))
