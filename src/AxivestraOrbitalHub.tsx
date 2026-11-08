@@ -28,6 +28,7 @@ type ModuleDetail = {
   fields: { key: string; label: string }[];
   records: ModuleDetailRecord[];
   contacts: { id: string; name: string; role: string; phone: string }[];
+  documents: { id: string; name: string; category: string; expiresOn: string; sizeBytes: number }[];
   tasks: { id: string; title: string; date: string; done: boolean; type: string }[];
   financials: { id: string; type: string; amount: string; date: string; party: string }[];
   risks: { id: string; title: string; severity: string; status: string; dueDate: string }[];
@@ -299,6 +300,7 @@ export default function AxivestraOrbitalHub({
             <article><span>OPEN WORKSTREAMS</span><strong>{inspectedDetail.records.filter(record => !["completed","closed","settled","rejected","cancelled"].includes(record.status.toLowerCase())).length}</strong></article>
             <article><span>FOLLOW-UPS SET</span><strong>{inspectedDetail.records.filter(record => record.nextFollowUpDate).length}</strong></article>
             <article><span>CONNECTED CONTACTS</span><strong>{inspectedDetail.contacts.length}</strong></article>
+            <article><span>LINKED DOCUMENTS</span><strong>{inspectedDetail.documents.length}</strong></article>
             <article><span>RECORDED VALUE</span><strong>{formatINR(inspectedDetail.records.reduce((sum, record) => sum + (Number(String(record.value).replace(/[^0-9.-]/g, "")) || 0), 0))}</strong></article>
           </div>
 
@@ -348,6 +350,17 @@ export default function AxivestraOrbitalHub({
               </section>
 
               <section className="ax-orbit-detail__related">
+                <div className="ax-orbit-detail__section-head"><div><span>LINKED EVIDENCE</span><h4>Documents & files</h4></div><small>{inspectedDetail.documents.length}</small></div>
+                {inspectedDetail.documents.length ? inspectedDetail.documents.slice(0, 5).map(document => (
+                  <div className="ax-orbit-detail-activity" key={"document-" + document.id}>
+                    <span className="ax-orbit-detail-activity__kind">DOC</span>
+                    <div><strong>{document.name}</strong><small>{document.category || "Uncategorised"}{document.expiresOn ? " · Expires " + document.expiresOn : ""}{document.sizeBytes ? " · " + Math.ceil(document.sizeBytes / 1024) + " KB" : ""}</small></div>
+                  </div>
+                )) : <p className="ax-orbit-detail__empty">No documents are linked to the saved records in this workspace.</p>}
+                <button type="button" className="ax-orbit-detail__text-action" onClick={() => onOpen("Documents")}>Open document vault <ArrowUpRight size={13}/></button>
+              </section>
+
+              <section className="ax-orbit-detail__related">
                 <div className="ax-orbit-detail__section-head"><div><span>CONNECTED WORKFLOWS</span><h4>Operational links</h4></div></div>
                 {[
                   {label:"Scheduled tasks",count:inspectedDetail.tasks.filter(task=>!task.done).length,icon:<CalendarClock size={14}/>,target:"Schedule & Tasks"},
@@ -387,7 +400,7 @@ export default function AxivestraOrbitalHub({
                     <div><strong>{approval.title}</strong><small>{approval.priority} · {approval.status}</small></div>
                   </div>
                 ))}
-                {!inspectedDetail.tasks.length && !inspectedDetail.financials.length && !inspectedDetail.risks.length && !inspectedDetail.approvals.length && (
+                {!inspectedDetail.tasks.length && !inspectedDetail.financials.length && !inspectedDetail.risks.length && !inspectedDetail.approvals.length && !inspectedDetail.documents.length && (
                   <p className="ax-orbit-detail__empty">No linked task, financial, risk or approval entries are saved for this module yet.</p>
                 )}
               </section>

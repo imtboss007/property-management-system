@@ -187,6 +187,11 @@ assert.match(app, /tasks: tasks\.filter\(task =>/, "The module panel must connec
 assert.match(app, /financials: financials\.filter\(entry => recordIds\.has\(entry\.propertyId\)\)/, "Financial activity must be linked by the source record ID.");
 assert.match(app, /risks: riskRecords\.filter\(risk => Boolean\(risk\.propertyId && recordIds\.has\(risk\.propertyId\)\)\)/, "Risk items must be linked by the source record ID.");
 assert.match(app, /approvals: approvalRequests\.filter\(approval => Boolean\(approval\.propertyId && recordIds\.has\(approval\.propertyId\)\)\)/, "Approval items must be linked by the source record ID.");
+assert.match(orbit, /documents: \{ id: string; name: string; category: string; expiresOn: string; sizeBytes: number \}\[\]/, "The module detail contract must include linked documents and evidence files.");
+assert.match(app, /documents: documents\.filter\(document => recordIds\.has\(document\.propertyId\)\)/, "Documents must be linked to the module panel by persisted source record ID.");
+assert.match(orbit, /Documents & files/, "The module detail panel must show the linked document/evidence section.");
+assert.match(orbit, /onOpen\("Documents"\)/, "The linked evidence section must navigate to the document vault.");
+assert.match(orbit, /inspectedDetail\.documents\.length/, "The module panel must show the saved linked document count.");
 assert.match(orbit, /RELATIONSHIP GRAPH/, "The module panel must expose linked contacts.");
 assert.match(orbit, /Subcategories & fields/, "The module panel must expose its configured subcategories.");
 assert.match(orbit, /Recent workflow activity/, "The module panel must preview linked workflow activity.");

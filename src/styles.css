@@ -4396,7 +4396,7 @@ h2,h3{color:#e5f2fc}
 }
 
 
-.ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.ax-modern-shell .ax-orbit-detail__metrics { grid-template-columns: repeat(6,minmax(0,1fr)); }
 .ax-modern-shell .ax-orbit-detail-activity {
   display: flex;
   align-items: flex-start;

@@ -2333,6 +2333,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                     contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
                       id: contact.id, name: contact.name, role: contact.role || "", phone: contact.phone || ""
                     })),
+                    documents: documents.filter(document => recordIds.has(document.propertyId)).map(document => ({
+                      id: document.id, name: document.name, category: document.category || "Other", expiresOn: document.expiresOn || "", sizeBytes: document.sizeBytes || 0
+                    })),
                     tasks: tasks.filter(task => Boolean(task.propertyId && recordIds.has(task.propertyId)))
                       .map(task => ({ id: task.id, title: task.title, date: task.date, done: task.done, type: task.type })),
                     financials: financials.filter(entry => recordIds.has(entry.propertyId))
