@@ -109,6 +109,7 @@ assert.match(intentCanvas, /Temporal workspace/, "The canvas must include a date
 assert.match(intentCanvas, /Financial movement/, "The canvas must include source-linked financial movement.");
 assert.match(intentCanvas, /Cross-workspace relationship intelligence/, "The canvas must include the cross-workspace relationship intelligence panel.");
 assert.match(intentCanvas, /buildRelationshipIntelligence/, "The relationship panel must use the explicit-ID relationship resolver.");
+assert.match(intentCanvas, /financials,documents,risks/, "The relationship resolver must receive the document collection.");
 assert.doesNotMatch(intentCanvas, /person\.name\.trim\(\)\.toLowerCase\(\)/, "Display-name equality must not create a relationship link.");
 assert.match(intentCanvas, /unresolvedReferences/, "Unresolved contact IDs must be visible for data-quality review.");
 assert.match(intentCanvas, /person\.records\.slice\(0,4\)/, "The relationship panel must show the contact's actual linked saved records.");
