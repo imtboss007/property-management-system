@@ -13,6 +13,9 @@ const followUps = fs.readFileSync(path.join(root, "src", "lib", "follow-ups.ts")
 const registry = fs.readFileSync(path.join(root, "src", "FollowUpRegistry.tsx"), "utf8");
 const followUpForm = fs.readFileSync(path.join(root, "src", "FollowUpForm.tsx"), "utf8");
 const intentCanvas = fs.readFileSync(path.join(root, "src", "IntentCanvas.tsx"), "utf8");
+const analytics = fs.readFileSync(path.join(root, "src", "PortfolioAnalytics.tsx"), "utf8");
+const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+const productArchitecture = fs.readFileSync(path.join(root, "AXIVESTRA-PRODUCT-ARCHITECTURE.md"), "utf8");
 
 assert.match(
   app,
@@ -179,3 +182,18 @@ assert.match(orbit, /target:"Approvals"/, "The module panel must link to approva
 assert.match(orbit, /onClick=\{\(\) => onOpen\(workflow\.target\)\}/, "Connected workflow actions must route through the existing navigation callback.");
 assert.match(css, /\.ax-orbit-detail__body/, "The module detail panel must have a responsive two-column layout.");
 assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.ax-orbit-detail__side/, "The module detail panel must adapt to mobile.");
+
+assert.match(app, /name: "Workspace Explorer"/, "The orbital navigator must have a dedicated Workspace Explorer route.");
+assert.match(app, /active === "Workspace Explorer" && <>[\\s\\S]*?<AxivestraOrbitalHub/, "The orbital navigator must be mounted only by the Workspace Explorer route.");
+const overviewStart = app.indexOf('{active === "Overview" && !rangeSearch && <>');
+const intelligenceStart = app.indexOf('{active === "Intelligence Hub" && <section', overviewStart);
+assert.ok(overviewStart >= 0 && intelligenceStart > overviewStart, "The primary Asset Intelligence Overview route must be present.");
+assert.doesNotMatch(app.slice(overviewStart, intelligenceStart), /<AxivestraOrbitalHub/, "The orbital navigator must not displace the primary product overview.");
+assert.match(app, /ASSET INTELLIGENCE OVERVIEW/, "The default landing page must identify the asset-intelligence product.");
+assert.match(app, /RECORDED VALUE \/ EXPOSURE/, "Mixed module amounts must be labelled as recorded value/exposure.");
+assert.match(analytics, /Recorded value \/ exposure by workspace/, "Cross-module amount charts must not call mixed amounts asset allocation.");
+assert.doesNotMatch(analytics, /Asset allocation/, "Generic values across assets, debt and legal exposure must not be described as asset allocation.");
+assert.match(app, /company \? "Company cloud" : personalUserId \? "Personal cloud" : "Local-only"/, "The overview must report the configured workspace mode rather than always saying local device.");
+assert.match(readme, /optional visual workspace explorer/, "The README must define the orbital interface as optional navigation.");
+assert.match(productArchitecture, /Multi-Asset, Capital & Relationship Intelligence Operating Platform/, "The repository must contain the canonical AXIVESTRA product identity.");
+assert.match(productArchitecture, /Global investor sourcing and enrichment/, "The architecture must document the investor-intelligence implementation gap.");
