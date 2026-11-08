@@ -132,7 +132,7 @@ export default function AxivestraOrbitalHub({
       .sort((a, b) => b.records - a.records || a.name.localeCompare(b.name));
   }, [items]);
 
-  const selectedItem = visibleOrbitItems.find(item => item.name === focused);
+  const selectedItem = visibleOrbitItems.find((item) => item.name === focused) ?? null;
   const inspectedDetail = details.find(item => item.name === inspectedModule) || null;
   const safeCount = items.length;
 
