@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowUpRight, Command, Layers3, Pause, Play, Sparkles } from "lucide-react";
+import { Activity, ArrowUpRight, Command, Grid3X3, Layers3, Orbit, Pause, Play, Search, Sparkles, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type AxivestraOrbitalItem = {
@@ -36,6 +36,9 @@ export default function AxivestraOrbitalHub({
   const [focused, setFocused] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [rotationPaused, setRotationPaused] = useState(false);
+  const [viewMode, setViewMode] = useState<"orbit" | "grid">("orbit");
+  const [selectedGroup, setSelectedGroup] = useState("All");
+  const [moduleSearch, setModuleSearch] = useState("");
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
@@ -48,30 +51,40 @@ export default function AxivestraOrbitalHub({
     }, 620);
   };
 
-  const orbitItems = useMemo(() => items.map((item, index) => {
-    const ring = index < 8 ? 0 : 1;
-    const position = index % 8;
-    const angle = (-Math.PI / 2) + (Math.PI * 2 * position / 8) + (ring ? Math.PI / 8 : 0);
-    const radiusX = ring === 0 ? 43 : 30;
-    const radiusY = ring === 0 ? 38 : 26;
-    const xPercent = 50 + Math.cos(angle) * radiusX;
-    const yPercent = 50 + Math.sin(angle) * radiusY;
-    return {
-      ...item,
-      ringName: ring === 0 ? "outer" : "inner",
-      xPercent,
-      yPercent,
-      style: {
-        left: `calc(${xPercent}%)`,
-        top: `calc(${yPercent}%)`,
-      },
-      number: String(index + 1).padStart(2, "0"),
-    };
-  }), [items]);
+  const visibleOrbitItems = useMemo(() => {
+    const query = moduleSearch.trim().toLocaleLowerCase();
+    const filtered = items
+      .map((item, sourceIndex) => ({ ...item, sourceIndex }))
+      .filter(item => selectedGroup === "All" || item.group === selectedGroup)
+      .filter(item => !query || `${item.name} ${item.group}`.toLocaleLowerCase().includes(query));
+
+    const outerCount = Math.ceil(filtered.length / 2);
+    return filtered.map((item, index) => {
+      const ring = index < outerCount ? 0 : 1;
+      const position = ring === 0 ? index : index - outerCount;
+      const countInRing = ring === 0 ? outerCount : filtered.length - outerCount;
+      const angle = (-Math.PI / 2) + (Math.PI * 2 * position / Math.max(1, countInRing)) + (ring ? Math.PI / Math.max(1, countInRing) : 0);
+      const radiusX = ring === 0 ? 43 : 30;
+      const radiusY = ring === 0 ? 38 : 26;
+      const xPercent = 50 + Math.cos(angle) * radiusX;
+      const yPercent = 50 + Math.sin(angle) * radiusY;
+      return {
+        ...item,
+        ringName: ring === 0 ? "outer" : "inner",
+        xPercent,
+        yPercent,
+        style: {
+          left: `calc(${xPercent}%)`,
+          top: `calc(${yPercent}%)`,
+        },
+        number: String(item.sourceIndex + 1).padStart(2, "0"),
+      };
+    });
+  }, [items, moduleSearch, selectedGroup]);
 
   const routePaths = useMemo(() => {
     const buildPath = (ring: "outer" | "inner") => {
-      const points = orbitItems.filter(item => item.ringName === ring);
+      const points = visibleOrbitItems.filter(item => item.ringName === ring);
       if (points.length < 2) return "";
       return points
         .map((item, index) => `${index === 0 ? "M" : "L"} ${(item.xPercent * 10).toFixed(2)} ${(item.yPercent * 10).toFixed(2)}`)
@@ -96,7 +109,7 @@ export default function AxivestraOrbitalHub({
   const safeCount = items.length;
 
   return (
-    <section className={`ax-orbit-hub${rotationPaused ? " is-rotation-paused" : ""}`} aria-label="AXIVESTRA orbital workspace navigation">
+    <section className={`ax-orbit-hub${rotationPaused ? " is-rotation-paused" : ""}${viewMode === "grid" ? " is-grid-view" : " is-orbit-view"}`} aria-label="AXIVESTRA orbital workspace navigation">
       <div className="ax-orbit-hub__heading">
         <div>
           <span className="ax-orbit-kicker"><span className="ax-orbit-live" /> AXIVESTRA · RELATIONSHIP INTELLIGENCE GRID</span>
@@ -112,6 +125,32 @@ export default function AxivestraOrbitalHub({
           <button type="button" className="ax-orbit-shortcut" onClick={() => onOpen("AXIVESTRA Shift")}><Activity size={14}/> AXIVESTRA Shift</button>
           <button type="button" className="ax-orbit-all" onClick={() => onOpen("All Properties")}>Open all records <ArrowUpRight size={15}/></button>
         </div>
+      </div>
+
+      <div className="ax-orbit-controls">
+        <div className="ax-orbit-view-switch" role="group" aria-label="Workspace view">
+          <button type="button" className={viewMode === "orbit" ? "is-active" : ""} aria-pressed={viewMode === "orbit"} onClick={() => setViewMode("orbit")}>
+            <Orbit size={14} /> Orbit
+          </button>
+          <button type="button" className={viewMode === "grid" ? "is-active" : ""} aria-pressed={viewMode === "grid"} onClick={() => setViewMode("grid")}>
+            <Grid3X3 size={14} /> Grid
+          </button>
+        </div>
+        <label className="ax-orbit-search">
+          <Search size={14} aria-hidden="true" />
+          <input type="search" value={moduleSearch} onChange={event => setModuleSearch(event.target.value)} placeholder="Search workspaces or groups…" aria-label="Search workspaces or groups" />
+          {moduleSearch && <button type="button" onClick={() => setModuleSearch("")} aria-label="Clear workspace search"><X size={13} /></button>}
+          <span>{visibleOrbitItems.length}/{safeCount}</span>
+        </label>
+      </div>
+
+      <div className="ax-orbit-group-filters" role="group" aria-label="Filter workspaces by group">
+        <button type="button" className={selectedGroup === "All" ? "is-active" : ""} aria-pressed={selectedGroup === "All"} onClick={() => setSelectedGroup("All")}>All groups</button>
+        {groupSummaries.map(group => (
+          <button type="button" key={group.name} className={selectedGroup === group.name ? "is-active" : ""} aria-pressed={selectedGroup === group.name} onClick={() => setSelectedGroup(group.name)}>
+            {group.name} <span>{group.modules}</span>
+          </button>
+        ))}
       </div>
 
       <div className="ax-orbit-stage">
@@ -135,7 +174,7 @@ export default function AxivestraOrbitalHub({
           {(["outer", "inner"] as const).map(ring => (
             <g className={`ax-orbit-route-ring ax-orbit-route-ring--${ring}`} key={ring}>
               <path className="ax-orbit-route-path" d={routePaths[ring]} markerMid={`url(#ax-orbit-route-arrow-${ring})`} markerEnd={`url(#ax-orbit-route-arrow-${ring})`} />
-              {orbitItems.filter(item => item.ringName === ring).map(item => (
+              {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
                 <path
                   className="ax-orbit-spoke"
                   key={item.name}
