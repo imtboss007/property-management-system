@@ -135,3 +135,21 @@ assert.match(css, /\.ax-orbit-routes\s*\{[^}]*z-index:\s*1/, "Connection paths m
 assert.match(css, /\.ax-orbit-nodes\s*\{\s*z-index:\s*3/, "Selectable workspace nodes must remain above connection paths.");
 assert.match(css, /\.ax-orbit-distribution__grid/, "Live group panels must use a responsive card grid.");
 assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-routes\s*\{\s*display:\s*none/, "The route overlay must yield to the mobile workspace grid.");
+
+
+assert.ok(orbit.includes('useState<"orbit" | "grid">("orbit")'), "The orbital command centre must expose Orbit and Grid view state.");
+assert.ok(orbit.includes('aria-label="Workspace view"'), "Workspace layout controls must be grouped accessibly.");
+assert.ok(orbit.includes('aria-pressed={viewMode === "orbit"}'), "Orbit view must expose its selected state.");
+assert.ok(orbit.includes('aria-pressed={viewMode === "grid"}'), "Grid view must expose its selected state.");
+assert.ok(orbit.includes('setViewMode("orbit")') && orbit.includes('setViewMode("grid")'), "Both layout controls must switch views.");
+assert.ok(orbit.includes("setModuleSearch(event.target.value)"), "Workspace search must respond to typed input.");
+assert.ok(orbit.includes('selectedGroup === "All" || item.group === selectedGroup'), "Group scope must filter workspaces by their real category.");
+assert.ok(orbit.includes("!query ||") && orbit.includes("item.name") && orbit.includes("item.group"), "Workspace search must match names and groups.");
+assert.ok(orbit.includes("const routePaths = useMemo(") && orbit.includes("visibleOrbitItems.filter(item => item.ringName === ring)"), "Route geometry must use the filtered workspace set.");
+assert.ok(orbit.includes("visibleOrbitItems.filter(item => item.ringName === ring).map"), "Only filtered workspaces may render as orbital nodes.");
+assert.ok(!orbit.includes("orbitItems"), "The view must not retain a stale unfiltered workspace-node collection.");
+assert.ok(orbit.includes("No workspaces match this filter"), "Empty search and group results must show a clear empty state.");
+assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-stage"), "Grid view must have an explicit non-orbital stage layout.");
+assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-nodes") && css.includes("display: grid"), "Grid view must arrange workspaces into a card grid.");
+assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-core { display: none !important; }"), "Grid view must hide the decorative central sphere.");
+assert.ok(css.includes("@media (max-width: 720px)") && css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: repeat(2"), "Grid view must remain responsive on mobile.");
