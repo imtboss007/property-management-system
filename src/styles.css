@@ -4607,3 +4607,9 @@ h2,h3{color:#e5f2fc}
   .ax-relationship-records article { align-items: flex-start; flex-direction: column; }
   .ax-relationship-person-count { font-size: 10px; }
 }
+
+
+/* Do not expose a pause control when the responsive or accessibility mode has no orbit motion. */
+@media (max-width: 720px), (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-motion-toggle { display: none; }
+}

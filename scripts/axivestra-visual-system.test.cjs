@@ -53,6 +53,13 @@ assert.match(css, /\.ax-orbit-node/, "The command hub must style interactive mod
 assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-nodes/, "Orbital navigation must reflow to a mobile-friendly grid.");
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-core__sphere/, "Orbital animation must respect reduced-motion preferences.");
 
+assert.match(orbit, /if \(inspectedModule && !visibleOrbitItems\.some\(item => item\.name === inspectedModule\)\) setInspectedModule\(null\)/, "A module detail panel must close when search or group filters hide its selected workspace.");
+assert.match(orbit, /if \(focused && !visibleOrbitItems\.some\(item => item\.name === focused\)\) setFocused\(null\)/, "A hidden workspace must not remain visually focused after filtering.");
+assert.match(orbit, /setInspectedModule\(item\.name\); setRotationPaused\(true\)/, "Selecting a moving workspace must pause the orbit so its detail can be inspected reliably.");
+assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected workspace nodes must expose their selected state accessibly.");
+assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
+assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*none/, "Do not show an inactive pause control when the responsive fallback or reduced-motion preference disables orbit movement.");
+
 console.log("AXIVESTRA visual-system contract passed.");
 
 

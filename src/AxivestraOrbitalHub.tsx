@@ -109,6 +109,11 @@ export default function AxivestraOrbitalHub({
     });
   }, [items, moduleSearch, selectedGroup]);
 
+  useEffect(() => {
+    if (inspectedModule && !visibleOrbitItems.some(item => item.name === inspectedModule)) setInspectedModule(null);
+    if (focused && !visibleOrbitItems.some(item => item.name === focused)) setFocused(null);
+  }, [visibleOrbitItems, inspectedModule, focused]);
+
   const routePaths = useMemo(() => {
     const buildPath = (ring: "outer" | "inner") => {
       const points = visibleOrbitItems.filter(item => item.ringName === ring);
@@ -247,11 +252,12 @@ export default function AxivestraOrbitalHub({
                   <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
                     <button
                       type="button"
-                      className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name ? " is-focused" : ""}`}
+                      className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name || inspectedModule === item.name ? " is-focused" : ""}`}
                       onMouseEnter={() => setFocused(item.name)}
                       onFocus={() => setFocused(item.name)}
                       onBlur={() => setFocused(null)}
-                      onClick={() => { setFocused(item.name); setInspectedModule(item.name); }}
+                      onClick={() => { setFocused(item.name); setInspectedModule(item.name); setRotationPaused(true); }}
+                      aria-pressed={inspectedModule === item.name}
                       aria-label={`Open ${item.name}, ${item.count} records`}
                     >
                       <span className="ax-orbit-node__icon">{item.icon}</span>
