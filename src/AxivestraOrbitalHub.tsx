@@ -91,7 +91,7 @@ export default function AxivestraOrbitalHub({
         .join(" ") + " Z";
     };
     return { outer: buildPath("outer"), inner: buildPath("inner") };
-  }, [orbitItems]);
+  }, [visibleOrbitItems]);
 
   const groupSummaries = useMemo(() => {
     const summary = new Map<string, { modules: number; records: number }>();
@@ -214,7 +214,7 @@ export default function AxivestraOrbitalHub({
         <div className="ax-orbit-nodes" aria-label="Selectable workspace orbits">
           {(["outer", "inner"] as const).map(ring => (
             <div className={`ax-orbit-ring ax-orbit-ring--${ring}`} key={ring}>
-              {orbitItems.filter(item => item.ringName === ring).map(item => (
+              {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
                 <div className="ax-orbit-node-slot" style={item.style} key={item.name}>
                   <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
                     <button
