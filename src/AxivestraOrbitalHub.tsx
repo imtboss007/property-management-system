@@ -408,7 +408,7 @@ export default function AxivestraOrbitalHub({
           <span><small>OPEN ACTIONS</small><strong>{openActions.toLocaleString("en-IN")}</strong></span>
         </div>
         <div className="ax-orbit-metric ax-orbit-metric--value">
-          <span><small>RECORDED PORTFOLIO VALUE</small><strong>{formatINR(portfolioValue)}</strong></span>
+          <span><small>RECORDED VALUE / EXPOSURE</small><strong>{formatINR(portfolioValue)}</strong></span>
         </div>
       </div>
       <section className="ax-orbit-distribution" aria-label="Live workspace distribution">
