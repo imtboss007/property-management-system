@@ -118,3 +118,20 @@ assert.match(css, /ax-orbit-node-counter-inner/, "Inner-ring module cards must r
 assert.match(css, /is-rotation-paused[\s\S]*?animation-play-state:\s*paused/, "The pause control must stop decorative and module-orbit animation.");
 assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-ring\s*\{[^}]*display:\s*contents/, "Mobile orbit nodes must reflow into the existing responsive grid.");
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-ring/, "Reduced-motion users must not receive automatic orbital movement.");
+
+
+assert.match(orbit, /const routePaths = useMemo\(/, "Directional route geometry must be derived from the live workspace layout.");
+assert.match(orbit, /<svg className="ax-orbit-routes"/, "The orbital command centre must render a dedicated route overlay.");
+assert.match(orbit, /markerMid=\{\`url\(#ax-orbit-route-arrow-\$\{ring\}\)\`\}/, "Orbital paths must include visible directional arrowheads.");
+assert.match(orbit, /className="ax-orbit-spoke"/, "Each workspace must have a visible hub-to-module connection.");
+assert.match(orbit, /const groupSummaries = useMemo\(/, "Workspace group totals must be derived from actual module records.");
+assert.match(orbit, /Records across intelligence groups/, "The command centre must expose its live workspace distribution panel.");
+assert.match(orbit, /group\.records\.toLocaleString\("en-IN"\)/, "Distribution cards must display live grouped record counts.");
+assert.match(orbit, /role="progressbar"/, "Distribution bars must expose accessible progress semantics.");
+assert.match(css, /\.ax-orbit-route-ring--outer \.ax-orbit-route-path/, "The outer orbital route must have its own visual treatment.");
+assert.match(css, /\.ax-orbit-route-ring--inner \.ax-orbit-route-path/, "The inner orbital route must have its own visual treatment.");
+assert.match(css, /@keyframes ax-orbit-route-flow/, "Directional route dashes must animate along the route.");
+assert.match(css, /\.ax-orbit-routes\s*\{[^}]*z-index:\s*1/, "Connection paths must sit behind workspace cards.");
+assert.match(css, /\.ax-orbit-nodes\s*\{\s*z-index:\s*3/, "Selectable workspace nodes must remain above connection paths.");
+assert.match(css, /\.ax-orbit-distribution__grid/, "Live group panels must use a responsive card grid.");
+assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-routes\s*\{\s*display:\s*none/, "The route overlay must yield to the mobile workspace grid.");
