@@ -28,7 +28,7 @@ export function buildRelationshipIntelligence(input?: {
 }): {
   contacts: Array<{
     id: string; name: string; role: string; roles: string[];
-    records: Array<{key:string;kind:string;title:string;workspace:string;relations:string[]}>;
+    records: Array<{key:string;kind:string;title:string;workspace:string;recordId:string;relations:string[]}>;
     workspaces: string[]; recordCount: number;
   }>;
   linkedContacts: number;
