@@ -40,7 +40,7 @@ assert.match(css, /env\(safe-area-inset-bottom/, "Mobile spacing must account fo
 assert.match(app, /import AxivestraOrbitalHub from "\.\/AxivestraOrbitalHub"/, "The existing application must load the orbital workspace component.");
 assert.match(app, /<AxivestraOrbitalHub[\s\S]*?onOpen=\{name => go\(name\)\}/, "The orbital nodes must open the existing workspace navigation.");
 assert.match(orbit, /aria-label="AXIVESTRA orbital workspace navigation"/, "The orbital navigation must have an accessible landmark.");
-assert.match(orbit, /items\.map\(/, "The orbital navigation must render the supplied workspaces.");
+assert.match(orbit, /const filtered = items[\s\S]*?\.map\(\(item, sourceIndex\)/, "The orbital navigation must filter and map the supplied workspaces.");
 assert.match(orbit, /setInspectedModule\(item\.name\)/, "Selecting a module node must open its in-command-centre detail panel.");
 assert.match(orbit, /onClick=\{\(\) => openWorkspace\(inspectedDetail\.name\)\}/, "The detail panel must retain an explicit route to the full existing workspace.");
 assert.match(orbit, /totalRecords|portfolioValue|openActions/, "The central command panel must use live workspace metrics.");
