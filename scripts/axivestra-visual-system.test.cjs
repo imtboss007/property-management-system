@@ -108,6 +108,9 @@ assert.match(intentCanvas, /setFocus\(/, "The canvas must support a single-panel
 assert.match(intentCanvas, /Temporal workspace/, "The canvas must include a dated activity timeline.");
 assert.match(intentCanvas, /Financial movement/, "The canvas must include source-linked financial movement.");
 assert.match(intentCanvas, /People & relationship signals/, "The canvas must include person-to-record relationship signals.");
+assert.match(intentCanvas, /buildRelationshipIntelligence/, "The relationship panel must use the explicit-ID relationship resolver.");
+assert.doesNotMatch(intentCanvas, /person\.name\.trim\(\)\.toLowerCase\(\)/, "Display-name equality must not create a relationship link.");
+assert.match(intentCanvas, /unresolvedReferences/, "Unresolved contact IDs must be visible for data-quality review.");
 assert.match(css, /VESTRA SHIFT — live intent canvas/, "The responsive intent canvas styling must be present.");
 
 
