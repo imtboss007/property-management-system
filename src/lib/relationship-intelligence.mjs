@@ -49,8 +49,15 @@ export function buildRelationshipIntelligence(input = {}) {
     });
   }
 
+  const properties = Array.isArray(input.properties) ? input.properties : [];
+  const workspaceByPropertyId = new Map(properties.map(record => [cleanId(record?.id), String(record?.module || "")]));
+  const withLinkedWorkspace = record => ({
+    ...record,
+    module: String(record?.module || workspaceByPropertyId.get(cleanId(record?.propertyId)) || "")
+  });
+
   const unresolved = new Set();
-  for (const record of Array.isArray(input.properties) ? input.properties : []) {
+  for (const record of properties) {
     const data = record?.moduleData && typeof record.moduleData === "object" ? record.moduleData : {};
     addReference(people, record?.primaryContactId, record, "workspace", "Primary contact", unresolved);
     for (const id of idsFromList(data.__linkedContactIds)) {
@@ -67,9 +74,10 @@ export function buildRelationshipIntelligence(input = {}) {
   }
 
   for (const task of Array.isArray(input.tasks) ? input.tasks : []) {
-    addReference(people, task?.contactId, task, "task", "Task contact", unresolved);
+    const source = withLinkedWorkspace(task);
+    addReference(people, task?.contactId, source, "task", "Task contact", unresolved);
     for (const id of Array.isArray(task?.followUpContactIds) ? task.followUpContactIds : []) {
-      addReference(people, id, task, "task", "Task follow-up contact", unresolved);
+      addReference(people, id, source, "task", "Task follow-up contact", unresolved);
     }
   }
   for (const [collection, kind, relation] of [
@@ -79,7 +87,7 @@ export function buildRelationshipIntelligence(input = {}) {
     [input.documents, "document", "Document contact"]
   ]) {
     for (const record of Array.isArray(collection) ? collection : []) {
-      addReference(people, record?.contactId, record, kind, relation, unresolved);
+      addReference(people, record?.contactId, withLinkedWorkspace(record), kind, relation, unresolved);
     }
   }
 
