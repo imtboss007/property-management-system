@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowUpRight, Command, Layers3, Sparkles } from "lucide-react";
+import { Activity, ArrowUpRight, Command, Layers3, Pause, Play, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
 
 export type AxivestraOrbitalItem = {
@@ -35,6 +35,7 @@ export default function AxivestraOrbitalHub({
 }: AxivestraOrbitalHubProps) {
   const [focused, setFocused] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
+  const [rotationPaused, setRotationPaused] = useState(false);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
@@ -55,6 +56,7 @@ export default function AxivestraOrbitalHub({
     const radiusY = ring === 0 ? 38 : 26;
     return {
       ...item,
+      ringName: ring === 0 ? "outer" : "inner",
       style: {
         left: `calc(50% + ${Math.cos(angle) * radiusX}%)`,
         top: `calc(50% + ${Math.sin(angle) * radiusY}%)`,
@@ -67,7 +69,7 @@ export default function AxivestraOrbitalHub({
   const safeCount = items.length;
 
   return (
-    <section className="ax-orbit-hub" aria-label="AXIVESTRA orbital workspace navigation">
+    <section className={`ax-orbit-hub${rotationPaused ? " is-rotation-paused" : ""}`} aria-label="AXIVESTRA orbital workspace navigation">
       <div className="ax-orbit-hub__heading">
         <div>
           <span className="ax-orbit-kicker"><span className="ax-orbit-live" /> AXIVESTRA · RELATIONSHIP INTELLIGENCE GRID</span>
@@ -75,6 +77,10 @@ export default function AxivestraOrbitalHub({
           <p>Choose an orbit to open the live workspace. Each node is linked to your existing AXIVESTRA records.</p>
         </div>
         <div className="ax-orbit-shortcuts">
+          <button type="button" className="ax-orbit-shortcut ax-orbit-motion-toggle" aria-pressed={rotationPaused} onClick={() => setRotationPaused(value => !value)}>
+            {rotationPaused ? <Play size={14} /> : <Pause size={14} />}
+            {rotationPaused ? "Resume rotation" : "Pause rotation"}
+          </button>
           <button type="button" className="ax-orbit-shortcut" onClick={() => onOpen("Intelligence Hub")}><Sparkles size={14}/> Intelligence Hub</button>
           <button type="button" className="ax-orbit-shortcut" onClick={() => onOpen("AXIVESTRA Shift")}><Activity size={14}/> AXIVESTRA Shift</button>
           <button type="button" className="ax-orbit-all" onClick={() => onOpen("All Properties")}>Open all records <ArrowUpRight size={15}/></button>
@@ -115,27 +121,33 @@ export default function AxivestraOrbitalHub({
           </div>
         </div>
 
-        <div className="ax-orbit-nodes">
-          {orbitItems.map(item => (
-            <button
-              type="button"
-              key={item.name}
-              className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name ? " is-focused" : ""}`}
-              style={item.style}
-              onMouseEnter={() => setFocused(item.name)}
-              onFocus={() => setFocused(item.name)}
-              onBlur={() => setFocused(null)}
-              onClick={() => openWorkspace(item.name)}
-              aria-label={`Open ${item.name}, ${item.count} records`}
-            >
-              <span className="ax-orbit-node__icon">{item.icon}</span>
-              <span className="ax-orbit-node__copy">
-                <small>{item.number} · {item.group}</small>
-                <strong>{item.name}</strong>
-                <em>{item.count} {item.count === 1 ? "record" : "records"}</em>
-              </span>
-              <ArrowUpRight className="ax-orbit-node__arrow" size={13} />
-            </button>
+        <div className="ax-orbit-nodes" aria-label="Selectable workspace orbits">
+          {(["outer", "inner"] as const).map(ring => (
+            <div className={`ax-orbit-ring ax-orbit-ring--${ring}`} key={ring}>
+              {orbitItems.filter(item => item.ringName === ring).map(item => (
+                <div className="ax-orbit-node-slot" style={item.style} key={item.name}>
+                  <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
+                    <button
+                      type="button"
+                      className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name ? " is-focused" : ""}`}
+                      onMouseEnter={() => setFocused(item.name)}
+                      onFocus={() => setFocused(item.name)}
+                      onBlur={() => setFocused(null)}
+                      onClick={() => openWorkspace(item.name)}
+                      aria-label={`Open ${item.name}, ${item.count} records`}
+                    >
+                      <span className="ax-orbit-node__icon">{item.icon}</span>
+                      <span className="ax-orbit-node__copy">
+                        <small>{item.number} · {item.group}</small>
+                        <strong>{item.name}</strong>
+                        <em>{item.count} {item.count === 1 ? "record" : "records"}</em>
+                      </span>
+                      <ArrowUpRight className="ax-orbit-node__arrow" size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ))}
         </div>
       </div>
