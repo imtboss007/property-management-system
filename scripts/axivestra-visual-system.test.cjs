@@ -41,7 +41,7 @@ assert.match(app, /import AxivestraOrbitalHub from "\.\/AxivestraOrbitalHub"/, "
 assert.match(app, /<AxivestraOrbitalHub[\s\S]*?onOpen=\{name => go\(name\)\}/, "The orbital nodes must open the existing workspace navigation.");
 assert.match(orbit, /aria-label="AXIVESTRA orbital workspace navigation"/, "The orbital navigation must have an accessible landmark.");
 assert.match(orbit, /items\.map\(/, "The orbital navigation must render the supplied workspaces.");
-assert.match(orbit, /onClick=\{\(\) => openWorkspace\(item\.name\)\}/, "Each orbital node must zoom before navigating to its existing workspace.");
+assert.match(orbit, /setInspectedModule\(item\.name\)/, "Selecting a module node must open its in-command-centre detail panel.");\nassert.match(orbit, /onClick=\{\(\) => openWorkspace\(inspectedDetail\.name\)\}/, "The detail panel must retain an explicit route to the full existing workspace.");
 assert.match(orbit, /totalRecords|portfolioValue|openActions/, "The central command panel must use live workspace metrics.");
 assert.match(css, /\.ax-orbit-core__sphere/, "The command hub must include its central 3D sphere.");
 assert.match(css, /\.ax-orbit-track--outer/, "The command hub must render orbital tracks.");
@@ -153,3 +153,27 @@ assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-stage"), "Grid view
 assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-nodes") && css.includes("display: grid"), "Grid view must arrange workspaces into a card grid.");
 assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-core { display: none !important; }"), "Grid view must hide the decorative central sphere.");
 assert.ok(css.includes("@media (max-width: 720px)") && css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: repeat(2"), "Grid view must remain responsive on mobile.");
+
+
+assert.match(orbit, /type ModuleDetail =/, "The orbital detail panel must use a typed module-detail contract.");
+assert.match(orbit, /details: ModuleDetail\[\]/, "The orbital hub must receive actual module detail data.");
+assert.match(app, /details=\{modules\.map\(module => \{/, "The application must supply detail data for every existing module.");
+assert.match(app, /fields: \(moduleFields\[module\.name\] \|\| \[\]\)\.map/, "Module subcategories must come from the configured module field definitions.");
+assert.match(app, /records: moduleRecords\.map\(record =>/, "The detail panel must be backed by the saved records for each module.");
+assert.match(app, /contacts: contacts\.filter\(contact => linkedContactIds\.has\(contact\.id\)\)/, "Contact relationships must use the saved contact links.");
+assert.match(app, /tasks: tasks\.filter\(task =>/, "The module panel must connect its saved schedule tasks.");
+assert.match(app, /financials: financials\.filter\(entry => recordIds\.has\(entry\.propertyId\)\)/, "Financial activity must be linked by the source record ID.");
+assert.match(app, /risks: riskRecords\.filter\(risk => Boolean\(risk\.propertyId && recordIds\.has\(risk\.propertyId\)\)\)/, "Risk items must be linked by the source record ID.");
+assert.match(app, /approvals: approvalRequests\.filter\(approval => Boolean\(approval\.propertyId && recordIds\.has\(approval\.propertyId\)\)\)/, "Approval items must be linked by the source record ID.");
+assert.match(orbit, /RELATIONSHIP GRAPH/, "The module panel must expose linked contacts.");
+assert.match(orbit, /Subcategories & fields/, "The module panel must expose its configured subcategories.");
+assert.match(orbit, /Recent workflow activity/, "The module panel must preview linked workflow activity.");
+assert.match(orbit, /inspectedDetail\.financials\.slice/, "The module panel must preview saved financial entries.");
+assert.match(orbit, /inspectedDetail\.risks\.slice/, "The module panel must preview saved risk items.");
+assert.match(orbit, /inspectedDetail\.approvals\.slice/, "The module panel must preview saved approval items.");
+assert.match(orbit, /onOpen\("Schedule & Tasks"\)/, "The module panel must link to the schedule workflow.");
+assert.match(orbit, /onOpen\("Financials"\)/, "The module panel must link to the financial workflow.");
+assert.match(orbit, /onOpen\("Risk & Compliance"\)/, "The module panel must link to risk management.");
+assert.match(orbit, /onOpen\("Approvals"\)/, "The module panel must link to approvals.");
+assert.match(css, /\.ax-orbit-detail__body/, "The module detail panel must have a responsive two-column layout.");
+assert.match(css, /@media\s*\(max-width:\s*600px\)[\s\S]*?\.ax-orbit-detail__side/, "The module detail panel must adapt to mobile.");
