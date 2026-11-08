@@ -111,6 +111,13 @@ assert.match(intentCanvas, /Cross-workspace relationship intelligence/, "The can
 assert.match(intentCanvas, /buildRelationshipIntelligence/, "The relationship panel must use the explicit-ID relationship resolver.");
 assert.doesNotMatch(intentCanvas, /person\.name\.trim\(\)\.toLowerCase\(\)/, "Display-name equality must not create a relationship link.");
 assert.match(intentCanvas, /unresolvedReferences/, "Unresolved contact IDs must be visible for data-quality review.");
+assert.match(intentCanvas, /person\.records\.slice\(0,4\)/, "The relationship panel must show the contact's actual linked saved records.");
+assert.match(intentCanvas, /record\.kind==="workspace"/, "Workspace relationship paths must open the linked module.");
+assert.match(intentCanvas, /props\.onOpenDocuments\(\)/, "Document relationships must open the document workspace.");
+assert.match(app, /documents=\{documents\}/, "The app must supply saved documents to relationship intelligence.");
+assert.match(app, /onOpenDocuments=\{\(\)=>go\("Documents"\)\}/, "Document relationship navigation must use the existing Documents route.");
+assert.doesNotMatch(app, /<span>PORTFOLIO VALUE<\/span>/, "Mixed record amounts must not be presented as pure portfolio value.");
+
 assert.match(css, /VESTRA SHIFT — live intent canvas/, "The responsive intent canvas styling must be present.");
 
 
