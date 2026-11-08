@@ -11,7 +11,7 @@ export type RelationshipRecord = {
   name?: string;
   type?: string;
   reference?: string;
-  module?: string;
+  module?: string;\n  propertyId?: string;
   primaryContactId?: string;
   contactId?: string;
   followUpContactIds?: string[];
