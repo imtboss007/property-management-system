@@ -3827,3 +3827,225 @@ h2,h3{color:#e5f2fc}
 
 /* Keep route lines underneath the rotating selectable workspace cards. */
 .ax-modern-shell .ax-orbit-nodes { z-index: 3; }
+
+
+/* Workspace layout, search and group-scope controls. */
+.ax-modern-shell .ax-orbit-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+.ax-modern-shell .ax-orbit-view-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(106,186,189,.18);
+  border-radius: 9px;
+  background: rgba(7,27,40,.72);
+}
+.ax-modern-shell .ax-orbit-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 31px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #8eafb2;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 750;
+  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.ax-modern-shell .ax-orbit-view-switch button:hover { color: #d7f0e8; }
+.ax-modern-shell .ax-orbit-view-switch button.is-active {
+  border-color: rgba(119,222,201,.25);
+  color: #d9fff1;
+  background: linear-gradient(145deg, rgba(38,109,97,.6), rgba(20,66,73,.7));
+  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 3px 10px rgba(0,0,0,.16);
+}
+.ax-modern-shell .ax-orbit-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: min(360px, 52%);
+  min-height: 37px;
+  padding: 0 10px;
+  border: 1px solid rgba(106,186,189,.2);
+  border-radius: 9px;
+  color: #7eaaa9;
+  background: rgba(7,27,40,.68);
+}
+.ax-modern-shell .ax-orbit-search:focus-within { border-color: rgba(116,226,204,.62); box-shadow: 0 0 0 3px rgba(75,204,178,.08); }
+.ax-modern-shell .ax-orbit-search input {
+  min-width: 0;
+  flex: 1;
+  height: 35px;
+  border: 0;
+  outline: none;
+  color: #e4f6f0;
+  background: transparent;
+  font-size: 9px;
+}
+.ax-modern-shell .ax-orbit-search input::placeholder { color: #719394; }
+.ax-modern-shell .ax-orbit-search input::-webkit-search-cancel-button { display: none; }
+.ax-modern-shell .ax-orbit-search > button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #9cc4b9;
+  background: rgba(116,196,179,.12);
+}
+.ax-modern-shell .ax-orbit-search > span {
+  flex: 0 0 auto;
+  color: #80aaa8;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-group-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 1px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(111,190,177,.35) transparent;
+}
+.ax-modern-shell .ax-orbit-group-filters button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  padding: 0 9px;
+  border: 1px solid rgba(106,186,189,.16);
+  border-radius: 7px;
+  color: #91afb0;
+  background: rgba(7,27,40,.54);
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.ax-modern-shell .ax-orbit-group-filters button:hover { border-color: rgba(117,220,198,.4); color: #e0f4ec; }
+.ax-modern-shell .ax-orbit-group-filters button.is-active {
+  border-color: rgba(119,222,201,.42);
+  color: #d7fff0;
+  background: rgba(37,111,98,.4);
+}
+.ax-modern-shell .ax-orbit-group-filters button span {
+  display: inline-grid;
+  min-width: 15px;
+  height: 15px;
+  place-items: center;
+  border-radius: 5px;
+  color: #9de2d1;
+  background: rgba(109,218,191,.12);
+  font-size: 7px;
+}
+.ax-modern-shell .ax-orbit-empty-state {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  width: min(320px, 80%);
+  padding: 18px;
+  border: 1px dashed rgba(115,204,190,.32);
+  border-radius: 12px;
+  color: #9ec6bd;
+  background: rgba(6,26,39,.88);
+  text-align: center;
+  transform: translate(-50%,-50%);
+}
+.ax-modern-shell .ax-orbit-empty-state strong { color: #e0f4eb; font-size: 10px; }
+.ax-modern-shell .ax-orbit-empty-state span { color: #82a7a5; font-size: 8px; }
+
+ /* Explicit grid view: all existing workspaces become a stable, non-rotating card wall. */
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-stage {
+  display: block;
+  height: auto;
+  min-height: 0;
+  margin: 12px auto 0;
+  padding: 0;
+  overflow: visible;
+  perspective: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-halo,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-axis,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-routes,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-core { display: none !important; }
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes {
+  position: relative;
+  inset: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 9px;
+  width: 100%;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-ring {
+  position: static;
+  inset: auto;
+  display: contents;
+  animation: none !important;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node-slot {
+  position: relative;
+  left: auto !important;
+  top: auto !important;
+  width: 100%;
+  transform: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node-counter {
+  width: 100%;
+  animation: none !important;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node {
+  width: 100%;
+  min-height: 65px;
+  transform: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node:hover,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node:focus-visible,
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node.is-focused {
+  transform: translateY(-2px);
+}
+.ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-empty-state {
+  position: relative;
+  left: auto;
+  top: auto;
+  grid-column: 1 / -1;
+  justify-self: center;
+  transform: none;
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-controls { align-items: stretch; flex-direction: column; }
+  .ax-modern-shell .ax-orbit-view-switch { width: 100%; }
+  .ax-modern-shell .ax-orbit-view-switch button { flex: 1; }
+  .ax-modern-shell .ax-orbit-search { width: 100%; }
+  .ax-modern-shell .ax-orbit-group-filters { margin: 1px -2px 0; padding-bottom: 7px; }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-stage { display: block; height: auto; margin-top: 10px; padding: 0; }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-node { min-height: 69px; padding: 8px 7px; gap: 7px; }
+}
+@media (max-width: 380px) {
+  .ax-modern-shell .ax-orbit-hub.is-grid-view .ax-orbit-nodes { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-view-switch button,
+  .ax-modern-shell .ax-orbit-group-filters button,
+  .ax-modern-shell .ax-orbit-search,
+  .ax-modern-shell .ax-orbit-node { transition: none !important; }
+}
