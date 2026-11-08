@@ -239,6 +239,13 @@ export default function AxivestraOrbitalHub({
               ))}
             </div>
           ))}
+          {visibleOrbitItems.length === 0 && (
+            <div className="ax-orbit-empty-state" role="status">
+              <Search size={18} />
+              <strong>No workspaces match this filter.</strong>
+              <span>Change the group or clear your search.</span>
+            </div>
+          )}
         </div>
       </div>
 
