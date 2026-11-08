@@ -53,6 +53,8 @@ jobs:
         run: node scripts/security-contract-check.cjs
       - name: Run AXIVESTRA visual-system regression checks
         run: node scripts/axivestra-visual-system.test.cjs
+      - name: Test ID-based cross-workspace relationship intelligence
+        run: node scripts/relationship-intelligence.test.cjs
 
   test:
     runs-on: ubuntu-latest
