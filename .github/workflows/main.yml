@@ -37,7 +37,19 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install
+        shell: pwsh
+        run: |
+          $attempt = 0
+          do {
+            $attempt += 1
+            npm install --no-audit --no-fund
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            if ($attempt -lt 3) {
+              Write-Host "Dependency install failed (attempt $attempt). Retrying Electron's platform binary download..."
+              Start-Sleep -Seconds (10 * $attempt)
+            }
+          } while ($attempt -lt 3)
+          exit 1
 
       - name: Run project regression tests
         run: npm test
@@ -91,6 +103,8 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - name: Build web app
         env:
