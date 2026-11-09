@@ -85,8 +85,33 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.getByRole("button", { name: "Pause rotation" })).toHaveCount(0);
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
   await expect(hub).toHaveClass(/is-grid-view/);
-  const target = hub.getByRole("button", { name: /^Open Property Sale,/ });
-  await target.click();
-  await expect(hub.getByRole("region", { name: "Property Sale module details" })).toBeVisible();
-  await expect(page.locator("body")).not.toHaveCSS("overflow-x", "scroll");
+  for (const name of expectedModules) {
+    const node = hub.locator('button.ax-orbit-node[aria-label^="Open ' + name + ',"]');
+    await expect(node).toBeVisible();
+    await node.click();
+    await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
+    await hub.getByRole("button", { name: "Close module details" }).click();
+  }
+  const horizontalOverflow = await page.evaluate(() =>
+    Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth
+  );
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+});
+
+test("desktop: all primary workspaces are reachable from navigation", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Primary route sweep runs on desktop only.");
+  await page.goto("/");
+  const nav = page.locator(".nav-list");
+  const routes = [
+    "Overview", "Workspace Explorer", "Intelligence Hub", "AXIVESTRA Shift",
+    "All Properties", "Contacts", "Follow-up Registry", "Client & Deal Hub",
+    "Financials", "Documents", "Schedule & Tasks", "Risk & Compliance",
+    "Approvals", "WhatsApp Automation"
+  ];
+  for (const route of routes) {
+    await nav.getByRole("button", { name: new RegExp("^" + route) }).click();
+    const expectedHeading = route === "Overview" ? /Understand assets, capital and exposure/i : new RegExp("^" + route + "$");
+    await expect(page.getByRole("heading", { name: expectedHeading }).first()).toBeVisible();
+    await expect(nav.getByRole("button", { name: new RegExp("^" + route) })).toHaveClass(/active/);
+  }
 });
