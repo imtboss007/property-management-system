@@ -5583,3 +5583,46 @@ h2,h3{color:#e5f2fc}
 @media (prefers-reduced-motion: reduce) {
   .ax-modern-shell .ax-orbit-node-slot { transition: none !important; }
 }
+
+
+/* Rotate both 3D workspace shells; keep each module label counter-rotated and readable. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+  animation: ax-orbit-node-orbit 52s linear infinite;
+  transform-style: preserve-3d;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--inner {
+  animation: ax-orbit-node-orbit-reverse 38s linear infinite;
+  transform-style: preserve-3d;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+  animation: ax-orbit-node-counter-outer 52s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--inner {
+  animation: ax-orbit-node-counter-inner 38s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--outer {
+  transform-origin: 50% 50%;
+  animation: ax-orbit-node-orbit 52s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--inner {
+  transform-origin: 50% 50%;
+  animation: ax-orbit-node-orbit-reverse 38s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-ring--inner,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-node-counter--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-node-counter--inner,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--inner {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--inner,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--inner,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--outer,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--inner {
+    animation: none !important;
+  }
+}
