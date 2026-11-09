@@ -64,7 +64,8 @@ assert.match(orbit, /data-orbit-dimensionality="3d"/, "The orbital scene must de
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-stage\s*\{[^}]*perspective:\s*1250px/, "The desktop orbital stage must establish a real perspective camera.");
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-ring\s*\{[^}]*transform-style:\s*preserve-3d/, "Both orbital shells must preserve 3D child transforms.");
 assert.match(css, /@keyframes ax-orbit-core-3d-spin/, "The central globe must rotate on its 3D axis.");
-assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*inline-flex\s*!important/, "Mobile Orbit view must retain its working pause/resume control.");
+assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.ax-orbit-hub\.is-orbit-view \.ax-orbit-ring--outer\s*\{\s*animation:\s*ax-orbit-node-orbit 52s linear infinite !important/, "Mobile Orbit must override the legacy static-ring fallback and keep the outer 3D shell rotating.");
+assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.ax-orbit-hub\.is-orbit-view \.ax-orbit-motion-toggle\s*\{\s*display:\s*inline-flex\s*!important/, "Mobile Orbit view must retain its working pause/resume control.");
 assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.ax-orbit-motion-toggle \{ display: none !important; \}/, "The motion control must be hidden when the user requests reduced motion.");
 
 console.log("AXIVESTRA visual-system contract passed.");
