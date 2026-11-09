@@ -27,9 +27,11 @@ async function openExplorer(page) {
   await expect(page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" })).toBeVisible();
 }
 
-test("desktop: all 16 workspaces, detail panels, view controls, filters and orbital motion", async ({ page }) => {
+test("desktop: all 16 workspaces, detail panels, view controls, filters and orbital motion", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Desktop-only orbital interaction checks.");
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
+  await hub.getByRole("button", { name: "Pause rotation" }).click();
   const nodes = hub.locator("button.ax-orbit-node");
   await expect(nodes).toHaveCount(16);
 
@@ -40,8 +42,6 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
     await expect(node).toHaveAttribute("aria-pressed", "true");
     await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
     await hub.getByRole("button", { name: "Close module details" }).click();
-    const resume = hub.getByRole("button", { name: "Resume rotation" });
-    if (await resume.count()) await resume.click();
   }
 
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
@@ -49,6 +49,7 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: "Orbit", exact: true }).click();
   await expect(hub).toHaveClass(/is-orbit-view/);
 
+  await hub.getByRole("button", { name: "Resume rotation" }).click();
   const outerRing = hub.locator(".ax-orbit-ring--outer");
   await expect(outerRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
   await hub.getByRole("button", { name: "Pause rotation" }).click();
@@ -74,7 +75,8 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await expect(page.getByRole("heading", { name: "Intelligence Hub" })).toBeVisible();
 });
 
-test("mobile: explorer and all workspaces remain usable in responsive layout", async ({ page }) => {
+test("mobile: explorer and all workspaces remain usable in responsive layout", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium", "Mobile-only responsive checks.");
   await page.setViewportSize({ width: 390, height: 844 });
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
