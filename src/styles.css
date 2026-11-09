@@ -4613,3 +4613,48 @@ h2,h3{color:#e5f2fc}
 @media (max-width: 720px), (prefers-reduced-motion: reduce) {
   .ax-modern-shell .ax-orbit-motion-toggle { display: none; }
 }
+
+
+/* AXIVESTRA Aspect 3: visible, selected-state relationship routes and smooth transitions. */
+.ax-modern-shell .ax-orbit-node-slot {
+  transition: left .55s cubic-bezier(.2,.75,.25,1), top .55s cubic-bezier(.2,.75,.25,1);
+}
+.ax-modern-shell .ax-orbit-route-path {
+  stroke-width: 1.7;
+  stroke-dasharray: 8 9;
+}
+.ax-modern-shell .ax-orbit-spoke {
+  stroke-width: 1.05;
+  stroke-dasharray: 3 7;
+  opacity: .34;
+}
+.ax-modern-shell .ax-orbit-route-ring.is-focused .ax-orbit-route-path,
+.ax-modern-shell .ax-orbit-route-path.is-focused {
+  stroke-width: 2.5;
+  stroke-dasharray: 11 7;
+  opacity: .98;
+  filter: drop-shadow(0 0 4px rgba(85,216,192,.48));
+  animation-duration: 5.5s;
+}
+.ax-modern-shell .ax-orbit-route-ring--inner.is-focused .ax-orbit-route-path,
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-route-path.is-focused {
+  filter: drop-shadow(0 0 4px rgba(126,184,244,.5));
+}
+.ax-modern-shell .ax-orbit-spoke.is-focused {
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+  opacity: .96;
+  filter: drop-shadow(0 0 3px rgba(103,236,213,.65));
+  animation-duration: 6s;
+}
+.ax-modern-shell .ax-orbit-route-ring--inner .ax-orbit-spoke.is-focused {
+  filter: drop-shadow(0 0 3px rgba(126,184,244,.68));
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-node-slot { transition: none !important; }
+  .ax-modern-shell .ax-orbit-route-ring,
+  .ax-modern-shell .ax-orbit-route-path,
+  .ax-modern-shell .ax-orbit-spoke {
+    animation: none !important;
+  }
+}
