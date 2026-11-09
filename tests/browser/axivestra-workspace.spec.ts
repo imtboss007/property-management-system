@@ -159,7 +159,8 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   }
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
-  await mobileStage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
+  await mobileStage.scrollIntoViewIfNeeded();
+  await expect(mobileStage).toBeInViewport();
   const mobileTarget = await hub.locator("button.ax-orbit-node").evaluateAll(elements => {
     for (const element of elements) {
       const rect = element.getBoundingClientRect();
