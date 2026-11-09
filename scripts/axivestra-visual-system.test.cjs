@@ -58,7 +58,18 @@ assert.match(orbit, /if \(focused && !visibleOrbitItems\.some\(item => item\.nam
 assert.match(orbit, /setInspectedModule\(item\.name\); setRotationPaused\(true\)/, "Selecting a moving workspace must pause the orbit so its detail can be inspected reliably.");
 assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected workspace nodes must expose their selected state accessibly.");
 assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
-assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*none/, "Do not show an inactive pause control when the responsive fallback or reduced-motion preference disables orbit movement.");
+assert.match(orbit, /const goldenAngle = Math\.PI \* \(3 - Math\.sqrt\(5\)\)/, "The 3D sphere must position modules with spherical Fibonacci coordinates.");
+assert.match(orbit, /translate3d\(-50%, -50%, \$\{z\.toFixed\(2\)\}px\)/, "Each module must have a real depth coordinate rather than a flat 2D position.");
+assert.match(orbit, /data-orbit-dimensionality="3d"/, "The orbital scene must declare its 3D rendering mode.");
+assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-stage\s*\{[^}]*perspective:\s*1250px/, "The desktop orbital stage must establish a real perspective camera.");
+assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-ring\s*\{[^}]*transform-style:\s*preserve-3d/, "Both orbital shells must preserve 3D child transforms.");
+assert.match(css, /@keyframes ax-orbit-core-surface-spin/, "The fixed-size central globe must rotate its surface without turning edge-on.");
+assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-core__sphere\s*\{[^}]*width:\s*88px/, "The mobile globe must retain a round, compact visible face.");
+assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.ax-orbit-core__surface/, "Globe surface motion must respect reduced-motion preferences.");
+assert.match(orbit, /className="ax-orbit-card-float"/, "Every module card must have an independent animation wrapper.");
+assert.match(orbit, /onClick=\{\(\) => openWorkspace\(item\.name\)\}/, "Clicking a module card must open that exact workspace.");
+assert.match(orbit, /aria-label=\{\`Inspect \$\{item\.name\} details\`\}/, "Every module must retain a separate direct details action.");
+assert.match(css, /\.ax-orbit-node-inspect\s*\{/, "The independent details action must remain visible and clickable.");
 
 
 assert.match(orbit, /className="ax-orbit-card-float"/, "Every module card must have its own isolated animation wrapper.");
