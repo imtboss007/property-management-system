@@ -5099,19 +5099,19 @@ h2,h3{color:#e5f2fc}
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
     width: 76px;
-    min-height: 40px;
+    min-height: 46px;
     gap: 4px;
-    padding: 4px 5px;
+    padding: 5px 6px;
     border-radius: 8px;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
-    width: 18px;
-    height: 18px;
-    flex-basis: 18px;
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
   }
-  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 4.7px; line-height: 1.15; letter-spacing: .1px; }
-  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 6.5px; line-height: 1.15; }
-  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 5px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 5.4px; line-height: 1.15; letter-spacing: .1px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 7.4px; line-height: 1.15; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 5.6px; }
   .ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect {
     top: -4px;
     right: -4px;
@@ -5186,7 +5186,7 @@ h2,h3{color:#e5f2fc}
     animation: ax-orbit-node-counter-outer 52s linear infinite !important;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
-    width: 76px !important;
+    width: 92px !important;
     min-height: 40px;
     gap: 4px;
     padding: 4px 5px;
