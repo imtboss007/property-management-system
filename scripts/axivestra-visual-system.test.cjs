@@ -274,3 +274,13 @@ assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-no
 
 
 assert.match(orbit, /data-mobile-orbit-layout=\{compactOrbit \? "staggered-ellipse" : "fibonacci-sphere"\}/, "The workspace explorer must identify the responsive orbital projection in use.");
+
+
+assert.match(orbit, /const activeRouteItem = visibleOrbitItems\\.find/, "The relationship layer must resolve the focused or inspected workspace.");
+assert.ok(orbit.includes('className={`ax-orbit-route-path${activeRouteItem?.ringName === ring ? " is-focused" : ""}`}'), "The selected workspace must highlight its orbital route.");
+assert.ok(orbit.includes('className={`ax-orbit-spoke${activeRouteItem?.name === item.name ? " is-focused" : ""}`}'), "The selected workspace must highlight its own center-to-module relationship line.");
+assert.match(orbit, /markerMid=/, "Orbital route paths must show directional arrows at route points.");
+assert.match(orbit, /markerEnd=/, "Orbital routes and spokes must terminate with directional arrows.");
+assert.match(css, /\\.ax-orbit-route-path\\.is-focused/, "Focused orbital paths must be visually emphasized.");
+assert.match(css, /\\.ax-orbit-spoke\\.is-focused/, "Focused relationship spokes must be visually emphasized.");
+assert.match(css, /transition: left \\.55s[\\s\\S]*?top \\.55s/, "Workspace positions must transition smoothly when the visible orbit changes.");
