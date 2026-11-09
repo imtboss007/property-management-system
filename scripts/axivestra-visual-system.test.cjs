@@ -79,6 +79,15 @@ assert.match(css, /@keyframes ax-orbit-module-card-glow/, "Each module card must
 assert.match(css, /\.ax-orbit-hub\.is-rotation-paused[\s\S]*?\.ax-orbit-card-float/, "Pausing the orbit must also pause each module card's motion.");
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-card-float/, "Individual card animations must respect reduced-motion preferences.");
 
+
+assert.match(app, /name: "Overview", label: "Asset Intelligence"/, "The Asset Intelligence dashboard must have an explicit primary navigation label.");
+assert.match(app, /navigation\.map\(\(\{ name, label, icon: Icon \}\) =>/, "The navigation must display the dashboard label while preserving its internal route ID.");
+assert.match(app, /active === "Overview" \? "Asset Intelligence" : active/, "The dashboard breadcrumb must be explicit.");
+assert.match(app, /ASSET INTELLIGENCE DASHBOARD/, "The overview page must be identified as the Asset Intelligence dashboard.");
+assert.match(app, /active === "Overview" && !rangeSearch[\s\S]*?<PortfolioAnalytics/, "Asset Intelligence must have its own analytics dashboard, separate from Workspace Explorer.");
+assert.match(analytics, /Recorded amounts[\s\S]*?Pipeline health[\s\S]*?Cashflow/, "The Asset Intelligence dashboard must expose portfolio, pipeline and cashflow analysis.");
+assert.match(app, /The orbital map is a visual workspace navigator[\s\S]*?records, analytics, relationships and decisions live in the operating modules and intelligence workspace/, "Workspace Explorer must remain separate from the Asset Intelligence dashboard.");
+
 console.log("AXIVESTRA visual-system contract passed.");
 
 
@@ -233,7 +242,7 @@ const overviewStart = app.indexOf('{active === "Overview" && !rangeSearch && <>'
 const intelligenceStart = app.indexOf('{active === "Intelligence Hub" && <section', overviewStart);
 assert.ok(overviewStart >= 0 && intelligenceStart > overviewStart, "The primary Asset Intelligence Overview route must be present.");
 assert.doesNotMatch(app.slice(overviewStart, intelligenceStart), /<AxivestraOrbitalHub/, "The orbital navigator must not displace the primary product overview.");
-assert.match(app, /ASSET INTELLIGENCE OVERVIEW/, "The default landing page must identify the asset-intelligence product.");
+assert.match(app, /ASSET INTELLIGENCE DASHBOARD/, "The default landing page must identify the Asset Intelligence dashboard.");
 assert.match(app, /RECORDED VALUE \/ EXPOSURE/, "Mixed module amounts must be labelled as recorded value/exposure.");
 assert.match(analytics, /Recorded value \/ exposure by workspace/, "Cross-module amount charts must not call mixed amounts asset allocation.");
 assert.doesNotMatch(analytics, /Asset allocation/, "Generic values across assets, debt and legal exposure must not be described as asset allocation.");
