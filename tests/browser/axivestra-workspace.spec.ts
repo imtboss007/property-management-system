@@ -162,9 +162,19 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   const mobileTarget = await hub.locator("button.ax-orbit-node").evaluateAll(elements => {
     for (const element of elements) {
       const rect = element.getBoundingClientRect();
-      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      if (hit === element || element.contains(hit)) {
-        return { label: element.getAttribute("aria-label"), name: element.querySelector("strong")?.textContent?.trim() };
+      const samples = [
+        [rect.left + rect.width / 2, rect.top + rect.height / 2],
+        [rect.left + 6, rect.top + rect.height / 2],
+        [rect.right - 6, rect.top + rect.height / 2],
+        [rect.left + rect.width / 2, rect.top + 6],
+        [rect.left + rect.width / 2, rect.bottom - 6],
+      ];
+      for (const [x, y] of samples) {
+        const hit = document.elementFromPoint(x, y);
+        const actualCard = hit instanceof Element ? hit.closest("button.ax-orbit-node") : null;
+        if (actualCard) {
+          return { label: actualCard.getAttribute("aria-label"), name: actualCard.querySelector("strong")?.textContent?.trim() };
+        }
       }
     }
     return null;
