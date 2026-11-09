@@ -59,7 +59,7 @@ assert.match(orbit, /setInspectedModule\(item\.name\); setRotationPaused\(true\)
 assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected workspace nodes must expose their selected state accessibly.");
 assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
 assert.match(orbit, /const goldenAngle = Math\.PI \* \(3 - Math\.sqrt\(5\)\)/, "The 3D sphere must position modules with spherical Fibonacci coordinates.");
-assert.match(orbit, /translate3d\(-50%, -50%, \$\{z\.toFixed\(2\)\}px\)/, "Each module must have a real depth coordinate rather than a flat 2D position.");
+assert.match(orbit, /translate3d\\(calc\\(-50% \\+ \\$\\{x\\.toFixed\\(2\\)\\}px\\), calc\\(-50% \\+ \\$\\{y\\.toFixed\\(2\\)\\}px\\), \\$\\{z\\.toFixed\\(2\\)\\}px\\)/, "Each module must have a real depth coordinate relative to the center of the unified shell.");
 assert.match(orbit, /data-orbit-dimensionality="3d"/, "The orbital scene must declare its 3D rendering mode.");
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-stage\s*\{[^}]*perspective:\s*1250px/, "The desktop orbital stage must establish a real perspective camera.");
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-ring\s*\{[^}]*transform-style:\s*preserve-3d/, "Both orbital shells must preserve 3D child transforms.");
