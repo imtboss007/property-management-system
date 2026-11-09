@@ -34,6 +34,11 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: "Pause rotation" }).click();
   const nodes = hub.locator("button.ax-orbit-node");
   await expect(nodes).toHaveCount(16);
+  const stage = hub.locator(".ax-orbit-stage");
+  await expect(stage).toHaveAttribute("data-orbit-dimensionality", "3d");
+  await expect(stage).toHaveCSS("perspective", "1250px");
+  await expect(hub.locator(".ax-orbit-ring--outer")).toHaveCSS("transform-style", "preserve-3d");
+  await expect(hub.locator(".ax-orbit-node-slot").nth(2)).toHaveCSS("transform", /matrix3d/);
 
   for (const name of expectedModules) {
     const node = hub.getByRole("button", { name: new RegExp("^Open " + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ",") });
@@ -81,8 +86,17 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
-  await expect(hub.locator(".ax-orbit-ring--outer")).toHaveCSS("animation-name", "none");
-  await expect(hub.getByRole("button", { name: "Pause rotation" })).toHaveCount(0);
+  const mobileStage = hub.locator(".ax-orbit-stage");
+  await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
+  const mobileOuterRing = hub.locator(".ax-orbit-ring--outer");
+  await expect(mobileOuterRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
+  await expect(mobileOuterRing).toHaveCSS("transform-style", "preserve-3d");
+  await expect(hub.getByRole("button", { name: "Pause rotation" })).toBeVisible();
+  await hub.getByRole("button", { name: "Pause rotation" }).click();
+  await expect(mobileOuterRing).toHaveCSS("animation-play-state", "paused");
+  await hub.getByRole("button", { name: "Resume rotation" }).click();
+  await expect(mobileOuterRing).toHaveCSS("animation-play-state", "running");
+  await expect(hub.locator(".ax-orbit-node-slot").nth(2)).toHaveCSS("transform", /matrix3d/);
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
   await expect(hub).toHaveClass(/is-grid-view/);
   await hub.getByRole("button", { name: "Orbit", exact: true }).click();
