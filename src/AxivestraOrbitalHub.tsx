@@ -205,6 +205,9 @@ export default function AxivestraOrbitalHub({
   }, [items]);
 
   const selectedItem = visibleOrbitItems.find((item) => item.name === focused) ?? null;
+  const activeRouteItem = visibleOrbitItems.find(item => item.name === focused)
+    ?? visibleOrbitItems.find(item => item.name === inspectedModule)
+    ?? null;
   const inspectedDetail = details.find(item => item.name === inspectedModule) || null;
   const safeCount = items.length;
 
@@ -308,19 +311,19 @@ export default function AxivestraOrbitalHub({
 
         <svg className="ax-orbit-routes" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
           <defs>
-            <marker id="ax-orbit-route-arrow-outer" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="5" markerHeight="5" orient="auto" markerUnits="strokeWidth">
-              <path d="M 0 0 L 8 4 L 0 8 z" />
+            <marker id="ax-orbit-route-arrow-outer" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
-            <marker id="ax-orbit-route-arrow-inner" viewBox="0 0 8 8" refX="6.5" refY="4" markerWidth="5" markerHeight="5" orient="auto" markerUnits="strokeWidth">
-              <path d="M 0 0 L 8 4 L 0 8 z" />
+            <marker id="ax-orbit-route-arrow-inner" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" orient="auto" markerUnits="userSpaceOnUse">
+              <path d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
           </defs>
           {(["outer", "inner"] as const).map(ring => (
-            <g className={`ax-orbit-route-ring ax-orbit-route-ring--${ring}`} key={ring}>
-              <path className="ax-orbit-route-path" d={routePaths[ring]} markerMid={`url(#ax-orbit-route-arrow-${ring})`} markerEnd={`url(#ax-orbit-route-arrow-${ring})`} />
+            <g className={`ax-orbit-route-ring ax-orbit-route-ring--${ring}${activeRouteItem?.ringName === ring ? " is-focused" : ""}`} key={ring}>
+              <path className={`ax-orbit-route-path${activeRouteItem?.ringName === ring ? " is-focused" : ""}`} d={routePaths[ring]} markerMid={`url(#ax-orbit-route-arrow-${ring})`} markerEnd={`url(#ax-orbit-route-arrow-${ring})`} />
               {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
                 <path
-                  className="ax-orbit-spoke"
+                  className={`ax-orbit-spoke${activeRouteItem?.name === item.name ? " is-focused" : ""}`}
                   key={item.name}
                   d={`M 500 500 L ${(item.xPercent * 10).toFixed(2)} ${(item.yPercent * 10).toFixed(2)}`}
                   markerEnd={`url(#ax-orbit-route-arrow-${ring})`}

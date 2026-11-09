@@ -243,14 +243,14 @@ test("desktop: all primary workspaces are reachable from navigation", async ({ p
   await page.goto("/");
   const nav = page.locator(".nav-list");
   const routes = [
-    "Overview", "Workspace Explorer", "Intelligence Hub", "AXIVESTRA Shift",
+    "Asset Intelligence", "Workspace Explorer", "Intelligence Hub", "AXIVESTRA Shift",
     "All Properties", "Contacts", "Follow-up Registry", "Client & Deal Hub",
     "Financials", "Documents", "Schedule & Tasks", "Risk & Compliance",
     "Approvals", "WhatsApp Automation"
   ];
   for (const route of routes) {
     await nav.getByRole("button", { name: new RegExp("^" + route) }).click();
-    const expectedHeading = route === "Overview" ? /Understand assets, capital and exposure/i : new RegExp("^" + route + "$");
+    const expectedHeading = route === "Asset Intelligence" ? /Understand assets, capital and exposure/i : new RegExp("^" + route + "$");
     await expect(page.getByRole("heading", { name: expectedHeading }).first()).toBeVisible();
     await expect(nav.getByRole("button", { name: new RegExp("^" + route) })).toHaveClass(/active/);
   }
