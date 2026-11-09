@@ -135,7 +135,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   const mobileOuterRing = hub.locator(".ax-orbit-ring--outer");
-  await expect(hub.locator("button.ax-orbit-node").first()).toHaveCSS("width", "58px");
+  await expect(hub.locator("button.ax-orbit-node").first()).toHaveCSS("width", "62px");
   await expect(mobileOuterRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
   await expect(mobileOuterRing).toHaveCSS("transform-style", "preserve-3d");
   await expect(hub.getByRole("button", { name: "Pause rotation" })).toBeVisible();
