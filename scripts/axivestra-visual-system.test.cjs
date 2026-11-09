@@ -60,6 +60,15 @@ assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected
 assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
 assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*none/, "Do not show an inactive pause control when the responsive fallback or reduced-motion preference disables orbit movement.");
 
+
+assert.match(app, /name: "Overview", label: "Asset Intelligence"/, "The Asset Intelligence dashboard must have an explicit primary navigation label.");
+assert.match(app, /navigation\.map\(\(\{ name, label, icon: Icon \}\) =>/, "The navigation must display the dashboard label while preserving its internal route ID.");
+assert.match(app, /active === "Overview" \? "Asset Intelligence" : active/, "The dashboard breadcrumb must be explicit.");
+assert.match(app, /ASSET INTELLIGENCE DASHBOARD/, "The overview page must be identified as the Asset Intelligence dashboard.");
+assert.match(app, /active === "Overview" && !rangeSearch[\s\S]*?<PortfolioAnalytics/, "Asset Intelligence must have its own analytics dashboard, separate from Workspace Explorer.");
+assert.match(analytics, /Recorded amounts[\s\S]*?Pipeline health[\s\S]*?Cashflow/, "The Asset Intelligence dashboard must expose portfolio, pipeline and cashflow analysis.");
+assert.match(app, /The orbital map is a visual workspace navigator[\s\S]*?records, analytics, relationships and decisions live in the operating modules and intelligence workspace/, "Workspace Explorer must remain separate from the Asset Intelligence dashboard.");
+
 console.log("AXIVESTRA visual-system contract passed.");
 
 
