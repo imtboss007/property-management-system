@@ -60,6 +60,14 @@ assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected
 assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
 assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*none/, "Do not show an inactive pause control when the responsive fallback or reduced-motion preference disables orbit movement.");
 
+
+assert.match(orbit, /className="ax-orbit-card-float"/, "Every module card must have its own isolated animation wrapper.");
+assert.match(orbit, /animationDelay:\s*`\$\{\(item\.sourceIndex % 8\) \* -0\.78\}s`/, "Each module card must receive a staggered animation delay.");
+assert.match(css, /@keyframes ax-orbit-module-card-drift/, "Each module card must have its own subtle movement animation.");
+assert.match(css, /@keyframes ax-orbit-module-card-glow/, "Each module card must have an independent perimeter glow.");
+assert.match(css, /\.ax-orbit-hub\.is-rotation-paused[\s\S]*?\.ax-orbit-card-float/, "Pausing the orbit must also pause each module card's motion.");
+assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-card-float/, "Individual card animations must respect reduced-motion preferences.");
+
 console.log("AXIVESTRA visual-system contract passed.");
 
 

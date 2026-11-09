@@ -4613,3 +4613,55 @@ h2,h3{color:#e5f2fc}
 @media (max-width: 720px), (prefers-reduced-motion: reduce) {
   .ax-modern-shell .ax-orbit-motion-toggle { display: none; }
 }
+
+
+/* AXIVESTRA Aspect 2: each workspace card has its own staggered motion layer. */
+.ax-modern-shell .ax-orbit-card-float {
+  position: relative;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  transform-origin: 50% 50%;
+  animation: ax-orbit-module-card-drift 9s ease-in-out infinite;
+  will-change: transform;
+}
+.ax-modern-shell .ax-orbit-card-float::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -3px;
+  border: 1px solid rgba(103,227,209,.24);
+  border-radius: 15px;
+  box-shadow: 0 0 0 rgba(79,226,199,0);
+  opacity: .42;
+  pointer-events: none;
+  animation: ax-orbit-module-card-glow 5.8s ease-in-out infinite;
+}
+.ax-modern-shell .ax-orbit-card-float .ax-orbit-node {
+  z-index: 1;
+}
+.ax-modern-shell .ax-orbit-node-slot:hover .ax-orbit-card-float,
+.ax-modern-shell .ax-orbit-node-slot:focus-within .ax-orbit-card-float,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-card-float,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-card-float::before {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-module-card-drift {
+  0%, 100% { transform: translateY(0) rotate(-.35deg); }
+  50% { transform: translateY(-4px) rotate(.35deg); }
+}
+@keyframes ax-orbit-module-card-glow {
+  0%, 100% { opacity: .28; box-shadow: 0 0 8px rgba(79,226,199,.05); }
+  50% { opacity: .78; box-shadow: 0 0 16px rgba(79,226,199,.16); }
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-card-float { width: 100%; }
+  .ax-modern-shell .ax-orbit-card-float::before { inset: -2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-card-float,
+  .ax-modern-shell .ax-orbit-card-float::before {
+    animation: none !important;
+    will-change: auto;
+  }
+}
