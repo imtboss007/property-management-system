@@ -40,6 +40,8 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
     await expect(node).toHaveAttribute("aria-pressed", "true");
     await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
     await hub.getByRole("button", { name: "Close module details" }).click();
+    const resume = hub.getByRole("button", { name: "Resume rotation" });
+    if (await resume.count()) await resume.click();
   }
 
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
@@ -47,13 +49,18 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: "Orbit", exact: true }).click();
   await expect(hub).toHaveClass(/is-orbit-view/);
 
+  const moduleCards = hub.locator(".ax-orbit-card-float");
+  await expect(moduleCards).toHaveCount(16);
+  await expect(moduleCards.first()).toHaveCSS("animation-name", "ax-orbit-module-card-drift");
   const outerRing = hub.locator(".ax-orbit-ring--outer");
   await expect(outerRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
   await hub.getByRole("button", { name: "Pause rotation" }).click();
   await expect(hub).toHaveClass(/is-rotation-paused/);
   await expect(outerRing).toHaveCSS("animation-play-state", "paused");
+  await expect(moduleCards.first()).toHaveCSS("animation-play-state", "paused");
   await hub.getByRole("button", { name: "Resume rotation" }).click();
   await expect(outerRing).toHaveCSS("animation-play-state", "running");
+  await expect(moduleCards.first()).toHaveCSS("animation-play-state", "running");
 
   await expect(hub.locator("svg.ax-orbit-routes path.ax-orbit-spoke").first()).toBeVisible();
   await expect(hub.locator("svg.ax-orbit-routes path.ax-orbit-route-path").first()).toHaveAttribute("d", /M/);
@@ -77,6 +84,9 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-card-float")).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-card-float").first()).toHaveCSS("animation-name", "ax-orbit-module-card-drift");
+  await expect(hub.locator(".ax-orbit-ring--outer")).toHaveCSS("animation-name", "none");
   await expect(hub.getByRole("button", { name: "Pause rotation" })).toHaveCount(0);
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
   await expect(hub).toHaveClass(/is-grid-view/);
