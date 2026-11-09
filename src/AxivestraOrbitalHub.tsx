@@ -121,16 +121,39 @@ export default function AxivestraOrbitalHub({
     const stageHeight = stageSize.height || 570;
 
     return filtered.map((item, index) => {
-      // Distribute all workspaces over one Fibonacci sphere, then alternate
-      // their counter-rotating shell so the two groups are vertically staggered.
+      // Keep the desktop Fibonacci sphere. On phones, project the 16 workspaces
+      // onto two staggered 3D ellipses to give every card its own tap area.
       const ring = index % 2;
-      const latitude = 1 - (2 * (index + 0.5) / Math.max(1, filtered.length));
-      const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
-      const angle = index * goldenAngle;
-      const shellRadius = baseRadius * (ring === 0 ? 1 : 0.94);
-      const x = Math.cos(angle) * horizontalRadius * shellRadius;
-      const y = latitude * shellRadius * (compactOrbit ? 0.88 : 0.84);
-      const z = Math.sin(angle) * horizontalRadius * shellRadius;
+      let x: number;
+      let y: number;
+      let z: number;
+
+      if (compactOrbit) {
+        const singleMobileOrbit = filtered.length <= 8;
+        const positionRing = singleMobileOrbit ? 0 : ring;
+        const positionIndex = singleMobileOrbit ? index : Math.floor(index / 2);
+        const countInRing = singleMobileOrbit
+          ? Math.max(1, filtered.length)
+          : Math.max(1, Math.ceil((filtered.length - positionRing) / 2));
+        const angle = positionIndex * ((Math.PI * 2) / countInRing) + (positionRing ? Math.PI / countInRing : 0);
+        const radiusX = positionRing === 0
+          ? Math.min(128, layoutWidth * 0.38)
+          : Math.min(82, layoutWidth * 0.24);
+        const radiusY = positionRing === 0
+          ? Math.min(162, stageHeight * 0.39)
+          : Math.min(102, stageHeight * 0.25);
+        x = Math.cos(angle) * radiusX;
+        y = Math.sin(angle) * radiusY;
+        z = Math.cos(angle) * (positionRing === 0 ? 42 : 26);
+      } else {
+        const latitude = 1 - (2 * (index + 0.5) / Math.max(1, filtered.length));
+        const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
+        const angle = index * goldenAngle;
+        const shellRadius = baseRadius * (ring === 0 ? 1 : 0.94);
+        x = Math.cos(angle) * horizontalRadius * shellRadius;
+        y = latitude * shellRadius * 0.84;
+        z = Math.sin(angle) * horizontalRadius * shellRadius;
+      }
       const xPercent = 50 + (x / stageWidth) * 100;
       const yPercent = 50 + (y / stageHeight) * 100;
 
