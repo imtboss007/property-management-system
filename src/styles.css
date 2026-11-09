@@ -5223,3 +5223,300 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--inner {
   animation-play-state: paused !important;
 }
+
+
+/* AXIVESTRA visual atmosphere: luminous constellation field and data-orbit HUD. */
+.ax-modern-shell .ax-orbit-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-height: 43px;
+  margin: 11px 0 2px;
+  padding: 0 12px;
+  overflow: hidden;
+  border: 1px solid rgba(97,196,193,.19);
+  border-radius: 11px;
+  background: linear-gradient(100deg, rgba(11,43,57,.92), rgba(8,29,45,.78) 48%, rgba(13,45,54,.82));
+  box-shadow: inset 0 1px rgba(213,255,247,.045), 0 7px 20px rgba(0,0,0,.13);
+  position: relative;
+}
+.ax-modern-shell .ax-orbit-telemetry::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(104,245,209,.8), transparent);
+  box-shadow: 0 0 16px rgba(104,245,209,.42);
+}
+.ax-modern-shell .ax-orbit-telemetry__brand,
+.ax-modern-shell .ax-orbit-telemetry__metric,
+.ax-modern-shell .ax-orbit-telemetry__state {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-right: 1px solid rgba(132,208,204,.13);
+  white-space: nowrap;
+}
+.ax-modern-shell .ax-orbit-telemetry__brand {
+  padding-left: 3px;
+  color: #a8e9dc;
+  font: 850 8px "Manrope", sans-serif;
+  letter-spacing: 1.35px;
+}
+.ax-modern-shell .ax-orbit-telemetry__pulse,
+.ax-modern-shell .ax-orbit-telemetry__state > span {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #70f2c3;
+  box-shadow: 0 0 0 4px rgba(112,242,195,.08), 0 0 12px rgba(112,242,195,.7);
+  animation: ax-orbit-telemetry-pulse 2.8s ease-in-out infinite;
+}
+.ax-modern-shell .ax-orbit-telemetry__metric strong {
+  color: #e2fff7;
+  font: 800 15px/1 "Manrope", sans-serif;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ax-modern-shell .ax-orbit-telemetry__metric span {
+  color: #799ca8;
+  font: 800 7px "Manrope", sans-serif;
+  letter-spacing: 1.1px;
+}
+.ax-modern-shell .ax-orbit-telemetry__state {
+  margin-left: auto;
+  border-right: 0;
+  color: #86b7b6;
+  font: 800 7px "Manrope", sans-serif;
+  letter-spacing: 1px;
+}
+.ax-modern-shell .ax-orbit-telemetry__state > span.is-paused {
+  background: #f0be75;
+  box-shadow: 0 0 0 4px rgba(240,190,117,.08), 0 0 12px rgba(240,190,117,.55);
+  animation: none;
+}
+.ax-modern-shell .ax-orbit-stage { isolation: isolate; }
+.ax-modern-shell .ax-orbit-atmosphere {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 19px;
+  pointer-events: none;
+  contain: paint;
+}
+.ax-modern-shell .ax-orbit-atmosphere::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .7;
+  background:
+    radial-gradient(circle at 13% 22%, rgba(99,237,213,.52) 0 1px, transparent 2px),
+    radial-gradient(circle at 29% 72%, rgba(110,198,248,.5) 0 1px, transparent 2px),
+    radial-gradient(circle at 76% 19%, rgba(149,231,237,.42) 0 1px, transparent 2px),
+    radial-gradient(circle at 88% 67%, rgba(99,237,213,.42) 0 1px, transparent 2px),
+    radial-gradient(circle at 50% 8%, rgba(173,231,255,.42) 0 1px, transparent 2px),
+    radial-gradient(circle at 5% 82%, rgba(117,234,208,.32) 0 1px, transparent 2px),
+    radial-gradient(ellipse at 50% 52%, rgba(30,143,148,.11), transparent 58%);
+  background-size: 137px 123px, 181px 147px, 163px 139px, 197px 161px, 211px 171px, 157px 131px, 100% 100%;
+  mask-image: radial-gradient(ellipse at center, #000 12%, rgba(0,0,0,.78) 62%, transparent 98%);
+}
+.ax-modern-shell .ax-orbit-atmosphere__nebula {
+  position: absolute;
+  width: 46%;
+  height: 38%;
+  border-radius: 50%;
+  filter: blur(43px);
+  opacity: .12;
+  transform: translate3d(0,0,0);
+  animation: ax-orbit-nebula-drift 18s ease-in-out infinite alternate;
+}
+.ax-modern-shell .ax-orbit-atmosphere__nebula--teal { left: 5%; top: 13%; background: #18cbb1; }
+.ax-modern-shell .ax-orbit-atmosphere__nebula--blue {
+  right: 2%;
+  bottom: 9%;
+  background: #3988e7;
+  opacity: .1;
+  animation-delay: -9s;
+  animation-direction: alternate-reverse;
+}
+.ax-modern-shell .ax-orbit-atmosphere__grid {
+  position: absolute;
+  inset: 7% 8%;
+  opacity: .11;
+  background-image:
+    linear-gradient(rgba(117,219,213,.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(117,219,213,.16) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(600px) rotateX(67deg) scale(1.35);
+  transform-origin: center;
+  mask-image: radial-gradient(ellipse at center, #000 5%, transparent 75%);
+}
+.ax-modern-shell .ax-orbit-constellation {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .56;
+  overflow: visible;
+  filter: drop-shadow(0 0 5px rgba(84,214,210,.15));
+}
+.ax-modern-shell .ax-orbit-constellation__path {
+  fill: none;
+  stroke: url(#ax-orbit-constellation-line);
+  stroke-width: 1;
+  stroke-dasharray: 3 9;
+  animation: ax-orbit-constellation-flow 34s linear infinite;
+}
+.ax-modern-shell .ax-orbit-constellation__path--lower { animation-direction: reverse; animation-duration: 42s; }
+.ax-modern-shell .ax-orbit-constellation__path--cross { opacity: .34; stroke-dasharray: 1 13; animation-duration: 50s; }
+.ax-modern-shell .ax-orbit-constellation__star {
+  fill: #a7fff0;
+  opacity: .52;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ax-orbit-star-twinkle 3.8s ease-in-out infinite;
+}
+.ax-modern-shell .ax-orbit-constellation__star:nth-of-type(3n) { animation-delay: -1.2s; }
+.ax-modern-shell .ax-orbit-constellation__star:nth-of-type(4n) { animation-delay: -2.1s; }
+.ax-modern-shell .ax-orbit-beacon {
+  position: absolute;
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(175,255,239,.86);
+  border-radius: 50%;
+  background: #74f3d2;
+  box-shadow: 0 0 0 5px rgba(95,232,202,.08), 0 0 15px rgba(95,232,202,.7);
+  animation: ax-orbit-beacon-pulse 3.4s ease-in-out infinite;
+}
+.ax-modern-shell .ax-orbit-beacon--one { left: 17%; top: 30%; }
+.ax-modern-shell .ax-orbit-beacon--two { right: 17%; top: 24%; animation-delay: -1s; }
+.ax-modern-shell .ax-orbit-beacon--three { left: 22%; bottom: 22%; animation-delay: -2.1s; }
+.ax-modern-shell .ax-orbit-beacon--four { right: 24%; bottom: 19%; animation-delay: -2.7s; }
+.ax-modern-shell .ax-orbit-atmosphere__scan {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(52%, 470px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(100,226,205,.14);
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+  box-shadow: 0 0 32px rgba(74,224,197,.045), inset 0 0 32px rgba(74,224,197,.035);
+}
+.ax-modern-shell .ax-orbit-atmosphere__scan::before,
+.ax-modern-shell .ax-orbit-atmosphere__scan::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+}
+.ax-modern-shell .ax-orbit-atmosphere__scan::before {
+  width: 72%;
+  height: 72%;
+  border: 1px dashed rgba(106,224,214,.17);
+}
+.ax-modern-shell .ax-orbit-atmosphere__scan::after {
+  width: 110%;
+  height: 110%;
+  border: 1px solid rgba(96,192,222,.08);
+  box-shadow: 0 0 0 18px rgba(80,170,190,.018), 0 0 0 38px rgba(80,170,190,.012);
+}
+.ax-modern-shell .ax-orbit-core__sphere { isolation: isolate; }
+.ax-modern-shell .ax-orbit-core__surface {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation: ax-orbit-core-surface-spin 24s linear infinite;
+  will-change: transform;
+}
+.ax-modern-shell .ax-orbit-core__surface::before {
+  content: "";
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  opacity: .36;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 17px, rgba(138,242,224,.18) 18px, transparent 19px 34px),
+    repeating-linear-gradient(90deg, transparent 0 21px, rgba(120,221,243,.14) 22px, transparent 23px 42px);
+  mask-image: radial-gradient(ellipse at center, #000 38%, transparent 74%);
+}
+.ax-modern-shell .ax-orbit-core__surface::after {
+  content: "";
+  position: absolute;
+  inset: -2%;
+  border-radius: 50%;
+  opacity: .28;
+  background: conic-gradient(from 20deg, transparent 0 44%, rgba(138,255,230,.5) 48%, transparent 55% 100%);
+  animation: ax-orbit-core-scan 8.5s linear infinite;
+}
+.ax-modern-shell .ax-orbit-core__mark {
+  z-index: 3;
+  box-shadow: 0 0 0 5px rgba(103,244,218,.035), 0 8px 26px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.2);
+}
+@keyframes ax-orbit-telemetry-pulse {
+  0%,100% { opacity: .72; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes ax-orbit-nebula-drift {
+  from { transform: translate3d(-3%, 2%, 0) scale(.94); }
+  to { transform: translate3d(6%, -5%, 0) scale(1.1); }
+}
+@keyframes ax-orbit-constellation-flow { to { stroke-dashoffset: -120; } }
+@keyframes ax-orbit-star-twinkle {
+  0%,100% { opacity: .25; transform: scale(.72); }
+  50% { opacity: .9; transform: scale(1.22); }
+}
+@keyframes ax-orbit-beacon-pulse {
+  0%,100% { opacity: .5; box-shadow: 0 0 0 3px rgba(95,232,202,.06), 0 0 8px rgba(95,232,202,.36); }
+  50% { opacity: 1; box-shadow: 0 0 0 7px rgba(95,232,202,.1), 0 0 18px rgba(95,232,202,.8); }
+}
+@keyframes ax-orbit-core-scan { to { transform: rotate(360deg); } }
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-telemetry {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 0;
+    min-height: auto;
+    padding: 8px 6px;
+  }
+  .ax-modern-shell .ax-orbit-telemetry__brand,
+  .ax-modern-shell .ax-orbit-telemetry__metric,
+  .ax-modern-shell .ax-orbit-telemetry__state {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 6px;
+  }
+  .ax-modern-shell .ax-orbit-telemetry__brand { font-size: 6px; letter-spacing: .8px; }
+  .ax-modern-shell .ax-orbit-telemetry__metric strong { font-size: 12px; }
+  .ax-modern-shell .ax-orbit-telemetry__metric span { font-size: 5.5px; letter-spacing: .6px; }
+  .ax-modern-shell .ax-orbit-telemetry__state { margin-left: 0; }
+  .ax-modern-shell .ax-orbit-atmosphere { border-radius: 14px; }
+  .ax-modern-shell .ax-orbit-atmosphere__nebula { opacity: .08; filter: blur(28px); }
+  .ax-modern-shell .ax-orbit-constellation { opacity: .34; }
+  .ax-modern-shell .ax-orbit-beacon { width: 5px; height: 5px; }
+  .ax-modern-shell .ax-orbit-atmosphere__scan { width: 62%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-telemetry__pulse,
+  .ax-modern-shell .ax-orbit-constellation__path,
+  .ax-modern-shell .ax-orbit-constellation__star,
+  .ax-modern-shell .ax-orbit-beacon,
+  .ax-modern-shell .ax-orbit-atmosphere__nebula,
+  .ax-modern-shell .ax-orbit-core__surface,
+  .ax-modern-shell .ax-orbit-core__surface::after {
+    animation: none !important;
+  }
+}
