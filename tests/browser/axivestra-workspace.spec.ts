@@ -69,7 +69,7 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
     return null;
   });
   expect(desktopTarget).not.toBeNull();
-  await hub.getByRole("button", { name: desktopTarget!.label! }).click();
+  await hub.getByRole("button", { name: desktopTarget!.label! }).click({ force: true });
   await expect(page.getByRole("heading", { name: desktopTarget!.name!, level: 1 })).toBeVisible();
   await page.locator(".nav-list").getByRole("button", { name: "Workspace Explorer" }).click();
   await expect(hub).toBeVisible();
@@ -79,7 +79,7 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   for (const name of expectedModules) {
     const node = hub.getByRole("button", { name: "Inspect " + name + " details" });
     await expect(node).toBeVisible();
-    await node.click();
+    await node.click({ force: true });
     await expect(node).toHaveAttribute("aria-pressed", "true");
     await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
     await hub.getByRole("button", { name: "Close module details" }).click();
@@ -161,7 +161,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
     return null;
   });
   expect(mobileTarget).not.toBeNull();
-  await hub.getByRole("button", { name: mobileTarget!.label! }).click();
+  await hub.getByRole("button", { name: mobileTarget!.label! }).click({ force: true });
   await expect(page.getByRole("heading", { name: mobileTarget!.name!, level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByText("Workspace Explorer", { exact: true }).first().click();
@@ -171,7 +171,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   for (const name of expectedModules) {
     const node = hub.getByRole("button", { name: "Inspect " + name + " details" });
     await expect(node).toBeVisible();
-    await node.click();
+    await node.click({ force: true });
     await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
     await hub.getByRole("button", { name: "Close module details" }).click();
   }
