@@ -272,7 +272,7 @@ export default function AxivestraOrbitalHub({
         </div>
       </div>
 
-      <div className="ax-orbit-stage" ref={stageRef} data-orbit-dimensionality="3d">
+      <div className="ax-orbit-stage" ref={stageRef} data-orbit-dimensionality="3d" data-mobile-orbit-layout={compactOrbit ? "staggered-ellipse" : "fibonacci-sphere"}>
         <div className="ax-orbit-atmosphere" aria-hidden="true">
           <div className="ax-orbit-atmosphere__nebula ax-orbit-atmosphere__nebula--teal" />
           <div className="ax-orbit-atmosphere__nebula ax-orbit-atmosphere__nebula--blue" />
