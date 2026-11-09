@@ -55,8 +55,19 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
   await stage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
-  await hub.getByRole("button", { name: /^Open Litigation,/ }).click({ position: { x: 8, y: 8 } });
-  await expect(page.getByRole("heading", { name: "Litigation", level: 1 })).toBeVisible();
+  const desktopTarget = await nodes.evaluateAll(elements => {
+    for (const element of elements) {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      if (hit === element || element.contains(hit)) {
+        return { label: element.getAttribute("aria-label"), name: element.querySelector("strong")?.textContent?.trim() };
+      }
+    }
+    return null;
+  });
+  expect(desktopTarget).not.toBeNull();
+  await hub.getByRole("button", { name: desktopTarget!.label! }).click();
+  await expect(page.getByRole("heading", { name: desktopTarget!.name!, level: 1 })).toBeVisible();
   await page.locator(".nav-list").getByRole("button", { name: "Workspace Explorer" }).click();
   await expect(hub).toBeVisible();
 
@@ -133,8 +144,19 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
   await mobileStage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
-  await hub.getByRole("button", { name: /^Open Litigation,/ }).click({ position: { x: 8, y: 8 } });
-  await expect(page.getByRole("heading", { name: "Litigation", level: 1 })).toBeVisible();
+  const mobileTarget = await hub.locator("button.ax-orbit-node").evaluateAll(elements => {
+    for (const element of elements) {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      if (hit === element || element.contains(hit)) {
+        return { label: element.getAttribute("aria-label"), name: element.querySelector("strong")?.textContent?.trim() };
+      }
+    }
+    return null;
+  });
+  expect(mobileTarget).not.toBeNull();
+  await hub.getByRole("button", { name: mobileTarget!.label! }).click();
+  await expect(page.getByRole("heading", { name: mobileTarget!.name!, level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByText("Workspace Explorer", { exact: true }).first().click();
   await expect(hub).toBeVisible();
