@@ -87,9 +87,13 @@ export default function AxivestraOrbitalHub({
     return () => observer.disconnect();
   }, []);
 
-  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : (stageSize.width || 1220);
+  const viewportWidth = typeof window !== "undefined"
+    ? Math.min(window.innerWidth, document.documentElement.clientWidth || window.innerWidth)
+    : (stageSize.width || 1220);
   const layoutWidth = Math.min(stageSize.width || viewportWidth, viewportWidth);
-  const compactOrbit = viewportWidth <= 720;
+  const compactOrbit = typeof window !== "undefined"
+    ? window.matchMedia("(max-width: 720px)").matches
+    : viewportWidth <= 720;
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
     setFocused(name);
@@ -111,7 +115,7 @@ export default function AxivestraOrbitalHub({
 
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const baseRadius = compactOrbit
-      ? Math.max(68, Math.min(124, (layoutWidth - 94) / 2 - 4))
+      ? Math.max(64, Math.min(120, (layoutWidth - 110) / 2 - 4))
       : 224;
     const stageWidth = stageSize.width || viewportWidth;
     const stageHeight = stageSize.height || 570;
@@ -139,15 +143,15 @@ export default function AxivestraOrbitalHub({
         style: viewMode === "grid"
           ? { left: "auto", top: "auto", transform: "none" }
           : {
-              left: `calc(50% + ${x.toFixed(2)}px)`,
-              top: `calc(50% + ${y.toFixed(2)}px)`,
-              transform: `translate3d(-50%, -50%, ${z.toFixed(2)}px)`,
+              left: "50%",
+              top: "50%",
+              transform: `translate3d(calc(-50% + ${x.toFixed(2)}px), calc(-50% + ${y.toFixed(2)}px), ${z.toFixed(2)}px)`,
               zIndex: Math.round(500 + z),
             },
         number: String(item.sourceIndex + 1).padStart(2, "0"),
       };
     });
-  }, [items, moduleSearch, selectedGroup, stageSize.width, stageSize.height, compactOrbit, viewMode]);
+  }, [items, moduleSearch, selectedGroup, stageSize.width, stageSize.height, compactOrbit, layoutWidth, viewportWidth, viewMode]);
 
   useEffect(() => {
     if (inspectedModule && !visibleOrbitItems.some(item => item.name === inspectedModule)) setInspectedModule(null);
@@ -287,44 +291,42 @@ export default function AxivestraOrbitalHub({
         </div>
 
         <div className="ax-orbit-nodes" aria-label="Selectable workspace orbits">
-          {(["outer", "inner"] as const).map(ring => (
-            <div className={`ax-orbit-ring ax-orbit-ring--${ring}`} key={ring} data-orbit-shell={ring}>
-              {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
-                <div className="ax-orbit-node-slot" style={item.style} key={item.name}>
-                  <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
-                    <div className="ax-orbit-card-float" style={{ animationDelay: `${(item.sourceIndex % 8) * -0.78}s` }}>
-                      <button
-                        type="button"
-                        className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name || inspectedModule === item.name ? " is-focused" : ""}`}
-                        onMouseEnter={() => setFocused(item.name)}
-                        onFocus={() => setFocused(item.name)}
-                        onBlur={() => setFocused(null)}
-                        onClick={() => openWorkspace(item.name)}
-                        aria-label={`Open ${item.name}, ${item.count} records`}
-                      >
-                        <span className="ax-orbit-node__icon">{item.icon}</span>
-                        <span className="ax-orbit-node__copy">
-                          <small>{item.number} · {item.group}</small>
-                          <strong>{item.name}</strong>
-                          <em>{item.count} {item.count === 1 ? "record" : "records"}</em>
-                        </span>
-                        <ArrowUpRight className="ax-orbit-node__arrow" size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="ax-orbit-node-inspect"
-                        onClick={() => { setFocused(item.name); setInspectedModule(item.name); setRotationPaused(true); }}
-                        aria-pressed={inspectedModule === item.name}
-                        aria-label={`Inspect ${item.name} details`}
-                      >
-                        <Layers3 size={11} />
-                      </button>
-                    </div>
+          <div className="ax-orbit-ring ax-orbit-ring--outer" data-orbit-shell="unified">
+            {visibleOrbitItems.map(item => (
+              <div className="ax-orbit-node-slot" data-module-shell={item.ringName} style={item.style} key={item.name}>
+                <div className="ax-orbit-node-counter ax-orbit-node-counter--outer">
+                  <div className="ax-orbit-card-float" style={{ animationDelay: `${(item.sourceIndex % 8) * -0.78}s` }}>
+                    <button
+                      type="button"
+                      className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name || inspectedModule === item.name ? " is-focused" : ""}`}
+                      onMouseEnter={() => setFocused(item.name)}
+                      onFocus={() => setFocused(item.name)}
+                      onBlur={() => setFocused(null)}
+                      onClick={() => openWorkspace(item.name)}
+                      aria-label={`Open ${item.name}, ${item.count} records`}
+                    >
+                      <span className="ax-orbit-node__icon">{item.icon}</span>
+                      <span className="ax-orbit-node__copy">
+                        <small>{item.number} · {item.group}</small>
+                        <strong>{item.name}</strong>
+                        <em>{item.count} {item.count === 1 ? "record" : "records"}</em>
+                      </span>
+                      <ArrowUpRight className="ax-orbit-node__arrow" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="ax-orbit-node-inspect"
+                      onClick={() => { setFocused(item.name); setInspectedModule(item.name); setRotationPaused(true); }}
+                      aria-pressed={inspectedModule === item.name}
+                      aria-label={`Inspect ${item.name} details`}
+                    >
+                      <Layers3 size={11} />
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
           {visibleOrbitItems.length === 0 && (
             <div className="ax-orbit-empty-state" role="status">
               <Search size={18} />
