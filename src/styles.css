@@ -5119,3 +5119,98 @@ h2,h3{color:#e5f2fc}
     height: 18px;
   }
 }
+
+
+/* AXIVESTRA unified shell: all 16 workspaces share one 3D depth-sorted rotation context. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-style: preserve-3d;
+  isolation: auto;
+  animation: ax-orbit-node-orbit 52s linear infinite;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-slot {
+  position: absolute;
+  width: auto;
+  min-width: 0;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+  width: max-content;
+  transform-style: preserve-3d;
+  animation: ax-orbit-node-counter-outer 52s linear infinite;
+  pointer-events: auto;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+  width: 110px;
+  min-height: 52px;
+  pointer-events: auto;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-route-ring--inner {
+  animation: ax-orbit-node-orbit 52s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--inner {
+  animation-play-state: paused !important;
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+    width: min(100%, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    height: 420px;
+    min-height: 420px;
+    margin-inline: auto;
+    overflow: visible;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    animation: ax-orbit-node-orbit 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-slot {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: auto !important;
+    min-width: 0 !important;
+    transform-style: preserve-3d;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+    width: max-content !important;
+    animation: ax-orbit-node-counter-outer 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+    width: 76px !important;
+    min-height: 40px;
+    gap: 4px;
+    padding: 4px 5px;
+    border-radius: 8px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 4.7px; line-height: 1.15; letter-spacing: .1px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 6.5px; line-height: 1.15; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 5px; }
+  .ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect {
+    top: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__surface {
+    animation: none !important;
+  }
+}
