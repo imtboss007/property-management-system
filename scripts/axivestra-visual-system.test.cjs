@@ -284,3 +284,11 @@ assert.match(orbit, /markerEnd=/, "Orbital routes and spokes must terminate with
 assert.ok(css.includes(".ax-orbit-route-path.is-focused"), "Focused orbital paths must be visually emphasized.");
 assert.ok(css.includes(".ax-orbit-spoke.is-focused"), "Focused relationship spokes must be visually emphasized.");
 assert.ok(css.includes("transition: left .55s") && css.includes("top .55s"), "Workspace positions must transition smoothly when the visible orbit changes.");
+
+
+assert.match(css, /\.ax-orbit-ring--outer\s*\{[^}]*animation: ax-orbit-node-orbit 52s linear infinite/, "The outer 3D workspace shell must rotate continuously.");
+assert.match(css, /\.ax-orbit-ring--inner\s*\{[^}]*animation: ax-orbit-node-orbit-reverse 38s linear infinite/, "The inner 3D workspace shell must also rotate continuously.");
+assert.match(css, /\.ax-orbit-node-counter--outer\s*\{[^}]*animation: ax-orbit-node-counter-outer 52s linear infinite/, "Outer module labels must counter-rotate to stay readable.");
+assert.match(css, /\.ax-orbit-node-counter--inner\s*\{[^}]*animation: ax-orbit-node-counter-inner 38s linear infinite/, "Inner module labels must counter-rotate to stay readable.");
+assert.match(css, /is-rotation-paused \.ax-orbit-ring--inner/, "Pause must stop the inner shell as well as the outer shell.");
+assert.match(css, /is-rotation-paused \.ax-orbit-route-ring--inner/, "Pause must stop the inner route overlay.");
