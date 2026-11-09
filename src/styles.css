@@ -4784,10 +4784,12 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere {
     width: 136px;
     height: 136px;
+    animation: ax-orbit-core-3d-spin 34s linear infinite !important;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__aura {
     width: 164px;
     height: 164px;
+    animation: ax-orbit-breathe 5s ease-in-out infinite !important;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-nodes {
     position: absolute;
