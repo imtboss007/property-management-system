@@ -54,7 +54,8 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   }
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
-  await hub.getByRole("button", { name: /^Open Litigation,/ }).click();
+  await stage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
+  await hub.getByRole("button", { name: /^Open Litigation,/ }).click({ position: { x: 8, y: 8 } });
   await expect(page.getByRole("heading", { name: "Litigation", level: 1 })).toBeVisible();
   await page.locator(".nav-list").getByRole("button", { name: "Workspace Explorer" }).click();
   await expect(hub).toBeVisible();
@@ -131,7 +132,8 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   }
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
-  await hub.getByRole("button", { name: /^Open Litigation,/ }).click();
+  await mobileStage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
+  await hub.getByRole("button", { name: /^Open Litigation,/ }).click({ position: { x: 8, y: 8 } });
   await expect(page.getByRole("heading", { name: "Litigation", level: 1 })).toBeVisible();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByText("Workspace Explorer", { exact: true }).first().click();
