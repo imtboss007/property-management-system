@@ -62,8 +62,8 @@ assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\
 
 
 assert.match(orbit, /const activeRouteItem = visibleOrbitItems\.find/, "The relationship layer must resolve the focused or inspected workspace.");
-assert.match(orbit, /ax-orbit-route-path\\${activeRouteItem\\?\.ringName === ring \? " is-focused" : ""}/, "The selected workspace must highlight its orbital route.");
-assert.match(orbit, /ax-orbit-spoke\\${activeRouteItem\\?\.name === item\.name \? " is-focused" : ""}/, "The selected workspace must highlight its own center-to-module relationship line.");
+assert.ok(orbit.includes('className={`ax-orbit-route-path${activeRouteItem?.ringName === ring ? " is-focused" : ""}`}'), "The selected workspace must highlight its orbital route.");
+assert.ok(orbit.includes('className={`ax-orbit-spoke${activeRouteItem?.name === item.name ? " is-focused" : ""}`}'), "The selected workspace must highlight its own center-to-module relationship line.");
 assert.match(orbit, /markerMid=/, "Orbital route paths must show directional arrows at route points.");
 assert.match(orbit, /markerEnd=/, "Orbital routes and spokes must terminate with directional arrows.");
 assert.match(css, /\.ax-orbit-route-path\.is-focused/, "Focused orbital paths must be visually emphasized.");
