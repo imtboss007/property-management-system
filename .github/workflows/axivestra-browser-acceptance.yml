@@ -1,0 +1,56 @@
+name: AXIVESTRA browser acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "playwright.config.ts"
+      - "tests/browser/**"
+      - ".github/workflows/axivestra-browser-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "index.html"
+      - "package.json"
+      - "playwright.config.ts"
+      - "tests/browser/**"
+      - ".github/workflows/axivestra-browser-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-acceptance:
+    name: Desktop and mobile browser acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install project dependencies
+        run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Build AXIVESTRA
+        run: npm run build
+      - name: Run browser acceptance tests
+        run: npm run test:e2e
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axivestra-playwright-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
