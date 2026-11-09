@@ -121,16 +121,39 @@ export default function AxivestraOrbitalHub({
     const stageHeight = stageSize.height || 570;
 
     return filtered.map((item, index) => {
-      // Distribute all workspaces over one Fibonacci sphere, then alternate
-      // their counter-rotating shell so the two groups are vertically staggered.
+      // Keep the desktop Fibonacci sphere. On phones, project the 16 workspaces
+      // onto two staggered 3D ellipses to give every card its own tap area.
       const ring = index % 2;
-      const latitude = 1 - (2 * (index + 0.5) / Math.max(1, filtered.length));
-      const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
-      const angle = index * goldenAngle;
-      const shellRadius = baseRadius * (ring === 0 ? 1 : 0.94);
-      const x = Math.cos(angle) * horizontalRadius * shellRadius;
-      const y = latitude * shellRadius * (compactOrbit ? 0.88 : 0.84);
-      const z = Math.sin(angle) * horizontalRadius * shellRadius;
+      let x: number;
+      let y: number;
+      let z: number;
+
+      if (compactOrbit) {
+        const singleMobileOrbit = filtered.length <= 8;
+        const positionRing = singleMobileOrbit ? 0 : ring;
+        const positionIndex = singleMobileOrbit ? index : Math.floor(index / 2);
+        const countInRing = singleMobileOrbit
+          ? Math.max(1, filtered.length)
+          : Math.max(1, Math.ceil((filtered.length - positionRing) / 2));
+        const angle = positionIndex * ((Math.PI * 2) / countInRing) + (positionRing ? Math.PI / countInRing : 0);
+        const radiusX = positionRing === 0
+          ? Math.min(112, layoutWidth * 0.34)
+          : Math.min(95, layoutWidth * 0.28);
+        const radiusY = positionRing === 0
+          ? Math.min(146, stageHeight * 0.35)
+          : Math.min(112, stageHeight * 0.27);
+        x = Math.cos(angle) * radiusX;
+        y = Math.sin(angle) * radiusY;
+        z = Math.cos(angle) * (positionRing === 0 ? 42 : 26);
+      } else {
+        const latitude = 1 - (2 * (index + 0.5) / Math.max(1, filtered.length));
+        const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
+        const angle = index * goldenAngle;
+        const shellRadius = baseRadius * (ring === 0 ? 1 : 0.94);
+        x = Math.cos(angle) * horizontalRadius * shellRadius;
+        y = latitude * shellRadius * 0.84;
+        z = Math.sin(angle) * horizontalRadius * shellRadius;
+      }
       const xPercent = 50 + (x / stageWidth) * 100;
       const yPercent = 50 + (y / stageHeight) * 100;
 
@@ -230,7 +253,51 @@ export default function AxivestraOrbitalHub({
         ))}
       </div>
 
-      <div className="ax-orbit-stage" ref={stageRef} data-orbit-dimensionality="3d">
+      <div className="ax-orbit-telemetry" aria-label="Orbital system status">
+        <div className="ax-orbit-telemetry__brand">
+          <span className="ax-orbit-telemetry__pulse" />
+          <span>ORBITAL INTELLIGENCE ENGINE</span>
+        </div>
+        <div className="ax-orbit-telemetry__metric">
+          <strong>{String(visibleOrbitItems.length).padStart(2, "0")}</strong>
+          <span>WORKSPACES IN VIEW</span>
+        </div>
+        <div className="ax-orbit-telemetry__metric">
+          <strong>{String(groupSummaries.length).padStart(2, "0")}</strong>
+          <span>INTELLIGENCE GROUPS</span>
+        </div>
+        <div className="ax-orbit-telemetry__state">
+          <span className={rotationPaused ? "is-paused" : ""} />
+          {rotationPaused ? "ROTATION PAUSED" : "AUTO ROTATION"}
+        </div>
+      </div>
+
+      <div className="ax-orbit-stage" ref={stageRef} data-orbit-dimensionality="3d" data-mobile-orbit-layout={compactOrbit ? "staggered-ellipse" : "fibonacci-sphere"}>
+        <div className="ax-orbit-atmosphere" aria-hidden="true">
+          <div className="ax-orbit-atmosphere__nebula ax-orbit-atmosphere__nebula--teal" />
+          <div className="ax-orbit-atmosphere__nebula ax-orbit-atmosphere__nebula--blue" />
+          <div className="ax-orbit-atmosphere__grid" />
+          <svg className="ax-orbit-constellation" viewBox="0 0 1000 570" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="ax-orbit-constellation-line" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#70f2d0" stopOpacity=".05" />
+                <stop offset=".52" stopColor="#72c9f0" stopOpacity=".38" />
+                <stop offset="1" stopColor="#70f2d0" stopOpacity=".04" />
+              </linearGradient>
+            </defs>
+            <path className="ax-orbit-constellation__path" d="M70 190 L176 112 L282 168 L384 82 L490 150 L606 78 L720 156 L838 94 L930 188" />
+            <path className="ax-orbit-constellation__path ax-orbit-constellation__path--lower" d="M84 390 L188 448 L310 364 L424 470 L548 380 L684 448 L812 350 L930 408" />
+            <path className="ax-orbit-constellation__path ax-orbit-constellation__path--cross" d="M176 112 L188 448 M384 82 L424 470 M606 78 L548 380 M838 94 L812 350" />
+            {[[70,190],[176,112],[282,168],[384,82],[490,150],[606,78],[720,156],[838,94],[930,188],[84,390],[188,448],[310,364],[424,470],[548,380],[684,448],[812,350],[930,408]].map(([cx,cy],index)=>(
+              <circle key={index} className="ax-orbit-constellation__star" cx={cx} cy={cy} r={index % 4 === 0 ? 3 : 1.8} />
+            ))}
+          </svg>
+          <span className="ax-orbit-beacon ax-orbit-beacon--one" />
+          <span className="ax-orbit-beacon ax-orbit-beacon--two" />
+          <span className="ax-orbit-beacon ax-orbit-beacon--three" />
+          <span className="ax-orbit-beacon ax-orbit-beacon--four" />
+          <span className="ax-orbit-atmosphere__scan" />
+        </div>
         <div className="ax-orbit-halo ax-orbit-halo--one" aria-hidden="true" />
         <div className="ax-orbit-halo ax-orbit-halo--two" aria-hidden="true" />
         <div className="ax-orbit-track ax-orbit-track--outer" aria-hidden="true" />

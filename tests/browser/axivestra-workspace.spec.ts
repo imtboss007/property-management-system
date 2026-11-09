@@ -34,6 +34,10 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: "Pause rotation" }).click();
   const nodes = hub.locator("button.ax-orbit-node");
   await expect(nodes).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-telemetry")).toBeVisible();
+  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("16");
+  await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
+  await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
@@ -120,14 +124,19 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-telemetry")).toBeVisible();
+  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("16");
+  await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
+  await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const mobileStage = hub.locator(".ax-orbit-stage");
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
+  await expect(mobileStage).toHaveAttribute("data-mobile-orbit-layout", "staggered-ellipse");
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   const mobileOuterRing = hub.locator(".ax-orbit-ring--outer");
-  await expect(hub.locator("button.ax-orbit-node").first()).toHaveCSS("width", "92px");
+  await expect(hub.locator("button.ax-orbit-node").first()).toHaveCSS("width", "62px");
   await expect(mobileOuterRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
   await expect(mobileOuterRing).toHaveCSS("transform-style", "preserve-3d");
   await expect(hub.getByRole("button", { name: "Pause rotation" })).toBeVisible();
@@ -150,17 +159,56 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   }
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-core__surface")).toHaveCSS("animation-name", "ax-orbit-core-surface-spin");
-  await mobileStage.evaluate(element => element.scrollIntoView({ block: "center", inline: "center" }));
+  await mobileStage.scrollIntoViewIfNeeded();
+  await expect(mobileStage).toBeInViewport();
   const mobileTarget = await hub.locator("button.ax-orbit-node").evaluateAll(elements => {
     for (const element of elements) {
       const rect = element.getBoundingClientRect();
-      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      if (hit === element || element.contains(hit)) {
-        return { label: element.getAttribute("aria-label"), name: element.querySelector("strong")?.textContent?.trim() };
+      const samples = [
+        [rect.left + rect.width / 2, rect.top + rect.height / 2],
+        [rect.left + 6, rect.top + rect.height / 2],
+        [rect.right - 6, rect.top + rect.height / 2],
+        [rect.left + rect.width / 2, rect.top + 6],
+        [rect.left + rect.width / 2, rect.bottom - 6],
+      ];
+      for (const [x, y] of samples) {
+        const hit = document.elementFromPoint(x, y);
+        const actualCard = hit instanceof Element ? hit.closest("button.ax-orbit-node") : null;
+        if (actualCard) {
+          return { label: actualCard.getAttribute("aria-label"), name: actualCard.querySelector("strong")?.textContent?.trim() };
+        }
       }
     }
     return null;
   });
+  if (!mobileTarget) {
+    const diagnostics = await hub.locator("button.ax-orbit-node").evaluateAll(elements => elements.slice(0, 8).map(element => {
+      const rect = element.getBoundingClientRect();
+      const samples = [
+        [rect.left + rect.width / 2, rect.top + rect.height / 2],
+        [rect.left + 6, rect.top + rect.height / 2],
+        [rect.right - 6, rect.top + rect.height / 2],
+        [rect.left + rect.width / 2, rect.top + 6],
+        [rect.left + rect.width / 2, rect.bottom - 6],
+      ];
+      return {
+        label: element.getAttribute("aria-label"),
+        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+        pointerEvents: getComputedStyle(element).pointerEvents,
+        zIndex: getComputedStyle(element).zIndex,
+        hits: samples.map(([x, y]) => {
+          const hit = document.elementFromPoint(x, y);
+          return {
+            x, y,
+            tag: hit?.tagName || null,
+            className: typeof hit?.className === "string" ? hit.className : "",
+            label: hit?.getAttribute?.("aria-label") || null,
+          };
+        }),
+      };
+    }));
+    console.log("[AXIVESTRA MOBILE ORBIT HIT TEST]", JSON.stringify(diagnostics));
+  }
   expect(mobileTarget).not.toBeNull();
   await hub.getByRole("button", { name: mobileTarget!.label! }).click({ force: true });
   await expect(page.getByRole("heading", { name: mobileTarget!.name!, level: 1 })).toBeVisible();
