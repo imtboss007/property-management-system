@@ -98,7 +98,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await search.fill("Litigation");
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(1);
   await search.fill("");
-  await hub.getByRole("button", { name: /Credit\\s*&\\s*Lending/ }).click();
+  await hub.getByRole("button", { name: "Credit & Lending", exact: false }).click();
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(3);
   await hub.getByRole("button", { name: "All groups" }).click();
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
@@ -135,5 +135,5 @@ test("desktop: Explorer quick links open the linked operational views", async ({
   await page.locator(".nav-list").getByRole("button", { name: "Workspace Explorer" }).click();
   hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await hub.getByRole("button", { name: "Open all records" }).click();
-  await expect(page.getByRole("heading", { name: "All Properties" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "All Properties", level: 1 })).toBeVisible();
 });
