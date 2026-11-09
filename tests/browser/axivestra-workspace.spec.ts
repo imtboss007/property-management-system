@@ -133,6 +133,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const mobileStage = hub.locator(".ax-orbit-stage");
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
+  await expect(mobileStage).toHaveAttribute("data-mobile-orbit-layout", "staggered-ellipse");
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   const mobileOuterRing = hub.locator(".ax-orbit-ring--outer");
   await expect(hub.locator("button.ax-orbit-node").first()).toHaveCSS("width", "62px");
