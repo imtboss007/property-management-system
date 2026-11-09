@@ -67,7 +67,29 @@ export default function AxivestraOrbitalHub({
   const [selectedGroup, setSelectedGroup] = useState("All");
   const [moduleSearch, setModuleSearch] = useState("");
   const [inspectedModule, setInspectedModule] = useState<string | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      setStageSize(current => (
+        Math.abs(current.width - rect.width) < 1 && Math.abs(current.height - rect.height) < 1
+          ? current
+          : { width: rect.width, height: rect.height }
+      ));
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
+
+  const compactOrbit = stageSize.width > 0
+    ? stageSize.width <= 720
+    : typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
     setFocused(name);
@@ -86,29 +108,46 @@ export default function AxivestraOrbitalHub({
       .filter(item => selectedGroup === "All" || item.group === selectedGroup)
       .filter(item => !query || `${item.name} ${item.group}`.toLocaleLowerCase().includes(query));
 
-    const outerCount = Math.ceil(filtered.length / 2);
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const baseRadius = compactOrbit
+      ? Math.max(96, Math.min(132, ((stageSize.width || 390) - 122) / 2))
+      : 224;
+    const stageWidth = stageSize.width || 1220;
+    const stageHeight = stageSize.height || 570;
+
     return filtered.map((item, index) => {
-      const ring = index < outerCount ? 0 : 1;
-      const position = ring === 0 ? index : index - outerCount;
-      const countInRing = ring === 0 ? outerCount : filtered.length - outerCount;
-      const angle = (-Math.PI / 2) + (Math.PI * 2 * position / Math.max(1, countInRing)) + (ring ? Math.PI / Math.max(1, countInRing) : 0);
-      const radiusX = ring === 0 ? 43 : 30;
-      const radiusY = ring === 0 ? 38 : 26;
-      const xPercent = 50 + Math.cos(angle) * radiusX;
-      const yPercent = 50 + Math.sin(angle) * radiusY;
+      // Alternate modules between two interleaved Fibonacci shells. Each shell
+      // distributes its nodes across a full sphere rather than a flat ellipse.
+      const ring = index % 2;
+      const ringIndex = Math.floor(index / 2);
+      const countInRing = Math.max(1, Math.ceil((filtered.length - ring) / 2));
+      const latitude = 1 - (2 * (ringIndex + 0.5) / countInRing);
+      const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
+      const angle = (ringIndex * goldenAngle) + (ring ? Math.PI / countInRing : 0);
+      const shellRadius = baseRadius * (ring === 0 ? 1 : 0.82);
+      const x = Math.cos(angle) * horizontalRadius * shellRadius;
+      const y = latitude * shellRadius * (compactOrbit ? 0.88 : 0.84);
+      const z = Math.sin(angle) * horizontalRadius * shellRadius;
+      const xPercent = 50 + (x / stageWidth) * 100;
+      const yPercent = 50 + (y / stageHeight) * 100;
+
       return {
         ...item,
         ringName: ring === 0 ? "outer" : "inner",
         xPercent,
         yPercent,
-        style: {
-          left: `calc(${xPercent}%)`,
-          top: `calc(${yPercent}%)`,
-        },
+        depth: z,
+        style: viewMode === "grid"
+          ? { left: "auto", top: "auto", transform: "none" }
+          : {
+              left: `calc(50% + ${x.toFixed(2)}px)`,
+              top: `calc(50% + ${y.toFixed(2)}px)`,
+              transform: `translate3d(-50%, -50%, ${z.toFixed(2)}px)`,
+            },
         number: String(item.sourceIndex + 1).padStart(2, "0"),
       };
     });
-  }, [items, moduleSearch, selectedGroup]);
+  }, [items, moduleSearch, selectedGroup, stageSize.width, stageSize.height, compactOrbit, viewMode]);
 
   useEffect(() => {
     if (inspectedModule && !visibleOrbitItems.some(item => item.name === inspectedModule)) setInspectedModule(null);
@@ -143,12 +182,12 @@ export default function AxivestraOrbitalHub({
   const safeCount = items.length;
 
   return (
-    <section className={`ax-orbit-hub${rotationPaused ? " is-rotation-paused" : ""}${viewMode === "grid" ? " is-grid-view" : " is-orbit-view"}`} aria-label="AXIVESTRA orbital workspace navigation">
+    <section className={`ax-orbit-hub${rotationPaused ? " is-rotation-paused" : ""}${viewMode === "grid" ? " is-grid-view" : " is-orbit-view"}`} aria-label="AXIVESTRA orbital workspace navigation" data-orbit-dimensionality="3d">
       <div className="ax-orbit-hub__heading">
         <div>
           <span className="ax-orbit-kicker"><span className="ax-orbit-live" /> AXIVESTRA · RELATIONSHIP INTELLIGENCE GRID</span>
           <h2>Command your connected workspaces.</h2>
-          <p>Choose an orbit to open the live workspace. Each node is linked to your existing AXIVESTRA records.</p>
+          <p>Navigate 16 live workspaces on two rotating 3D spherical shells around the intelligence globe. Each module opens its existing AXIVESTRA records.</p>
         </div>
         <div className="ax-orbit-shortcuts">
           <button type="button" className="ax-orbit-shortcut ax-orbit-motion-toggle" aria-pressed={rotationPaused} onClick={() => setRotationPaused(value => !value)}>
@@ -187,7 +226,7 @@ export default function AxivestraOrbitalHub({
         ))}
       </div>
 
-      <div className="ax-orbit-stage">
+      <div className="ax-orbit-stage" ref={stageRef} data-orbit-dimensionality="3d">
         <div className="ax-orbit-halo ax-orbit-halo--one" aria-hidden="true" />
         <div className="ax-orbit-halo ax-orbit-halo--two" aria-hidden="true" />
         <div className="ax-orbit-track ax-orbit-track--outer" aria-hidden="true" />
@@ -247,7 +286,7 @@ export default function AxivestraOrbitalHub({
 
         <div className="ax-orbit-nodes" aria-label="Selectable workspace orbits">
           {(["outer", "inner"] as const).map(ring => (
-            <div className={`ax-orbit-ring ax-orbit-ring--${ring}`} key={ring}>
+            <div className={`ax-orbit-ring ax-orbit-ring--${ring}`} key={ring} data-orbit-shell={ring}>
               {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
                 <div className="ax-orbit-node-slot" style={item.style} key={item.name}>
                   <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
