@@ -256,5 +256,5 @@ assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orb
 
 
 assert.match(orbit, /const singleMobileOrbit = filtered\.length <= 8/, "Small mobile result sets must distribute on one tap-friendly 3D ellipse.");
-assert.match(orbit, /const radiusX = positionRing === 0[\s\S]*?Math\.min\(74, layoutWidth \* 0\.22\)/, "The full mobile workspace set must use two distinct staggered ellipse radii.");
+assert.match(orbit, /const radiusX = positionRing === 0[\s\S]*?Math\.min\(95, layoutWidth \* 0\.28\)/, "The full mobile workspace set must use two distinct staggered ellipse radii.");
 assert.match(css, /width: 62px !important;[\s\S]*?\.ax-orbit-node__copy small \{ display: none; \}/, "Mobile orbital markers must be compact enough to keep all 16 tap targets distinct.");
