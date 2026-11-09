@@ -241,3 +241,15 @@ assert.match(app, /company \? "Company cloud" : personalUserId \? "Personal clou
 assert.match(readme, /optional visual workspace explorer/, "The README must define the orbital interface as optional navigation.");
 assert.match(productArchitecture, /Multi-Asset, Capital & Relationship Intelligence Operating Platform/, "The repository must contain the canonical AXIVESTRA product identity.");
 assert.match(productArchitecture, /Global investor sourcing and enrichment/, "The architecture must document the investor-intelligence implementation gap.");
+
+
+assert.match(orbit, /className="ax-orbit-telemetry"/, "The 3D explorer must include a compact live telemetry HUD.");
+assert.match(orbit, /WORKSPACES IN VIEW/, "The telemetry HUD must report the current visible workspace count.");
+assert.match(orbit, /INTELLIGENCE GROUPS/, "The telemetry HUD must show the intelligence group count.");
+assert.match(orbit, /className="ax-orbit-atmosphere"/, "The 3D stage must include a decorative atmospheric layer.");
+assert.match(orbit, /ax-orbit-constellation__path/, "The stage must have an SVG constellation network for richer depth cues.");
+assert.match(orbit, /ax-orbit-beacon--four/, "The orbital scene must include four decorative satellite beacons.");
+assert.match(css, /\.ax-modern-shell \.ax-orbit-core__surface\s*\{[^}]*position:\s*absolute[^}]*inset:\s*0/, "The rotating globe surface must fill and remain clipped inside the fixed sphere.");
+assert.match(css, /@keyframes ax-orbit-nebula-drift/, "The atmospheric lighting must have a slow ambient movement.");
+assert.match(css, /@keyframes ax-orbit-constellation-flow/, "The constellation network must have a subtle animated signal path.");
+assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-atmosphere__nebula/, "The decorative atmosphere must respect reduced-motion preferences.");
