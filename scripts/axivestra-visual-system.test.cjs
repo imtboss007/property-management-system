@@ -58,7 +58,18 @@ assert.match(orbit, /if \(focused && !visibleOrbitItems\.some\(item => item\.nam
 assert.match(orbit, /setInspectedModule\(item\.name\); setRotationPaused\(true\)/, "Selecting a moving workspace must pause the orbit so its detail can be inspected reliably.");
 assert.match(orbit, /aria-pressed=\{inspectedModule === item\.name\}/, "Selected workspace nodes must expose their selected state accessibly.");
 assert.match(orbit, /focused === item\.name \|\| inspectedModule === item\.name/, "The selected workspace node must remain highlighted after pointer focus changes.");
-assert.match(css, /@media\s*\(max-width:\s*720px\),\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-motion-toggle\s*\{\s*display:\s*none/, "Do not show an inactive pause control when the responsive fallback or reduced-motion preference disables orbit movement.");
+assert.match(orbit, /const goldenAngle = Math\.PI \* \(3 - Math\.sqrt\(5\)\)/, "The 3D sphere must position modules with spherical Fibonacci coordinates.");
+assert.match(orbit, /translate3d\(calc\(-50% \+ \$\{x\.toFixed\(2\)\}px\), calc\(-50% \+ \$\{y\.toFixed\(2\)\}px\), \$\{z\.toFixed\(2\)\}px\)/, "Each module must have a real depth coordinate relative to the center of the unified shell.");
+assert.match(orbit, /data-orbit-dimensionality="3d"/, "The orbital scene must declare its 3D rendering mode.");
+assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-stage\s*\{[^}]*perspective:\s*1250px/, "The desktop orbital stage must establish a real perspective camera.");
+assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-ring\s*\{[^}]*transform-style:\s*preserve-3d/, "Both orbital shells must preserve 3D child transforms.");
+assert.match(css, /@keyframes ax-orbit-core-surface-spin/, "The fixed-size central globe must rotate its surface without turning edge-on.");
+assert.match(css, /@media \(max-width: 720px\)[\s\S]*?\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-core__sphere\s*\{[^}]*width:\s*88px/, "The mobile globe must retain a round, compact visible face.");
+assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.ax-orbit-core__surface/, "Globe surface motion must respect reduced-motion preferences.");
+assert.match(orbit, /className="ax-orbit-card-float"/, "Every module card must have an independent animation wrapper.");
+assert.match(orbit, /onClick=\{\(\) => openWorkspace\(item\.name\)\}/, "Clicking a module card must open that exact workspace.");
+assert.match(orbit, /aria-label=\{\`Inspect \$\{item\.name\} details\`\}/, "Every module must retain a separate direct details action.");
+assert.match(css, /\.ax-orbit-node-inspect\s*\{/, "The independent details action must remain visible and clickable.");
 
 
 assert.match(orbit, /className="ax-orbit-card-float"/, "Every module card must have its own isolated animation wrapper.");
@@ -137,8 +148,9 @@ assert.doesNotMatch(app, /<span>PORTFOLIO VALUE<\/span>/, "Mixed record amounts 
 assert.match(css, /VESTRA SHIFT — live intent canvas/, "The responsive intent canvas styling must be present.");
 
 
-assert.match(orbit, /ringName:\s*ring === 0 \? "outer" : "inner"/, "Workspace nodes must be split into two independently rotating rings.");
-assert.match(orbit, /ax-orbit-ring--\$\{ring\}/, "Each orbital ring must have a dedicated animation scope.");
+assert.match(orbit, /ringName:\s*ring === 0 \? "outer" : "inner"/, "Workspace metadata must retain the two logical orbital groups for relationship routes.");
+assert.match(orbit, /className="ax-orbit-ring ax-orbit-ring--outer" data-orbit-shell="unified"/, "All modules must share one unified rotating 3D shell.");
+assert.match(orbit, /visibleOrbitItems\.map\(item => \(/, "All 16 filtered modules must be children of the shared 3D shell.");
 assert.match(orbit, /rotationPaused/, "Users must be able to pause and resume automatic orbital motion.");
 assert.match(orbit, /Pause rotation|Resume rotation/, "The orbital motion control must have a clear accessible action label.");
 assert.match(css, /@keyframes ax-orbit-node-orbit\s*\{/, "The outer module ring must have an automatic rotation animation.");
@@ -146,8 +158,8 @@ assert.match(css, /@keyframes ax-orbit-node-orbit-reverse\s*\{/, "The inner modu
 assert.match(css, /ax-orbit-node-counter-outer/, "Outer-ring module cards must remain upright while orbiting.");
 assert.match(css, /ax-orbit-node-counter-inner/, "Inner-ring module cards must remain upright while orbiting.");
 assert.match(css, /is-rotation-paused[\s\S]*?animation-play-state:\s*paused/, "The pause control must stop decorative and module-orbit animation.");
-assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-ring\s*\{[^}]*display:\s*contents/, "Mobile orbit nodes must reflow into the existing responsive grid.");
-assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-ring/, "Reduced-motion users must not receive automatic orbital movement.");
+assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*?\.ax-orbit-ring--outer\s*\{[^}]*display:\s*block\s*!important/, "Mobile orbit nodes must remain in one rotating 3D shell instead of falling into a flat grid.");
+assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-ring--outer/, "Reduced-motion users must not receive automatic orbital movement.");
 
 
 assert.match(orbit, /const routePaths = useMemo\(/, "Directional route geometry must be derived from the live workspace layout.");
@@ -176,7 +188,7 @@ assert.ok(orbit.includes("setModuleSearch(event.target.value)"), "Workspace sear
 assert.ok(orbit.includes('selectedGroup === "All" || item.group === selectedGroup'), "Group scope must filter workspaces by their real category.");
 assert.ok(orbit.includes("!query ||") && orbit.includes("item.name") && orbit.includes("item.group"), "Workspace search must match names and groups.");
 assert.ok(orbit.includes("const routePaths = useMemo(") && orbit.includes("visibleOrbitItems.filter(item => item.ringName === ring)"), "Route geometry must use the filtered workspace set.");
-assert.ok(orbit.includes("visibleOrbitItems.filter(item => item.ringName === ring).map"), "Only filtered workspaces may render as orbital nodes.");
+assert.match(orbit, /data-module-shell=\{item\.ringName\}/, "Each module must preserve its logical shell group while sharing one animated parent.");
 assert.ok(!orbit.includes("orbitItems"), "The view must not retain a stale unfiltered workspace-node collection.");
 assert.ok(orbit.includes("No workspaces match this filter"), "Empty search and group results must show a clear empty state.");
 assert.ok(css.includes(".ax-orbit-hub.is-grid-view .ax-orbit-stage"), "Grid view must have an explicit non-orbital stage layout.");
