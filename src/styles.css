@@ -4665,3 +4665,381 @@ h2,h3{color:#e5f2fc}
     will-change: auto;
   }
 }
+
+
+/* AXIVESTRA genuine 3D orbital system: depth-positioned Fibonacci shells, not flat rotating rings. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+  perspective: 1250px;
+  transform-style: preserve-3d;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-halo,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-axis {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track--outer {
+  transform: translate(-50%,-50%) rotateX(68deg) rotateY(24deg) rotateZ(-12deg);
+  animation: ax-orbit-spin 60s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track--middle {
+  transform: translate(-50%,-50%) rotateX(56deg) rotateY(-34deg) rotateZ(24deg);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track--inner {
+  transform: translate(-50%,-50%) rotateX(72deg) rotateY(48deg) rotateZ(-34deg);
+  animation: ax-orbit-spin-reverse 44s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core {
+  z-index: auto;
+  transform: translate3d(-50%,-50%,0);
+  transform-style: preserve-3d;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere {
+  overflow: hidden;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  animation: ax-orbit-core-3d-spin 34s linear infinite;
+  box-shadow:
+    inset -24px -28px 42px rgba(0,0,0,.62),
+    inset 13px 10px 25px rgba(181,255,241,.24),
+    0 0 28px rgba(72,227,203,.4),
+    0 0 90px rgba(32,168,177,.24);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere::before,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  border: 1px solid rgba(161,255,231,.45);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 9px rgba(88,231,218,.12);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere::before {
+  inset: 5% 24%;
+  transform: rotateY(64deg) rotateZ(22deg);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere::after {
+  inset: 24% 5%;
+  border-color: rgba(123,219,241,.34);
+  transform: rotateX(67deg) rotateZ(-26deg);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-nodes {
+  z-index: auto !important;
+  transform-style: preserve-3d;
+  perspective: inherit;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  will-change: transform;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+  animation: ax-orbit-node-orbit 52s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--inner {
+  animation: ax-orbit-node-orbit-reverse 38s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-slot {
+  left: 50%;
+  top: 50%;
+  z-index: auto;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+  animation: ax-orbit-node-counter-outer 52s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--inner {
+  animation: ax-orbit-node-counter-inner 38s linear infinite;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+  position: relative;
+  transform: translateZ(10px);
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.34),
+    0 4px 0 rgba(68,183,183,.12),
+    inset 0 1px rgba(235,255,250,.1);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node:hover,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node:focus-visible,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node.is-focused {
+  transform: translateZ(18px) scale(1.045);
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view.is-rotation-paused .ax-orbit-ring,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view.is-rotation-paused .ax-orbit-node-counter,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view.is-rotation-paused .ax-orbit-track,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view.is-rotation-paused .ax-orbit-core__sphere,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view.is-rotation-paused .ax-orbit-core__aura {
+  animation-play-state: paused !important;
+}
+@keyframes ax-orbit-node-orbit {
+  from { transform: rotateY(-6deg); }
+  to { transform: rotateY(354deg); }
+}
+@keyframes ax-orbit-node-orbit-reverse {
+  from { transform: rotateX(9deg); }
+  to { transform: rotateX(-351deg); }
+}
+@keyframes ax-orbit-node-counter-outer {
+  from { transform: rotateY(6deg); }
+  to { transform: rotateY(-354deg); }
+}
+@keyframes ax-orbit-node-counter-inner {
+  from { transform: rotateX(-9deg); }
+  to { transform: rotateX(351deg); }
+}
+@keyframes ax-orbit-spin {
+  from { transform: translate(-50%,-50%) rotateX(68deg) rotateY(24deg) rotateZ(-12deg); }
+  to { transform: translate(-50%,-50%) rotateX(68deg) rotateY(384deg) rotateZ(-12deg); }
+}
+@keyframes ax-orbit-spin-reverse {
+  from { transform: translate(-50%,-50%) rotateX(72deg) rotateY(48deg) rotateZ(-34deg); }
+  to { transform: translate(-50%,-50%) rotateX(72deg) rotateY(-312deg) rotateZ(-34deg); }
+}
+@keyframes ax-orbit-core-3d-spin {
+  from { transform: rotateY(0deg) rotateX(12deg); }
+  to { transform: rotateY(360deg) rotateX(12deg); }
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+    display: block;
+    height: max(410px, min(118vw, 470px));
+    min-height: 410px;
+    flex: none;
+    margin: 8px auto 0;
+    padding: 0;
+    overflow: visible;
+    perspective: 900px;
+    transform-style: preserve-3d;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-halo,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-axis {
+    display: block;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 180px;
+    height: 218px;
+    flex: none;
+    transform: translate3d(-50%,-50%,0);
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere {
+    width: 136px;
+    height: 136px;
+    animation: ax-orbit-core-3d-spin 34s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__aura {
+    width: 164px;
+    height: 164px;
+    animation: ax-orbit-breathe 5s ease-in-out infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-nodes {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    margin: 0;
+    transform-style: preserve-3d;
+  }
+  /* Override the legacy mobile fallback that disabled all orbit animations. */
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+    animation: ax-orbit-node-orbit 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--inner {
+    animation: ax-orbit-node-orbit-reverse 38s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+    animation: ax-orbit-node-counter-outer 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--inner {
+    animation: ax-orbit-node-counter-inner 38s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring {
+    position: absolute;
+    inset: 0;
+    display: block;
+    transform-style: preserve-3d;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+    width: 118px;
+    min-height: 56px;
+    gap: 6px;
+    padding: 6px 7px;
+    border-radius: 10px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 6px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 7px; line-height: 1.2; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 6px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__arrow { width: 10px; height: 10px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-routes {
+    display: block;
+    opacity: .62;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-motion-toggle {
+    display: inline-flex !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-track,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere,
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__aura {
+    animation: none !important;
+  }
+  .ax-modern-shell .ax-orbit-motion-toggle { display: none !important; }
+}
+
+
+/* AXIVESTRA mobile and genuine globe interaction corrections. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+  width: 100%;
+  max-width: 1220px;
+  min-width: 0;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere {
+  animation: none !important;
+  transform: none !important;
+  backface-visibility: visible;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  animation: ax-orbit-core-surface-spin 24s linear infinite;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__mark { z-index: 3; }
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node { backface-visibility: visible; }
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect {
+  position: absolute;
+  z-index: 3;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(132,235,211,.48);
+  border-radius: 50%;
+  color: #c7fff0;
+  background: rgba(6,31,43,.96);
+  box-shadow: 0 3px 10px rgba(0,0,0,.32);
+  cursor: pointer;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect:hover,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect:focus-visible,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect[aria-pressed="true"] {
+  border-color: rgba(154,255,224,.9);
+  color: #fff;
+  background: rgba(24,112,101,.96);
+}
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__surface { animation-play-state: paused !important; }
+@keyframes ax-orbit-core-surface-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+@keyframes ax-orbit-node-orbit {
+  from { transform: rotateX(14deg) rotateY(-8deg) rotateZ(-8deg); }
+  to { transform: rotateX(14deg) rotateY(352deg) rotateZ(-8deg); }
+}
+@keyframes ax-orbit-node-counter-outer {
+  from { transform: rotateY(8deg); }
+  to { transform: rotateY(-352deg); }
+}
+@keyframes ax-orbit-node-orbit-reverse {
+  from { transform: rotateX(-8deg) rotateY(13deg) rotateZ(7deg); }
+  to { transform: rotateX(352deg) rotateY(13deg) rotateZ(7deg); }
+}
+@keyframes ax-orbit-node-counter-inner {
+  from { transform: rotateX(8deg); }
+  to { transform: rotateX(-352deg); }
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+    height: 420px;
+    min-height: 420px;
+    overflow: visible;
+    perspective: 900px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core {
+    width: 150px;
+    height: 176px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__sphere {
+    width: 88px;
+    height: 88px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__surface { border-radius: 50%; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__aura {
+    top: -8px;
+    width: 112px;
+    height: 112px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__continent {
+    left: 25px;
+    top: 18px;
+    width: 30px;
+    height: 44px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__caption {
+    font-size: 7px;
+    letter-spacing: 1.2px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__status { font-size: 6px; letter-spacing: .8px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__focus { max-width: 148px; font-size: 7px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+    width: 96px;
+    min-height: 48px;
+    gap: 5px;
+    padding: 5px 6px;
+    border-radius: 9px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 5px; line-height: 1.2; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 6.8px; line-height: 1.2; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 5.5px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__arrow { width: 9px; height: 9px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect {
+    top: -4px;
+    right: -4px;
+    width: 19px;
+    height: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__surface { animation: none !important; }
+}
