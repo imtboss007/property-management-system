@@ -115,3 +115,15 @@ test("desktop: all primary workspaces are reachable from navigation", async ({ p
     await expect(nav.getByRole("button", { name: new RegExp("^" + route) })).toHaveClass(/active/);
   }
 });
+
+test("desktop: Explorer quick links open the linked operational views", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Explorer shortcut checks run on desktop only.");
+  await openExplorer(page);
+  let hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
+  await hub.getByRole("button", { name: "AXIVESTRA Shift", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "AXIVESTRA Shift" })).toBeVisible();
+  await page.locator(".nav-list").getByRole("button", { name: "Workspace Explorer" }).click();
+  hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
+  await hub.getByRole("button", { name: "Open all records" }).click();
+  await expect(page.getByRole("heading", { name: "All Properties" })).toBeVisible();
+});
