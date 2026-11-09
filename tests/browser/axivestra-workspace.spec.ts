@@ -41,6 +41,10 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await expect(hub.locator(".ax-orbit-ring--outer")).toHaveCSS("transform-style", "preserve-3d");
   await expect(hub.locator(".ax-orbit-node-slot").nth(2)).toHaveCSS("transform", /matrix3d/);
 
+  // The 3D shell is intentionally depth-occluding. Verify every module's
+  // detail action in Grid, then verify orbit rotation/links independently.
+  await hub.getByRole("button", { name: "Grid", exact: true }).click();
+  await expect(hub).toHaveClass(/is-grid-view/);
   for (const name of expectedModules) {
     const node = hub.getByRole("button", { name: new RegExp("^Open " + name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ",") });
     await expect(node).toBeVisible();
@@ -50,8 +54,6 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
     await hub.getByRole("button", { name: "Close module details" }).click();
   }
 
-  await hub.getByRole("button", { name: "Grid", exact: true }).click();
-  await expect(hub).toHaveClass(/is-grid-view/);
   await hub.getByRole("button", { name: "Orbit", exact: true }).click();
   await expect(hub).toHaveClass(/is-orbit-view/);
 
@@ -101,8 +103,6 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.locator(".ax-orbit-node-slot").nth(2)).toHaveCSS("transform", /matrix3d/);
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
   await expect(hub).toHaveClass(/is-grid-view/);
-  await hub.getByRole("button", { name: "Orbit", exact: true }).click();
-  await expect(hub).toHaveClass(/is-orbit-view/);
   for (const name of expectedModules) {
     const node = hub.locator('button.ax-orbit-node[aria-label^="Open ' + name + ',"]');
     await expect(node).toBeVisible();
