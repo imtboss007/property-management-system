@@ -191,7 +191,7 @@ export default function AxivestraOrbitalHub({
         <div>
           <span className="ax-orbit-kicker"><span className="ax-orbit-live" /> AXIVESTRA · RELATIONSHIP INTELLIGENCE GRID</span>
           <h2>Command your connected workspaces.</h2>
-          <p>Navigate 16 live workspaces on two rotating 3D spherical shells around the intelligence globe. Each module opens its existing AXIVESTRA records.</p>
+          <p>Navigate all 16 live workspaces on one continuously rotating, depth-sorted 3D sphere around the intelligence globe. Each module opens its existing AXIVESTRA records.</p>
         </div>
         <div className="ax-orbit-shortcuts">
           <button type="button" className="ax-orbit-shortcut ax-orbit-motion-toggle" aria-pressed={rotationPaused} onClick={() => setRotationPaused(value => !value)}>
