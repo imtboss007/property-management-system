@@ -5214,3 +5214,12 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* Keep the single orbit and every counter-rotating label in sync with Pause/Resume. */
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-node-counter--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--outer,
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-route-ring--inner {
+  animation-play-state: paused !important;
+}
