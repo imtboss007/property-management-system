@@ -5526,3 +5526,20 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__surface::after {
   animation-play-state: paused !important;
 }
+
+
+/* Keep the interactive module layer above the central globe and decorative route SVG. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-nodes {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring {
+  pointer-events: none;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node,
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect {
+  pointer-events: auto;
+}
