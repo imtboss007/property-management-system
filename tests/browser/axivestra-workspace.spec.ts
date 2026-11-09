@@ -22,6 +22,7 @@ const expectedModules = [
 async function openExplorer(page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Understand assets, capital and exposure/i })).toBeVisible();
+  if ((page.viewportSize()?.width || 1440) <= 720) await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByText("Workspace Explorer", { exact: true }).first().click();
   await expect(page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" })).toBeVisible();
 }
