@@ -85,6 +85,8 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.getByRole("button", { name: "Pause rotation" })).toHaveCount(0);
   await hub.getByRole("button", { name: "Grid", exact: true }).click();
   await expect(hub).toHaveClass(/is-grid-view/);
+  await hub.getByRole("button", { name: "Orbit", exact: true }).click();
+  await expect(hub).toHaveClass(/is-orbit-view/);
   for (const name of expectedModules) {
     const node = hub.locator('button.ax-orbit-node[aria-label^="Open ' + name + ',"]');
     await expect(node).toBeVisible();
@@ -92,6 +94,14 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
     await expect(hub.getByRole("region", { name: name + " module details" })).toBeVisible();
     await hub.getByRole("button", { name: "Close module details" }).click();
   }
+  const search = hub.getByRole("searchbox", { name: "Search workspaces or groups" });
+  await search.fill("Litigation");
+  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(1);
+  await search.fill("");
+  await hub.getByRole("button", { name: /Credit\\s*&\\s*Lending/ }).click();
+  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(3);
+  await hub.getByRole("button", { name: "All groups" }).click();
+  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
   const horizontalOverflow = await page.evaluate(() =>
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth
   );
