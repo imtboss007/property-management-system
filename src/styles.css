@@ -5186,19 +5186,19 @@ h2,h3{color:#e5f2fc}
     animation: ax-orbit-node-counter-outer 52s linear infinite !important;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
-    width: 58px !important;
-    min-height: 34px;
+    width: 62px !important;
+    min-height: 36px;
     gap: 3px;
     padding: 3px 4px;
     border-radius: 7px;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
-    width: 14px;
-    height: 14px;
-    flex-basis: 14px;
+    width: 15px;
+    height: 15px;
+    flex-basis: 15px;
   }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { display: none; }
-  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 5.5px; line-height: 1.1; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 5.8px; line-height: 1.1; }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { display: none; }
   .ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect {
     top: -4px;
@@ -5499,9 +5499,9 @@ h2,h3{color:#e5f2fc}
     padding: 0 8px;
     font-size: 6px;
   }
-  .ax-modern-shell .ax-orbit-telemetry__brand { font-size: 6px; letter-spacing: .8px; }
+  .ax-modern-shell .ax-orbit-telemetry__brand { font-size: 6.5px; letter-spacing: .8px; }
   .ax-modern-shell .ax-orbit-telemetry__metric strong { font-size: 12px; }
-  .ax-modern-shell .ax-orbit-telemetry__metric span { font-size: 5.5px; letter-spacing: .6px; }
+  .ax-modern-shell .ax-orbit-telemetry__metric span { font-size: 6.1px; letter-spacing: .55px; }
   .ax-modern-shell .ax-orbit-telemetry__state { margin-left: 0; }
   .ax-modern-shell .ax-orbit-atmosphere { border-radius: 14px; }
   .ax-modern-shell .ax-orbit-atmosphere__nebula { opacity: .08; filter: blur(28px); }
