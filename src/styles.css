@@ -5043,3 +5043,79 @@ h2,h3{color:#e5f2fc}
 @media (prefers-reduced-motion: reduce) {
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-core__surface { animation: none !important; }
 }
+
+
+/* AXIVESTRA: unify the two orbital shells into one depth-sorted 3D rendering context. */
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-nodes {
+  transform-style: preserve-3d;
+  perspective: inherit;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring {
+  z-index: auto;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  isolation: auto;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-slot {
+  z-index: auto;
+  transform-style: preserve-3d;
+}
+.ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+  width: 110px;
+  min-height: 52px;
+}
+.ax-modern-shell .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-inspect {
+  display: grid;
+}
+.ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect {
+  position: absolute;
+  z-index: 5;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(132,235,211,.48);
+  border-radius: 50%;
+  color: #c7fff0;
+  background: rgba(6,31,43,.96);
+  box-shadow: 0 3px 10px rgba(0,0,0,.32);
+  cursor: pointer;
+}
+.ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect:hover,
+.ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect:focus-visible,
+.ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect[aria-pressed="true"] {
+  border-color: rgba(154,255,224,.9);
+  color: #fff;
+  background: rgba(24,112,101,.96);
+}
+@media (max-width: 720px) {
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-stage {
+    width: min(100%, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    margin-inline: auto;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node {
+    width: 76px;
+    min-height: 40px;
+    gap: 4px;
+    padding: 4px 5px;
+    border-radius: 8px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy small { font-size: 4.7px; line-height: 1.15; letter-spacing: .1px; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy strong { font-size: 6.5px; line-height: 1.15; }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node__copy em { font-size: 5px; }
+  .ax-modern-shell .ax-orbit-hub .ax-orbit-node-inspect {
+    top: -4px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+  }
+}
