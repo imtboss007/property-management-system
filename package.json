@@ -1,6 +1,6 @@
 {
   "name": "axivestra-property-intelligence",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "private": true,
   "type": "module",
   "description": "AXIVESTRA asset intelligence workspace for Windows, Android, and web.",
