@@ -222,7 +222,7 @@ const overviewStart = app.indexOf('{active === "Overview" && !rangeSearch && <>'
 const intelligenceStart = app.indexOf('{active === "Intelligence Hub" && <section', overviewStart);
 assert.ok(overviewStart >= 0 && intelligenceStart > overviewStart, "The primary Asset Intelligence Overview route must be present.");
 assert.doesNotMatch(app.slice(overviewStart, intelligenceStart), /<AxivestraOrbitalHub/, "The orbital navigator must not displace the primary product overview.");
-assert.match(app, /ASSET INTELLIGENCE OVERVIEW/, "The default landing page must identify the asset-intelligence product.");
+assert.match(app, /ASSET INTELLIGENCE DASHBOARD/, "The default landing page must identify the Asset Intelligence dashboard.");
 assert.match(app, /RECORDED VALUE \/ EXPOSURE/, "Mixed module amounts must be labelled as recorded value/exposure.");
 assert.match(analytics, /Recorded value \/ exposure by workspace/, "Cross-module amount charts must not call mixed amounts asset allocation.");
 assert.doesNotMatch(analytics, /Asset allocation/, "Generic values across assets, debt and legal exposure must not be described as asset allocation.");
