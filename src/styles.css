@@ -4799,6 +4799,19 @@ h2,h3{color:#e5f2fc}
     margin: 0;
     transform-style: preserve-3d;
   }
+  /* Override the legacy mobile fallback that disabled all orbit animations. */
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--outer {
+    animation: ax-orbit-node-orbit 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring--inner {
+    animation: ax-orbit-node-orbit-reverse 38s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--outer {
+    animation: ax-orbit-node-counter-outer 52s linear infinite !important;
+  }
+  .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-node-counter--inner {
+    animation: ax-orbit-node-counter-inner 38s linear infinite !important;
+  }
   .ax-modern-shell .ax-orbit-hub.is-orbit-view .ax-orbit-ring {
     position: absolute;
     inset: 0;
