@@ -37,7 +37,7 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   const stage = hub.locator(".ax-orbit-stage");
   await expect(stage).toHaveAttribute("data-orbit-dimensionality", "3d");
   await expect(stage).toHaveCSS("perspective", "1250px");
-  await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "ax-orbit-core-3d-spin");
+  await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   await expect(hub.locator(".ax-orbit-ring--outer")).toHaveCSS("transform-style", "preserve-3d");
   await expect(hub.locator(".ax-orbit-node-slot").nth(2)).toHaveCSS("transform", /matrix3d/);
   const stageBox = await stage.boundingBox();
@@ -107,7 +107,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
   const mobileStage = hub.locator(".ax-orbit-stage");
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
-  await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "ax-orbit-core-3d-spin");
+  await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
   const mobileOuterRing = hub.locator(".ax-orbit-ring--outer");
   await expect(mobileOuterRing).toHaveCSS("animation-name", "ax-orbit-node-orbit");
   await expect(mobileOuterRing).toHaveCSS("transform-style", "preserve-3d");
