@@ -262,3 +262,6 @@ assert.match(css, /width: 62px !important;[\s\S]*?\.ax-orbit-node__copy small \{
 
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-nodes\s*\{[^}]*z-index:\s*5[^}]*pointer-events:\s*none/, "The interactive workspace layer must sit above the globe while its empty space remains transparent to pointer events.");
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-node-counter,[\s\S]*?pointer-events:\s*auto/, "Actual orbit cards must remain clickable inside the transparent node layer.");
+
+
+assert.match(orbit, /data-mobile-orbit-layout=\{compactOrbit \? "staggered-ellipse" : "fibonacci-sphere"\}/, "The workspace explorer must identify the responsive orbital projection in use.");
