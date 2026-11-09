@@ -251,6 +251,10 @@ export default function AxivestraOrbitalHub({
               {visibleOrbitItems.filter(item => item.ringName === ring).map(item => (
                 <div className="ax-orbit-node-slot" style={item.style} key={item.name}>
                   <div className={`ax-orbit-node-counter ax-orbit-node-counter--${ring}`}>
+                    <div
+                      className="ax-orbit-card-float"
+                      style={{ animationDelay: `${(item.sourceIndex % 8) * -0.78}s` }}
+                    >
                     <button
                       type="button"
                       className={`ax-orbit-node ax-orbit-node--${item.color}${focused === item.name || inspectedModule === item.name ? " is-focused" : ""}`}
@@ -269,6 +273,7 @@ export default function AxivestraOrbitalHub({
                       </span>
                       <ArrowUpRight className="ax-orbit-node__arrow" size={13} />
                     </button>
+                    </div>
                   </div>
                 </div>
               ))}
