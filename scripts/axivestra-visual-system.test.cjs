@@ -253,3 +253,8 @@ assert.match(css, /\.ax-modern-shell \.ax-orbit-core__surface\s*\{[^}]*position:
 assert.match(css, /@keyframes ax-orbit-nebula-drift/, "The atmospheric lighting must have a slow ambient movement.");
 assert.match(css, /@keyframes ax-orbit-constellation-flow/, "The constellation network must have a subtle animated signal path.");
 assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orbit-atmosphere__nebula/, "The decorative atmosphere must respect reduced-motion preferences.");
+
+
+assert.match(orbit, /const singleMobileOrbit = filtered\.length <= 8/, "Small mobile result sets must distribute on one tap-friendly 3D ellipse.");
+assert.match(orbit, /const radiusX = positionRing === 0[\s\S]*?Math\.min\(82, layoutWidth \* 0\.24\)/, "The full mobile workspace set must use two distinct staggered ellipse radii.");
+assert.match(css, /width: 58px !important;[\s\S]*?\.ax-orbit-node__copy small \{ display: none; \}/, "Mobile orbital markers must be compact enough to keep all 16 tap targets distinct.");
