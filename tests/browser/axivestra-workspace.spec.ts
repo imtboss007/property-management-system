@@ -34,6 +34,9 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: "Pause rotation" }).click();
   const nodes = hub.locator("button.ax-orbit-node");
   await expect(nodes).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const stage = hub.locator(".ax-orbit-stage");
   await expect(stage).toHaveAttribute("data-orbit-dimensionality", "3d");
   await expect(stage).toHaveCSS("perspective", "1250px");
@@ -117,6 +120,9 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
+  await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const mobileStage = hub.locator(".ax-orbit-stage");
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
   await expect(hub.locator(".ax-orbit-core__sphere")).toHaveCSS("animation-name", "none");
