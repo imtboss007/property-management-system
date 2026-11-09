@@ -5520,3 +5520,9 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* Keep the inner globe scan synchronized with the visible orbit motion state. */
+.ax-modern-shell .ax-orbit-hub.is-rotation-paused .ax-orbit-core__surface::after {
+  animation-play-state: paused !important;
+}
