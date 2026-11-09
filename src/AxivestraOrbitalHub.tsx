@@ -87,9 +87,9 @@ export default function AxivestraOrbitalHub({
     return () => observer.disconnect();
   }, []);
 
-  const compactOrbit = stageSize.width > 0
-    ? stageSize.width <= 720
-    : typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : (stageSize.width || 1220);
+  const layoutWidth = Math.min(stageSize.width || viewportWidth, viewportWidth);
+  const compactOrbit = viewportWidth <= 720;
   useEffect(() => () => { if (openTimer.current) clearTimeout(openTimer.current); }, []);
   const openWorkspace = (name: string) => {
     setFocused(name);
@@ -111,21 +111,19 @@ export default function AxivestraOrbitalHub({
 
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const baseRadius = compactOrbit
-      ? Math.max(76, Math.min(124, ((stageSize.width || 390) - 96) / 2 - 4))
+      ? Math.max(68, Math.min(124, (layoutWidth - 94) / 2 - 4))
       : 224;
-    const stageWidth = stageSize.width || 1220;
+    const stageWidth = stageSize.width || viewportWidth;
     const stageHeight = stageSize.height || 570;
 
     return filtered.map((item, index) => {
-      // Alternate modules between two interleaved Fibonacci shells. Each shell
-      // distributes its nodes across a full sphere rather than a flat ellipse.
+      // Distribute all workspaces over one Fibonacci sphere, then alternate
+      // their counter-rotating shell so the two groups are vertically staggered.
       const ring = index % 2;
-      const ringIndex = Math.floor(index / 2);
-      const countInRing = Math.max(1, Math.ceil((filtered.length - ring) / 2));
-      const latitude = 1 - (2 * (ringIndex + 0.5) / countInRing);
+      const latitude = 1 - (2 * (index + 0.5) / Math.max(1, filtered.length));
       const horizontalRadius = Math.sqrt(Math.max(0, 1 - latitude * latitude));
-      const angle = (ringIndex * goldenAngle) + (ring ? Math.PI / countInRing : 0);
-      const shellRadius = baseRadius * (ring === 0 ? 1 : 0.9);
+      const angle = index * goldenAngle;
+      const shellRadius = baseRadius * (ring === 0 ? 1 : 0.94);
       const x = Math.cos(angle) * horizontalRadius * shellRadius;
       const y = latitude * shellRadius * (compactOrbit ? 0.88 : 0.84);
       const z = Math.sin(angle) * horizontalRadius * shellRadius;
