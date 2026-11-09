@@ -138,10 +138,10 @@ export default function AxivestraOrbitalHub({
         const angle = positionIndex * ((Math.PI * 2) / countInRing) + (positionRing ? Math.PI / countInRing : 0);
         const radiusX = positionRing === 0
           ? Math.min(112, layoutWidth * 0.34)
-          : Math.min(74, layoutWidth * 0.22);
+          : Math.min(95, layoutWidth * 0.28);
         const radiusY = positionRing === 0
           ? Math.min(146, stageHeight * 0.35)
-          : Math.min(92, stageHeight * 0.22);
+          : Math.min(112, stageHeight * 0.27);
         x = Math.cos(angle) * radiusX;
         y = Math.sin(angle) * radiusY;
         z = Math.cos(angle) * (positionRing === 0 ? 42 : 26);
