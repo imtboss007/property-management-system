@@ -180,6 +180,34 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
     }
     return null;
   });
+  if (!mobileTarget) {
+    const diagnostics = await hub.locator("button.ax-orbit-node").evaluateAll(elements => elements.slice(0, 8).map(element => {
+      const rect = element.getBoundingClientRect();
+      const samples = [
+        [rect.left + rect.width / 2, rect.top + rect.height / 2],
+        [rect.left + 6, rect.top + rect.height / 2],
+        [rect.right - 6, rect.top + rect.height / 2],
+        [rect.left + rect.width / 2, rect.top + 6],
+        [rect.left + rect.width / 2, rect.bottom - 6],
+      ];
+      return {
+        label: element.getAttribute("aria-label"),
+        rect: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+        pointerEvents: getComputedStyle(element).pointerEvents,
+        zIndex: getComputedStyle(element).zIndex,
+        hits: samples.map(([x, y]) => {
+          const hit = document.elementFromPoint(x, y);
+          return {
+            x, y,
+            tag: hit?.tagName || null,
+            className: typeof hit?.className === "string" ? hit.className : "",
+            label: hit?.getAttribute?.("aria-label") || null,
+          };
+        }),
+      };
+    }));
+    console.log("[AXIVESTRA MOBILE ORBIT HIT TEST]", JSON.stringify(diagnostics));
+  }
   expect(mobileTarget).not.toBeNull();
   await hub.getByRole("button", { name: mobileTarget!.label! }).click({ force: true });
   await expect(page.getByRole("heading", { name: mobileTarget!.name!, level: 1 })).toBeVisible();
