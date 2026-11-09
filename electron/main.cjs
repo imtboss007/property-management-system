@@ -9,6 +9,11 @@ const previousProductDataPath = path.join(app.getPath("appData"), "EstateFlow");
 fs.mkdirSync(previousProductDataPath, { recursive: true });
 app.setPath("userData", previousProductDataPath);
 
+// One desktop process owns the shared WhatsApp linked-device auth directory.
+// A second process can otherwise create a competing socket and disconnect the first.
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+
 let mainWindow = null;
 let tray = null;
 let whatsappService = null;
@@ -76,7 +81,19 @@ async function createTray() {
   } catch (_) {}
 }
 
+app.on("second-instance", () => {
+  if (!hasSingleInstanceLock) return;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  } else if (app.isReady()) {
+    createWindow();
+  }
+});
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   // Opt into run-at-login for the packaged Windows app. The background process starts
   // hidden and is controlled through its tray icon; Exit AXIVESTRA stops scheduling.
   if (process.platform === "win32" && app.isPackaged) {
