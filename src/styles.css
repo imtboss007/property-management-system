@@ -5692,3 +5692,48 @@ h2,h3{color:#e5f2fc}
     padding: 0;
   }
 }
+
+
+/* Workspace chooser: keep the brand and sign-out control on separate rows on
+   narrow Android screens so they cannot overlap the logo or account text. */
+@media (max-width: 520px) {
+  .auth-company-card {
+    width: 100%;
+    min-width: 0;
+    padding: 22px 18px;
+  }
+  .auth-company-card .auth-brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 10px;
+  }
+  .auth-company-card .auth-brand > div:nth-child(2) {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+  .auth-company-card .auth-signout {
+    flex: 1 0 100%;
+    width: 100%;
+    justify-content: center;
+    min-height: 38px;
+    margin: 2px 0 0;
+  }
+  .auth-company-card .auth-copy,
+  .auth-company-card .auth-company-row,
+  .auth-company-card .auth-create-company {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .auth-company-card .auth-create-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .auth-company-card .auth-create-row input,
+  .auth-company-card .auth-create-row button {
+    width: 100%;
+    min-width: 0;
+  }
+}
