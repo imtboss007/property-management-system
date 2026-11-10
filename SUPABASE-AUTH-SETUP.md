@@ -9,7 +9,7 @@
 - Database-generated membership audit entries; clients do not have direct insert privileges to the governance audit table.
 - Per-company local cache and baseline-aware cloud sync for properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and local audit events. Sync pulls newer remote values, uploads local changes, merges remote-only rows, periodically refreshes while the workspace is open, and respects cloud deletion tombstones.
 - Company record keys/types/company IDs are immutable in the database; the creator identity is set server-side and preserved on update.
-- Optional cloud auth. Without configured public Supabase client values, the app remains available in explicitly labelled local-only mode.
+- Required shared authentication on website, Windows and Android. The Supabase client persists sessions, automatically refreshes tokens and restores the account after the app/browser is reopened. Each device keeps its own session; closing the app is not a sign-out. Missing public Supabase client values block app access instead of bypassing authentication into local-only mode.
 
 ## Configure Supabase
 1. Create a dedicated Supabase project for AXIVESTRA.
