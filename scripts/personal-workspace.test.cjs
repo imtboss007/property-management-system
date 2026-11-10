@@ -22,7 +22,7 @@ const checks = [
   ["paged personal reader enforces the signed-in user filter", /fetchAllPersonalRecordRows[\s\S]{0,500}from\("personal_records"\)[\s\S]{0,120}eq\("user_id", userId\)/i.test(client)],
   ["personal record reader uses deterministic 500-row pagination", /async function fetchAllPersonalRecordRows[\s\S]{0,800}const pageSize = 500[\s\S]{0,500}\.order\("record_type", \{ ascending: true \}\)[\s\S]{0,150}\.order\("record_key", \{ ascending: true \}\)[\s\S]{0,150}\.range\(from, from \+ pageSize - 1\)/i.test(client)],
   ["personal record pagination has a bounded safety limit", /rows\.length > 250000/.test(client)],
-  ["personal initialization and recurring sync both fetch every page", (client.match(/fetchAllPersonalRecordRows\(\s*userId/g) || []).length === 2],
+  ["personal initialization and recurring sync both fetch every page", (client.match(/await fetchAllPersonalRecordRows\(\s*userId/g) || []).length === 2],
   ["new users without company memberships default to Personal Mode", /memberships\.length === 0[\s\S]{0,220}choosePersonal\(\)/i.test(gate)],
   ["Personal Mode passes a user-scoped identity into the app", /<App key=\{"personal:" \+ userId\} personalUserId=\{userId\} userId=\{userId\}/i.test(gate)],
   ["Personal cloud sync is used by the app's workspace sync loop", /syncPersonalWorkspace\(personalUserId!/i.test(app)],
