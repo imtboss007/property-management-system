@@ -1,5 +1,5 @@
 name: AXIVESTRA Windows and Android builds
-# Cloud auth is optional. Only public client configuration is embedded; never pass service-role keys.
+# Shared Supabase authentication is mandatory in every distributed client. Only public client configuration is embedded; never pass service-role keys.
 
 concurrency:
   group: axivestra-builds-${{ github.ref }}
@@ -65,7 +65,14 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
           VITE_AXIVESTRA_WHATSAPP_WORKER_URL: ${{ vars.VITE_AXIVESTRA_WHATSAPP_WORKER_URL }}
-        run: npm run build && npx electron-builder --win nsis --x64 --publish never
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_URL) -or [string]::IsNullOrWhiteSpace($env:VITE_SUPABASE_PUBLISHABLE_KEY)) {
+            throw "Required shared Supabase login configuration is missing; refusing to build an unusable Windows installer."
+          }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx electron-builder --win nsis --x64 --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
@@ -112,7 +119,12 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED: ${{ vars.VITE_AXIVESTRA_WHATSAPP_CLOUD_ENABLED }}
           VITE_AXIVESTRA_WHATSAPP_WORKER_URL: ${{ vars.VITE_AXIVESTRA_WHATSAPP_WORKER_URL }}
-        run: npm run build
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Required shared Supabase login configuration is missing; refusing to build an unusable Android app."
+            exit 1
+          fi
+          npm run build
 
       - name: Create Android project
         run: npx cap add android

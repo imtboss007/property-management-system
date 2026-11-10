@@ -1,4 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { mockSupabaseApi, seedSignedInSession } from "./auth-fixtures";
+
+test.beforeEach(async ({ page }) => {
+  await mockSupabaseApi(page);
+  await seedSignedInSession(page);
+});
 
 const expectedModules = [
   "Property Sale",

@@ -276,6 +276,11 @@ export default function AuthGate() {
   }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
 
   const openWorkspaceChooser = () => {
+    // Switching workspaces must never leave the chooser disabled by a stale
+    // membership refresh. Existing memberships are already cached in state;
+    // the user can explicitly refresh them from the chooser if needed.
+    setBusy(false);
+    setMembershipsReady(true);
     setActivePersonal(false);
     setActiveCompany(null);
     localStorage.removeItem("axivestra.activePersonalUserId");
@@ -297,8 +302,9 @@ export default function AuthGate() {
     }
   };
 
-  // Local-first installs open straight into AXIVESTRA; phone pairing is built into Settings.
-  if (!supabase) return <App />;
+  // AXIVESTRA requires the shared Supabase identity on every client. Never bypass
+  // authentication into a local-only workspace when cloud credentials are missing.
+  if (!supabase) return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Secure account access</span></div></div><div className="auth-icon"><ShieldCheck size={25}/></div><span className="auth-kicker">SIGN-IN CONFIGURATION REQUIRED</span><h1>Secure sign-in is not configured.</h1><p className="auth-copy">This AXIVESTRA build is not connected to the shared authentication service. For security, local-only access is disabled. Please use a correctly configured website, Windows installer or Android app, or contact the administrator.</p></div></div>;
 
   if (!checked) return <div className="auth-shell"><div className="auth-card auth-loading"><LoaderCircle className="auth-spinner" size={28}/><strong>Restoring secure session…</strong></div></div>;
 

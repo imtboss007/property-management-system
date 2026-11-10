@@ -77,10 +77,12 @@ check("staff can submit pending approvals but cannot update or decide approval r
 check("approval decision buttons are blocked for staff and read-only UI roles",
   has(read("src/App.tsx"), /button\.classList\.contains\("decision-button"\)/i) &&
   has(read("src/App.tsx"), /Staff can submit approval requests but cannot approve or reject them/i));
-check("sign-in, sign-up, recovery and explicit local-only mode are implemented",
+check("sign-in, sign-up and recovery are implemented and missing cloud config blocks local-only access",
   has(authGate, /signInWithPassword/i) && has(authGate, /signUp\(/i) &&
   has(authGate, /resetPasswordForEmail/i) &&
-  (has(authGate, /LOCAL WORKSPACE/i) || has(authGate, /if \(!supabase\) return <App \/>/i)));
+  has(authGate, /Secure sign-in is not configured/i) &&
+  has(authGate, /local-only access is disabled/i) &&
+  !has(authGate, /if \(!supabase\) return <App \/>/i));
 check("read-only membership cannot invoke the legacy local-record import path",
   has(authGate, /company\.role !== "read_only" && \(personalNotYetImported \|\| \(!initialized && hasLegacyLocalRecords\(\)\)\)/));
 check("cloud sync is company scoped and enforces role-aware deletion",
@@ -327,6 +329,14 @@ check("Windows/Android workflows pass public cloud-mode switch without embedding
   has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   !has(desktopWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i) &&
   !has(downloadWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i));
+check("desktop and Android installers refuse to build without shared Supabase auth configuration",
+  has(desktopWorkflow, /Required shared Supabase login configuration is missing/i) &&
+  has(downloadWorkflow, /Required shared Supabase login configuration is missing/i) &&
+  has(desktopWorkflow, /VITE_SUPABASE_URL:/i) &&
+  has(desktopWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
+  has(downloadWorkflow, /VITE_SUPABASE_URL:/i) &&
+  has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i));
+
 
 process.stdout.write("\n" + passed + " security-contract checks passed.\n");
 if (failures.length) {

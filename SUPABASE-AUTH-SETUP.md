@@ -9,10 +9,10 @@
 - Database-generated membership audit entries; clients do not have direct insert privileges to the governance audit table.
 - Per-company local cache and baseline-aware cloud sync for properties, contacts, WhatsApp groups, tasks, financials, risks, approvals and local audit events. Sync pulls newer remote values, uploads local changes, merges remote-only rows, periodically refreshes while the workspace is open, and respects cloud deletion tombstones.
 - Company record keys/types/company IDs are immutable in the database; the creator identity is set server-side and preserved on update.
-- Optional cloud auth. Without configured public Supabase client values, the app remains available in explicitly labelled local-only mode.
+- Required shared authentication on website, Windows and Android. The Supabase client persists sessions, automatically refreshes tokens and restores the account after the app/browser is reopened. Each device keeps its own session; closing the app is not a sign-out. Missing public Supabase client values block app access instead of bypassing authentication into local-only mode.
 
 ## Configure Supabase
-1. Create a dedicated Supabase project for AXIVESTRA.
+1. Use the existing AXIVESTRA Supabase project already linked to this repository: project ref `yelabsimnlcwbfstbduj`. Do not create another Supabase project. This project’s recorded migration history includes the AXIVESTRA RBAC, WhatsApp queue and Personal Workspace migrations used by this repository.
 2. Apply the ordered SQL migrations in `supabase/migrations/` that are not already present in the target project's migration history. The current sequence is `20261030164420_auth_company_rbac.sql`, `20261030164546_rbac_hardening.sql`, `20261030164550_metadata_audit_hardening.sql`, `20261030164556_approval_permissions.sql`, `20261031054337_security_definer_least_privilege.sql`, and `20261031065632_whatsapp_cloud_scheduler.sql`. The first five are already recorded as applied in the existing AXIVESTRA Supabase project; the last one is now recorded as applied and adds an initially empty WhatsApp cloud queue. Do not reapply a migration already recorded as applied. Review the SQL and confirm every statement succeeds. Migration 003 stamps cloud update times server-side and audits company renames; migration 004 restricts approval decisions to owner/admin/manager roles; migration 005 hardens direct execution of security-definer functions.
 3. In **Authentication → Providers**, enable Email/password and configure whether signup requires email confirmation.
 4. Under **Authentication URL Configuration**, set the actual deployed web origin as Site URL and allow the approved redirect origins. Password recovery and invitation links must be tested from that origin.
@@ -80,7 +80,7 @@ On first access to a company on a device, AXIVESTRA detects unscoped legacy reco
 - Email invitations, SQL migrations and RLS policies require actual Supabase deployment and live tests. A passing build does not prove project configuration or RLS correctness.
 
 ## Release acceptance checklist
-- [ ] Apply the ordered migrations not already recorded as applied to a dedicated Supabase test project and verify they run without SQL errors.
+- [ ] Verify the ordered migrations against the existing AXIVESTRA Supabase project (`yelabsimnlcwbfstbduj`); apply only migrations that are genuinely missing after checking the project migration history. Do not create a new project or reapply recorded migrations.
 - [ ] Configure Auth email confirmation, recovery URLs and invite SMTP delivery.
 - [ ] Deploy `invite-company-member`, send a test invite and complete signup via the email link.
 - [ ] Create User A / Company A and User B / Company B; verify neither can read or modify the other's records, including direct API requests.

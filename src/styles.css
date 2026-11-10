@@ -5626,3 +5626,114 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* Compact the authenticated workspace header on narrow phones.
+   Keep search, workspace switch/sign-out and all universal controls reachable
+   without allowing the fixed-width action cluster to push the viewport sideways. */
+@media (max-width: 520px) {
+  .ax-modern-shell .topbar {
+    min-width: 0;
+    gap: 6px;
+    padding-inline: 9px;
+    overflow-x: clip;
+  }
+  .ax-modern-shell .topbar > .menu-toggle {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+  }
+  .ax-modern-shell .topbar > .breadcrumb {
+    min-width: 0;
+    flex: 1 1 42px;
+    font-size: 9px;
+  }
+  .ax-modern-shell .top-actions {
+    min-width: 0;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+  .ax-modern-shell .top-actions > .search-box {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 32px;
+  }
+  .ax-modern-shell .top-actions > .company-session {
+    min-width: 0;
+    max-width: 96px;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    gap: 3px;
+    padding: 3px 4px;
+  }
+  .ax-modern-shell .top-actions > .company-session .company-session-name,
+  .ax-modern-shell .top-actions > .company-session .company-session-role {
+    display: none;
+  }
+  .ax-modern-shell .top-actions > .company-session button {
+    flex: 0 0 auto;
+    padding: 4px 5px;
+    font-size: 8px;
+  }
+  .ax-modern-shell .top-actions > .ax-universal-controls {
+    min-width: 0;
+    flex: 0 0 auto;
+    gap: 3px;
+  }
+  .ax-modern-shell .ax-universal-controls > .ax-universal-command,
+  .ax-modern-shell .ax-universal-controls > .ax-universal-plus,
+  .ax-modern-shell .ax-universal-controls > .ax-universal-popover-anchor > .ax-universal-plus,
+  .ax-modern-shell .ax-universal-controls > .ax-universal-popover-anchor > .ax-universal-bell,
+  .ax-modern-shell .ax-universal-controls > .ax-universal-pin {
+    flex: 0 0 28px;
+    width: 28px;
+    min-width: 28px;
+    height: 32px;
+    padding: 0;
+  }
+}
+
+
+/* Workspace chooser: keep the brand and sign-out control on separate rows on
+   narrow Android screens so they cannot overlap the logo or account text. */
+@media (max-width: 520px) {
+  .auth-company-card {
+    width: 100%;
+    min-width: 0;
+    padding: 22px 18px;
+  }
+  .auth-company-card .auth-brand {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 10px;
+  }
+  .auth-company-card .auth-brand > div:nth-child(2) {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+  .auth-company-card .auth-signout {
+    flex: 1 0 100%;
+    width: 100%;
+    justify-content: center;
+    min-height: 38px;
+    margin: 2px 0 0;
+  }
+  .auth-company-card .auth-copy,
+  .auth-company-card .auth-company-row,
+  .auth-company-card .auth-create-company {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .auth-company-card .auth-create-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .auth-company-card .auth-create-row input,
+  .auth-company-card .auth-create-row button {
+    width: 100%;
+    min-width: 0;
+  }
+}
