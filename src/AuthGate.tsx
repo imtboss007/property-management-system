@@ -276,6 +276,11 @@ export default function AuthGate() {
   }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
 
   const openWorkspaceChooser = () => {
+    // Switching workspaces must never leave the chooser disabled by a stale
+    // membership refresh. Existing memberships are already cached in state;
+    // the user can explicitly refresh them from the chooser if needed.
+    setBusy(false);
+    setMembershipsReady(true);
     setActivePersonal(false);
     setActiveCompany(null);
     localStorage.removeItem("axivestra.activePersonalUserId");
