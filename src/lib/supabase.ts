@@ -102,6 +102,45 @@ type PersonalRecordRow = {
   deleted_at: string | null;
 };
 
+type PersonalWorkspaceRecordRow = {
+  record_type: string;
+  record_key: string;
+  payload: unknown;
+  deleted_at: string | null;
+  updated_at?: string | null;
+};
+
+// Personal Mode must use the same bounded, deterministic pagination as Company Mode.
+// PostgREST may cap a single response, which silently drops records in large workspaces.
+async function fetchAllPersonalRecordRows(
+  userId: string,
+  columns: string,
+  operation: string
+): Promise<PersonalWorkspaceRecordRow[]> {
+  if (!supabase || !userId) throw new Error("Personal cloud sync requires a signed-in user.");
+  const pageSize = 500;
+  const rows: PersonalWorkspaceRecordRow[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("personal_records")
+      .select(columns)
+      .eq("user_id", userId)
+      .order("record_type", { ascending: true })
+      .order("record_key", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) {
+      throw new Error(operation + " (page " + (Math.floor(from / pageSize) + 1) + "): " + error.message);
+    }
+    const page = (data || []) as unknown as PersonalWorkspaceRecordRow[];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+    if (rows.length > 250000) {
+      throw new Error("Personal workspace record count exceeds the safe synchronization limit.");
+    }
+  }
+  return rows;
+}
+
 /** Initialize the signed-in user's independent personal workspace. Legacy local data is
  * imported only after an explicit choice; otherwise it remains untouched on the device. */
 export async function preparePersonalWorkspace(
@@ -109,10 +148,11 @@ export async function preparePersonalWorkspace(
   importLegacy: boolean
 ): Promise<{ counts: Record<string, number>; uploaded: number }> {
   if (!supabase || !userId) throw new Error("Sign in to prepare a personal workspace.");
-  const { data: rows, error } = await supabase.from("personal_records")
-    .select("record_type,record_key,payload,deleted_at")
-    .eq("user_id", userId);
-  if (error) throw new Error("Could not load your personal cloud workspace: " + error.message);
+  const rows = await fetchAllPersonalRecordRows(
+    userId,
+    "record_type,record_key,payload,deleted_at",
+    "Could not load your personal cloud workspace"
+  );
 
   const remoteByType = new Map<string, Array<Record<string, unknown> & { id: string }>>();
   const deletedByType = new Map<string, Set<string>>();
@@ -208,10 +248,11 @@ export async function syncPersonalWorkspace(
   collections: WorkspaceCollections
 ): Promise<WorkspaceCollections> {
   if (!supabase || !userId) throw new Error("Personal cloud sync requires a signed-in user.");
-  const { data: remoteRows, error: readError } = await supabase.from("personal_records")
-    .select("record_type,record_key,payload,updated_at,deleted_at")
-    .eq("user_id", userId);
-  if (readError) throw new Error("Could not refresh personal cloud records: " + readError.message);
+  const remoteRows = await fetchAllPersonalRecordRows(
+    userId,
+    "record_type,record_key,payload,updated_at,deleted_at",
+    "Could not refresh personal cloud records"
+  );
 
   type SyncRow = Record<string, unknown> & { id: string };
   type RemoteRow = { payload: SyncRow; updatedAt: string };
