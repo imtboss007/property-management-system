@@ -40,8 +40,11 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Build AXIVESTRA
+      - name: Build AXIVESTRA with isolated CI auth configuration
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://axivestra-ci.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: axivestra-ci-public-key
       - name: Run browser acceptance tests
         run: npm run test:e2e
       - name: Upload browser evidence
