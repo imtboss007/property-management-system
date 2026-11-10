@@ -329,6 +329,14 @@ check("Windows/Android workflows pass public cloud-mode switch without embedding
   has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
   !has(desktopWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i) &&
   !has(downloadWorkflow, /VITE_SUPABASE_SERVICE_ROLE_KEY/i));
+check("desktop and Android installers refuse to build without shared Supabase auth configuration",
+  has(desktopWorkflow, /Required shared Supabase login configuration is missing/i) &&
+  has(downloadWorkflow, /Required shared Supabase login configuration is missing/i) &&
+  has(desktopWorkflow, /VITE_SUPABASE_URL:/i) &&
+  has(desktopWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i) &&
+  has(downloadWorkflow, /VITE_SUPABASE_URL:/i) &&
+  has(downloadWorkflow, /VITE_SUPABASE_PUBLISHABLE_KEY:/i));
+
 
 process.stdout.write("\n" + passed + " security-contract checks passed.\n");
 if (failures.length) {
