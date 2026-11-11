@@ -2622,6 +2622,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             initialTab={followUpRegistryView}
             properties={properties}
             contacts={contacts}
+            whatsappGroups={savedWhatsAppGroups}
             tasks={tasks}
             today={today}
             onAdd={()=>openFollowUpForm()}
