@@ -3046,8 +3046,8 @@ function parseShareAllocations(raw?: string): ShareAllocationDraft[] {
 function formatPropertyAmount(value: number): string {
   return "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value);
 }
-function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],initial,onSave,onCancel}:{
-  defaultModule:string; availableModules:Array<{name:string;description?:string}>; contacts:ContactRecord[];
+function PropertyForm({defaultModule,availableModules,customModules=[],contacts,savedGroups=[],initial,onSave,onCancel}:{
+  defaultModule:string; availableModules:Array<{name:string;description?:string}>; customModules?:CustomModuleDefinition[]; contacts:ContactRecord[];
   savedGroups?:SavedWhatsAppGroup[]; initial?:PropertyRecord|null;
   onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void; onCancel:()=>void
 }) {
@@ -3069,7 +3069,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
   }));
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const updateModuleData=(key:string,value:string)=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[key]:value}}));
-  const selectedFields=(moduleFields[form.module] ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal",...(form.module==="Sharing Property"?["mortgageType"]:[])].includes(field.key));
+  const selectedFields=(moduleFields[form.module] ?? customModules.find(item=>item.name===form.module)?.fields ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal",...(form.module==="Sharing Property"?["mortgageType"]:[])].includes(field.key));
   const primaryContactIds=(form.moduleData.__primaryContactIds || form.primaryContactId || "").split(",").map(id=>id.trim()).filter(Boolean);
   const primaryGroupIds=(form.moduleData.__primaryWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
   const followUpGroupIds=(form.moduleData.__followUpWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
@@ -3113,6 +3113,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
       normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null&&normalizedMarketRate!==""?String(size*Number(normalizedMarketRate)):"";
     }
     for(const field of selectedFields){
+      if(field.required && !String(normalizedModuleData[field.key] ?? "").trim()) invalidLabels.push(field.label + " (required)");
       if(field.type!=="number" || !field.label.includes("₹"))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
       if(!raw.trim())continue;
@@ -3156,7 +3157,8 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
       moduleData:normalizedModuleData
     });
   };
-  const assetDetailsModules=["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","Housing Loan","House Purchase","Litigation","Sharing Property"];
+  const assetDetailsModules=["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","Housing Loan","House Purchase","Litigation","Sharing Property"]; 
+  const isCustomModule=customModules.some(item=>item.name===form.module);
   return <form className="form-card module-record-form" onSubmit={saveRecord}>
     <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
@@ -3180,7 +3182,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
       <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
     </div>
-    {assetDetailsModules.includes(form.module) && <div className="property-detail-section">
+    {(assetDetailsModules.includes(form.module) || isCustomModule) && <div className="property-detail-section">
       <div className="form-section-title"><span className="section-kicker">PRIMARY PROPERTY / COLLATERAL DETAILS</span><p>Capture the principal property's extent, identifiers and ownership. Rates below are per selected area unit.</p></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
       <div className="form-two"><label>Land / built-up size<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Extent / built-up area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
@@ -3188,7 +3190,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
       <div className="form-two"><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>updateModuleData("marketRatePerUnit",value)} placeholder="Market / negotiated rate"/></label><label>Mortgage / encumbrance type<select value={form.moduleData.mortgageType ?? "No mortgage"} onChange={event=>updateModuleData("mortgageType",event.target.value)}>{["No mortgage","Existing mortgage","Equitable mortgage / deposit of title deeds","Registered mortgage","Simple mortgage","Lease / tenancy","Court attachment / injunction","Other / verify"].map(value=><option key={value}>{value}</option>)}</select></label></div>
       {(primarySrTotal!==null||primaryMarketTotal!==null)&&<div className="ax-property-rate-preview"><strong>Primary property rate calculation</strong><span>{primarySrTotal===null?"SR total not entered":"SR / guidance total: "+formatPropertyAmount(primarySrTotal)}</span><span>{primaryMarketTotal===null?"Market total not entered":"Market total: "+formatPropertyAmount(primaryMarketTotal)}</span><small>Calculated as area × rate. Confirm that the area and rate use the same unit; these figures are entered estimates, not an official valuation or registry calculation.</small></div>}
     </div>}
-    {PROPERTY_LINK_MODULES.includes(form.module) && <div className="module-data-section ax-associated-property-section">
+    {(PROPERTY_LINK_MODULES.includes(form.module) || isCustomModule) && <div className="module-data-section ax-associated-property-section">
       <div className="form-section-title"><span className="section-kicker">MULTIPLE PROPERTIES / COLLATERAL</span><p>Add every additional property connected to this transaction. Each item keeps its own survey number, area, SR rate, market rate and mortgage type.</p></div>
       {associatedProperties.map((row,index)=>{
         const area=Number(row.areaValue);
@@ -3221,7 +3223,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
       <div className="ax-share-allocation-footer"><button type="button" className="secondary-button" onClick={()=>setShareAllocations(previous=>[...previous,{id:uid(),contactId:"",sharePercent:""}])}><Plus size={14}/> Add owner / recipient</button><strong>Total allocated: {shareAllocations.reduce((sum,row)=>sum+(Number(row.sharePercent)||0),0).toFixed(2)}%</strong></div>
       <p className="ax-form-note">For a gift, capture the declared gift value separately. For an ownership transfer or mortgage, confirm the deed form, stamp duty, registration and enforceability with the conveyancing lawyer.</p>
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.options ? <select value={form.moduleData[field.key] ?? ""} onChange={event=>field.key==="sharingRatioPreset"?applyShareRatio(event.target.value):updateModuleData(field.key,event.target.value)}><option value="">Select…</option>{field.options.map(option=><option key={option}>{option}</option>)}</select> : field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");updateModuleData(field.key,value);}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>updateModuleData(field.key,event.target.value)} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="contact" ? <SearchableContactPicker label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder={field.placeholder || "Link a saved contact"} onChange={value=>updateModuleData(field.key,String(value))}/> : field.type==="contacts" ? <SearchableContactPicker label={field.label} contacts={contacts} multiple value={(form.moduleData[field.key] ?? "").split(",").filter(Boolean)} placeholder={field.placeholder || "Link one or more saved contacts"} onChange={value=>updateModuleData(field.key,(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))}/> : field.options ? <select required={Boolean(field.required)} value={form.moduleData[field.key] ?? ""} onChange={event=>field.key==="sharingRatioPreset"?applyShareRatio(event.target.value):updateModuleData(field.key,event.target.value)}><option value="">Select…</option>{field.options.map(option=><option key={option}>{option}</option>)}</select> : field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");updateModuleData(field.key,value);}} placeholder={field.placeholder}/> : field.type==="textarea" ? <textarea required={Boolean(field.required)} rows={3} value={form.moduleData[field.key] ?? ""} onChange={event=>updateModuleData(field.key,event.target.value)} placeholder={field.placeholder}/> : <input required={Boolean(field.required)} type={field.type==="number"||field.type==="date" ? field.type : "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>updateModuleData(field.key,event.target.value)} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>
