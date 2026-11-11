@@ -5718,3 +5718,15 @@ h2,h3{color:#e5f2fc}
     justify-content: flex-start;
   }
 }
+
+.ax-picker-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -1px 0 2px;
+}
+.ax-picker-bulk-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
