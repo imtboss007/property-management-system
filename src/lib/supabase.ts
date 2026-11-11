@@ -30,6 +30,7 @@ export type WorkspaceCollections = {
   riskRecords: Array<Record<string, unknown> & { id: string }>;
   approvalRequests: Array<Record<string, unknown> & { id: string }>;
   auditEvents: Array<Record<string, unknown> & { id: string }>;
+  customModules: Array<Record<string, unknown> & { id: string }>;
 };
 
 export const collectionKeys: Array<{
@@ -40,6 +41,7 @@ export const collectionKeys: Array<{
   { stateKey: "properties", storageKey: "estateflow.properties", recordType: "property" },
   { stateKey: "contacts", storageKey: "estateflow.contacts", recordType: "contact" },
   { stateKey: "whatsappGroups", storageKey: "estateflow.whatsappGroups", recordType: "whatsapp_group" },
+  { stateKey: "customModules", storageKey: "estateflow.customModules", recordType: "custom_module" },
   { stateKey: "tasks", storageKey: "estateflow.tasks", recordType: "task" },
   { stateKey: "financials", storageKey: "estateflow.financials", recordType: "financial" },
   { stateKey: "riskRecords", storageKey: "estateflow.risks", recordType: "risk" },

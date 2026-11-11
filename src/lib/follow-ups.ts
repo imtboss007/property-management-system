@@ -4,6 +4,7 @@ export type FollowUpStatus = "Open" | "In Progress" | "Completed" | "Cancelled";
 export type FollowUpEntry = {
   id: string;
   contactIds: string[];
+  whatsAppGroupIds?: string[];
   description: string;
   amount: string;
   date: string;
@@ -44,6 +45,7 @@ export function parseFollowUps(moduleData?: Record<string, string>): FollowUpEnt
     ).map(item => ({
       id: item.id,
       contactIds: Array.isArray(item.contactIds) ? item.contactIds.filter((id): id is string => typeof id === "string") : [],
+      whatsAppGroupIds: Array.isArray(item.whatsAppGroupIds) ? item.whatsAppGroupIds.filter((id): id is string => typeof id === "string") : [],
       description: String(item.description || ""),
       amount: String(item.amount || ""),
       date: String(item.date || ""),
@@ -74,11 +76,13 @@ export function legacyRecordFollowUp(record: FollowUpRecordLike): FollowUpEntry 
     : "Open" as const;
   const people = [
     ...(record.moduleData?.__followUpContactIds || "").split(","),
+    ...(record.moduleData?.__primaryContactIds || "").split(","),
     record.primaryContactId || ""
   ].map(id => id.trim()).filter(Boolean);
   return {
     id: "legacy:" + record.id,
     contactIds: Array.from(new Set(people)),
+    whatsAppGroupIds: String(record.moduleData?.__followUpWhatsAppGroupIds || "").split(",").map(id => id.trim()).filter(Boolean),
     description: record.nextAction || "Follow-up · " + record.title,
     amount: record.value || "",
     date: record.nextFollowUpDate,

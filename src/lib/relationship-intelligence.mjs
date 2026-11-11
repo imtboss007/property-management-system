@@ -60,6 +60,9 @@ export function buildRelationshipIntelligence(input = {}) {
   for (const record of properties) {
     const data = record?.moduleData && typeof record.moduleData === "object" ? record.moduleData : {};
     addReference(people, record?.primaryContactId, record, "workspace", "Primary contact", unresolved);
+    for (const id of idsFromList(data.__primaryContactIds)) {
+      addReference(people, id, record, "workspace", "Primary contact", unresolved);
+    }
     for (const id of idsFromList(data.__linkedContactIds)) {
       addReference(people, id, record, "workspace", "Linked participant", unresolved);
     }

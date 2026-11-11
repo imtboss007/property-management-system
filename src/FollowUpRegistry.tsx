@@ -3,6 +3,7 @@ import { CalendarClock, CheckCircle2, Clock3, Filter, ListTodo, MessageCircle, P
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
+type WhatsAppGroup = { id: string; jid: string; name: string; size?: number };
 type Task = {
   id: string; title: string; date: string; time: string; type: string; property: string;
   propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean;
@@ -22,6 +23,7 @@ type Props = {
   initialTab?: "All"|"Today"|"Overdue"|"Upcoming"|"Completed";
   properties: FollowUpRecordLike[];
   contacts: Contact[];
+  whatsappGroups?: WhatsAppGroup[];
   tasks: Task[];
   today: string;
   onAdd: () => void;
@@ -45,7 +47,7 @@ const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLoc
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
 export default function FollowUpRegistry({
-  initialTab="All", properties, contacts, tasks, today, onAdd, onEditEntry, onUpdateEntry,
+  initialTab="All", properties, contacts, whatsappGroups = [], tasks, today, onAdd, onEditEntry, onUpdateEntry,
   onDeleteEntry, onEditRecord, onEditTask, onToggleTask, onDeleteTask, onOpenModule, onWhatsApp
 }: Props) {
   const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">(initialTab);
@@ -57,6 +59,7 @@ export default function FollowUpRegistry({
   const [month, setMonth] = useState(today.slice(0,7));
   const [view, setView] = useState<"people"|"timeline"|"calendar">("people");
   const contactById = useMemo(() => new Map<string, Contact>(contacts.map(contact => [contact.id, contact] as const)), [contacts]);
+  const groupById = useMemo(() => new Map<string, WhatsAppGroup>(whatsappGroups.map(group => [group.id, group] as const)), [whatsappGroups]);
 
   const items = useMemo<Item[]>(() => {
     const result: Item[] = [];
@@ -111,7 +114,8 @@ export default function FollowUpRegistry({
       if (priorityFilter && item.entry.priority !== priorityFilter) return false;
       if (term) {
         const people = item.entry.contactIds.map(id => contactById.get(id)?.name || "").join(" ");
-        const text = [item.entry.description,item.entry.notes,item.entry.nextAction,item.recordTitle,item.module,people,item.entry.amount].join(" ").toLowerCase();
+        const groups = (item.entry.whatsAppGroupIds || []).map(id => groupById.get(id)?.name || "").join(" ");
+        const text = [item.entry.description,item.entry.notes,item.entry.nextAction,item.recordTitle,item.module,people,groups,item.entry.amount].join(" ").toLowerCase();
         if (!text.includes(term)) return false;
       }
       return true;
@@ -175,6 +179,7 @@ export default function FollowUpRegistry({
   };
   const renderItem = (item: Item) => {
     const people = item.entry.contactIds.map(id => contactById.get(id)).filter((person): person is Contact => Boolean(person));
+    const linkedGroups = (item.entry.whatsAppGroupIds || []).map(id => groupById.get(id)).filter((group): group is WhatsAppGroup => Boolean(group));
     const status = statusOf(item);
     const recordId = item.record?.id || item.task?.propertyId || "";
     return <article className={"ax-followup-card"+(status==="Completed"?" is-complete":"")} key={item.key}>
@@ -183,6 +188,7 @@ export default function FollowUpRegistry({
       <p className="ax-followup-related">{item.recordTitle}{item.entry.amount ? " · "+money(item.entry.amount) : ""}</p>
       <div className="ax-followup-meta"><span><CalendarClock size={13}/>{dateLabel(item.entry.date)}</span><span><Clock3 size={13}/>{item.entry.time || "Time not set"}</span>{item.entry.assignedAt && <span>Assigned {dateLabel(item.entry.assignedAt.slice(0,10))}</span>}</div>
       <div className="ax-followup-assignees"><Users size={13}/>{people.length ? people.map(person=>person.name).join(" · ") : "No follow-up person assigned"}</div>
+      {linkedGroups.length>0&&<div className="ax-followup-assignees"><MessageCircle size={13}/>{linkedGroups.map(group=>group.name).join(" · ")}</div>}
       {item.entry.nextAction && <p className="ax-followup-next"><strong>Next:</strong> {item.entry.nextAction}</p>}
       {item.entry.notes && <p className="ax-followup-notes">{item.entry.notes}</p>}
       <div className="ax-followup-card__bottom"><span className={"ax-followup-status status-"+status.toLowerCase().replace(/\s/g,"-")}>{status}</span><div className="ax-followup-actions">

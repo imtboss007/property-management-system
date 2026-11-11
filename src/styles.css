@@ -5626,3 +5626,144 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* AXIVESTRA property ownership and multi-asset enhancements */
+.ax-sidebar-module-add {
+  margin-top: 5px;
+  border: 1px dashed #39617a;
+  color: #b9d9e8;
+}
+.ax-sidebar-module-add > svg { color: #39d5e8; }
+.ax-sidebar-module-add:hover { border-color: #2aaec2; background: #102f43; }
+.searchable-contact-picker__bulk-actions,
+.ax-followup-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 7px 0;
+}
+.searchable-contact-picker__bulk-actions button,
+.ax-followup-group-actions button {
+  border: 1px solid #294c60;
+  border-radius: 7px;
+  background: #10283a;
+  color: #a7d7e2;
+  padding: 6px 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.searchable-contact-picker__bulk-actions button:hover,
+.ax-followup-group-actions button:hover { border-color: #27c7d9; color: #e9fbff; }
+.ax-property-rate-preview {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 4px;
+  padding: 11px 13px;
+  border: 1px solid #31546a;
+  border-radius: 9px;
+  background: #0c2233;
+  color: #d9edf5;
+  font-size: 11px;
+}
+.ax-property-rate-preview strong { color: #8be2dc; font-size: 11px; }
+.ax-property-rate-preview small { color: #8baebe; line-height: 1.5; }
+.ax-associated-property-section,
+.ax-share-allocation-section { display: grid; gap: 12px; }
+.ax-associated-property-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #31546a;
+  border-radius: 11px;
+  background: rgba(9, 29, 44, .68);
+}
+.ax-associated-property-head,
+.ax-share-allocation-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ax-associated-property-head strong { color: #d9edf5; font-size: 12px; }
+.ax-add-associated-property { justify-self: start; display: inline-flex; align-items: center; gap: 7px; }
+.ax-share-allocation-row { align-items: end; padding: 10px; border: 1px solid #31546a; border-radius: 9px; }
+.ax-share-allocation-row > button { align-self: end; }
+.ax-share-allocation-footer strong { color: #8be2dc; font-size: 11px; }
+.ax-linked-assets { margin-top: 9px; display: grid; gap: 6px; }
+.ax-linked-assets > strong { color: #91cbdc; font-size: 10px; }
+.ax-linked-assets > span { display: block; line-height: 1.5; }
+@media (max-width: 680px) {
+  .ax-share-allocation-footer,
+  .ax-associated-property-head { align-items: flex-start; }
+  .ax-share-allocation-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* Custom workspace builder: schema editing stays inside the app and remains usable on small screens. */
+.ax-modern-shell .ax-custom-module-modal { width:min(940px,96vw); max-width:940px; max-height:92vh; overflow:auto; }
+.ax-modern-shell .ax-custom-module-builder { color:#dcecf0; }
+.ax-modern-shell .ax-custom-module-builder form { display:flex; flex-direction:column; gap:14px; }
+.ax-modern-shell .ax-custom-builder-intro { padding:2px 0 6px; }
+.ax-modern-shell .ax-custom-builder-intro h3 { margin:7px 0 5px; color:#effcf9; font-size:19px; }
+.ax-modern-shell .ax-custom-builder-intro p { max-width:760px; margin:0; color:#92b1bd; font-size:11px; line-height:1.65; }
+.ax-modern-shell .ax-custom-module-builder label { display:flex; flex-direction:column; gap:6px; min-width:0; color:#b7d0db; font-size:10px; font-weight:800; }
+.ax-modern-shell .ax-custom-module-builder input,
+.ax-modern-shell .ax-custom-module-builder select,
+.ax-modern-shell .ax-custom-module-builder textarea { width:100%; min-width:0; min-height:38px; padding:9px 10px; border:1px solid #2a4a5c; border-radius:8px; background:#071b29; color:#e7f5f7; font:500 12px "DM Sans",sans-serif; }
+.ax-modern-shell .ax-custom-module-builder textarea { resize:vertical; }
+.ax-modern-shell .ax-custom-module-builder input::placeholder,
+.ax-modern-shell .ax-custom-module-builder textarea::placeholder { color:#668496; }
+.ax-modern-shell .ax-custom-builder-fields-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:5px; padding:12px 13px; border:1px solid #24495a; border-radius:11px; background:linear-gradient(110deg,#102f3e,#0a2231); }
+.ax-modern-shell .ax-custom-builder-fields-head>div { display:flex; flex-direction:column; gap:4px; }
+.ax-modern-shell .ax-custom-builder-fields-head strong { color:#e4f7f1; font-size:12px; }
+.ax-modern-shell .ax-custom-builder-fields-head small { color:#89aab7; font-size:10px; }
+.ax-modern-shell .ax-custom-builder-empty { padding:16px; border:1px dashed #315365; border-radius:10px; color:#91adba; font-size:11px; text-align:center; }
+.ax-modern-shell .ax-custom-builder-fields { display:flex; flex-direction:column; gap:10px; }
+.ax-modern-shell .ax-custom-builder-field { display:flex; flex-direction:column; gap:10px; padding:13px; border:1px solid #2a4b5d; border-radius:11px; background:#0a2030; }
+.ax-modern-shell .ax-custom-builder-field-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ax-modern-shell .ax-custom-builder-field-top>strong { color:#93d9d1; font-size:10px; letter-spacing:.8px; text-transform:uppercase; }
+.ax-modern-shell .ax-custom-builder-field-top>div { display:flex; gap:5px; }
+.ax-modern-shell .ax-builder-icon-button { display:grid; place-items:center; width:30px; height:29px; border:1px solid #315365; border-radius:7px; background:#102d3d; color:#b5d2dc; cursor:pointer; }
+.ax-modern-shell .ax-builder-icon-button:disabled { opacity:.35; cursor:not-allowed; }
+.ax-modern-shell .ax-builder-icon-button.danger { color:#ff9e9e; border-color:#68404b; }
+.ax-modern-shell .ax-custom-builder-required { display:flex!important; flex-direction:row!important; align-items:center; gap:8px!important; color:#9dbac5!important; font-size:10px!important; }
+.ax-modern-shell .ax-custom-builder-required input { width:16px; min-height:16px; height:16px; accent-color:#35c9b2; }
+.ax-modern-shell .ax-custom-builder-error { margin:0; padding:10px 12px; border:1px solid #7b4852; border-radius:8px; background:#351f2a; color:#ffc1c5; font-size:11px; }
+.ax-modern-shell .ax-custom-module-builder .form-actions { position:sticky; bottom:-17px; z-index:2; margin:0 -2px -2px; padding:12px 2px 3px; background:linear-gradient(180deg,rgba(8,29,41,0),#081d29 35%); }
+.ax-modern-shell .ax-module-dynamic-field { display:flex; flex-direction:column; min-width:0; }
+.ax-modern-shell .ax-module-dynamic-field>label { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.ax-modern-shell .ax-module-dynamic-field .searchable-contact-picker { min-width:0; }
+.ax-modern-shell .ax-module-hero-actions .ax-custom-module-delete { color:#e6a2a7; border-color:#70454e; }
+.ax-modern-shell .ax-module-hero-actions .ax-custom-module-delete:hover { border-color:#d77983; color:#ffd2d4; }
+.ax-modern-shell .module-record-form .module-data-grid>.ax-module-dynamic-field { min-width:0; }
+.ax-modern-shell .ax-universal-overlay { z-index:2600; }
+.ax-modern-shell .ax-universal-popover { z-index:1600; }
+
+@media(max-width:720px) {
+  .ax-modern-shell .ax-custom-module-modal { width:calc(100vw - 16px); max-height:94vh; margin:8px; padding:14px; }
+  .ax-modern-shell .ax-custom-builder-fields-head { align-items:flex-start; flex-direction:column; }
+  .ax-modern-shell .ax-custom-builder-fields-head .secondary-button { width:100%; justify-content:center; }
+  .ax-modern-shell .ax-custom-builder-field { padding:10px; }
+  .ax-modern-shell .ax-custom-module-builder .form-two { grid-template-columns:minmax(0,1fr); }
+  .ax-modern-shell .ax-module-hero-actions { flex-wrap:wrap; }
+  .ax-modern-shell .ax-module-hero-actions>* { flex:1 1 100%; }
+}
+
+
+/* Record relationship panel shared by standard and custom modules. */
+.ax-modern-shell .ax-record-linked-summary { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 2px; }
+.ax-modern-shell .ax-record-linked-summary span { padding:4px 7px; border:1px solid rgba(101,171,183,.2); border-radius:6px; background:rgba(14,43,57,.55); color:#90b9c4; font-size:8px; font-weight:800; letter-spacing:.15px; }
+.ax-modern-shell .ax-record-related-activity { display:flex; flex-direction:column; gap:7px; margin-top:13px; padding:12px; border:1px solid rgba(102,181,187,.2); border-radius:10px; background:rgba(5,24,36,.55); }
+.ax-modern-shell .ax-record-related-activity>div { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px; padding-top:7px; border-top:1px solid rgba(116,179,191,.12); }
+.ax-modern-shell .ax-record-related-activity>div:first-child { margin-top:0; padding-top:0; border-top:0; }
+.ax-modern-shell .ax-record-related-activity>div>strong { flex:1; min-width:130px; color:#c4e5e2; font-size:9px; letter-spacing:.45px; text-transform:uppercase; }
+.ax-modern-shell .ax-record-related-activity>div>button { padding:4px 7px; border:1px solid rgba(91,181,192,.25); border-radius:6px; background:rgba(18,57,69,.55); color:#8fd3d0; font-size:8px; font-weight:800; cursor:pointer; }
+.ax-modern-shell .ax-record-related-activity>p { display:flex; justify-content:space-between; gap:12px; margin:0; padding:5px 2px; border-bottom:1px solid rgba(116,179,191,.08); }
+.ax-modern-shell .ax-record-related-activity>p>span { color:#819fac; font-size:8px; }
+.ax-modern-shell .ax-record-related-activity>p>strong { color:#d5e9e7; font-size:9px; text-align:right; }
+.ax-modern-shell .ax-record-related-activity>small { color:#7c9ba8; font-size:9px; }
+@media(max-width:720px) {
+  .ax-modern-shell .ax-record-related-activity>p { align-items:flex-start; flex-direction:column; gap:3px; }
+  .ax-modern-shell .ax-record-related-activity>p>strong { text-align:left; }
+}

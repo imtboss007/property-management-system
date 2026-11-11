@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { ArrowRight, Building2, Cloud, KeyRound, LoaderCircle, LockKeyhole, LogOut, Mail, Plus, ShieldCheck, UserPlus } from "lucide-react";
 import App from "./App";
 import { assignLegacyVaultToCompany } from "./lib/local-db";
+import { isLocalOnlySelected, persistStorageMode } from "./lib/storage-mode";
 import { hasLegacyLocalRecords, hasPersonalWorkspaceCache, prepareCompanyWorkspace, preparePersonalWorkspace, scopedStorageKey, supabase, type CompanyRole, type WorkspaceCompany } from "./lib/supabase";
 
 type AuthMode = "signin" | "signup" | "reset";
@@ -14,6 +15,7 @@ const AUTH_REDIRECT_URL = "https://axivestra.pages.dev";
 export default function AuthGate() {
   const [checked, setChecked] = useState(false);
   const [recoverySession, setRecoverySession] = useState(false);
+  const [localOnlyAccess, setLocalOnlyAccess] = useState(isLocalOnlySelected);
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<AuthMode>("signin");
@@ -31,6 +33,16 @@ export default function AuthGate() {
   const [migrationPersonal, setMigrationPersonal] = useState(false);
 
   const clearMessages = () => { setError(""); setInfo(""); };
+
+  const continueLocalOnly = () => {
+    try {
+      persistStorageMode("local");
+      clearMessages();
+      setLocalOnlyAccess(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
 
   useEffect(() => {
     if (!supabase) {
@@ -70,7 +82,7 @@ export default function AuthGate() {
   }, []);
 
   const loadMemberships = useCallback(async () => {
-    if (!supabase || !userId) return;
+    if (localOnlyAccess || !supabase || !userId) return;
     setBusy(true);
     setError("");
     try {
@@ -98,12 +110,12 @@ export default function AuthGate() {
     } finally {
       setBusy(false);
     }
-  }, [userId]);
+  }, [userId, localOnlyAccess]);
 
   useEffect(() => {
-    if (userId) { setMembershipsReady(false); void loadMemberships(); }
+    if (userId && !localOnlyAccess) { setMembershipsReady(false); void loadMemberships(); }
     else { setMemberships([]); setMembershipsReady(false); }
-  }, [userId, loadMemberships]);
+  }, [userId, localOnlyAccess, loadMemberships]);
 
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
@@ -270,10 +282,10 @@ export default function AuthGate() {
   };
 
   useEffect(() => {
-    if (userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
+    if (!localOnlyAccess && userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
       choosePersonal();
     }
-  }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
+  }, [localOnlyAccess, userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
 
   const openWorkspaceChooser = () => {
     setActivePersonal(false);
@@ -297,8 +309,8 @@ export default function AuthGate() {
     }
   };
 
-  // Local-first installs open straight into AXIVESTRA; phone pairing is built into Settings.
-  if (!supabase) return <App />;
+  // Local-first installs open straight into AXIVESTRA; Local Only does not wait for an account session.
+  if (!supabase || localOnlyAccess) return <App />;
 
   if (!checked) return <div className="auth-shell"><div className="auth-card auth-loading"><LoaderCircle className="auth-spinner" size={28}/><strong>Restoring secure session…</strong></div></div>;
 
@@ -307,7 +319,7 @@ export default function AuthGate() {
   }
 
   if (!userId) {
-    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Personal + company workspace</span></div></div><div className="auth-icon"><LockKeyhole size={25}/></div><span className="auth-kicker">SECURE ACCOUNT ACCESS</span><h1>{mode === "signin" ? "Welcome back." : mode === "signup" ? "Create your account." : "Recover access."}</h1><p className="auth-copy">Start with a private Personal Mode workspace. No company is required. Company Mode is optional and can be added later.</p><form className="auth-form" onSubmit={submitAuth}><label>Email address<div className="auth-input"><Mail size={17}/><input type="email" autoComplete="email" required value={emailInput} onChange={event=>setEmailInput(event.target.value)} placeholder="you@company.com"/></div></label>{mode !== "reset" && <label>Password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>}{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : mode === "signin" ? <LockKeyhole size={17}/> : mode === "signup" ? <UserPlus size={17}/> : <Mail size={17}/>} {busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : mode === "signup" ? "Create account" : "Send recovery email"}</button></form><div className="auth-links">{mode !== "signup" && <button onClick={()=>{setMode("signup");clearMessages();}}>Create an account</button>}{mode !== "signin" && <button onClick={()=>{setMode("signin");clearMessages();}}>Back to sign in</button>}{mode !== "reset" && <button onClick={()=>{setMode("reset");clearMessages();}}>Forgot password?</button>}</div><p className="auth-footnote"><ShieldCheck size={14}/> Never use your WhatsApp pairing code as your account password.</p></div></div>;
+    return <div className="auth-shell"><div className="auth-card"><div className="auth-brand"><div className="auth-brand-mark"><img src="./axivestra-mark.svg" alt="AXIVESTRA logo"/></div><div><strong>AXIVESTRA</strong><span>Personal + company workspace</span></div></div><div className="auth-icon"><LockKeyhole size={25}/></div><span className="auth-kicker">SECURE ACCOUNT ACCESS</span><h1>{mode === "signin" ? "Welcome back." : mode === "signup" ? "Create your account." : "Recover access."}</h1><p className="auth-copy">Start with a private Personal Mode workspace. No company is required. Company Mode is optional and can be added later.</p><form className="auth-form" onSubmit={submitAuth}><label>Email address<div className="auth-input"><Mail size={17}/><input type="email" autoComplete="email" required value={emailInput} onChange={event=>setEmailInput(event.target.value)} placeholder="you@company.com"/></div></label>{mode !== "reset" && <label>Password<div className="auth-input"><KeyRound size={17}/><input type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={event=>setPassword(event.target.value)} placeholder="At least 8 characters"/></div></label>}{error && <div className="auth-error" role="alert">{error}</div>}{info && <div className="auth-info" role="status">{info}</div>}<button className="auth-primary" disabled={busy}>{busy ? <LoaderCircle className="auth-spinner" size={17}/> : mode === "signin" ? <LockKeyhole size={17}/> : mode === "signup" ? <UserPlus size={17}/> : <Mail size={17}/>} {busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : mode === "signup" ? "Create account" : "Send recovery email"}</button></form><div className="auth-links">{mode !== "signup" && <button onClick={()=>{setMode("signup");clearMessages();}}>Create an account</button>}{mode !== "signin" && <button onClick={()=>{setMode("signin");clearMessages();}}>Back to sign in</button>}{mode !== "reset" && <button onClick={()=>{setMode("reset");clearMessages();}}>Forgot password?</button>}</div><div className="auth-links"><button type="button" onClick={continueLocalOnly}>Continue without login · Local storage only</button></div><p className="auth-footnote"><ShieldCheck size={14}/> Local Only keeps records on this device. You can pair Android with Windows later for local-network sync; no account is required.</p></div></div>;
   }
 
   if (migrationCompany) {

@@ -8,6 +8,7 @@ import {
   type DeviceSyncSnapshot
 } from "./lib/device-sync";
 import { localDb, loadDeviceSyncBaseline, saveDeviceSyncBaseline } from "./lib/local-db";
+import { getStorageMode, persistStorageMode, type AxivestraStorageMode } from "./lib/storage-mode";
 import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, syncPersonalWorkspace, personalStorageKey, type CompanyRole, type WorkspaceCompany, type WorkspaceCollections } from "./lib/supabase";
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
@@ -15,6 +16,8 @@ import IntentCanvas from "./IntentCanvas";
 import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";
 import ModuleWorkbench from "./ModuleWorkbench";
 import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
+import CustomModuleBuilder from "./CustomModuleBuilder";
+import { normalizeCustomModules, type CustomModuleDefinition, type CustomModuleFieldType } from "./lib/custom-modules";
 import FollowUpRegistry from "./FollowUpRegistry";
 import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
@@ -29,7 +32,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow, ListTodo, Orbit
+  BrainCircuit, Workflow, ListTodo, Orbit, Share2, FolderPlus
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -88,9 +91,9 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
     <span className="searchable-contact-picker__label">{label}</span>
     <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
     {multiple
-      ? <div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
+      ? <><div className="searchable-contact-picker__bulk-actions"><button type="button" onClick={() => onChange(Array.from(new Set([...selectedIds, ...filtered.map(contact => contact.id)])))}>Select all matching</button><button type="button" onClick={() => onChange([])}>Clear selection</button></div><div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
           {filtered.length === 0 ? <p className="searchable-contact-picker__empty">No matching contacts.</p> : filtered.map(contact => <label className="searchable-contact-picker__option" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={event => toggle(contact.id, event.target.checked)}/><span><strong>{contact.name}</strong><small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{contact.role}{contact.phone ? " · " + contact.phone : ""}</small></span></label>)}
-        </div>
+        </div></>
       : <select className="searchable-contact-picker__select" size={1} value={Array.isArray(value) ? "" : value} onChange={event => onChange(event.target.value)}>
           <option value="">{placeholder || "No contact linked"}</option>
           {selected.filter(contact => !filtered.some(item => item.id === contact.id)).map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
@@ -101,13 +104,14 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   </div>;
 }
 
-const modules = [
+const standardModules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
   { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
   { name: "SR Rate Settlement", icon: Calculator, color: "amber", group: "Settlement", description: "Rate-based settlements, supporting records and approvals." },
   { name: "Agricultural Land", icon: Wheat, color: "green", group: "Real Assets", description: "Survey details, extent, ownership and due diligence." },
   { name: "Commercial Land", icon: Store, color: "rose", group: "Real Assets", description: "Commercial assets, counterparties and transaction stages." },
+  { name: "Sharing Property", icon: Share2, color: "violet", group: "Ownership & Transfer", description: "Co-ownership shares, gifts, deeds, mortgages and linked property assets." },
   { name: "Startup", icon: Rocket, color: "violet", group: "Capital & Ventures", description: "Founders, funding rounds, valuation and capital requirements." },
   { name: "Equity", icon: PieChart, color: "blue", group: "Capital & Ventures", description: "Shares, instruments, ownership, entry cost and valuation." },
   { name: "Unsecured Company Loan", icon: BriefcaseBusiness, color: "amber", group: "Credit & Lending", description: "Company borrowing, lender terms, guarantees and covenants." },
@@ -136,7 +140,7 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+type ModuleField = { key: string; label: string; placeholder: string; type?: CustomModuleFieldType; options?: string[]; required?: boolean };
 const moduleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
@@ -145,7 +149,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "agreedPrice", label: "Agreed price (₹)", placeholder: "Amount", type: "number" },
     { key: "offerDate", label: "Offer date", placeholder: "Date", type: "date" },
     { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
-    { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" }
+    { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Property Loans": [
     { key: "borrower", label: "Borrower / applicant", placeholder: "Client or company" },
@@ -174,12 +182,17 @@ const moduleFields: Record<string, ModuleField[]> = {
   ],
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
-    { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
-    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
-    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
-    { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
+    { key: "settlementBasis", label: "Settlement basis", placeholder: "SR / guidance value, market value, fixed amount or negotiated basis", options: ["SR / guidance value","Market value","SR + market comparison","Fixed amount","Negotiated amount","Other"] },
+    { key: "srRatePerUnit", label: "SR / guidance rate per unit (₹)", placeholder: "Sub-Registrar / guidance rate", type: "number" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "Market / negotiated rate", type: "number" },
+    { key: "srValueTotal", label: "Calculated SR / guidance amount (₹)", placeholder: "Calculated from extent × SR rate", type: "number" },
+    { key: "marketValueTotal", label: "Calculated market amount (₹)", placeholder: "Calculated from extent × market rate", type: "number" },
+    { key: "settlementRate", label: "Agreed settlement rate per unit (₹)", placeholder: "Rate", type: "number" },
+    { key: "settlementAmount", label: "Final settlement amount (₹)", placeholder: "Agreed amount payable / receivable", type: "number" },
+    { key: "settlementStage", label: "Settlement stage", placeholder: "Select settlement stage", options: ["Proposal","Under negotiation","Agreed","Approved","Partly paid","Paid","Disputed","Cancelled"] },
     { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
-    { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
+    { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Conditions, instalments, deductions and source documents" }
   ],
   "Agricultural Land": [
     { key: "landClassification", label: "Land classification", placeholder: "Agricultural / converted / restricted" },
@@ -187,7 +200,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "waterAndAccess", label: "Water, access and utilities", placeholder: "Borewell / road / power" },
     { key: "dueDiligenceStatus", label: "Due diligence status", placeholder: "Title / survey / mutation / conversion" },
     { key: "targetDueDiligenceDate", label: "Target due-diligence completion", placeholder: "Date", type: "date" },
-    { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" }
+    { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Commercial Land": [
     { key: "zoning", label: "Zoning / permitted use", placeholder: "Commercial / industrial / mixed use" },
@@ -195,7 +212,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "titleStatus", label: "Title / encumbrance status", placeholder: "Clear / pending / issue identified" },
     { key: "dueDiligenceStage", label: "Due diligence stage", placeholder: "Title / zoning / access / approvals" },
     { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
-    { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" }
+    { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Startup": [
     { key: "stage", label: "Startup stage", placeholder: "Pre-seed, seed, Series A…" },
@@ -256,6 +277,26 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "firstEmiDate", label: "First EMI date", placeholder: "Date", type: "date" },
     { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
   ],
+  "Sharing Property": [
+    { key: "sharingArrangement", label: "Sharing / transfer arrangement", placeholder: "Select arrangement", options: ["Co-ownership","Purchase of an ownership share","Gift transfer","Family settlement","Partition / division","Release / relinquishment","Sale of jointly owned property","Property shared as mortgage security","Other"] },
+    { key: "sharingRatioPreset", label: "Share ratio", placeholder: "Choose a ratio", options: ["50:50","60:40","70:30","75:25","80:20","90:10","Custom / multiple owners"] },
+    { key: "giftAmount", label: "Gift amount / declared gift value (₹)", placeholder: "Gift amount, if applicable", type: "number" },
+    { key: "considerationAmount", label: "Share purchase consideration (₹)", placeholder: "Amount paid for transferred share", type: "number" },
+    { key: "transferInstrument", label: "Deed / instrument type", placeholder: "Choose deed", options: ["Sale Deed","Gift Deed","Release / Relinquishment Deed","Partition Deed","Family Settlement Deed","Settlement Deed","Mortgage Deed","Memorandum of Deposit of Title Deeds","Other"] },
+    { key: "mortgageType", label: "Mortgage type", placeholder: "Choose mortgage type", options: ["No mortgage","Existing mortgage","Equitable mortgage / deposit of title deeds","Registered mortgage","Simple mortgage","English mortgage","Usufructuary mortgage","Mortgage by conditional sale","Other / verify with counsel"] },
+    { key: "loanArrangement", label: "Linked loan arrangement", placeholder: "Choose loan arrangement", options: ["No loan","Existing property loan","New loan against property","Co-borrower housing loan","Top-up / refinance","Loan takeover / balance transfer","Loan against jointly owned property","Other"] },
+    { key: "lender", label: "Lender / mortgagee", placeholder: "Bank / NBFC / private lender" },
+    { key: "loanAmount", label: "Loan / mortgage amount (₹)", placeholder: "Sanctioned / proposed amount", type: "number" },
+    { key: "outstandingLoanAmount", label: "Outstanding loan amount (₹)", placeholder: "Current balance", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "Rate", type: "number" },
+    { key: "emi", label: "EMI / repayment amount (₹)", placeholder: "Monthly instalment", type: "number" },
+    { key: "loanTenureMonths", label: "Loan tenure (months)", placeholder: "Months", type: "number" },
+    { key: "deedNumber", label: "Deed / document number", placeholder: "Registered document number" },
+    { key: "registrationDate", label: "Registration / execution date", placeholder: "Date", type: "date" },
+    { key: "stampDutyAndFees", label: "Stamp duty & registration fees (₹)", placeholder: "Amount", type: "number" },
+    { key: "transferStatus", label: "Transfer / sharing status", placeholder: "Choose status", options: ["Proposed","Terms agreed","Due diligence","Draft deed","Ready for registration","Registered","Mutation / khata pending","Completed","Disputed","Cancelled"] },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Any balancing / settlement amount", type: "number" }
+  ],
   "House Purchase": [
     { key: "buyer", label: "Buyer / purchaser", placeholder: "Buyer name" },
     { key: "seller", label: "Seller", placeholder: "Seller name" },
@@ -274,7 +315,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "caseType", label: "Case type / current stage", placeholder: "Civil, criminal, appeal, interim…" },
     { key: "claimExposure", label: "Claim / exposure (₹)", placeholder: "Amount in dispute", type: "number" },
     { key: "nextHearingDate", label: "Next hearing date", placeholder: "Date", type: "date" },
-    { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" }
+    { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Proposed / agreed amount in dispute", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Not discussed","Mediation","Proposed","Under negotiation","Agreed","Consent terms filed","Partly paid","Paid","Disputed","Withdrawn"] },
+    { key: "settlementDate", label: "Settlement / consent terms date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / court recording", placeholder: "Consent terms, payment schedule and court order reference" }
   ],
   "Fund & Portfolio Management": [
     { key: "fundName", label: "Fund / portfolio name", placeholder: "Legal fund or portfolio name" },
@@ -319,6 +364,7 @@ const moduleFields: Record<string, ModuleField[]> = {
   ]
 };
 type ModuleContactField = { key: string; label: string };
+
 const moduleContactFields: Record<string, ModuleContactField[]> = {
   "Property Sale": [
     { key: "__contact_seller", label: "Seller / property owner" },
@@ -389,6 +435,14 @@ const moduleContactFields: Record<string, ModuleContactField[]> = {
     { key: "__contact_guarantor", label: "Co-borrower / guarantor" },
     { key: "__contact_collateralOwner", label: "Collateral property owner" }
   ],
+  "Sharing Property": [
+    { key: "__contact_currentOwner", label: "Current owner / transferor" },
+    { key: "__contact_incomingOwner", label: "Incoming owner / recipient" },
+    { key: "__contact_coOwner", label: "Co-owner / shareholder" },
+    { key: "__contact_lender", label: "Lender / mortgagee" },
+    { key: "__contact_legalCounsel", label: "Lawyer / conveyance" },
+    { key: "__contact_witness", label: "Witness / other party" }
+  ],
   "House Purchase": [
     { key: "__contact_buyer", label: "Buyer / purchaser" },
     { key: "__contact_seller", label: "Seller" },
@@ -430,6 +484,7 @@ const uid = () => {
 };
 const storageKey = (key: string): string => {
   if (!key.startsWith("estateflow.")) return key;
+  if (getStorageMode() === "local") return key;
   try {
     const companyId = localStorage.getItem("axivestra.activeCompanyId");
     if (companyId) return `axivestra.company.${companyId}.${key}`;
@@ -588,7 +643,13 @@ async function requestPcSync(host: string, token: string, method: "GET" | "POST"
 type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: string; email?: string; onSignOut?: () => void; onSwitchCompany?: () => void };
 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
+  const storageMode = getStorageMode();
   const [active, setActive] = useState<Section>("Overview");
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => normalizeCustomModules(load("estateflow.customModules", [])));
+  const [customModuleBuilderOpen, setCustomModuleBuilderOpen] = useState(false);
+  const [editingCustomModule, setEditingCustomModule] = useState<CustomModuleDefinition | null>(null);
+  const modules = useMemo(() => [...standardModules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
+  const moduleFieldsFor = (name: string): ModuleField[] => moduleFields[name] || customModules.find(item => item.name === name)?.fields || [];
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -662,6 +723,20 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const [memberBusy, setMemberBusy] = useState(false);
   const [memberStatus, setMemberStatus] = useState("");
 
+  const chooseStorageMode = (next: AxivestraStorageMode) => {
+    if (next === storageMode) return;
+    const explanation = next === "local"
+      ? "Switch to Local Only? AXIVESTRA will save to this device and stop account cloud sync. Your Login ID data will remain saved separately and will not be deleted or copied."
+      : "Switch to Login ID storage? AXIVESTRA will reopen your account workspace and resume cloud sync after sign-in. Your Local Only data will remain saved separately and will not be deleted or copied.";
+    if (!window.confirm(explanation + "\\n\\nExport a backup before switching if you plan to move records between these storage locations.")) return;
+    try {
+      persistStorageMode(next);
+      window.location.reload();
+    } catch (error) {
+      setNotice("Could not change the storage preference: " + (error instanceof Error ? error.message : String(error)));
+    }
+  };
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -719,6 +794,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     saveLocal("estateflow.approvals", approvalRequests);
   }, [approvalRequests]);
 
+  useEffect(() => { saveLocal("estateflow.customModules", customModules); }, [customModules]);
+
   // Local audit trail: record entity-level changes without copying private field values into the log.
   useEffect(() => {
     saveLocal("estateflow.auditEvents", auditEvents);
@@ -728,7 +805,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   // A debounced write follows edits; a 30-second pull also discovers changes from other devices.
   // Documents and WhatsApp linked-device credentials remain device-local.
   useEffect(() => {
-    if ((!company && !personalUserId) || !userId || !supabase) return;
+    if (storageMode !== "account" || (!company && !personalUserId) || !userId || !supabase) return;
     let disposed = false;
     const workspaceLastSyncKey = company
       ? `axivestra.company.${company.id}.estateflow.lastCloudSync`
@@ -754,7 +831,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         financials: financials as WorkspaceCollections["financials"],
         riskRecords: riskRecords as WorkspaceCollections["riskRecords"],
         approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
-        auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
+        auditEvents: auditEvents as WorkspaceCollections["auditEvents"],
+        customModules: customModules as WorkspaceCollections["customModules"]
       };
       const currentKeys: Record<string, Set<string>> = {
         property: new Set(properties.map(record => record.id)),
@@ -764,7 +842,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         financial: new Set(financials.map(record => record.id)),
         risk: new Set(riskRecords.map(record => record.id)),
         approval: new Set(approvalRequests.map(record => record.id)),
-        audit_event: new Set(auditEvents.map(record => record.id))
+        audit_event: new Set(auditEvents.map(record => record.id)),
+        custom_module: new Set(customModules.map(record => record.id))
       };
       try {
         const previousKeys = cloudPreviousRef.current;
@@ -788,6 +867,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
         if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
+        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(normalizeCustomModules(synced.customModules));
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
@@ -796,7 +876,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           financial: new Set(synced.financials.map(record => record.id)),
           risk: new Set(synced.riskRecords.map(record => record.id)),
           approval: new Set(synced.approvalRequests.map(record => record.id)),
-          audit_event: new Set(synced.auditEvents.map(record => record.id))
+          audit_event: new Set(synced.auditEvents.map(record => record.id)),
+          custom_module: new Set((synced.customModules || []).map(record => record.id))
         };
         const syncedAt = new Date().toISOString();
         localStorage.setItem(workspaceLastSyncKey, syncedAt);
@@ -827,7 +908,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       window.clearTimeout(debounce);
       window.clearInterval(interval);
     };
-  }, [company?.id, company?.role, personalUserId, userId, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
+  }, [storageMode, company?.id, company?.role, personalUserId, userId, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
 
   // Windows publishes a local pairing QR. The Android app scans it once, then both
   // clients keep this shared snapshot synchronized automatically while they are connected.
@@ -862,7 +943,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   }, [company?.id]);
 
   useEffect(() => {
-    if (company || personalUserId) return;
+    if (storageMode !== "local") return;
     const desktopApi = window.estateflowWhatsApp;
     const desktopTransport = Boolean(desktopApi?.getDataSync && desktopApi?.saveDataSync);
     const phoneTransport = !desktopTransport && Boolean(syncHost.trim() && syncToken.trim());
@@ -871,7 +952,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
       properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
-      riskRecords, approvalRequests, auditEvents
+      riskRecords, approvalRequests, auditEvents, customModules
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
       setProperties(current => JSON.stringify(current) === JSON.stringify(snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
@@ -882,6 +963,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       setRiskRecords(current => JSON.stringify(current) === JSON.stringify(snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
       setApprovalRequests(current => JSON.stringify(current) === JSON.stringify(snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
       setAuditEvents(current => JSON.stringify(current) === JSON.stringify(snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
+      setCustomModules(current => {
+        const next = normalizeCustomModules(snapshot.customModules || []);
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+      });
     };
     const readRemote = async (): Promise<DeviceSyncReply> => {
       if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync();
@@ -962,7 +1047,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       window.clearInterval(syncInterval);
       if (deviceSyncRunRef.current === runSync) deviceSyncRunRef.current = null;
     };
-  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
+  }, [storageMode, company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, customModules, syncHost, syncToken]);
 
   useEffect(() => {
     let disposed = false;
@@ -1384,8 +1469,14 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     return matchesSearch && matchesRole && matchesProfession && matchesCompany;
   });
   const activeContactFilterCount = contactRoleFilters.length + Number(Boolean(contactProfessionFilter)) + Number(Boolean(contactCompanyFilter));
+  const moduleFieldDisplayValue = (record: PropertyRecord, field: ModuleField): string => {
+    const raw = String(record.moduleData?.[field.key] || "").trim();
+    if (field.type === "contact") return contacts.find(contact => contact.id === raw)?.name || "";
+    if (field.type === "contacts") return raw.split(",").map(id => contacts.find(contact => contact.id === id.trim())?.name).filter(Boolean).join(", ");
+    return raw;
+  };
   const universalEntities: UniversalEntity[] = [
-    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? "₹"+Number(record.value).toLocaleString("en-IN") : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: modules.some(module => module.name === record.module) ? record.module : "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? "₹"+Number(record.value).toLocaleString("en-IN") : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},...moduleFieldsFor(record.module).map(field=>({label:field.label,value:moduleFieldDisplayValue(record,field)})),{label:"Notes",value:record.notes}] })),
     ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
     ...tasks.slice(0,250).map(record => ({ id: record.id, kind: "Task", title: record.title, section: "Schedule & Tasks", subtitle: [record.date,record.time,record.done?"Completed":"Open"].filter(Boolean).join(" · "), details: [{label:"Date",value:record.date},{label:"Time",value:record.time},{label:"Related property",value:record.property},{label:"Contact",value:record.contactName || ""},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...documents.slice(0,250).map(record => ({ id: record.id, kind: "Document", title: record.name, section: "Documents", subtitle: [record.category,record.property].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Property",value:record.property},{label:"Expiry",value:record.expiresOn},{label:"Notes",value:record.notes}] })),
@@ -1604,6 +1695,43 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   };
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
+  const addCustomModule = () => {
+    setEditingCustomModule(null);
+    setCustomModuleBuilderOpen(true);
+  };
+  const editCustomModule = (item: CustomModuleDefinition) => {
+    setEditingCustomModule(item);
+    setCustomModuleBuilderOpen(true);
+  };
+  const saveCustomModuleDefinition = (item: CustomModuleDefinition) => {
+    const previous = customModules.find(existing => existing.id === item.id);
+    const duplicate = modules.some(existing => existing.name.toLocaleLowerCase() === item.name.toLocaleLowerCase() && existing.name !== previous?.name);
+    if (duplicate) { setNotice("A workspace with that name already exists."); return; }
+    setCustomModules(current => previous
+      ? current.map(existing => existing.id === item.id ? item : existing)
+      : [...current, item]);
+    if (previous && previous.name !== item.name) {
+      setProperties(current => current.map(record => record.module === previous.name ? { ...record, module: item.name } : record));
+      if (active === previous.name) setActive(item.name);
+    }
+    setCustomModuleBuilderOpen(false);
+    setEditingCustomModule(null);
+    setActive(item.name);
+    setNotice(previous ? "Custom workspace updated. Existing records and their links were preserved." : "Custom workspace created. Add a record to begin; its relationships and activity panels are ready.");
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: (previous ? "updated" : "created") as AuditEvent["action"], entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
+  };
+  const deleteCustomModule = (item: CustomModuleDefinition) => {
+    const linkedRecords = properties.filter(record => record.module === item.name);
+    if (linkedRecords.length) {
+      setNotice("This workspace has " + linkedRecords.length + " record(s). Move or delete those records first; the workspace cannot be removed while records are linked to it.");
+      return;
+    }
+    if (!window.confirm("Delete the empty custom workspace '" + item.name + "'? This cannot be undone.")) return;
+    setCustomModules(current => current.filter(existing => existing.id !== item.id));
+    if (active === item.name) setActive("Overview");
+    setNotice("Empty custom workspace deleted.");
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "deleted" as AuditEvent["action"], entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
+  };
   const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); };
   const openContactForm = (record: ContactRecord | null = null) => { setEditingContact(record); setShowContactForm(true); };
@@ -2228,7 +2356,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
-        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
+        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}<button type="button" className="ax-sidebar-module ax-sidebar-module-add" onClick={addCustomModule}><Plus size={14}/><span>Add custom module</span></button></div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
           <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
@@ -2237,10 +2365,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active === "Overview" ? "Asset Intelligence" : active}</strong></div>
-          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}{personalUserId && <div className="company-session personal-session"><span className="company-session-name">Personal workspace</span><span className="company-session-role">Private cloud</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={active === "Overview" ? "Asset Intelligence" : String(active)} sections={[...navigation.map(item=>item.label || item.name),...modules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section === "Asset Intelligence" ? "Overview" : section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;}}}/></div>
+          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}{personalUserId && <div className="company-session personal-session"><span className="company-session-name">Personal workspace</span><span className="company-session-role">Private cloud</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={active === "Overview" ? "Asset Intelligence" : String(active)} sections={[...navigation.map(item=>item.label || item.name),...modules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section === "Asset Intelligence" ? "Overview" : section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;case "custom-module":addCustomModule();break;}}}/></div>
         </header>
         <div className="content">
-          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> {active === "Overview" ? "ASSET INTELLIGENCE DASHBOARD" : active === "Workspace Explorer" ? "WORKSPACE NAVIGATION" : "AXIVESTRA WORKSPACE"}</div><h1>{active === "Overview" ? "Understand assets, capital and exposure." : active}</h1><p className="subtitle">{active === "Overview" ? "A connected operating view across property, lending, investments, funds, investors, legal matters, risk and execution." : active === "Workspace Explorer" ? "Explore the 16 domain workspaces. The orbital map is navigation—not the intelligence engine." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
+          <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> {active === "Overview" ? "ASSET INTELLIGENCE DASHBOARD" : active === "Workspace Explorer" ? "WORKSPACE NAVIGATION" : "AXIVESTRA WORKSPACE"}</div><h1>{active === "Overview" ? "Understand assets, capital and exposure." : active}</h1><p className="subtitle">{active === "Overview" ? "A connected operating view across property, lending, investments, funds, investors, legal matters, risk and execution." : active === "Workspace Explorer" ? `Explore ${modules.length} domain workspaces. The orbital map is navigation—not the intelligence engine.` : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
             <button className="primary-button" onClick={() => active === "Workspace Explorer" ? go("All Properties") : active === "Contacts" ? openContactForm() : active === "Follow-up Registry" || active === "Intelligence Hub" ? openFollowUpForm() : active === "Schedule & Tasks" || active === "AXIVESTRA Shift" ? openTaskForm() : active === "Financials" ? openFinancialForm() : active === "Risk & Compliance" ? setShowRiskForm(true) : active === "Approvals" ? setShowApprovalForm(true) : openPropertyForm()}><Plus size={17} /> {active === "Workspace Explorer" ? "View all records" : active === "Contacts" ? "New contact" : active === "Follow-up Registry" || active === "Intelligence Hub" ? "Add follow-up" : active === "Schedule & Tasks" ? "New task" : active === "AXIVESTRA Shift" ? "New shift action" : active === "Financials" ? "New transaction" : active === "Risk & Compliance" ? "Log risk" : active === "Approvals" ? "Request approval" : active === "Client & Deal Hub" ? "New deal / property" : "New record"}</button></div>
           {notice && <div className="notice"><CheckCircle2 size={17}/>{notice}<button onClick={() => setNotice("")} aria-label="Dismiss"><X size={15}/></button></div>}
           {rangeSearches.length > 0 && <section className="ax-property-range-results" aria-live="polite">
@@ -2310,13 +2438,13 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                     record.primaryContactId || "",
                     ...(record.moduleData?.__linkedContactIds || "").split(","),
                     ...(record.moduleData?.__followUpContactIds || "").split(","),
-                    ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([, value]) => String(value || ""))
+                    ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).flatMap(([, value]) => String(value || "").split(","))
                   ]).map(id => id.trim()).filter(Boolean));
                   return {
                     name: module.name,
                     group: module.group,
                     description: module.description,
-                    fields: (moduleFields[module.name] || []).map(field => ({ key: field.key, label: field.label })),
+                    fields: moduleFieldsFor(module.name).map(field => ({ key: field.key, label: field.label })),
                     records: moduleRecords.map(record => ({
                       id: record.id,
                       title: record.title,
@@ -2326,8 +2454,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                       contact: record.contact || "",
                       nextAction: record.nextAction || "",
                       nextFollowUpDate: record.nextFollowUpDate || "",
-                      fieldValues: (moduleFields[module.name] || [])
-                        .map(field => ({ label: field.label, value: String(record.moduleData?.[field.key] || "").trim() }))
+                      fieldValues: moduleFieldsFor(module.name)
+                        .map(field => ({ label: field.label, value: moduleFieldDisplayValue(record, field) }))
                         .filter(field => field.value)
                     })),
                     contacts: contacts.filter(contact => linkedContactIds.has(contact.id)).map(contact => ({
@@ -2368,7 +2496,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 <small>Sum of entered record values across all workspaces; not a net asset valuation</small>
                 <div className="banner-divider"/>
                 <div className="banner-aside-row"><span>Last refreshed</span><strong>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
-                <div className="banner-aside-row"><span>Data mode</span><strong>{company ? "Company cloud" : personalUserId ? "Personal cloud" : "Local-only"}</strong></div>
+                <div className="banner-aside-row"><span>Data mode</span><strong>{storageMode === "local" ? "Local-only" : company ? "Company cloud" : personalUserId ? "Personal cloud" : "Local-only"}</strong></div>
               </div>
             </section>
             <div className="stats-grid institutional-stats">
@@ -2393,7 +2521,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               modules={modules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
             />
-            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Sixteen interconnected workspaces across assets, capital, lending, funds, investor services, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Seventeen connected business workspaces across assets, ownership, capital, lending, funds, investors, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
@@ -2421,7 +2549,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               <div className="banner-aside">
                 <span>LIVE WORKSPACE RECORDS</span>
                 <strong>{properties.length.toLocaleString("en-IN")}</strong>
-                <small>Saved records across {modules.length} operating modules</small>
+                <small>Saved records across {modules.length} operating workspaces</small>
               </div>
             </div>
             <IntentCanvas
@@ -2509,8 +2637,17 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             moduleName={active === "All Properties" ? "All Properties" : active}
             description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : modules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
-            fields={active==="All Properties" ? [] : moduleFields[active] || []}
+            fields={active==="All Properties" ? [] : moduleFieldsFor(active)}
             contacts={contacts}
+            whatsappGroups={savedWhatsAppGroups}
+            documents={documents}
+            tasks={tasks}
+            financials={financials}
+            risks={riskRecords}
+            approvals={approvalRequests}
+            onOpenSection={section=>go(section)}
+            onEditModule={customModules.find(item=>item.name===active) ? ()=>editCustomModule(customModules.find(item=>item.name===active)!) : undefined}
+            onDeleteModule={customModules.find(item=>item.name===active) ? ()=>deleteCustomModule(customModules.find(item=>item.name===active)!) : undefined}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
@@ -2534,7 +2671,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                   {contactRoleOptions.map(role=><button type="button" key={role} aria-pressed={contactRoleFilters.includes(role)} className={contactRoleFilters.includes(role)?"active":""} onClick={()=>setContactRoleFilters(current=>current.includes(role)?current.filter(value=>value!==role):[...current,role])}>{role}</button>)}
                 </div></div>
               </div>
-              {filteredContacts.length ? <div className="record-list">{filteredContacts.map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {contactRolesOf(c).join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Users size={22}/>} title="No contacts match these filters" text="Try another role, profession, company or search term." action="Clear filters" onClick={()=>{setContactRoleFilters([]);setContactProfessionFilter("");setContactCompanyFilter("");setSearch("");}}/>}
+              {filteredContacts.length ? <div className="record-list">{filteredContacts.map(c=><article className="record-card" key={c.id}><div className="record-symbol contact-symbol"><Users size={20}/></div><div className="record-main"><h3>{c.name}</h3><p><Phone size={14}/>{c.phone || "No phone entered"} <span>•</span> {contactRolesOf(c).join(" · ")}</p>{(c.profession || c.employer || c.designation || c.associatedCompany) && <small>{[c.profession,c.designation,c.employer,c.associatedCompany].filter(Boolean).join(" · ")}</small>}{c.email && <small>Email: {c.email}</small>}{c.relationshipNotes && <small>Relationship: {c.relationshipNotes}</small>}{c.notes&&<small>{c.notes}</small>}{c.whatsappName && c.whatsappName !== c.name && <small>WhatsApp saved name: {c.whatsappName}</small>}<small>Linked records: {properties.filter(property=>property.primaryContactId===c.id || (property.moduleData?.__primaryContactIds ?? "").split(",").includes(c.id) || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id) || (!property.primaryContactId && (property.contact || "").trim().toLowerCase()===c.name.trim().toLowerCase())).length} · Open tasks: {tasks.filter(task=>task.contactId===c.id && !task.done).length}</small>{c.phone&&<div className="linked-actions"><a className="secondary-button" href={`tel:${c.phone}`}>Call now</a><button className="secondary-button" onClick={()=>openTaskForm(null,{title:`Call ${c.name}`,date:today,time:"10:00",type:"Call",contactId:c.id,contactName:c.name})}>Schedule call</button><button className="secondary-button" onClick={()=>openWhatsAppFor(c.id,properties.find(property=>property.primaryContactId===c.id || (property.moduleData?.__linkedContactIds ?? "").split(",").includes(c.id) || Object.entries(property.moduleData ?? {}).some(([key,value])=>key.startsWith("__contact_") && value===c.id))?.id)}>Schedule WhatsApp</button></div>}</div><div className="record-side"><button className="edit-button" onClick={()=>openContactForm(c)} aria-label={`Edit ${c.name}`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteContact(c.id)} aria-label={`Delete ${c.name}`}><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Users size={22}/>} title="No contacts match these filters" text="Try another role, profession, company or search term." action="Clear filters" onClick={()=>{setContactRoleFilters([]);setContactProfessionFilter("");setContactCompanyFilter("");setSearch("");}}/>}
             </> : <Empty icon={<Users size={22}/>} title="Your contact book is ready" text="Keep buyers, sellers, lawyers, brokers, lenders and other stakeholders together." action="Add contact" onClick={()=>openContactForm()}/>}</section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
@@ -2553,6 +2690,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             initialTab={followUpRegistryView}
             properties={properties}
             contacts={contacts}
+            whatsappGroups={savedWhatsAppGroups}
             tasks={tasks}
             today={today}
             onAdd={()=>openFollowUpForm()}
@@ -2635,7 +2773,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           />}
           {active === "Documents" && <section className="data-panel">
             <div className="section-heading"><div><h2>Document vault</h2><p>{documents.length} saved documents · documents sync with your linked PC</p></div><div className="finance-actions"><button className="secondary-button" disabled={documentVaultBusy} onClick={()=>void exportDocumentVault()}>{documentVaultBusy?"Working…":"Export vault backup"}</button><label className={"secondary-button "+(documentVaultBusy?"disabled":"")}>Import vault backup<input type="file" accept=".json,application/json" disabled={documentVaultBusy} hidden onChange={event=>{const file=event.target.files?.[0];if(file)void importDocumentVault(file);event.currentTarget.value="";}}/></label></div></div>
-            <div className="notice notice-warn">Documents are saved in this browser/app's local database. They do not sync to your PC or other phone automatically. Download important files separately before changing devices or clearing app data.</div>
+            <div className="notice notice-warn">Documents are stored in this device's local database, not in Login ID record cloud sync. A paired Windows–Android connection can copy the local document vault between those devices. Export the vault before reinstalling AXIVESTRA or clearing app data.</div>
             <div className="document-upload-card">
               <div className="form-two">
                 <label>Document category<select value={documentCategory} onChange={event=>setDocumentCategory(event.target.value)}>{["Sale deed","Encumbrance Certificate","RTC / Pahani","Khata","Tax receipt","Loan document","JV / JDA agreement","Legal opinion","Identity / KYC","Other"].map(value=><option key={value}>{value}</option>)}</select></label>
@@ -2670,17 +2808,18 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             <div className="governance-callout"><ClipboardCheck size={19}/><div><strong>Decision governance</strong><p>Use for investment decisions, loan disbursals, payments, settlements, legal filings and high-impact changes. This personal-workspace version tracks decisions; production multi-user segregation of duties requires organization roles and server-enforced reviewer separation.</p></div></div>
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
-          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : personalUserId ? "Personal records sync privately through your AXIVESTRA account across any signed-in phone or PC. Document file bytes remain in the local vault and are not included in personal cloud record sync." : "Your records and document files automatically sync with your linked Windows PC while both devices are connected."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{personalUserId && <div className="settings-card"><h3>Personal cloud sync · phone and PC</h3><p>This is your private workspace. Sign in with the same account on any phone or PC to access the same properties, contacts, tasks, financial records, risks, approvals and follow-ups. No company or paired Windows PC is required. Sync runs automatically while online.</p><div className="settings-actions"><button type="button" className="primary-button" disabled={cloudSyncBusy || !cloudSyncRunRef.current} onClick={()=>void cloudSyncRunRef.current?.(true)}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button><span className="sync-status" role="status" aria-live="polite">{cloudSyncStatus || "Automatic personal cloud sync is active."}</span></div>{cloudLastSyncedAt && <small className="ax-cloud-sync-last">Last successful sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}<p className="sync-status">Your records are isolated by your signed-in account. Original document files and the linked Windows WhatsApp session remain device-local / PC-linked features.</p><div className="settings-actions"><button type="button" className="secondary-button" onClick={onSwitchCompany}>Explore Company Mode</button></div></div>}{company && <div className="settings-card"><h3>Company cloud sync · phone and PC</h3><p>Signed in to <strong>{company.name}</strong>. This phone or PC can be your starting device. Business records sync both ways through this company account; you do not need a Windows PC to use or synchronize from the phone. When adding another device, sign in with the same account and open the same company.</p><div className="settings-actions"><button type="button" className="primary-button" disabled={cloudSyncBusy || !cloudSyncRunRef.current} onClick={()=>void cloudSyncRunRef.current?.(true)}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button><span className="sync-status" role="status" aria-live="polite">{cloudSyncStatus || "Automatic sync is active · tap Sync now to refresh this device."}</span></div>{cloudLastSyncedAt && <small className="ax-cloud-sync-last">Last successful sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}<p className="sync-status">Cloud records are protected by company membership policies. Document files and the linked Windows WhatsApp session remain device-local / PC-linked features.</p></div>}<div className="settings-card"><h3>Sync WhatsApp + data</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>{company ? "Optional PC link: scan from Android only to share this Windows WhatsApp session and local document vault. Company records already sync through your account." : "Open AXIVESTRA on your Android phone and scan this code once to pair local records with this Windows PC."}</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p>{!company && <div className="settings-actions"><button type="button" className="primary-button" disabled={syncBusy} onClick={()=>void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button></div>}</div> : Capacitor.getPlatform() === "android" ? <div><p>{company ? "Company records sync directly from this phone through your AXIVESTRA account. Pair a Windows PC only if you also need its linked WhatsApp session or local document vault." : syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Scan the PC code once to sync local records and share its documents and linked WhatsApp number."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Scan PC code"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to display the link code.</p>}</div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
-          <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : personalUserId ? "Personal cloud mode · private account" : "Local-first mode · optional trusted-network sync"}</span></footer>
+          {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Choose where records are saved and manage backups</p></div></div><div className="settings-card"><h3>Choose storage location</h3><p><strong>Login ID:</strong> records are saved in your private account or selected company workspace and sync to any PC or phone where you sign in with the same account. <strong>Local Only:</strong> records stay on this device and are not uploaded to the account. To share Local Only data between your Windows PC and Android phone, select Local Only on both and pair them.</p><div className="settings-actions"><span className="sync-status" role="status">Current choice: {storageMode === "local" ? "Local Only" : "Login ID / cloud"}</span>{storageMode === "local" ? <button type="button" className="primary-button" disabled={!supabase} onClick={()=>chooseStorageMode("account")}>Use Login ID</button> : <button type="button" className="secondary-button" onClick={()=>chooseStorageMode("local")}>Use Local Only</button>}</div><small>Switching storage locations does not delete or automatically merge either dataset. Export the current backup before moving data. Your preference is stored separately on each device.</small></div><div className="settings-card"><h3>Local data backup</h3><p>{storageMode === "local" ? "Records are saved only in this device's local storage. No record data is uploaded to your AXIVESTRA Login ID. For local-only sharing between Windows and Android, select Local Only on both devices and pair them over your trusted local network." : company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : personalUserId ? "Personal records sync privately through your AXIVESTRA account across any signed-in phone or PC. Document file bytes remain in the local vault and are not included in personal cloud record sync." : "Your records and document files automatically sync with your linked Windows PC while both devices are connected."}</p><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify({properties,contacts,whatsappGroups:savedWhatsAppGroups,customModules,tasks,financials,riskRecords,approvalRequests,auditEvents,exportedAt:new Date().toISOString()},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`estateflow-backup-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export backup JSON</button><button className="secondary-button" onClick={()=>{const input=document.createElement("input");input.type="file";input.accept=".json,application/json";input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(!Array.isArray(data.properties)||!Array.isArray(data.contacts)||!Array.isArray(data.tasks))throw new Error("Invalid backup");setProperties(data.properties);setContacts(data.contacts);setTasks(data.tasks);if(Array.isArray(data.financials))setFinancials(data.financials);if(Array.isArray(data.riskRecords))setRiskRecords(data.riskRecords);if(Array.isArray(data.approvalRequests))setApprovalRequests(data.approvalRequests);if(Array.isArray(data.auditEvents))setAuditEvents(data.auditEvents);if(Array.isArray(data.whatsappGroups)){setSavedWhatsAppGroups(data.whatsappGroups);}if(Array.isArray(data.customModules)){setCustomModules(normalizeCustomModules(data.customModules));}setNotice("Backup imported.");}catch{setNotice("Could not import this file. Please select a valid AXIVESTRA backup.");}};input.click();}}>Import backup JSON</button></div>{company && ["owner", "admin"].includes(company.role) && <div className="settings-card"><h3>Company member access</h3><p>Invite a new teammate by email, or use an existing Supabase Auth user UUID to grant or change access. Owner access cannot be granted, changed or removed through this screen.</p><form className="member-access-form" onSubmit={inviteCompanyMember}><label>Invite email address<input type="email" autoComplete="email" value={memberInviteEmail} onChange={event=>setMemberInviteEmail(event.target.value)} required placeholder="colleague@company.com"/></label><label>Invitation role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="primary-button" disabled={memberBusy}>{memberBusy ? "Sending…" : "Invite by email"}</button></form><details className="member-existing-access"><summary>Existing account? Add or update by UUID</summary><form className="member-access-form" onSubmit={addCompanyMember}><label>Existing user UUID<input value={memberUserId} onChange={event=>setMemberUserId(event.target.value)} required placeholder="00000000-0000-4000-8000-000000000000"/></label><label>Existing member role<select value={memberRole} onChange={event=>setMemberRole(event.target.value as CompanyRole)}><option value="admin">Admin</option><option value="manager">Manager</option><option value="staff">Staff</option><option value="read_only">Read-only</option></select></label><button className="secondary-button" disabled={memberBusy}>{memberBusy ? "Saving…" : "Add / update existing account"}</button></form></details>{memberStatus && <p role="status" className="sync-status">{memberStatus}</p>}<div className="company-member-list">{memberRows.map(member=><div className="company-member-row" key={member.user_id}><div><strong>{member.user_id}</strong><small>{member.role.replace("_"," ")} · added {new Date(member.created_at).toLocaleDateString("en-IN")}</small></div><button className="delete-button" disabled={memberBusy || member.role === "owner"} onClick={()=>void removeCompanyMember(member.user_id,member.role)}>{member.role === "owner" ? "Owner" : "Remove"}</button></div>)}</div><p className="ax-form-note">Email invitations need the <code>invite-company-member</code> Supabase Edge Function deployed and Auth email delivery configured. Existing registered accounts should be added by UUID.</p></div>}{storageMode === "account" && personalUserId && <div className="settings-card"><h3>Personal cloud sync · phone and PC</h3><p>This is your private workspace. Sign in with the same account on any phone or PC to access the same properties, contacts, tasks, financial records, risks, approvals and follow-ups. No company or paired Windows PC is required. Sync runs automatically while online.</p><div className="settings-actions"><button type="button" className="primary-button" disabled={cloudSyncBusy || !cloudSyncRunRef.current} onClick={()=>void cloudSyncRunRef.current?.(true)}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button><span className="sync-status" role="status" aria-live="polite">{cloudSyncStatus || "Automatic personal cloud sync is active."}</span></div>{cloudLastSyncedAt && <small className="ax-cloud-sync-last">Last successful sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}<p className="sync-status">Your records are isolated by your signed-in account. Original document files and the linked Windows WhatsApp session remain device-local / PC-linked features.</p><div className="settings-actions"><button type="button" className="secondary-button" onClick={onSwitchCompany}>Explore Company Mode</button></div></div>}{storageMode === "account" && company && <div className="settings-card"><h3>Company cloud sync · phone and PC</h3><p>Signed in to <strong>{company.name}</strong>. This phone or PC can be your starting device. Business records sync both ways through this company account; you do not need a Windows PC to use or synchronize from the phone. When adding another device, sign in with the same account and open the same company.</p><div className="settings-actions"><button type="button" className="primary-button" disabled={cloudSyncBusy || !cloudSyncRunRef.current} onClick={()=>void cloudSyncRunRef.current?.(true)}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button><span className="sync-status" role="status" aria-live="polite">{cloudSyncStatus || "Automatic sync is active · tap Sync now to refresh this device."}</span></div>{cloudLastSyncedAt && <small className="ax-cloud-sync-last">Last successful sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}<p className="sync-status">Cloud records are protected by company membership policies. Document files and the linked Windows WhatsApp session remain device-local / PC-linked features.</p></div>}<div className="settings-card"><h3>Sync WhatsApp + data</h3>{Boolean(window.estateflowWhatsApp?.getBridgeInfo) ? <div className="device-sync-pairing"><p>{company ? "Optional PC link: scan from Android only to share this Windows WhatsApp session and local document vault. Company records already sync through your account." : "Open AXIVESTRA on your Android phone and scan this code once to pair local records with this Windows PC."}</p>{deviceSyncQr ? <img src={deviceSyncQr} alt="AXIVESTRA phone sync QR code" style={{ width: "100%", maxWidth: 260, display: "block", margin: "12px auto" }}/> : <p className="sync-status">Preparing your link code…</p>}<p className="sync-status">{syncStatus || "Ready to link on the same Wi-Fi."}</p>{!company && <div className="settings-actions"><button type="button" className="primary-button" disabled={syncBusy} onClick={()=>void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button></div>}</div> : Capacitor.getPlatform() === "android" ? <div><p>{company ? "Company records sync directly from this phone through your AXIVESTRA account. Pair a Windows PC only if you also need its linked WhatsApp session or local document vault." : syncHost ? "This phone is linked to your Windows AXIVESTRA." : "Scan the PC code once to sync local records and share its documents and linked WhatsApp number."}</p><div className="settings-actions"><button className="primary-button" disabled={syncBusy} onClick={() => void scanAndPairWithPc()}>{syncBusy ? "Connecting…" : syncHost ? "Change linked PC" : "Scan PC code"}</button>{syncHost && <button className="secondary-button" disabled={syncBusy} onClick={() => void syncWithPc()}>{syncBusy ? "Syncing…" : "Sync now"}</button>}{syncHost && <button className="secondary-button" onClick={unlinkPc}>Unlink</button>}</div>{syncStatus && <p className="sync-status">{syncStatus}</p>}</div> : <p>Open AXIVESTRA on Windows to display the link code.</p>}</div><div className="settings-card"><h3>Local audit history</h3><p>Tracks creation, edits and deletions for properties, contacts, tasks, financial transactions, risks and approvals on this device. The log records record labels and IDs, not the private field contents. This is a local activity history, not a tamper-proof or multi-user compliance audit.</p><div className="settings-actions"><button className="secondary-button" onClick={()=>{const blob=new Blob([JSON.stringify(auditEvents,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`axivestra-audit-${today}.json`;a.click();URL.revokeObjectURL(url);}}>Export audit log</button></div>{auditEvents.length ? <div className="audit-event-list">{auditEvents.slice(0,50).map(event=><article className="audit-event-row" key={event.id}><span className={`audit-event-action audit-${event.action}`}>{event.action}</span><div><strong>{event.entity}: {event.label}</strong><small>{event.recordId} · {new Date(event.at).toLocaleString("en-IN")}</small></div></article>)}</div> : <p>No changes have been recorded yet. New record changes will appear here.</p>}</div></section>}
+          <footer className="footer"><span>AXIVESTRA © 2026</span><span>{storageMode === "local" ? "Local Only mode · optional paired PC–phone sync" : company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : personalUserId ? "Personal cloud mode · private account" : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} availableModules={modules} customModules={customModules} contacts={contacts} savedGroups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
-      {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
+      {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} groups={savedWhatsAppGroups} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
       {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} contacts={contacts} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
       {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} contacts={contacts} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
+      {customModuleBuilderOpen && <Modal title={editingCustomModule ? "Configure custom workspace" : "Add custom workspace"} onClose={()=>{setCustomModuleBuilderOpen(false);setEditingCustomModule(null);}} className="ax-custom-module-modal"><CustomModuleBuilder initial={editingCustomModule} reservedNames={[...standardModules.map(item=>item.name),...customModules.filter(item=>item.id!==editingCustomModule?.id).map(item=>item.name)]} onSave={saveCustomModuleDefinition} onCancel={()=>{setCustomModuleBuilderOpen(false);setEditingCustomModule(null);}}/></Modal>}
     </main>
   );
 }
@@ -2688,8 +2827,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactRecord[]): ContactRecord[] {
   const roleIds = Object.entries(property.moduleData ?? {})
     .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
-    .map(([,value]) => String(value));
-  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
+    .flatMap(([,value]) => String(value).split(","));
+  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__primaryContactIds ?? "").split(","), ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
   return unique;
@@ -2754,7 +2893,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
   const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const orderedProperties=[...properties].sort((a,b)=>(getPropertyDeadline(a)?.date || a.nextFollowUpDate || "9999-12-31").localeCompare(getPropertyDeadline(b)?.date || b.nextFollowUpDate || "9999-12-31"));
   return <section className="data-panel relationship-hub">
-    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 16 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
+    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 17 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
     <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
     <div className="notice"><Handshake size={17}/>Select one saved contact on each deal record. The same contact then appears across call reminders, financial transactions, risk/approval items and WhatsApp follow-ups.</div>
     {properties.length===0 && <Empty icon={<LandPlot size={22}/>} title="Add your first deal or property record" text="Every module record can be linked to a client, deadline and next action here." action="Create deal record" onClick={onAddProperty}/>}
@@ -2868,7 +3007,56 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
-function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+const PROPERTY_LINK_MODULES = [
+  "Property Sale", "Property Loans", "JV / JDA / JD", "SR Rate Settlement",
+  "Agricultural Land", "Commercial Land", "Startup", "Equity", "Housing Loan",
+  "House Purchase", "Litigation", "Sharing Property"
+];
+type AssociatedPropertyDraft = {
+  id: string; title: string; location: string; surveyNumber: string; ownershipDetails: string;
+  areaValue: string; areaUnit: string; srRatePerUnit: string; marketRatePerUnit: string;
+  mortgageType: string; notes: string;
+};
+type ShareAllocationDraft = { id: string; contactId: string; sharePercent: string };
+const newAssociatedProperty = (): AssociatedPropertyDraft => ({
+  id: uid(), title: "", location: "", surveyNumber: "", ownershipDetails: "",
+  areaValue: "", areaUnit: "sq ft", srRatePerUnit: "", marketRatePerUnit: "",
+  mortgageType: "No mortgage", notes: ""
+});
+function parseAssociatedProperties(raw?: string): AssociatedPropertyDraft[] {
+  try {
+    const parsed: unknown = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(item => item && typeof item === "object").map(item => {
+      const row = item as Partial<AssociatedPropertyDraft>;
+      return {
+        id: String(row.id || uid()), title: String(row.title || ""), location: String(row.location || ""),
+        surveyNumber: String(row.surveyNumber || ""), ownershipDetails: String(row.ownershipDetails || ""),
+        areaValue: String(row.areaValue || ""), areaUnit: String(row.areaUnit || "sq ft"),
+        srRatePerUnit: String(row.srRatePerUnit || ""), marketRatePerUnit: String(row.marketRatePerUnit || ""),
+        mortgageType: String(row.mortgageType || "No mortgage"), notes: String(row.notes || "")
+      };
+    });
+  } catch { return []; }
+}
+function parseShareAllocations(raw?: string): ShareAllocationDraft[] {
+  try {
+    const parsed: unknown = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(item => item && typeof item === "object").map(item => {
+      const row = item as Partial<ShareAllocationDraft>;
+      return { id: String(row.id || uid()), contactId: String(row.contactId || ""), sharePercent: String(row.sharePercent || "") };
+    });
+  } catch { return []; }
+}
+function formatPropertyAmount(value: number): string {
+  return "₹" + new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value);
+}
+function PropertyForm({defaultModule,availableModules,customModules=[],contacts,savedGroups=[],initial,onSave,onCancel}:{
+  defaultModule:string; availableModules:Array<{name:string;description?:string}>; customModules?:CustomModuleDefinition[]; contacts:ContactRecord[];
+  savedGroups?:SavedWhatsAppGroup[]; initial?:PropertyRecord|null;
+  onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void; onCancel:()=>void
+}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",
@@ -2879,9 +3067,38 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
     moduleData:initial?.moduleData ?? {}
   });
+  const [associatedProperties,setAssociatedProperties]=useState<AssociatedPropertyDraft[]>(()=>parseAssociatedProperties(initial?.moduleData?.__associatedProperties));
+  const [shareAllocations,setShareAllocations]=useState<ShareAllocationDraft[]>(()=>parseShareAllocations(initial?.moduleData?.__shareAllocations));
   const [amountError,setAmountError]=useState("");
+  const groupContacts:ContactRecord[]=savedGroups.map(group=>({
+    id:group.id,name:group.name,phone:group.jid,role:"WhatsApp group",notes:"Saved WhatsApp group"
+  }));
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
-  const selectedFields=moduleFields[form.module] ?? [];
+  const updateModuleData=(key:string,value:string)=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[key]:value}}));
+  const selectedFields=(moduleFields[form.module] ?? customModules.find(item=>item.name===form.module)?.fields ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal",...(form.module==="Sharing Property"?["mortgageType"]:[])].includes(field.key));
+  const primaryContactIds=(form.moduleData.__primaryContactIds || form.primaryContactId || "").split(",").map(id=>id.trim()).filter(Boolean);
+  const primaryGroupIds=(form.moduleData.__primaryWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
+  const followUpGroupIds=(form.moduleData.__followUpWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
+  const primaryArea=Number(form.areaValue);
+  const srRate=normalizeIndianAmount(form.ratePerUnit);
+  const marketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit || "");
+  const srRateNumber=srRate===null||srRate===""?null:Number(srRate);
+  const marketRateNumber=marketRate===null||marketRate===""?null:Number(marketRate);
+  const primarySrTotal=Number.isFinite(primaryArea)&&primaryArea>0&&srRateNumber!==null?primaryArea*srRateNumber:null;
+  const primaryMarketTotal=Number.isFinite(primaryArea)&&primaryArea>0&&marketRateNumber!==null?primaryArea*marketRateNumber:null;
+  const updateAssociated=(id:string,key:keyof AssociatedPropertyDraft,value:string)=>setAssociatedProperties(previous=>previous.map(row=>row.id===id?{...row,[key]:value}:row));
+  const applyShareRatio=(value:string)=>{
+    updateModuleData("sharingRatioPreset",value);
+    const ratio=value.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+    if(!ratio)return;
+    setShareAllocations(previous=>{
+      const rows=[...previous];
+      while(rows.length<2)rows.push({id:uid(),contactId:"",sharePercent:""});
+      rows[0]={...rows[0],sharePercent:ratio[1]};
+      rows[1]={...rows[1],sharePercent:ratio[2]};
+      return rows;
+    });
+  };
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
@@ -2889,43 +3106,142 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
+    const rawMarketRate=String(normalizedModuleData.marketRatePerUnit||"");
+    const normalizedMarketRate=normalizeIndianAmount(rawMarketRate);
+    if(rawMarketRate.trim()&&normalizedMarketRate===null)invalidLabels.push("Market rate per unit");
+    else normalizedModuleData.marketRatePerUnit=normalizedMarketRate===null?"":String(normalizedMarketRate);
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
-    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("Rate per unit");
+    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("SR / guidance rate per unit");
+    if(form.module==="SR Rate Settlement"){
+      normalizedModuleData.srRatePerUnit=normalizedRate===null?"":String(normalizedRate);
+      const size=Number(form.areaValue);
+      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null&&normalizedRate!==""?String(size*Number(normalizedRate)):"";
+      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null&&normalizedMarketRate!==""?String(size*Number(normalizedMarketRate)):"";
+    }
     for(const field of selectedFields){
+      if(field.required && !String(normalizedModuleData[field.key] ?? "").trim()) invalidLabels.push(field.label + " (required)");
       if(field.type!=="number" || !field.label.includes("₹"))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
       if(!raw.trim())continue;
       const normalized=normalizeIndianAmount(raw);
       if(normalized===null)invalidLabels.push(field.label);
-      else normalizedModuleData[field.key]=normalized;
+      else normalizedModuleData[field.key]=String(normalized);
     }
+    const normalizedAssociated=associatedProperties.map(row=>{
+      const area=String(row.areaValue||"").trim();
+      if(area && (!Number.isFinite(Number(area)) || Number(area)<0))invalidLabels.push("Area for "+(row.title||"additional property"));
+      const sr=normalizeIndianAmount(row.srRatePerUnit);
+      const market=normalizeIndianAmount(row.marketRatePerUnit);
+      if(row.srRatePerUnit.trim()&&sr===null)invalidLabels.push("SR / guidance rate for "+(row.title||"additional property"));
+      if(row.marketRatePerUnit.trim()&&market===null)invalidLabels.push("Market rate for "+(row.title||"additional property"));
+      return {...row,srRatePerUnit:sr===null?"":String(sr),marketRatePerUnit:market===null?"":String(market)};
+    });
+    if(normalizedAssociated.some(row=>!row.title.trim()))invalidLabels.push("Name each additional property or remove the empty row");
+    if(form.module==="Sharing Property" && shareAllocations.some(row=>row.sharePercent.trim())){
+      const percentages=shareAllocations.map(row=>row.sharePercent.trim()?Number(row.sharePercent):0);
+      if(percentages.some(value=>!Number.isFinite(value)||value<0||value>100)||Math.abs(percentages.reduce((sum,value)=>sum+value,0)-100)>0.0001){
+        invalidLabels.push("Sharing percentages must total exactly 100%");
+      }
+    }
+    if(shareAllocations.some(row=>row.sharePercent.trim()&&!row.contactId))invalidLabels.push("Select an owner for every percentage allocation");
     if(invalidLabels.length){
-      setAmountError("Check these INR fields: "+invalidLabels.join(", ")+". Use thousand, lakh or crore shorthand.");
+      setAmountError("Check these fields: "+Array.from(new Set(invalidLabels)).join(", ")+". INR values accept thousand, lakh or crore shorthand.");
       return;
     }
-    setAmountError("");
-    onSave({...form,value:normalizedValue ?? "",ratePerUnit:normalizedRate ?? "",moduleData:normalizedModuleData});
+    const primaryIds=primaryContactIds.filter(id=>contacts.some(contact=>contact.id===id));
+    // Mirror configurable contact fields into the shared relationship index so contact
+    // cards, relationship intelligence, follow-ups, and WhatsApp actions can resolve them.
+    for (const key of Object.keys(normalizedModuleData)) {
+      if (key.startsWith("__contact_custom_")) delete normalizedModuleData[key];
+    }
+    for (const field of selectedFields) {
+      if (field.type === "contact" || field.type === "contacts") {
+        const linkedIds = String(normalizedModuleData[field.key] || "").split(",").map(id=>id.trim()).filter(id=>contacts.some(contact=>contact.id===id));
+        normalizedModuleData["__contact_custom_" + field.key] = Array.from(new Set(linkedIds)).join(",");
+        normalizedModuleData[field.key] = Array.from(new Set(linkedIds)).join(",");
+      }
+    }
+    normalizedModuleData.__primaryContactIds=primaryIds.join(",");
+    normalizedModuleData.__primaryWhatsAppGroupIds=primaryGroupIds.filter(id=>groupContacts.some(group=>group.id===id)).join(",");
+    normalizedModuleData.__followUpWhatsAppGroupIds=followUpGroupIds.filter(id=>groupContacts.some(group=>group.id===id)).join(",");
+    normalizedModuleData.__associatedProperties=JSON.stringify(normalizedAssociated);
+    normalizedModuleData.__shareAllocations=JSON.stringify(shareAllocations.filter(row=>row.contactId||row.sharePercent.trim()));
+    onSave({
+      ...form,
+      primaryContactId:primaryIds[0]||"",
+      contact:contacts.find(item=>item.id===primaryIds[0])?.name ?? form.contact,
+      value:normalizedValue ?? "",
+      ratePerUnit:normalizedRate ?? "",
+      moduleData:normalizedModuleData
+    });
   };
+  const assetDetailsModules=["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","Housing Loan","House Purchase","Litigation","Sharing Property"]; 
+  const isCustomModule=customModules.some(item=>item.name===form.module);
   return <form className="form-card module-record-form" onSubmit={saveRecord}>
     <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
-    <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
+    <label>Business module<select value={form.module} onChange={event=>{
+      const module=event.target.value;
+      setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));
+      if(module==="Sharing Property"&&!shareAllocations.length)setShareAllocations([{id:uid(),contactId:"",sharePercent:""},{id:uid(),contactId:"",sharePercent:""}]);
+    }}>{availableModules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
-    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
-    {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
-    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
-    <SearchableContactPicker label="Follow-up contacts (multiple people)" contacts={contacts} multiple value={(form.moduleData.__followUpContactIds ?? "").split(",").filter(Boolean)} placeholder="Search people responsible for the next follow-up…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__followUpContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Add every person who must be contacted for this record. This is saved separately from the primary contact and other stakeholders."/>
-    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
+    <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} multiple value={primaryContactIds} placeholder="Search people to link as primary contacts…" onChange={value=>{
+      const ids=Array.isArray(value)?value:[String(value)];
+      setForm(previous=>({...previous,primaryContactId:ids[0]||"",contact:contacts.find(item=>item.id===ids[0])?.name??"",moduleData:{...previous.moduleData,__primaryContactIds:ids.join(",")}}));
+    }}/></div>
+    {form.contact && !primaryContactIds.length && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
+    <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>updateModuleData("__linkedContactIds",(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
+    <SearchableContactPicker label="Follow-up contacts (multiple people)" contacts={contacts} multiple value={(form.moduleData.__followUpContactIds ?? "").split(",").filter(Boolean)} placeholder="Search people responsible for the next follow-up…" onChange={value=>updateModuleData("__followUpContactIds",(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))} help="Add every person who must be contacted for this record. This is saved separately from primary contacts and other stakeholders."/>
+    <SearchableContactPicker label="Primary WhatsApp groups (multiple)" contacts={groupContacts} multiple value={primaryGroupIds} placeholder="Search saved WhatsApp groups…" onChange={value=>updateModuleData("__primaryWhatsAppGroupIds",(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))} help="Links saved WhatsApp groups to the record; selecting a group here does not send a message."/>
+    <SearchableContactPicker label="Follow-up WhatsApp groups (multiple)" contacts={groupContacts} multiple value={followUpGroupIds} placeholder="Search saved WhatsApp groups…" onChange={value=>updateModuleData("__followUpWhatsAppGroupIds",(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))} help="Attach one or more saved WhatsApp groups to this record's follow-up workflow."/>
+    {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>updateModuleData(field.key,String(value))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>
       <label>Next action / person to call<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="e.g. Call loan officer for sanction update; ask client for bank statement"/></label>
     </div>
-    {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
+    {(assetDetailsModules.includes(form.module) || isCustomModule) && <div className="property-detail-section">
+      <div className="form-section-title"><span className="section-kicker">PRIMARY PROPERTY / COLLATERAL DETAILS</span><p>Capture the principal property's extent, identifiers and ownership. Rates below are per selected area unit.</p></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
-      <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
-      <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Optional amount"/></label></div>
+      <div className="form-two"><label>Land / built-up size<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Extent / built-up area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
+      <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>{form.module==="SR Rate Settlement"?"SR / guidance rate per unit (₹)":"SR / guidance rate per unit (₹)"}<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Government / Sub-Registrar rate"/></label></div>
+      <div className="form-two"><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>updateModuleData("marketRatePerUnit",value)} placeholder="Market / negotiated rate"/></label><label>Mortgage / encumbrance type<select value={form.moduleData.mortgageType ?? "No mortgage"} onChange={event=>updateModuleData("mortgageType",event.target.value)}>{["No mortgage","Existing mortgage","Equitable mortgage / deposit of title deeds","Registered mortgage","Simple mortgage","Lease / tenancy","Court attachment / injunction","Other / verify"].map(value=><option key={value}>{value}</option>)}</select></label></div>
+      {(primarySrTotal!==null||primaryMarketTotal!==null)&&<div className="ax-property-rate-preview"><strong>Primary property rate calculation</strong><span>{primarySrTotal===null?"SR total not entered":"SR / guidance total: "+formatPropertyAmount(primarySrTotal)}</span><span>{primaryMarketTotal===null?"Market total not entered":"Market total: "+formatPropertyAmount(primaryMarketTotal)}</span><small>Calculated as area × rate. Confirm that the area and rate use the same unit; these figures are entered estimates, not an official valuation or registry calculation.</small></div>}
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {(PROPERTY_LINK_MODULES.includes(form.module) || isCustomModule) && <div className="module-data-section ax-associated-property-section">
+      <div className="form-section-title"><span className="section-kicker">MULTIPLE PROPERTIES / COLLATERAL</span><p>Add every additional property connected to this transaction. Each item keeps its own survey number, area, SR rate, market rate and mortgage type.</p></div>
+      {associatedProperties.map((row,index)=>{
+        const area=Number(row.areaValue);
+        const sr=normalizeIndianAmount(row.srRatePerUnit);
+        const market=normalizeIndianAmount(row.marketRatePerUnit);
+        const srNumber=sr===null||sr===""?null:Number(sr);
+        const marketNumber=market===null||market===""?null:Number(market);
+        const srTotal=row.areaValue&&Number.isFinite(area)&&area>0&&srNumber!==null?area*srNumber:null;
+        const marketTotal=row.areaValue&&Number.isFinite(area)&&area>0&&marketNumber!==null?area*marketNumber:null;
+        return <article className="ax-associated-property-card" key={row.id}>
+          <div className="ax-associated-property-head"><strong>Additional property {index+1}</strong><button type="button" className="delete-button" onClick={()=>setAssociatedProperties(previous=>previous.filter(item=>item.id!==row.id))}>Remove</button></div>
+          <label>Property / asset name *<input value={row.title} onChange={event=>updateAssociated(row.id,"title",event.target.value)} placeholder="Property name / parcel reference"/></label>
+          <div className="form-two"><label>Location<input value={row.location} onChange={event=>updateAssociated(row.id,"location",event.target.value)} placeholder="Village, taluk, district"/></label><label>Survey / PID / khata number<input value={row.surveyNumber} onChange={event=>updateAssociated(row.id,"surveyNumber",event.target.value)} placeholder="Survey / property identifier"/></label></div>
+          <div className="form-two"><label>Ownership / parties<input value={row.ownershipDetails} onChange={event=>updateAssociated(row.id,"ownershipDetails",event.target.value)} placeholder="Owners / parties"/></label><label>Area / size<input type="number" min="0" step="0.0001" value={row.areaValue} onChange={event=>updateAssociated(row.id,"areaValue",event.target.value)} placeholder="Size"/></label></div>
+          <div className="form-two"><label>Area unit<select value={row.areaUnit} onChange={event=>updateAssociated(row.id,"areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label><label>SR / guidance rate per unit (₹)<IndianAmountInput value={row.srRatePerUnit} onChange={value=>updateAssociated(row.id,"srRatePerUnit",value)} placeholder="SR rate"/></label></div>
+          <div className="form-two"><label>Market rate per unit (₹)<IndianAmountInput value={row.marketRatePerUnit} onChange={value=>updateAssociated(row.id,"marketRatePerUnit",value)} placeholder="Market rate"/></label><label>Mortgage / encumbrance type<select value={row.mortgageType} onChange={event=>updateAssociated(row.id,"mortgageType",event.target.value)}>{["No mortgage","Existing mortgage","Equitable mortgage / deposit of title deeds","Registered mortgage","Simple mortgage","Lease / tenancy","Court attachment / injunction","Other / verify"].map(value=><option key={value}>{value}</option>)}</select></label></div>
+          {(srTotal!==null||marketTotal!==null)&&<div className="ax-property-rate-preview"><strong>Property {index+1} calculated values</strong><span>{srTotal===null?"SR total not entered":"SR / guidance total: "+formatPropertyAmount(srTotal)}</span><span>{marketTotal===null?"Market total not entered":"Market total: "+formatPropertyAmount(marketTotal)}</span><small>Area × rate. Do not combine totals across different area units.</small></div>}
+          <label>Property notes<input value={row.notes} onChange={event=>updateAssociated(row.id,"notes",event.target.value)} placeholder="Title, access, encumbrance or source-document notes"/></label>
+        </article>;
+      })}
+      <button type="button" className="secondary-button ax-add-associated-property" onClick={()=>setAssociatedProperties(previous=>[...previous,newAssociatedProperty()])}><Plus size={15}/> Add another property</button>
+    </div>}
+    {form.module==="Sharing Property" && <div className="module-data-section ax-share-allocation-section">
+      <div className="form-section-title"><span className="section-kicker">OWNERSHIP SHARE ALLOCATION</span><p>Assign the registered or proposed percentage to each owner. Use the ratio selector below as a shortcut, then link the actual owners here. Percentages must total 100% when entered.</p></div>
+      {shareAllocations.map((row,index)=><div className="form-two ax-share-allocation-row" key={row.id}>
+        <SearchableContactPicker label={"Owner / recipient "+(index+1)} contacts={contacts} value={row.contactId} placeholder="Select owner from contacts" onChange={value=>setShareAllocations(previous=>previous.map(item=>item.id===row.id?{...item,contactId:String(value)}:item))}/>
+        <label>Ownership share (%)<input type="number" min="0" max="100" step="0.01" value={row.sharePercent} onChange={event=>setShareAllocations(previous=>previous.map(item=>item.id===row.id?{...item,sharePercent:event.target.value}:item))} placeholder="e.g. 50"/></label>
+        <button type="button" className="delete-button" onClick={()=>setShareAllocations(previous=>previous.filter(item=>item.id!==row.id))} aria-label={"Remove owner "+(index+1)}>Remove</button>
+      </div>)}
+      <div className="ax-share-allocation-footer"><button type="button" className="secondary-button" onClick={()=>setShareAllocations(previous=>[...previous,{id:uid(),contactId:"",sharePercent:""}])}><Plus size={14}/> Add owner / recipient</button><strong>Total allocated: {shareAllocations.reduce((sum,row)=>sum+(Number(row.sharePercent)||0),0).toFixed(2)}%</strong></div>
+      <p className="ax-form-note">For a gift, capture the declared gift value separately. For an ownership transfer or mortgage, confirm the deed form, stamp duty, registration and enforceability with the conveyancing lawyer.</p>
+    </div>}
+    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><div className="ax-module-dynamic-field" key={field.key}>{field.type==="contact" ? <SearchableContactPicker label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder={field.placeholder || "Link a saved contact"} onChange={value=>updateModuleData(field.key,String(value))}/> : field.type==="contacts" ? <SearchableContactPicker label={field.label} contacts={contacts} multiple value={(form.moduleData[field.key] ?? "").split(",").filter(Boolean)} placeholder={field.placeholder || "Link one or more saved contacts"} onChange={value=>updateModuleData(field.key,(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(","))}/> : <label>{field.label}{field.options ? <select required={Boolean(field.required)} value={form.moduleData[field.key] ?? ""} onChange={event=>field.key==="sharingRatioPreset"?applyShareRatio(event.target.value):updateModuleData(field.key,event.target.value)}><option value="">Select…</option>{field.options.map(option=><option key={option}>{option}</option>)}</select> : field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");updateModuleData(field.key,value);}} placeholder={field.placeholder}/> : field.type==="textarea" ? <textarea required={Boolean(field.required)} rows={3} value={form.moduleData[field.key] ?? ""} onChange={event=>updateModuleData(field.key,event.target.value)} placeholder={field.placeholder}/> : <input required={Boolean(field.required)} type={field.type==="number"||field.type==="date" ? field.type : "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>updateModuleData(field.key,event.target.value)} placeholder={field.placeholder}/>}</label>}</div>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>

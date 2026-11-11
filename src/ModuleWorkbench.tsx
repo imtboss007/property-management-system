@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Building2, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
@@ -7,14 +7,27 @@ type ModuleRecord = {
   nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
 };
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "textarea" | "number" | "date" | "select" | "contact" | "contacts"; options?: string[]; required?: boolean };
 type Contact = { id: string; name: string; phone: string; role: string; notes: string };
+type WhatsAppGroup = { id: string; jid: string; name: string; size?: number };
+type RelatedDocument = { id:string; propertyId:string; property:string; name:string; category:string; expiresOn:string; notes:string };
+type RelatedTask = { id:string; title:string; date:string; time:string; type:string; property:string; propertyId?:string; done:boolean; notes:string };
+type RelatedFinancial = { id:string; propertyId:string; property:string; type:string; amount:string; date:string; party:string; reference:string };
+type RelatedRisk = { id:string; propertyId?:string; title:string; category:string; severity:string; status:string; dueDate:string; owner:string };
+type RelatedApproval = { id:string; propertyId?:string; title:string; area:string; status:string; priority:string; approver:string };
 type Props = {
   moduleName: string;
   description: string;
   records: ModuleRecord[];
   fields: ModuleField[];
   contacts: Contact[];
+  whatsappGroups?: WhatsAppGroup[];
+  documents?: RelatedDocument[];
+  tasks?: RelatedTask[];
+  financials?: RelatedFinancial[];
+  risks?: RelatedRisk[];
+  approvals?: RelatedApproval[];
+  onOpenSection?: (section:string)=>void;
   onAdd: () => void;
   onEdit: (record: ModuleRecord) => void;
   onDelete: (id: string) => void;
@@ -22,6 +35,8 @@ type Props = {
   onAddFollowUp: (record: ModuleRecord, contact?: Contact) => void;
   onWhatsApp: (contactId?: string, propertyId?: string) => void;
   onUpdateFollowUpContacts: (record: ModuleRecord, contactIds: string[]) => void;
+  onEditModule?: () => void;
+  onDeleteModule?: () => void;
 };
 
 const CLOSED = new Set(["completed", "closed", "settled", "rejected", "cancelled"]);
@@ -30,9 +45,10 @@ const currency = (value: number) => value ? INR.format(value) : "—";
 const dateLabel = (value?: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not scheduled";
 const contactIds = (record: ModuleRecord) => [
   record.primaryContactId || "",
+  ...(record.moduleData?.__primaryContactIds || "").split(","),
   ...(record.moduleData?.__linkedContactIds || "").split(","),
   ...(record.moduleData?.__followUpContactIds || "").split(","),
-  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
+  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).flatMap(([,value]) => String(value || "").split(","))
 ].filter(Boolean);
 const followUpContactIds = (record: ModuleRecord) => Array.from(new Set(
   (record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean)
@@ -67,7 +83,7 @@ function ModuleAnalyticsChart({ items, total, type, metric, onSelect }: {
   return <div className="ax-module-chart-line"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Module records trend"><defs><linearGradient id="axModuleLineFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#20d9ef" stopOpacity=".22"/><stop offset="100%" stopColor="#20d9ef" stopOpacity="0"/></linearGradient></defs>{[0,1,2,3,4].map(n=><line key={n} x1={left} x2={width-right} y1={top+n*(height-top-bottom)/4} y2={top+n*(height-top-bottom)/4} stroke="#203e55" strokeDasharray="4 6"/>)}{points.length>1&&<polygon points={points.map(point=>point.x+","+point.y).join(" ")+" "+points[points.length-1].x+","+(height-bottom)+" "+points[0].x+","+(height-bottom)} fill="url(#axModuleLineFill)"/>}<polyline points={points.map(point=>point.x+","+point.y).join(" ")} fill="none" stroke="#20d9ef" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>{points.map(point=><g key={point.name} tabIndex={0} role="button" onClick={()=>onSelect(point.name)} className="ax-chart-point"><circle cx={point.x} cy={point.y} r="5" fill={point.color} stroke="#071827" strokeWidth="2"/><text x={point.x} y={point.y-13} textAnchor="middle" fill="#e7f8ff" fontSize="10">{metric==="value"?currency(point.value):point.value}</text><text x={point.x} y={height-15} textAnchor="middle" fill="#8aa9bf" fontSize="10">{point.name.length>12?point.name.slice(0,11)+"…":point.name}</text></g>)}</svg></div>;
 }
 
-export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onUpdateFollowUpContacts, onAddFollowUp }: Props) {
+export default function ModuleWorkbench({ moduleName, description, records, fields, contacts, whatsappGroups = [], documents = [], tasks = [], financials = [], risks = [], approvals = [], onOpenSection, onAdd, onEdit, onDelete, onSchedule, onWhatsApp, onUpdateFollowUpContacts, onAddFollowUp, onEditModule, onDeleteModule }: Props) {
   const [view, setView] = useState<"overview" | "table" | "pipeline" | "analytics" | "data">("overview");
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
@@ -94,13 +110,27 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     { key: "targetDeadline", label: "Target deadline", placeholder: "" },
     { key: "nextFollowUpDate", label: "Next follow-up", placeholder: "" },
     { key: "nextAction", label: "Next action", placeholder: "" },
+    { key: "surveyNumber", label: "Survey / property ID", placeholder: "" },
     { key: "ownershipDetails", label: "Ownership / parties", placeholder: "" },
+    { key: "areaValue", label: "Area / size", placeholder: "" },
+    { key: "areaUnit", label: "Area unit", placeholder: "" },
+    { key: "dimensions", label: "Dimensions / boundaries", placeholder: "" },
+    { key: "ratePerUnit", label: "SR / guidance rate per unit (₹)", placeholder: "" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "" },
     { key: "notes", label: "Notes / evidence", placeholder: "" }
   ];
   const dataFields = [...coreDataFields, ...fields.filter(field => !coreDataFields.some(core => core.key === field.key))];
-  const getFieldValue = (record: ModuleRecord, key: string) => key === "location" || key === "value" || key === "targetDeadline" || key === "nextFollowUpDate" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
-    ? String(record[key as keyof ModuleRecord] || "")
-    : String(record.moduleData?.[key] || "");
+  const getFieldValue = (record: ModuleRecord, key: string) => {
+    const coreValue = key === "location" || key === "value" || key === "targetDeadline" || key === "nextFollowUpDate" || key === "nextAction" || key === "ownershipDetails" || key === "notes"
+      ? String(record[key as keyof ModuleRecord] || "")
+      : key === "surveyNumber" || key === "areaValue" || key === "areaUnit" || key === "dimensions" || key === "ratePerUnit"
+        ? String(record[key as keyof ModuleRecord] || "")
+        : String(record.moduleData?.[key] || "");
+    const field = fields.find(item => item.key === key);
+    if (field?.type === "contact") return contactsById.get(coreValue)?.name || "";
+    if (field?.type === "contacts") return coreValue.split(",").map(id => contactsById.get(id.trim())?.name).filter(Boolean).join(", ");
+    return coreValue;
+  };
   const presentFields = (record: ModuleRecord) => dataFields.filter(field => getFieldValue(record, field.key).trim()).length;
   const moduleChartData = (() => {
     const groups = new Map<string, { name: string; value: number; color: string; records: number }>();
@@ -135,6 +165,8 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         <div className="ax-module-hero-actions">
           <button className="ax-action-primary" onClick={onAdd}><Plus size={15}/> Create record</button>
           <button className="ax-action-ghost" onClick={()=>setView("data")}><ClipboardList size={15}/> Data completeness</button>
+          {onEditModule && <button className="ax-action-ghost" onClick={onEditModule}><Pencil size={15}/> Configure workspace</button>}
+          {onDeleteModule && <button className="ax-action-ghost ax-custom-module-delete" onClick={onDeleteModule}><Trash2 size={15}/> Delete empty workspace</button>}
         </div>
       </div>
       <div className="ax-module-hero-mark" aria-hidden="true"><Activity size={76}/><span>AX//{String(records.length).padStart(2,"0")}</span></div>
@@ -190,11 +222,17 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       const followUpPeople=followUpIds.map(id=>contactsById.get(id)).filter((person): person is Contact => Boolean(person));
       const expandedRow=expandedHas(record.id);
       const fieldsShown=dataFields.filter(field=>getFieldValue(record,field.key).trim());
+      const relatedDocs=documents.filter(item=>item.propertyId===record.id || (!item.propertyId && item.property===record.title));
+      const relatedTasks=tasks.filter(item=>item.propertyId===record.id || (!item.propertyId && item.property===record.title));
+      const relatedMoney=financials.filter(item=>item.propertyId===record.id || (!item.propertyId && item.property===record.title));
+      const relatedRisks=risks.filter(item=>item.propertyId===record.id);
+      const relatedApprovals=approvals.filter(item=>item.propertyId===record.id);
       return <article className="ax-module-record-card" key={record.id}>
         <div className="ax-record-topline"><span className="ax-record-type">{moduleName}</span><span className={"ax-status-chip "+(CLOSED.has(String(record.status).toLowerCase())?"closed":"open")}>{record.status}</span></div>
         <h3>{record.title}</h3><p className="ax-record-location">{record.location || "Location / collateral not entered"}</p>
         <strong className="ax-record-value">{currency(Number(record.value)||0)}</strong>
         <div className="ax-record-progress"><span className="ax-progress-track"><i style={{width:(dataFields.length?presentFields(record)/dataFields.length*100:0)+"%"}}/></span><span>{presentFields(record)}/{dataFields.length} field groups</span></div>
+        <div className="ax-record-linked-summary" aria-label="Linked activity counts"><span>{relatedTasks.length} tasks</span><span>{relatedDocs.length} documents</span><span>{relatedMoney.length} transactions</span><span>{relatedRisks.length} risks</span><span>{relatedApprovals.length} approvals</span></div>
         <div className="ax-record-next"><CalendarClock size={14}/><span>{record.nextAction || (record.nextFollowUpDate ? "Next follow-up " + dateLabel(record.nextFollowUpDate) : "No next action captured")}</span></div>
         <div className="ax-record-followup-people">
           <div className="ax-record-followup-people__heading"><Users size={13}/><span>FOLLOW-UP CONTACTS</span><small>{followUpPeople.length}</small></div>
@@ -211,7 +249,23 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
           </div>
         </div>
         <button type="button" className="ax-record-add-followup" onClick={()=>onAddFollowUp(record,followUpPeople[0]||linked[0])}><Plus size={15}/> Add follow-up</button>
-        {expandedRow&&<div className="ax-record-expanded">{fieldsShown.map(field=><p key={field.key}><span>{field.label}</span><strong>{getFieldValue(record,field.key)}</strong></p>)}{record.notes&&<p><span>Notes / evidence</span><strong>{record.notes}</strong></p>}<div className="ax-linked-people">{linked.length ? linked.map(contact=><span key={contact.id}><Users size={12}/>{contact.name} · {contact.role}</span>) : <span>No named stakeholder linked</span>}</div></div>}
+        {expandedRow&&<div className="ax-record-expanded">{fieldsShown.map(field=><p key={field.key}><span>{field.label}</span><strong>{getFieldValue(record,field.key)}</strong></p>)}{record.notes&&<p><span>Notes / evidence</span><strong>{record.notes}</strong></p>}<div className="ax-linked-people">{linked.length ? linked.map(contact=><span key={contact.id}><Users size={12}/>{contact.name} · {contact.role}{(record.moduleData?.__primaryContactIds||"").split(",").includes(contact.id) || record.primaryContactId===contact.id ? " · Primary" : ""}</span>) : <span>No named stakeholder linked</span>}</div>{(() => { let assets:Record<string,string>[]=[]; try { const parsed=JSON.parse(record.moduleData?.__associatedProperties||"[]"); if(Array.isArray(parsed))assets=parsed.filter((item:any)=>item&&typeof item==="object"); } catch {} return assets.length ? <div className="ax-linked-people ax-linked-assets"><strong>Additional properties ({assets.length})</strong>{assets.map((asset,index)=>{const area=Number(asset.areaValue);const sr=Number(asset.srRatePerUnit);const market=Number(asset.marketRatePerUnit);return <span key={String(asset.id||index)}><Building2 size={12}/>{asset.title||"Additional property"}{asset.surveyNumber?" · "+asset.surveyNumber:""}{asset.areaValue?" · "+asset.areaValue+" "+(asset.areaUnit||""):""}{asset.srRatePerUnit&&Number.isFinite(sr)?" · SR "+INR.format(sr):""}{Number.isFinite(area)&&area>0&&Number.isFinite(sr)&&sr>0?" · SR total "+INR.format(area*sr):""}{asset.marketRatePerUnit&&Number.isFinite(market)?" · Market "+INR.format(market):""}{Number.isFinite(area)&&area>0&&Number.isFinite(market)&&market>0?" · Market total "+INR.format(area*market):""}</span>})}</div> : null; })()}{(() => { const primaryIds=(record.moduleData?.__primaryWhatsAppGroupIds||"").split(",").filter(Boolean); const followIds=(record.moduleData?.__followUpWhatsAppGroupIds||"").split(",").filter(Boolean); const linkedGroups=whatsappGroups.filter(group=>primaryIds.includes(group.id)||followIds.includes(group.id)); return linkedGroups.length ? <div className="ax-linked-people"><span>WhatsApp groups:</span>{linkedGroups.map(group=><span key={group.id}><MessageCircle size={12}/>{group.name}{primaryIds.includes(group.id)?" · Primary":""}{followIds.includes(group.id)?" · Follow-up":""}</span>)}</div> : null; })()}
+          <div className="ax-record-related-activity">
+            <div><strong>Tasks & follow-ups</strong><button type="button" onClick={()=>onOpenSection?.("Schedule & Tasks")}>Open schedule ({relatedTasks.length})</button></div>
+            {relatedTasks.slice(0,5).map(task=><p key={task.id}><span>{task.done?"Completed":"Open"} · {task.date} {task.time}</span><strong>{task.title}</strong></p>)}
+            {!relatedTasks.length&&<small>No tasks linked to this record yet.</small>}
+            <div><strong>Documents</strong><button type="button" onClick={()=>onOpenSection?.("Documents")}>Open documents ({relatedDocs.length})</button></div>
+            {relatedDocs.slice(0,5).map(doc=><p key={doc.id}><span>{doc.category}{doc.expiresOn?" · Expiry "+dateLabel(doc.expiresOn):""}</span><strong>{doc.name}</strong></p>)}
+            {!relatedDocs.length&&<small>No documents linked to this record yet.</small>}
+            <div><strong>Financial movements</strong><button type="button" onClick={()=>onOpenSection?.("Financials")}>Open financials ({relatedMoney.length})</button></div>
+            {relatedMoney.slice(0,5).map(entry=><p key={entry.id}><span>{entry.date} · {entry.party||"No party"}</span><strong>{entry.type} · {currency(Number(entry.amount)||0)}</strong></p>)}
+            {!relatedMoney.length&&<small>No transactions linked to this record yet.</small>}
+            <div><strong>Risks & approvals</strong><button type="button" onClick={()=>onOpenSection?.("Risk & Compliance")}>Open risks ({relatedRisks.length})</button><button type="button" onClick={()=>onOpenSection?.("Approvals")}>Open approvals ({relatedApprovals.length})</button></div>
+            {relatedRisks.slice(0,4).map(risk=><p key={risk.id}><span>Risk · {risk.severity} · {risk.status}{risk.dueDate?" · "+dateLabel(risk.dueDate):""}</span><strong>{risk.title}</strong></p>)}
+            {relatedApprovals.slice(0,4).map(approval=><p key={approval.id}><span>Approval · {approval.priority} · {approval.status}</span><strong>{approval.title}</strong></p>)}
+            {!relatedRisks.length&&!relatedApprovals.length&&<small>No risks or approvals linked to this record yet.</small>}
+          </div>
+        </div>}
         <div className="ax-record-actions"><button onClick={()=>toggleExpanded(record.id)}><Eye size={14}/>{expandedRow?"Hide details":"Inspect details"}</button><button onClick={()=>onEdit(record)}><Pencil size={14}/>Edit</button><button className="danger" onClick={()=>onDelete(record.id)}><Trash2 size={14}/>Delete</button></div>
         <div className="ax-record-quick-actions"><button onClick={()=>onSchedule(record,followUpPeople[0]||linked[0])}><CalendarClock size={13}/>Follow-up</button>{linked.length ? linked.map(contact=><button key={contact.id} onClick={()=>onWhatsApp(contact.id,record.id)}><MessageCircle size={13}/>Message {contact.name.split(" ")[0]}</button>) : <button onClick={()=>onWhatsApp(undefined,record.id)}><MessageCircle size={13}/>WhatsApp</button>}<button onClick={()=>toggleExpanded(record.id)}><ArrowUpRight size={13}/> {expandedRow?"Collapse":"Open record"}</button></div>
       </article>;

@@ -1,5 +1,5 @@
 export const DEVICE_SYNC_COLLECTIONS = [
-  "properties", "contacts", "whatsappGroups", "tasks",
+  "properties", "contacts", "whatsappGroups", "customModules", "tasks",
   "financials", "riskRecords", "approvalRequests", "auditEvents"
 ] as const;
 
