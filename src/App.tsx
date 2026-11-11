@@ -162,6 +162,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" }
   ],
   "Property Loans": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "borrower", label: "Borrower / applicant", placeholder: "Client or company" },
     { key: "lender", label: "Lender / loan provider", placeholder: "Bank, NBFC or private lender" },
     { key: "loanType", label: "Loan type", placeholder: "Mortgage / LAP / business / construction" },
@@ -177,6 +182,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "pendingDocuments", label: "Pending documents / blockers", placeholder: "KYC, bank statements, title, valuation…" }
   ],
   "JV / JDA / JD": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "landowner", label: "Landowner / owner group", placeholder: "Names or entity" },
     { key: "developer", label: "Developer / partner", placeholder: "Company or contact" },
     { key: "sharingRatio", label: "Sharing ratio / allocation", placeholder: "e.g. 60:40" },
@@ -234,6 +244,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" }
   ],
   "Startup": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "stage", label: "Startup stage", placeholder: "Pre-seed, seed, Series A…" },
     { key: "sector", label: "Sector", placeholder: "Fintech, healthtech, climate…" },
     { key: "founders", label: "Founders / promoters", placeholder: "Names and roles" },
@@ -244,6 +259,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "targetCloseDate", label: "Target close date", placeholder: "Date", type: "date" }
   ],
   "Equity": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "instrument", label: "Instrument / asset class", placeholder: "Listed equity, private shares, SAFE…" },
     { key: "tickerOrSecurityId", label: "Ticker / security ID", placeholder: "Ticker, ISIN or internal code" },
     { key: "sharesOrUnits", label: "Shares / units", placeholder: "Quantity", type: "number" },
@@ -278,6 +298,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "firstEmiDate", label: "First EMI date", placeholder: "Date", type: "date" }
   ],
   "Housing Loan": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "lender", label: "Lender", placeholder: "Bank / housing finance company" },
     { key: "originalPrincipal", label: "Original principal (₹)", placeholder: "Amount", type: "number" },
     { key: "outstandingPrincipal", label: "Outstanding principal (₹)", placeholder: "Amount", type: "number" },
@@ -293,6 +318,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
   ],
   "House Purchase": [
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Full / agreed settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt, payment or transaction reference" },
     { key: "buyer", label: "Buyer / purchaser", placeholder: "Buyer name" },
     { key: "seller", label: "Seller", placeholder: "Seller name" },
     { key: "agreedPrice", label: "Agreed purchase price (₹)", placeholder: "Amount", type: "number" },
