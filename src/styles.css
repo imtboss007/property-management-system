@@ -5749,3 +5749,21 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-module-hero-actions { flex-wrap:wrap; }
   .ax-modern-shell .ax-module-hero-actions>* { flex:1 1 100%; }
 }
+
+
+/* Record relationship panel shared by standard and custom modules. */
+.ax-modern-shell .ax-record-linked-summary { display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 2px; }
+.ax-modern-shell .ax-record-linked-summary span { padding:4px 7px; border:1px solid rgba(101,171,183,.2); border-radius:6px; background:rgba(14,43,57,.55); color:#90b9c4; font-size:8px; font-weight:800; letter-spacing:.15px; }
+.ax-modern-shell .ax-record-related-activity { display:flex; flex-direction:column; gap:7px; margin-top:13px; padding:12px; border:1px solid rgba(102,181,187,.2); border-radius:10px; background:rgba(5,24,36,.55); }
+.ax-modern-shell .ax-record-related-activity>div { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px; padding-top:7px; border-top:1px solid rgba(116,179,191,.12); }
+.ax-modern-shell .ax-record-related-activity>div:first-child { margin-top:0; padding-top:0; border-top:0; }
+.ax-modern-shell .ax-record-related-activity>div>strong { flex:1; min-width:130px; color:#c4e5e2; font-size:9px; letter-spacing:.45px; text-transform:uppercase; }
+.ax-modern-shell .ax-record-related-activity>div>button { padding:4px 7px; border:1px solid rgba(91,181,192,.25); border-radius:6px; background:rgba(18,57,69,.55); color:#8fd3d0; font-size:8px; font-weight:800; cursor:pointer; }
+.ax-modern-shell .ax-record-related-activity>p { display:flex; justify-content:space-between; gap:12px; margin:0; padding:5px 2px; border-bottom:1px solid rgba(116,179,191,.08); }
+.ax-modern-shell .ax-record-related-activity>p>span { color:#819fac; font-size:8px; }
+.ax-modern-shell .ax-record-related-activity>p>strong { color:#d5e9e7; font-size:9px; text-align:right; }
+.ax-modern-shell .ax-record-related-activity>small { color:#7c9ba8; font-size:9px; }
+@media(max-width:720px) {
+  .ax-modern-shell .ax-record-related-activity>p { align-items:flex-start; flex-direction:column; gap:3px; }
+  .ax-modern-shell .ax-record-related-activity>p>strong { text-align:left; }
+}
