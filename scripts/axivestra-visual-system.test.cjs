@@ -310,7 +310,9 @@ assert.match(app, /Primary contacts \/ parties \(select multiple\)/, "Primary re
 assert.match(app, /__primaryWhatsAppGroupIds/, "Records must retain multiple linked primary WhatsApp groups.");
 assert.match(app, /__followUpWhatsAppGroupIds/, "Records must retain multiple linked follow-up WhatsApp groups.");
 assert.match(followUpForm, /whatsAppGroupIds/, "Follow-up forms must allow multiple WhatsApp groups.");
-assert.match(registry, /linkedGroups\.map\(group => group\.name\)/, "The follow-up registry must display linked WhatsApp groups.");
+assert.match(registry, /linkedGroups\.map\(group=>group\.name\)/, "The follow-up registry must display linked WhatsApp groups.");
 assert.match(app, /Add custom module/, "Users must be able to create custom workspaces.");
 assert.match(app, /estateflow\.customModules/, "Custom workspaces must persist locally.");
-assert.match(readme, /17 core workspaces/, "Documentation must identify the 17 core workspaces.");
+assert.match(readme, /Seventeen core workspaces/, "Documentation must identify the 17 core workspaces.");
+
+assert.match(fs.readFileSync(path.join(root, "src", "lib", "contact-directory.mjs"), "utf8"), /__primaryContactIds/, "Contact deduplication must remap multi-primary contact references.");
