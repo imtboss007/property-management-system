@@ -303,6 +303,7 @@ assert.match(app, /mortgageType/, "Property records must distinguish mortgage ty
 assert.match(app, /srAreaValue/, "SR Rate Settlement must capture the full measured extent.");
 assert.match(app, /srCalculatedAmount/, "SR rate × size must produce a calculated total.");
 assert.match(app, /marketRatePerUnit/, "Property records must capture the market rate per unit.");
+assert.match(app, /rateBasisSquareFeet/, "SR and market totals must convert the property area into the selected rate unit before calculation.");
 assert.match(app, /settlementAmount/, "Settlement workflows must capture settlement amounts.");
 assert.match(app, /__linkedProperties/, "One record must be able to contain multiple property entries.");
 assert.match(app, /Add another property/, "Users must have an explicit add-property control.");
