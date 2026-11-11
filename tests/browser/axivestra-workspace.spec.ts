@@ -40,7 +40,7 @@ test("desktop: all 17 workspaces, detail panels, view controls, filters and orbi
   await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
   await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
-  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(9);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const stage = hub.locator(".ax-orbit-stage");
   await expect(stage).toHaveAttribute("data-orbit-dimensionality", "3d");
@@ -130,7 +130,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
   await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
-  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(8);
+  await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="outer"]')).toHaveCount(9);
   await expect(hub.locator('.ax-orbit-node-slot[data-module-shell="inner"]')).toHaveCount(8);
   const mobileStage = hub.locator(".ax-orbit-stage");
   await expect(mobileStage).toHaveAttribute("data-orbit-dimensionality", "3d");
