@@ -23,7 +23,7 @@ AXIVESTRA is not an orbital dashboard, a property CRM alone, a static contact bo
 
 ## 2. Product domains
 
-The existing 16 workspaces remain the domain entry points and must not be deleted or collapsed:
+Preserve all 16 existing workspaces and add Sharing Property as the 17th core domain entry point. None may be deleted or collapsed:
 
 | Domain | Existing workspaces |
 |---|---|
@@ -114,7 +114,7 @@ The application must present the product in this order:
 2. **Intelligence Hub** — cross-domain analysis, record-derived intelligence, explainable signals, relationship summaries and decision support.
 3. **Domain workspaces** — the 16 existing workspaces, each with domain-specific record fields, workflow, linked parties, evidence, timeline, analytics and completeness.
 4. **Cross-domain operations** — contacts/organisations, deals, tasks, follow-ups, financials, documents, risks, compliance and approvals.
-5. **Workspace Explorer** — optional orbital/grid visual navigation to open the 16 workspaces. It is not the product home, an intelligence engine or a data model.
+5. **Workspace Explorer** — optional orbital/grid visual navigation to open the 17 core workspaces and any custom workspaces. It is not the product home, an intelligence engine or a data model.
 
 Desktop, tablet and mobile must preserve the same workflows and underlying records. Interaction affordances must actually work; decorative controls are not acceptance criteria.
 
@@ -124,7 +124,7 @@ This is a code/document review, not a production certification.
 
 | Capability | Observed in repository | Maturity |
 |---|---|---|
-| 16 domain workspaces and field maps | Present in `src/App.tsx` | Implemented foundation |
+| 17 core domain workspaces and field maps | Present in `src/App.tsx` | Implemented foundation |
 | Shared property/deal record workbench | Cards, table, pipeline, analytics and data-health views in `src/ModuleWorkbench.tsx` | Partial; domain-specific depth varies |
 | Contact directory and multiple roles | Present; additional roles/profile details are stored on contact records | Partial |
 | Role-in-record links | Primary and role-specific contact IDs are stored in existing records; the new relationship resolver reads those IDs without name matching | Partial foundation; not a normalized person/organisation graph or complete role coverage |
@@ -199,7 +199,7 @@ Select providers and official sources per jurisdiction and business need. Valida
 
 ## 7. Non-negotiable engineering rules
 
-1. Preserve all 16 workspaces and existing saved records.
+1. Preserve all 16 original workspaces and their saved records; add Sharing Property as workspace 17.
 2. Never delete or silently rewrite user data to simplify a UI.
 3. Do not treat a contact display name as an entity key.
 4. Do not combine asset value, debt, cash, commitment, fund NAV and disputed claim exposure into one financial measure.
