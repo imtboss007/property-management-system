@@ -20,18 +20,17 @@ export type CustomModuleDefinition = {
 
 export function normalizeCustomModules(value: unknown): CustomModuleDefinition[] {
   if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
   return value.filter(item => item && typeof item === "object").map((raw, index) => {
     const item = raw as Partial<CustomModuleDefinition>;
     const name = String(item.name || "").trim();
     const id = String(item.id || ("legacy-custom-module-" + index));
     const safeName = name || ("Custom workspace " + (index + 1));
-    const fields = Array.isArray(item.fields) ? item.fields.filter(field => field && typeof field === "object").map(field => {
+    const fields = Array.isArray(item.fields) ? item.fields.filter(field => field && typeof field === "object").map((field, fieldIndex) => {
       const type = ["text","textarea","number","date","select","contact","contacts"].includes(String(field.type))
         ? field.type!
         : "text";
       return {
-        key: String(field.key || ("custom_" + Math.random().toString(36).slice(2, 10))),
+        key: String(field.key || ("legacy_custom_" + index + "_" + fieldIndex)),
         label: String(field.label || "Custom field"),
         placeholder: String(field.placeholder || ""),
         type,
@@ -39,7 +38,6 @@ export function normalizeCustomModules(value: unknown): CustomModuleDefinition[]
         required: Boolean(field.required)
       };
     }) : [];
-    seen.add(safeName.toLocaleLowerCase());
     return {
       id,
       name: safeName,
