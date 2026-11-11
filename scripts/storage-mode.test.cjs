@@ -19,7 +19,7 @@ const checks = [
   ["storage setting can switch to Login ID", /chooseStorageMode\("account"\)/.test(app)],
   ["storage setting can switch to Local Only", /chooseStorageMode\("local"\)/.test(app)],
   ["storage mode is changed only after a confirmation and saved before reload", /window\.confirm\(explanation[\s\S]*persistStorageMode\(next\)[\s\S]*window\.location\.reload\(\)/.test(app)],
-  ["Local Only can be opened without signing in", /if \(localOnlyAccess\) return <App \/>/.test(gate)],
+  ["Local Only can be opened without signing in", /if \(!supabase \|\| localOnlyAccess\) return <App \/>/.test(gate)],
   ["Local Only does not initialize login memberships or personal cloud", /if \(localOnlyAccess \|\| !supabase \|\| !userId\) return/.test(gate) && /!localOnlyAccess && userId && membershipsReady/.test(gate)],
   ["sign-in screen offers Local Only as an alternative", /Continue without login · Local storage only/.test(gate)],
   ["switching modes preserves separate datasets without automatic merge", /will remain saved separately and will not be deleted or copied/.test(app) && /does not delete or automatically merge either dataset/.test(app)]
