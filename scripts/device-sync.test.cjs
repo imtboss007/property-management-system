@@ -10,7 +10,7 @@ const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
 const compiled = { exports: {} };
 vm.runInNewContext(code, { module: compiled, exports: compiled.exports, require }, { filename });
 const { reconcileDeviceSync, emptyDeviceSyncBaseline } = compiled.exports;
-const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [] });
+const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], customModules: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [] });
 const pc = empty();
 pc.properties = [{ id: "p1", title: "PC property" }];
 pc.contacts = [{ id: "c1", name: "Vendor" }];
