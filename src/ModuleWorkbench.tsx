@@ -37,7 +37,7 @@ const contactIds = (record: ModuleRecord) => [
   ...(record.moduleData?.__primaryContactIds || "").split(","),
   ...(record.moduleData?.__linkedContactIds || "").split(","),
   ...(record.moduleData?.__followUpContactIds || "").split(","),
-  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
+  ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).flatMap(([,value]) => String(value || "").split(","))
 ].filter(Boolean);
 const followUpContactIds = (record: ModuleRecord) => Array.from(new Set(
   (record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean)
