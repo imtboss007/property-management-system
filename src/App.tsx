@@ -700,7 +700,7 @@ type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: 
 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [customModules, setCustomModules] = useState<Array<{name:string;description?:string}>>(() => load("estateflow.customModules", []));
-  const modules = useMemo(() => [...baseModules, ...customModules.map(item => ({...item, icon:Layers3, color:"blue", group:"Custom"}))], [customModules]);
+  const modules = useMemo(() => [...baseModules, ...customModules.map(item => ({...item, description:item.description || "Custom AXIVESTRA workspace with shared records and follow-ups.", icon:Layers3, color:"blue", group:"Custom"}))], [customModules]);
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
@@ -3006,7 +3006,7 @@ function PropertyForm({defaultModule,contacts,whatsappGroups,moduleOptions,initi
   const linkedProperties=parseLinkedPropertyItems(form.moduleData.__linkedProperties);
   const updateLinkedPropertyItems=(items:LinkedPropertyItem[])=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedProperties:JSON.stringify(items)}}));
   const updateLinkedProperty=(id:string,key:keyof Omit<LinkedPropertyItem,"id">,value:string)=>updateLinkedPropertyItems(linkedProperties.map(item=>item.id===id?{...item,[key]:value}:item));
-  const updateWorksheetField=(key:string,value:string)=>setForm(previous=>{const moduleData={...previous.moduleData,[key]:value};if(key==="ownershipArrangement" && /^\d+:\d+$/.test(value)){const [one,two]=value.split(":");moduleData.ownerOneShare=one;moduleData.ownerTwoShare=two;}if(previous.module==="SR Rate Settlement" && ["srAreaValue","settlementRate","marketRatePerUnit"].includes(key)){const area=Number(moduleData.srAreaValue||0);const srRate=normalizeIndianAmount(moduleData.settlementRate||"");const marketRate=normalizeIndianAmount(moduleData.marketRatePerUnit||"");if(area>0 && srRate!==null)moduleData.srCalculatedAmount=String(area*srRate);if(area>0 && marketRate!==null)moduleData.marketValue=String(area*marketRate);}return {...previous,moduleData};});
+  const updateWorksheetField=(key:string,value:string)=>setForm(previous=>{const moduleData={...previous.moduleData,[key]:value};if(key==="ownershipArrangement" && /^\d+:\d+$/.test(value)){const [one,two]=value.split(":");moduleData.ownerOneShare=one;moduleData.ownerTwoShare=two;}if(previous.module==="SR Rate Settlement" && ["srAreaValue","settlementRate","marketRatePerUnit"].includes(key)){const area=Number(moduleData.srAreaValue||0);const srRate=normalizeIndianAmount(moduleData.settlementRate||"");const marketRate=normalizeIndianAmount(moduleData.marketRatePerUnit||"");if(area>0 && srRate!==null)moduleData.srCalculatedAmount=String(area*Number(srRate));if(area>0 && marketRate!==null)moduleData.marketValue=String(area*Number(marketRate));}return {...previous,moduleData};});
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
