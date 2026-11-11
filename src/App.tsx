@@ -3010,7 +3010,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
   }));
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const updateModuleData=(key:string,value:string)=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[key]:value}}));
-  const selectedFields=(moduleFields[form.module] ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal"].includes(field.key));
+  const selectedFields=(moduleFields[form.module] ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal",...(form.module==="Sharing Property"?["mortgageType"]:[])].includes(field.key));
   const primaryContactIds=(form.moduleData.__primaryContactIds || form.primaryContactId || "").split(",").map(id=>id.trim()).filter(Boolean);
   const primaryGroupIds=(form.moduleData.__primaryWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
   const followUpGroupIds=(form.moduleData.__followUpWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
