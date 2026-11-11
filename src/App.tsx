@@ -29,7 +29,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow, ListTodo, Orbit
+  BrainCircuit, Workflow, ListTodo, Orbit, Layers3
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -101,7 +101,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   </div>;
 }
 
-const modules = [
+const baseModules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
   { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
@@ -117,7 +117,8 @@ const modules = [
   { name: "Litigation", icon: Scale, color: "amber", group: "Legal & Risk", description: "Case chronology, exposure, counsel and hearing deadlines." },
   { name: "Fund & Portfolio Management", icon: PieChart, color: "blue", group: "Portfolio & Funds", description: "Commitments, deployed capital, NAV, fees, hurdle rates and benchmarks." },
   { name: "Investor Relations", icon: Users, color: "mint", group: "Investor Services", description: "LPs, investors, commitments, paid-in capital, KYC status and reporting." },
-  { name: "Compliance & KYC", icon: ShieldCheck, color: "violet", group: "Governance", description: "Counterparty onboarding, beneficial ownership, screening and review dates." }
+  { name: "Compliance & KYC", icon: ShieldCheck, color: "violet", group: "Governance", description: "Counterparty onboarding, beneficial ownership, screening and review dates." },
+  { name: "Sharing Property", icon: Layers3, color: "rose", group: "Real Assets & Ownership", description: "Co-ownership, share transfers, gift consideration, SR and market rates, deed and mortgage details." }
 ];
 const navigation = [
   { name: "Overview", label: "Asset Intelligence", icon: LayoutDashboard },
@@ -136,13 +137,18 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select"; options?: string[] };
 const moduleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
     { key: "buyer", label: "Buyer", placeholder: "Buyer contact or legal entity" },
     { key: "askingPrice", label: "Asking price (₹)", placeholder: "Amount", type: "number" },
     { key: "agreedPrice", label: "Agreed price (₹)", placeholder: "Amount", type: "number" },
+    { key: "settlementAmount", label: "Full and final / payable settlement amount (₹)", placeholder: "Total settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select settlement type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement / payment date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt or bank reference" },
     { key: "offerDate", label: "Offer date", placeholder: "Date", type: "date" },
     { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
     { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" }
@@ -174,14 +180,31 @@ const moduleFields: Record<string, ModuleField[]> = {
   ],
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
-    { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
-    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
-    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "settlementBasis", label: "SR rate basis / unit", placeholder: "Per sq ft / acre / gunta / fixed amount", type: "select", options: ["Per sq ft", "Per sq yd", "Per sq m", "Per acre", "Per gunta", "Per hectare", "Per cent", "Fixed amount", "Other"] },
+    { key: "srAreaValue", label: "Full SR size / measured area", placeholder: "Enter full property extent", type: "number" },
+    { key: "srAreaUnit", label: "SR size unit", placeholder: "Select unit", type: "select", options: ["sq ft", "sq yd", "sq m", "acre", "gunta", "hectare", "cent"] },
+    { key: "settlementRate", label: "Agreed SR rate per unit (₹)", placeholder: "Rate per selected unit", type: "number" },
+    { key: "srCalculatedAmount", label: "Calculated SR amount (₹)", placeholder: "Size × SR rate", type: "number" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "Current market rate", type: "number" },
+    { key: "marketValue", label: "Total market value (₹)", placeholder: "Total market value", type: "number" },
+    { key: "settlementAmount", label: "Full settlement amount (₹)", placeholder: "Agreed full settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "transactionInstrument", label: "Deed / instrument type", placeholder: "Sale deed / mortgage / gift / other", type: "select", options: ["Sale Deed", "Mortgage", "Gift Deed", "Release / Relinquishment Deed", "Partition Deed", "Settlement Deed", "JDA / JV", "Other"] },
+    { key: "registeredDeedValue", label: "Registered sale deed value (₹)", placeholder: "Value recorded in deed", type: "number" },
+    { key: "mortgageType", label: "Mortgage type", placeholder: "Select mortgage type", type: "select", options: ["Not applicable", "Equitable mortgage / deposit of title deeds", "Registered mortgage", "Simple mortgage", "English mortgage", "Usufructuary mortgage", "Other"] },
+    { key: "mortgageAmount", label: "Mortgage / secured amount (₹)", placeholder: "Amount secured", type: "number" },
     { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
     { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
     { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
   ],
   "Agricultural Land": [
+    { key: "settlementAmount", label: "Full settlement / compensation amount (₹)", placeholder: "Total settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt or payment reference" },
     { key: "landClassification", label: "Land classification", placeholder: "Agricultural / converted / restricted" },
     { key: "rtcStatus", label: "RTC / Pahani status", placeholder: "Available / pending / requires correction" },
     { key: "waterAndAccess", label: "Water, access and utilities", placeholder: "Borewell / road / power" },
@@ -190,6 +213,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" }
   ],
   "Commercial Land": [
+    { key: "settlementAmount", label: "Full settlement / compensation amount (₹)", placeholder: "Total settlement amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Approved", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Settlement reference / receipt", placeholder: "MOU, receipt or payment reference" },
     { key: "zoning", label: "Zoning / permitted use", placeholder: "Commercial / industrial / mixed use" },
     { key: "currentUse", label: "Current use / tenant", placeholder: "Occupancy / lease" },
     { key: "titleStatus", label: "Title / encumbrance status", placeholder: "Clear / pending / issue identified" },
@@ -267,6 +295,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "possessionDate", label: "Possession date", placeholder: "Date", type: "date" }
   ],
   "Litigation": [
+    { key: "settlementAmount", label: "Settlement amount / consent terms (₹)", placeholder: "Full agreed or court-recorded amount", type: "number" },
+    { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Compromise / settlement", "Mediation settlement", "Consent terms", "Court-directed payment", "Part settlement", "Other"] },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select status", type: "select", options: ["Not started", "Proposed", "Negotiation", "Agreed", "Filed", "Recorded by court", "Part-paid", "Paid", "Disputed"] },
+    { key: "settlementDate", label: "Settlement / recording date", placeholder: "Date", type: "date" },
+    { key: "settlementReference", label: "Court order / compromise / receipt reference", placeholder: "Order or consent-term reference" },
     { key: "caseNumber", label: "Case number / CNR", placeholder: "Court case reference" },
     { key: "court", label: "Court / tribunal", placeholder: "Court, bench or tribunal" },
     { key: "parties", label: "Parties and case title", placeholder: "Petitioner / respondent / claimant" },
@@ -277,6 +310,26 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" }
   ],
   "Fund & Portfolio Management": [
+  "Sharing Property": [
+    { key: "propertyType", label: "Property type", placeholder: "Land / house / apartment / commercial / agricultural" },
+    { key: "ownershipArrangement", label: "Ownership / sharing ratio", placeholder: "Select ratio", type: "select", options: ["50:50", "60:40", "70:30", "75:25", "80:20", "90:10", "Custom ratio", "Gift / no consideration", "Other"] },
+    { key: "ownerOneShare", label: "Owner 1 share (%)", placeholder: "e.g. 50", type: "number" },
+    { key: "ownerTwoShare", label: "Owner 2 share (%)", placeholder: "e.g. 50", type: "number" },
+    { key: "transferType", label: "Sharing / transfer basis", placeholder: "Select basis", type: "select", options: ["Joint purchase", "Share sale", "Gift", "Gift amount / consideration", "Partition", "Release / relinquishment", "Settlement", "Mortgage / collateral sharing", "Inheritance / succession", "Other"] },
+    { key: "giftAmount", label: "Gift amount / consideration (₹)", placeholder: "Gift amount, if applicable", type: "number" },
+    { key: "shareConsideration", label: "Share transfer consideration (₹)", placeholder: "Amount paid for transferred share", type: "number" },
+    { key: "marketRatePerUnit", label: "Current market rate per unit (₹)", placeholder: "Market rate", type: "number" },
+    { key: "marketValue", label: "Total market value (₹)", placeholder: "Current market value", type: "number" },
+    { key: "srRatePerUnit", label: "SR / guidance rate per unit (₹)", placeholder: "SR rate", type: "number" },
+    { key: "registeredDeedValue", label: "Registered sale deed value (₹)", placeholder: "Value recorded in deed", type: "number" },
+    { key: "mortgageType", label: "Mortgage type", placeholder: "Select mortgage type", type: "select", options: ["Not applicable", "Equitable mortgage / deposit of title deeds", "Registered mortgage", "Simple mortgage", "English mortgage", "Usufructuary mortgage", "Other"] },
+    { key: "mortgageAmount", label: "Mortgage / secured loan amount (₹)", placeholder: "Secured amount", type: "number" },
+    { key: "lenderName", label: "Bank / lender", placeholder: "Bank, NBFC or lender" },
+    { key: "encumbranceStatus", label: "Encumbrance / existing charge", placeholder: "None / mortgage / charge / disputed / unknown" },
+    { key: "registrationNumber", label: "Registration / deed number", placeholder: "Document number and SRO" },
+    { key: "registrationDate", label: "Registration date", placeholder: "Date", type: "date" },
+    { key: "transferStatus", label: "Transfer / registration status", placeholder: "Select status", type: "select", options: ["Proposed", "Due diligence", "Drafting", "Signed", "Presented for registration", "Registered", "On hold", "Disputed", "Completed"] }
+  ],
     { key: "fundName", label: "Fund / portfolio name", placeholder: "Legal fund or portfolio name" },
     { key: "legalStructure", label: "Legal structure", placeholder: "Trust, LLP, company, AIF, SPV…" },
     { key: "strategy", label: "Investment strategy", placeholder: "Private equity, real assets, credit…" },
@@ -394,6 +447,16 @@ const moduleContactFields: Record<string, ModuleContactField[]> = {
     { key: "__contact_seller", label: "Seller" },
     { key: "__contact_broker", label: "Broker / agent" },
     { key: "__contact_legalCounsel", label: "Lawyer / conveyance" }
+  ],
+  "Sharing Property": [
+    { key: "__contact_ownerOne", label: "Owner / shareholder 1" },
+    { key: "__contact_ownerTwo", label: "Owner / shareholder 2" },
+    { key: "__contact_additionalOwners", label: "Other co-owners / beneficiaries" },
+    { key: "__contact_donor", label: "Donor / transferor" },
+    { key: "__contact_recipient", label: "Donee / transferee" },
+    { key: "__contact_lender", label: "Bank / mortgage lender" },
+    { key: "__contact_legalCounsel", label: "Lawyer / conveyance" },
+    { key: "__contact_valuator", label: "Valuer / surveyor" }
   ],
   "Litigation": [
     { key: "__contact_client", label: "Client / party represented" },
@@ -588,6 +651,8 @@ async function requestPcSync(host: string, token: string, method: "GET" | "POST"
 type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: string; email?: string; onSignOut?: () => void; onSwitchCompany?: () => void };
 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
+  const [customModules, setCustomModules] = useState<Array<{name:string;description?:string}>>(() => load("estateflow.customModules", []));
+  const modules = useMemo(() => [...baseModules, ...customModules.map(item => ({...item, icon:Layers3, color:"blue", group:"Custom"}))], [customModules]);
   const [active, setActive] = useState<Section>("Overview");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
@@ -622,6 +687,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [documentVaultBusy, setDocumentVaultBusy] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [showCustomModuleForm, setShowCustomModuleForm] = useState(false);
+  const [customModuleName, setCustomModuleName] = useState("");
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
@@ -697,6 +764,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   useEffect(() => {
     saveLocal("estateflow.properties", properties);
   }, [properties]);
+  useEffect(() => {
+    saveLocal("estateflow.customModules", customModules);
+  }, [customModules]);
+
 
   useEffect(() => {
     saveLocal("estateflow.contacts", contacts);
