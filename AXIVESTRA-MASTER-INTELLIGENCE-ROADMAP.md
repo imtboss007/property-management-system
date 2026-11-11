@@ -28,7 +28,7 @@ Master roles describe a person generally. A separate deal-party link records the
 Use stable IDs and explicit links between contacts, companies, properties, deals, loans, funds/investments, tasks, documents, financial transactions, communications, legal cases and approvals. Do not rely on display names as database keys. Where legacy records lack IDs, offer a match suggestion rather than silently merging them.
 
 ## 3. Connected workspaces
-Keep all existing 16 workspaces: Property Sale; Property Loans; JV / JDA / JD; SR Rate Settlement; Agricultural Land; Commercial Land; Startup; Equity; Unsecured Company Loan; Personal Loan; Housing Loan; House Purchase; Litigation; Fund & Portfolio Management; Investor Relations; Compliance & KYC.
+Preserve all existing 16 workspaces and add Sharing Property as the 17th: Property Sale; Property Loans; JV / JDA / JD; SR Rate Settlement; Agricultural Land; Commercial Land; Startup; Equity; Unsecured Company Loan; Personal Loan; Housing Loan; House Purchase; Litigation; Fund & Portfolio Management; Investor Relations; Compliance & KYC.
 
 Each workspace must support:
 - Its own required and optional domain fields, stage/status, participants and role-in-this-deal.
@@ -97,3 +97,6 @@ The current repository README identifies local device storage as the default and
 
 ## 11. Honest scope boundary
 The contact-editor multi-role and profile-field UI is being added in the feature branch. This alone does not implement a normalized relational database, cross-device sync, a verified WhatsApp contact/group importer, production message delivery, inbound reply detection, or full role-based access control. Those require backend schema, provider credentials/configuration, migrations, tests and deployment. Keep the branch unmerged until its checks and user acceptance are complete.
+
+
+Custom workspaces may be added by the user. They must use stable module names and reuse the shared record, stakeholder, follow-up, evidence and audit capabilities without changing existing module IDs or rewriting saved records.
