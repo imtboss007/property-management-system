@@ -204,6 +204,7 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "settlementRate", label: "Agreed SR rate per unit (₹)", placeholder: "Rate per selected unit", type: "number" },
     { key: "srCalculatedAmount", label: "Calculated SR amount (₹)", placeholder: "Size × SR rate", type: "number" },
     { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "Current market rate", type: "number" },
+    { key: "marketRateBasis", label: "Market rate basis / unit", placeholder: "Select market rate unit", type: "select", options: ["Per sq ft", "Per sq yd", "Per sq m", "Per acre", "Per gunta", "Per hectare", "Per cent"] },
     { key: "marketValue", label: "Total market value (₹)", placeholder: "Total market value", type: "number" },
     { key: "settlementAmount", label: "Full settlement amount (₹)", placeholder: "Agreed full settlement amount", type: "number" },
     { key: "settlementType", label: "Settlement type", placeholder: "Select type", type: "select", options: ["Full and final", "Part settlement", "Staged settlement", "Disputed settlement", "Other"] },
@@ -532,6 +533,17 @@ const parseLinkedPropertyItems = (raw?:string):LinkedPropertyItem[] => {
 };
 const newLinkedPropertyItem = ():LinkedPropertyItem => ({id:uid(),title:"",surveyNumber:"",location:"",ownerDetails:"",areaValue:"",areaUnit:"sq ft",srRate:"",marketRate:"",marketValue:"",deedType:"",deedValue:"",mortgageType:"",mortgageAmount:"",notes:""});
 const splitIds = (value?:string) => String(value||"").split(",").map(id=>id.trim()).filter(Boolean);
+const rateBasisSquareFeet = (raw:string):number|null => {
+  const unit=String(raw||"").toLowerCase().replace(/^per\s+/,"").trim().replace(/\./g,"");
+  if(["sq ft","sqft","square foot","square feet","ft²"].includes(unit))return 1;
+  if(["sq yd","sqyd","square yard","square yards","yd²"].includes(unit))return 9;
+  if(["sq m","sqm","square metre","square metres","square meter","square meters","m²"].includes(unit))return 10.7639104167;
+  if(["acre","acres"].includes(unit))return 43560;
+  if(["gunta","guntas"].includes(unit))return 1089;
+  if(["hectare","hectares","ha"].includes(unit))return 107639.104167;
+  if(["cent","cents"].includes(unit))return 435.6;
+  return null;
+};
 const uid = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
@@ -3006,7 +3018,7 @@ function PropertyForm({defaultModule,contacts,whatsappGroups,moduleOptions,initi
   const linkedProperties=parseLinkedPropertyItems(form.moduleData.__linkedProperties);
   const updateLinkedPropertyItems=(items:LinkedPropertyItem[])=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedProperties:JSON.stringify(items)}}));
   const updateLinkedProperty=(id:string,key:keyof Omit<LinkedPropertyItem,"id">,value:string)=>updateLinkedPropertyItems(linkedProperties.map(item=>item.id===id?{...item,[key]:value}:item));
-  const updateWorksheetField=(key:string,value:string)=>setForm(previous=>{const moduleData={...previous.moduleData,[key]:value};if(key==="ownershipArrangement" && /^\d+:\d+$/.test(value)){const [one,two]=value.split(":");moduleData.ownerOneShare=one;moduleData.ownerTwoShare=two;}if(previous.module==="SR Rate Settlement" && ["srAreaValue","settlementRate","marketRatePerUnit"].includes(key)){const area=Number(moduleData.srAreaValue||0);const srRate=normalizeIndianAmount(moduleData.settlementRate||"");const marketRate=normalizeIndianAmount(moduleData.marketRatePerUnit||"");if(area>0 && srRate!==null)moduleData.srCalculatedAmount=String(area*Number(srRate));if(area>0 && marketRate!==null)moduleData.marketValue=String(area*Number(marketRate));}return {...previous,moduleData};});
+  const updateWorksheetField=(key:string,value:string)=>setForm(previous=>{const moduleData={...previous.moduleData,[key]:value};if(key==="ownershipArrangement" && /^\d+:\d+$/.test(value)){const [one,two]=value.split(":");moduleData.ownerOneShare=one;moduleData.ownerTwoShare=two;}if(previous.module==="SR Rate Settlement" && ["srAreaValue","srAreaUnit","settlementBasis","settlementRate","marketRatePerUnit","marketRateBasis"].includes(key)){const areaSqFt=getPropertyAreaInSquareFeet({areaValue:moduleData.srAreaValue,areaUnit:moduleData.srAreaUnit});const srRate=normalizeIndianAmount(moduleData.settlementRate||"");const marketRate=normalizeIndianAmount(moduleData.marketRatePerUnit||"");const srUnitFactor=rateBasisSquareFeet(String(moduleData.settlementBasis||""));const marketUnitFactor=rateBasisSquareFeet(String(moduleData.marketRateBasis||moduleData.settlementBasis||""));if(areaSqFt!==null && srUnitFactor!==null && srRate!==null)moduleData.srCalculatedAmount=String((areaSqFt/srUnitFactor)*Number(srRate));if(areaSqFt!==null && marketUnitFactor!==null && marketRate!==null)moduleData.marketValue=String((areaSqFt/marketUnitFactor)*Number(marketRate));}return {...previous,moduleData};});
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
