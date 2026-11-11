@@ -24,6 +24,7 @@ See [AXIVESTRA-PRODUCT-ARCHITECTURE.md](AXIVESTRA-PRODUCT-ARCHITECTURE.md) for t
 - Settlement amount, status, date and terms are captured in Property Sale, SR Rate Settlement, Agricultural Land, Commercial Land and Litigation.
 - Sharing Property captures owner percentage allocations (for example 50:50 or 60:40), gifts, share consideration, instrument / deed type, mortgage type and linked loan terms. This is recordkeeping, not a legal conclusion on title, tax or deed validity.
 - Workspace records support multiple primary contacts, stakeholders, follow-up contacts and links to saved WhatsApp groups. Group association does not send messages. Custom workspace definitions are syncable and included in JSON backups.
+- Custom workspaces are configurable: define text, long-text, number, date, dropdown and linked-contact fields; edit their schema later; and use the same linked property, contact, task, follow-up, document, transaction, risk and approval registers as standard workspaces. Custom records are searchable and appear in workspace analytics and relationship views.
 - Property records with module, location, value, status, contact, and notes.
 - Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
 - Master contact intelligence: multiple standard/custom roles, profession, employer, designation, business type, associated company, optional income sources, email/address and referral context.
