@@ -18,7 +18,7 @@ export type UniversalNotice = {
   section: string;
 };
 
-export type QuickAddAction = "property" | "contact" | "followup" | "task" | "transaction" | "risk" | "approval";
+export type QuickAddAction = "property" | "contact" | "followup" | "task" | "transaction" | "risk" | "approval" | "custom-module";
 
 type Props = {
   activeSection: string;
@@ -36,7 +36,8 @@ const quickActions: Array<{ id: QuickAddAction; label: string; description: stri
   { id: "task", label: "Schedule task", description: "Add a reminder or work item" },
   { id: "transaction", label: "Add transaction", description: "Record a financial movement" },
   { id: "risk", label: "Log risk", description: "Record an asset or deal risk" },
-  { id: "approval", label: "Request approval", description: "Submit a decision for review" }
+  { id: "approval", label: "Request approval", description: "Submit a decision for review" },
+  { id: "custom-module", label: "Create custom workspace", description: "Build a workspace with your own fields and relationships" }
 ];
 
 export default function UniversalInterface({ activeSection, sections, entities, notifications, onNavigate, onQuickAdd }: Props) {
