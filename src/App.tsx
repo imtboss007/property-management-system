@@ -1718,7 +1718,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     setEditingCustomModule(null);
     setActive(item.name);
     setNotice(previous ? "Custom workspace updated. Existing records and their links were preserved." : "Custom workspace created. Add a record to begin; its relationships and activity panels are ready.");
-    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: previous ? "updated" : "created", entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: (previous ? "updated" : "created") as AuditEvent["action"], entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
   };
   const deleteCustomModule = (item: CustomModuleDefinition) => {
     const linkedRecords = properties.filter(record => record.module === item.name);
@@ -1730,7 +1730,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     setCustomModules(current => current.filter(existing => existing.id !== item.id));
     if (active === item.name) setActive("Overview");
     setNotice("Empty custom workspace deleted.");
-    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "deleted", entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "deleted" as AuditEvent["action"], entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
   };
   const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); };
