@@ -29,7 +29,7 @@ import {
   Search, Plus, ArrowUpRight, Clock3, CheckCircle2, Menu, X, ChevronDown,
   Trash2, Phone, CalendarDays, CircleCheck, Pencil, Download,
   Rocket, PieChart, BriefcaseBusiness, UserRound, House, Scale, ShieldCheck, ClipboardCheck,
-  BrainCircuit, Workflow, ListTodo, Orbit
+  BrainCircuit, Workflow, ListTodo, Orbit, Share2, FolderPlus
 } from "lucide-react";
 
 type PropertyRecord = {
@@ -88,9 +88,9 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
     <span className="searchable-contact-picker__label">{label}</span>
     <div className="searchable-contact-picker__search"><Search size={15}/><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={placeholder || "Search contacts by name, WhatsApp name, role or phone…"} aria-label={"Search contacts for " + label}/>{query && <button type="button" className="searchable-contact-picker__clear" onClick={() => setQuery("")} aria-label={"Clear search for " + label}>×</button>}</div>
     {multiple
-      ? <div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
+      ? <><div className="searchable-contact-picker__bulk-actions"><button type="button" onClick={() => onChange(Array.from(new Set([...selectedIds, ...filtered.map(contact => contact.id)])))}>Select all matching</button><button type="button" onClick={() => onChange([])}>Clear selection</button></div><div className="searchable-contact-picker__options" role="group" aria-label={label + " results"}>
           {filtered.length === 0 ? <p className="searchable-contact-picker__empty">No matching contacts.</p> : filtered.map(contact => <label className="searchable-contact-picker__option" key={contact.id}><input type="checkbox" checked={selectedIds.includes(contact.id)} onChange={event => toggle(contact.id, event.target.checked)}/><span><strong>{contact.name}</strong><small>{contact.whatsappName && contact.whatsappName !== contact.name ? "WhatsApp: " + contact.whatsappName + " · " : ""}{contact.role}{contact.phone ? " · " + contact.phone : ""}</small></span></label>)}
-        </div>
+        </div></>
       : <select className="searchable-contact-picker__select" size={1} value={Array.isArray(value) ? "" : value} onChange={event => onChange(event.target.value)}>
           <option value="">{placeholder || "No contact linked"}</option>
           {selected.filter(contact => !filtered.some(item => item.id === contact.id)).map(contact => <option key={contact.id} value={contact.id}>{labelFor(contact)}</option>)}
@@ -108,6 +108,7 @@ const modules = [
   { name: "SR Rate Settlement", icon: Calculator, color: "amber", group: "Settlement", description: "Rate-based settlements, supporting records and approvals." },
   { name: "Agricultural Land", icon: Wheat, color: "green", group: "Real Assets", description: "Survey details, extent, ownership and due diligence." },
   { name: "Commercial Land", icon: Store, color: "rose", group: "Real Assets", description: "Commercial assets, counterparties and transaction stages." },
+  { name: "Sharing Property", icon: Share2, color: "violet", group: "Ownership & Transfer", description: "Co-ownership shares, gifts, deeds, mortgages and linked property assets." },
   { name: "Startup", icon: Rocket, color: "violet", group: "Capital & Ventures", description: "Founders, funding rounds, valuation and capital requirements." },
   { name: "Equity", icon: PieChart, color: "blue", group: "Capital & Ventures", description: "Shares, instruments, ownership, entry cost and valuation." },
   { name: "Unsecured Company Loan", icon: BriefcaseBusiness, color: "amber", group: "Credit & Lending", description: "Company borrowing, lender terms, guarantees and covenants." },
@@ -136,7 +137,7 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date"; options?: string[] };
 const moduleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
@@ -145,7 +146,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "agreedPrice", label: "Agreed price (₹)", placeholder: "Amount", type: "number" },
     { key: "offerDate", label: "Offer date", placeholder: "Date", type: "date" },
     { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
-    { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" }
+    { key: "closingStage", label: "Closing stage", placeholder: "Offer / diligence / agreement / registration" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Property Loans": [
     { key: "borrower", label: "Borrower / applicant", placeholder: "Client or company" },
@@ -174,12 +179,13 @@ const moduleFields: Record<string, ModuleField[]> = {
   ],
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
-    { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
-    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
-    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
-    { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
+    { key: "settlementBasis", label: "Settlement basis", placeholder: "SR / guidance value, market value, fixed amount or negotiated basis", options: ["SR / guidance value","Market value","SR + market comparison","Fixed amount","Negotiated amount","Other"] },
+    { key: "settlementRate", label: "Agreed settlement rate per unit (₹)", placeholder: "Rate", type: "number" },
+    { key: "settlementAmount", label: "Final settlement amount (₹)", placeholder: "Agreed amount payable / receivable", type: "number" },
+    { key: "settlementStage", label: "Settlement stage", placeholder: "Select settlement stage", options: ["Proposal","Under negotiation","Agreed","Approved","Partly paid","Paid","Disputed","Cancelled"] },
     { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
-    { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
+    { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Conditions, instalments, deductions and source documents" }
   ],
   "Agricultural Land": [
     { key: "landClassification", label: "Land classification", placeholder: "Agricultural / converted / restricted" },
@@ -187,7 +193,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "waterAndAccess", label: "Water, access and utilities", placeholder: "Borewell / road / power" },
     { key: "dueDiligenceStatus", label: "Due diligence status", placeholder: "Title / survey / mutation / conversion" },
     { key: "targetDueDiligenceDate", label: "Target due-diligence completion", placeholder: "Date", type: "date" },
-    { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" }
+    { key: "targetClosingDate", label: "Target acquisition / registration", placeholder: "Date", type: "date" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Commercial Land": [
     { key: "zoning", label: "Zoning / permitted use", placeholder: "Commercial / industrial / mixed use" },
@@ -195,7 +205,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "titleStatus", label: "Title / encumbrance status", placeholder: "Clear / pending / issue identified" },
     { key: "dueDiligenceStage", label: "Due diligence stage", placeholder: "Title / zoning / access / approvals" },
     { key: "targetClosingDate", label: "Target closing / registration date", placeholder: "Date", type: "date" },
-    { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" }
+    { key: "commercialNotes", label: "Utilities / lease / access notes", placeholder: "Operational detail" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Agreed settlement amount", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Proposed","Under negotiation","Agreed","Pending payment","Partly paid","Paid","Disputed","Cancelled"] },
+    { key: "settlementDate", label: "Settlement date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / notes", placeholder: "Payment stages, conditions and supporting reference" }
   ],
   "Startup": [
     { key: "stage", label: "Startup stage", placeholder: "Pre-seed, seed, Series A…" },
@@ -256,6 +270,26 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "firstEmiDate", label: "First EMI date", placeholder: "Date", type: "date" },
     { key: "maturityDate", label: "Maturity date", placeholder: "Date", type: "date" }
   ],
+  "Sharing Property": [
+    { key: "sharingArrangement", label: "Sharing / transfer arrangement", placeholder: "Select arrangement", options: ["Co-ownership","Purchase of an ownership share","Gift transfer","Family settlement","Partition / division","Release / relinquishment","Sale of jointly owned property","Property shared as mortgage security","Other"] },
+    { key: "sharingRatioPreset", label: "Share ratio", placeholder: "Choose a ratio", options: ["50:50","60:40","70:30","75:25","80:20","90:10","Custom / multiple owners"] },
+    { key: "giftAmount", label: "Gift amount / declared gift value (₹)", placeholder: "Gift amount, if applicable", type: "number" },
+    { key: "considerationAmount", label: "Share purchase consideration (₹)", placeholder: "Amount paid for transferred share", type: "number" },
+    { key: "transferInstrument", label: "Deed / instrument type", placeholder: "Choose deed", options: ["Sale Deed","Gift Deed","Release / Relinquishment Deed","Partition Deed","Family Settlement Deed","Settlement Deed","Mortgage Deed","Memorandum of Deposit of Title Deeds","Other"] },
+    { key: "mortgageType", label: "Mortgage type", placeholder: "Choose mortgage type", options: ["No mortgage","Existing mortgage","Equitable mortgage / deposit of title deeds","Registered mortgage","Simple mortgage","English mortgage","Usufructuary mortgage","Mortgage by conditional sale","Other / verify with counsel"] },
+    { key: "loanArrangement", label: "Linked loan arrangement", placeholder: "Choose loan arrangement", options: ["No loan","Existing property loan","New loan against property","Co-borrower housing loan","Top-up / refinance","Loan takeover / balance transfer","Loan against jointly owned property","Other"] },
+    { key: "lender", label: "Lender / mortgagee", placeholder: "Bank / NBFC / private lender" },
+    { key: "loanAmount", label: "Loan / mortgage amount (₹)", placeholder: "Sanctioned / proposed amount", type: "number" },
+    { key: "outstandingLoanAmount", label: "Outstanding loan amount (₹)", placeholder: "Current balance", type: "number" },
+    { key: "interestRate", label: "Annual interest rate (%)", placeholder: "Rate", type: "number" },
+    { key: "emi", label: "EMI / repayment amount (₹)", placeholder: "Monthly instalment", type: "number" },
+    { key: "loanTenureMonths", label: "Loan tenure (months)", placeholder: "Months", type: "number" },
+    { key: "deedNumber", label: "Deed / document number", placeholder: "Registered document number" },
+    { key: "registrationDate", label: "Registration / execution date", placeholder: "Date", type: "date" },
+    { key: "stampDutyAndFees", label: "Stamp duty & registration fees (₹)", placeholder: "Amount", type: "number" },
+    { key: "transferStatus", label: "Transfer / sharing status", placeholder: "Choose status", options: ["Proposed","Terms agreed","Due diligence","Draft deed","Ready for registration","Registered","Mutation / khata pending","Completed","Disputed","Cancelled"] },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Any balancing / settlement amount", type: "number" }
+  ],
   "House Purchase": [
     { key: "buyer", label: "Buyer / purchaser", placeholder: "Buyer name" },
     { key: "seller", label: "Seller", placeholder: "Seller name" },
@@ -274,7 +308,11 @@ const moduleFields: Record<string, ModuleField[]> = {
     { key: "caseType", label: "Case type / current stage", placeholder: "Civil, criminal, appeal, interim…" },
     { key: "claimExposure", label: "Claim / exposure (₹)", placeholder: "Amount in dispute", type: "number" },
     { key: "nextHearingDate", label: "Next hearing date", placeholder: "Date", type: "date" },
-    { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" }
+    { key: "limitationDate", label: "Limitation / next legal deadline", placeholder: "Date", type: "date" },
+    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Proposed / agreed amount in dispute", type: "number" },
+    { key: "settlementStatus", label: "Settlement status", placeholder: "Select settlement status", options: ["Not discussed","Mediation","Proposed","Under negotiation","Agreed","Consent terms filed","Partly paid","Paid","Disputed","Withdrawn"] },
+    { key: "settlementDate", label: "Settlement / consent terms date", placeholder: "Date", type: "date" },
+    { key: "settlementNotes", label: "Settlement terms / court recording", placeholder: "Consent terms, payment schedule and court order reference" }
   ],
   "Fund & Portfolio Management": [
     { key: "fundName", label: "Fund / portfolio name", placeholder: "Legal fund or portfolio name" },
@@ -319,6 +357,7 @@ const moduleFields: Record<string, ModuleField[]> = {
   ]
 };
 type ModuleContactField = { key: string; label: string };
+type CustomModuleDefinition = { name: string; description: string; group: string; color: string };
 const moduleContactFields: Record<string, ModuleContactField[]> = {
   "Property Sale": [
     { key: "__contact_seller", label: "Seller / property owner" },
@@ -388,6 +427,14 @@ const moduleContactFields: Record<string, ModuleContactField[]> = {
     { key: "__contact_loanOfficer", label: "Loan officer to call" },
     { key: "__contact_guarantor", label: "Co-borrower / guarantor" },
     { key: "__contact_collateralOwner", label: "Collateral property owner" }
+  ],
+  "Sharing Property": [
+    { key: "__contact_currentOwner", label: "Current owner / transferor" },
+    { key: "__contact_incomingOwner", label: "Incoming owner / recipient" },
+    { key: "__contact_coOwner", label: "Co-owner / shareholder" },
+    { key: "__contact_lender", label: "Lender / mortgagee" },
+    { key: "__contact_legalCounsel", label: "Lawyer / conveyance" },
+    { key: "__contact_witness", label: "Witness / other party" }
   ],
   "House Purchase": [
     { key: "__contact_buyer", label: "Buyer / purchaser" },
@@ -589,6 +636,8 @@ type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: 
 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
+  const workspaceModules = useMemo(() => [...modules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -719,6 +768,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     saveLocal("estateflow.approvals", approvalRequests);
   }, [approvalRequests]);
 
+  useEffect(() => { saveLocal("estateflow.customModules", customModules); }, [customModules]);
+
   // Local audit trail: record entity-level changes without copying private field values into the log.
   useEffect(() => {
     saveLocal("estateflow.auditEvents", auditEvents);
@@ -754,7 +805,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         financials: financials as WorkspaceCollections["financials"],
         riskRecords: riskRecords as WorkspaceCollections["riskRecords"],
         approvalRequests: approvalRequests as WorkspaceCollections["approvalRequests"],
-        auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
+        auditEvents: auditEvents as WorkspaceCollections["auditEvents"],
+        customModules: customModules as WorkspaceCollections["customModules"]
       };
       const currentKeys: Record<string, Set<string>> = {
         property: new Set(properties.map(record => record.id)),
@@ -764,7 +816,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         financial: new Set(financials.map(record => record.id)),
         risk: new Set(riskRecords.map(record => record.id)),
         approval: new Set(approvalRequests.map(record => record.id)),
-        audit_event: new Set(auditEvents.map(record => record.id))
+        audit_event: new Set(auditEvents.map(record => record.id)),
+        custom_module: new Set(customModules.map(record => record.name))
       };
       try {
         const previousKeys = cloudPreviousRef.current;
@@ -788,6 +841,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
         if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
+        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
@@ -796,7 +850,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           financial: new Set(synced.financials.map(record => record.id)),
           risk: new Set(synced.riskRecords.map(record => record.id)),
           approval: new Set(synced.approvalRequests.map(record => record.id)),
-          audit_event: new Set(synced.auditEvents.map(record => record.id))
+          audit_event: new Set(synced.auditEvents.map(record => record.id)),
+          custom_module: new Set((synced.customModules || []).map(record => record.name))
         };
         const syncedAt = new Date().toISOString();
         localStorage.setItem(workspaceLastSyncKey, syncedAt);
@@ -871,7 +926,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
       properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
-      riskRecords, approvalRequests, auditEvents
+      riskRecords, approvalRequests, auditEvents, customModules
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
       setProperties(current => JSON.stringify(current) === JSON.stringify(snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
@@ -882,6 +937,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       setRiskRecords(current => JSON.stringify(current) === JSON.stringify(snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
       setApprovalRequests(current => JSON.stringify(current) === JSON.stringify(snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
       setAuditEvents(current => JSON.stringify(current) === JSON.stringify(snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
+      setCustomModules(current => JSON.stringify(current) === JSON.stringify(snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
     };
     const readRemote = async (): Promise<DeviceSyncReply> => {
       if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync();
@@ -962,7 +1018,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       window.clearInterval(syncInterval);
       if (deviceSyncRunRef.current === runSync) deviceSyncRunRef.current = null;
     };
-  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
+  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, customModules, syncHost, syncToken]);
 
   useEffect(() => {
     let disposed = false;
