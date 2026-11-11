@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, Building2, CalendarClock, CheckCircle2, ClipboardList, Eye, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
 
 type ModuleRecord = {
   id: string; title: string; module: string; location: string; value: string; status: string;
