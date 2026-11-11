@@ -16,7 +16,8 @@ const expectedModules = [
   "Litigation",
   "Fund & Portfolio Management",
   "Investor Relations",
-  "Compliance & KYC"
+  "Compliance & KYC",
+  "Sharing Property"
 ];
 
 async function openExplorer(page) {
@@ -27,15 +28,15 @@ async function openExplorer(page) {
   await expect(page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" })).toBeVisible();
 }
 
-test("desktop: all 16 workspaces, detail panels, view controls, filters and orbital motion", async ({ page }, testInfo) => {
+test("desktop: all 17 workspaces, detail panels, view controls, filters and orbital motion", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Desktop-only orbital interaction checks.");
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await hub.getByRole("button", { name: "Pause rotation" }).click();
   const nodes = hub.locator("button.ax-orbit-node");
-  await expect(nodes).toHaveCount(16);
+  await expect(nodes).toHaveCount(17);
   await expect(hub.locator(".ax-orbit-telemetry")).toBeVisible();
-  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("16");
+  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("17");
   await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
   await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
@@ -112,7 +113,7 @@ test("desktop: all 16 workspaces, detail panels, view controls, filters and orbi
   await hub.getByRole("button", { name: /Credit\s*&\s*Lending/ }).click();
   await expect(nodes).toHaveCount(3);
   await hub.getByRole("button", { name: "All groups" }).click();
-  await expect(nodes).toHaveCount(16);
+  await expect(nodes).toHaveCount(17);
 
   await page.getByText("Intelligence Hub", { exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Intelligence Hub" })).toBeVisible();
@@ -123,9 +124,9 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await page.setViewportSize({ width: 390, height: 844 });
   await openExplorer(page);
   const hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
-  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
+  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(17);
   await expect(hub.locator(".ax-orbit-telemetry")).toBeVisible();
-  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("16");
+  await expect(hub.locator(".ax-orbit-telemetry__metric").first()).toContainText("17");
   await expect(hub.locator(".ax-orbit-constellation")).toBeVisible();
   await expect(hub.locator(".ax-orbit-atmosphere .ax-orbit-beacon")).toHaveCount(4);
   await expect(hub.locator(".ax-orbit-ring")).toHaveCount(1);
@@ -231,7 +232,7 @@ test("mobile: explorer and all workspaces remain usable in responsive layout", a
   await hub.getByRole("button", { name: "Credit & Lending", exact: false }).click();
   await expect(hub.locator("button.ax-orbit-node")).toHaveCount(3);
   await hub.getByRole("button", { name: "All groups" }).click();
-  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(16);
+  await expect(hub.locator("button.ax-orbit-node")).toHaveCount(17);
   const horizontalOverflow = await page.evaluate(() =>
     Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth
   );
