@@ -180,6 +180,10 @@ const moduleFields: Record<string, ModuleField[]> = {
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
     { key: "settlementBasis", label: "Settlement basis", placeholder: "SR / guidance value, market value, fixed amount or negotiated basis", options: ["SR / guidance value","Market value","SR + market comparison","Fixed amount","Negotiated amount","Other"] },
+    { key: "srRatePerUnit", label: "SR / guidance rate per unit (₹)", placeholder: "Sub-Registrar / guidance rate", type: "number" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "Market / negotiated rate", type: "number" },
+    { key: "srValueTotal", label: "Calculated SR / guidance amount (₹)", placeholder: "Calculated from extent × SR rate", type: "number" },
+    { key: "marketValueTotal", label: "Calculated market amount (₹)", placeholder: "Calculated from extent × market rate", type: "number" },
     { key: "settlementRate", label: "Agreed settlement rate per unit (₹)", placeholder: "Rate", type: "number" },
     { key: "settlementAmount", label: "Final settlement amount (₹)", placeholder: "Agreed amount payable / receivable", type: "number" },
     { key: "settlementStage", label: "Settlement stage", placeholder: "Select settlement stage", options: ["Proposal","Under negotiation","Agreed","Approved","Partly paid","Paid","Disputed","Cancelled"] },
@@ -3006,7 +3010,7 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
   }));
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const updateModuleData=(key:string,value:string)=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[key]:value}}));
-  const selectedFields=moduleFields[form.module] ?? [];
+  const selectedFields=(moduleFields[form.module] ?? []).filter(field=>!["srRatePerUnit","marketRatePerUnit","srValueTotal","marketValueTotal"].includes(field.key));
   const primaryContactIds=(form.moduleData.__primaryContactIds || form.primaryContactId || "").split(",").map(id=>id.trim()).filter(Boolean);
   const primaryGroupIds=(form.moduleData.__primaryWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
   const followUpGroupIds=(form.moduleData.__followUpWhatsAppGroupIds || "").split(",").map(id=>id.trim()).filter(Boolean);
@@ -3035,8 +3039,18 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
+    const rawMarketRate=String(normalizedModuleData.marketRatePerUnit||"");
+    const normalizedMarketRate=normalizeIndianAmount(rawMarketRate);
+    if(rawMarketRate.trim()&&normalizedMarketRate===null)invalidLabels.push("Market rate per unit");
+    else normalizedModuleData.marketRatePerUnit=normalizedMarketRate===null?"":String(normalizedMarketRate);
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
     if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("SR / guidance rate per unit");
+    if(form.module==="SR Rate Settlement"){
+      normalizedModuleData.srRatePerUnit=normalizedRate===null?"":String(normalizedRate);
+      const size=Number(form.areaValue);
+      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null?String(size*normalizedRate):"";
+      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null?String(size*normalizedMarketRate):"";
+    }
     for(const field of selectedFields){
       if(field.type!=="number" || !field.label.includes("₹"))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
