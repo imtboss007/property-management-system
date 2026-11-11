@@ -637,7 +637,7 @@ type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
-  const workspaceModules = useMemo(() => [...workspaceModules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
+  const workspaceModules = useMemo(() => [...modules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -2296,7 +2296,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
-        <details className="ax-sidebar-workspaceModules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{workspaceModules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}<button type="button" className="ax-sidebar-module ax-sidebar-module-add" onClick={addCustomModule}><Plus size={14}/><span>Add custom module</span></button></div></details>
+        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{workspaceModules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}<button type="button" className="ax-sidebar-module ax-sidebar-module-add" onClick={addCustomModule}><Plus size={14}/><span>Add custom module</span></button></div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
           <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
@@ -2355,7 +2355,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               <div className="institutional-copy">
                 <span className="institutional-label"><span className="live-dot"/> AXIVESTRA · WORKSPACE EXPLORER</span>
                 <h2>Navigate the operating system behind your asset intelligence.</h2>
-                <p>The orbital map is a visual workspace navigator. Your records, analytics, relationships and decisions live in the operating workspaceModules and intelligence workspace.</p>
+                <p>The orbital map is a visual workspace navigator. Your records, analytics, relationships and decisions live in the operating modules and intelligence workspace.</p>
               </div>
               <div className="banner-aside">
                 <span>AVAILABLE WORKSPACES</span>
@@ -2461,7 +2461,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               workspaceModules={workspaceModules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
             />
-            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating workspaceModules</h2><p>Seventeen connected business workspaces across assets, ownership, capital, lending, funds, investors, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
+            <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Seventeen connected business workspaces across assets, ownership, capital, lending, funds, investors, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
             <div className="module-grid">{filteredModules.map(({name,icon:Icon,color,group,description},index)=>{
               const count=properties.filter(item=>item.module===name).length;
               return <button className="module-card enterprise-module-card" key={name} onClick={()=>go(name)}>
@@ -2530,7 +2530,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             </div>
             <section className="data-panel ax-intelligence-followups">
               <div className="section-heading">
-                <div><h2>Follow-up intelligence</h2><p>Live assignments across all workspaceModules, grouped and linked to their source records.</p></div>
+                <div><h2>Follow-up intelligence</h2><p>Live assignments across all modules, grouped and linked to their source records.</p></div>
                 <div className="ax-intelligence-followup-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open full registry <ArrowUpRight size={14}/></button><button className="primary-button" onClick={()=>openFollowUpForm()}><Plus size={15}/> Add follow-up</button></div>
               </div>
               <div className="ax-intelligence-followup-metrics">
