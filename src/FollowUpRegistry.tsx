@@ -114,7 +114,8 @@ export default function FollowUpRegistry({
       if (priorityFilter && item.entry.priority !== priorityFilter) return false;
       if (term) {
         const people = item.entry.contactIds.map(id => contactById.get(id)?.name || "").join(" ");
-        const text = [item.entry.description,item.entry.notes,item.entry.nextAction,item.recordTitle,item.module,people,item.entry.amount].join(" ").toLowerCase();
+        const groups = (item.entry.whatsAppGroupIds || []).map(id => groupById.get(id)?.name || "").join(" ");
+        const text = [item.entry.description,item.entry.notes,item.entry.nextAction,item.recordTitle,item.module,people,groups,item.entry.amount].join(" ").toLowerCase();
         if (!text.includes(term)) return false;
       }
       return true;
