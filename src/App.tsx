@@ -642,6 +642,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const [active, setActive] = useState<Section>("Overview");
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
   const workspaceModules = useMemo(() => [...modules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
+  const modules = workspaceModules;
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -2375,7 +2376,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                   color: item.color,
                   icon: <item.icon size={17} strokeWidth={1.8} />
                 }))}
-                details={workspaceModules.map(module => {
+                details={modules.map(module => {
                   const moduleRecords = properties.filter(record => record.module === module.name);
                   const recordIds = new Set(moduleRecords.map(record => record.id));
                   const linkedContactIds = new Set(moduleRecords.flatMap(record => [
@@ -3017,8 +3018,10 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
   const primaryArea=Number(form.areaValue);
   const srRate=normalizeIndianAmount(form.ratePerUnit);
   const marketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit || "");
-  const primarySrTotal=Number.isFinite(primaryArea)&&primaryArea>0&&srRate!==null?primaryArea*srRate:null;
-  const primaryMarketTotal=Number.isFinite(primaryArea)&&primaryArea>0&&marketRate!==null?primaryArea*marketRate:null;
+  const srRateNumber=srRate===null?null:Number(srRate);
+  const marketRateNumber=marketRate===null?null:Number(marketRate);
+  const primarySrTotal=Number.isFinite(primaryArea)&&primaryArea>0&&srRateNumber!==null?primaryArea*srRateNumber:null;
+  const primaryMarketTotal=Number.isFinite(primaryArea)&&primaryArea>0&&marketRateNumber!==null?primaryArea*marketRateNumber:null;
   const updateAssociated=(id:string,key:keyof AssociatedPropertyDraft,value:string)=>setAssociatedProperties(previous=>previous.map(row=>row.id===id?{...row,[key]:value}:row));
   const applyShareRatio=(value:string)=>{
     updateModuleData("sharingRatioPreset",value);
@@ -3048,8 +3051,8 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
     if(form.module==="SR Rate Settlement"){
       normalizedModuleData.srRatePerUnit=normalizedRate===null?"":String(normalizedRate);
       const size=Number(form.areaValue);
-      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null?String(size*normalizedRate):"";
-      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null?String(size*normalizedMarketRate):"";
+      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null?String(size*Number(normalizedRate)):"";
+      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null?String(size*Number(normalizedMarketRate)):"";
     }
     for(const field of selectedFields){
       if(field.type!=="number" || !field.label.includes("₹"))continue;
@@ -3133,8 +3136,10 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
         const area=Number(row.areaValue);
         const sr=normalizeIndianAmount(row.srRatePerUnit);
         const market=normalizeIndianAmount(row.marketRatePerUnit);
-        const srTotal=row.areaValue&&Number.isFinite(area)&&area>0&&sr!==null?area*sr:null;
-        const marketTotal=row.areaValue&&Number.isFinite(area)&&area>0&&market!==null?area*market:null;
+        const srNumber=sr===null?null:Number(sr);
+        const marketNumber=market===null?null:Number(market);
+        const srTotal=row.areaValue&&Number.isFinite(area)&&area>0&&srNumber!==null?area*srNumber:null;
+        const marketTotal=row.areaValue&&Number.isFinite(area)&&area>0&&marketNumber!==null?area*marketNumber:null;
         return <article className="ax-associated-property-card" key={row.id}>
           <div className="ax-associated-property-head"><strong>Additional property {index+1}</strong><button type="button" className="delete-button" onClick={()=>setAssociatedProperties(previous=>previous.filter(item=>item.id!==row.id))}>Remove</button></div>
           <label>Property / asset name *<input value={row.title} onChange={event=>updateAssociated(row.id,"title",event.target.value)} placeholder="Property name / parcel reference"/></label>
