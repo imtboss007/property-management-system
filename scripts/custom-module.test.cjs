@@ -22,7 +22,7 @@ const checks = [
   ["custom workspace delete is blocked while records still reference it", /const linkedRecords = properties\.filter\(record => record\.module === item\.name\)/.test(app) && /if \(linkedRecords\.length\)/.test(app)],
   ["renaming a custom workspace migrates its module reference without rewriting record identity", /record\.module === previous\.name \? \{ \.\.\.record, module: item\.name \}/.test(app)],
   ["custom workspace schemas are normalized on local load, cloud refresh and backup restore", /normalizeCustomModules\(load\("estateflow\.customModules"/.test(app) && /normalizeCustomModules\(synced\.customModules\)/.test(app) && /normalizeCustomModules\(data\.customModules\)/.test(app)],
-  ["custom field schemas are used by property forms, workbench, orbital details and universal search", /moduleFieldsFor\(active\)/.test(app) && /moduleFieldsFor\(module\.name\)/.test(app) && /customModules\.find\(item\\s*=>\\s*item\.name\\s*===\\s*form\.module\)\?\.fields/.test(app)],
+  ["custom field schemas are used by property forms, workbench, orbital details and universal search", /moduleFieldsFor\(active\)/.test(app) && /moduleFieldsFor\(module\.name\)/.test(app) && /customModules\.find\(item\s*=>\s*item\.name\s*===\s*form\.module\)\?\.fields/.test(app)],
   ["custom modules can attach extra properties and collateral", /PROPERTY_LINK_MODULES\.includes\(form\.module\) \|\| isCustomModule/.test(app)],
   ["required custom fields are validated on save", /field\.required && !String\(normalizedModuleData\[field\.key\]/.test(app)],
   ["custom contact field values are persisted as reusable relationship IDs", /__contact_custom_" \+ field\.key/.test(app)],
