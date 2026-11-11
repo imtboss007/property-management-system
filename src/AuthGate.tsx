@@ -82,7 +82,7 @@ export default function AuthGate() {
   }, []);
 
   const loadMemberships = useCallback(async () => {
-    if (!supabase || !userId) return;
+    if (localOnlyAccess || !supabase || !userId) return;
     setBusy(true);
     setError("");
     try {
@@ -110,12 +110,12 @@ export default function AuthGate() {
     } finally {
       setBusy(false);
     }
-  }, [userId]);
+  }, [userId, localOnlyAccess]);
 
   useEffect(() => {
-    if (userId) { setMembershipsReady(false); void loadMemberships(); }
+    if (userId && !localOnlyAccess) { setMembershipsReady(false); void loadMemberships(); }
     else { setMemberships([]); setMembershipsReady(false); }
-  }, [userId, loadMemberships]);
+  }, [userId, localOnlyAccess, loadMemberships]);
 
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
@@ -282,10 +282,10 @@ export default function AuthGate() {
   };
 
   useEffect(() => {
-    if (userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
+    if (!localOnlyAccess && userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
       choosePersonal();
     }
-  }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
+  }, [localOnlyAccess, userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
 
   const openWorkspaceChooser = () => {
     setActivePersonal(false);
