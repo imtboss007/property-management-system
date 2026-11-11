@@ -5626,3 +5626,75 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* AXIVESTRA property ownership and multi-asset enhancements */
+.ax-sidebar-module-add {
+  margin-top: 5px;
+  border: 1px dashed #39617a;
+  color: #b9d9e8;
+}
+.ax-sidebar-module-add > svg { color: #39d5e8; }
+.ax-sidebar-module-add:hover { border-color: #2aaec2; background: #102f43; }
+.searchable-contact-picker__bulk-actions,
+.ax-followup-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 7px 0;
+}
+.searchable-contact-picker__bulk-actions button,
+.ax-followup-group-actions button {
+  border: 1px solid #294c60;
+  border-radius: 7px;
+  background: #10283a;
+  color: #a7d7e2;
+  padding: 6px 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.searchable-contact-picker__bulk-actions button:hover,
+.ax-followup-group-actions button:hover { border-color: #27c7d9; color: #e9fbff; }
+.ax-property-rate-preview {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0 4px;
+  padding: 11px 13px;
+  border: 1px solid #31546a;
+  border-radius: 9px;
+  background: #0c2233;
+  color: #d9edf5;
+  font-size: 11px;
+}
+.ax-property-rate-preview strong { color: #8be2dc; font-size: 11px; }
+.ax-property-rate-preview small { color: #8baebe; line-height: 1.5; }
+.ax-associated-property-section,
+.ax-share-allocation-section { display: grid; gap: 12px; }
+.ax-associated-property-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #31546a;
+  border-radius: 11px;
+  background: rgba(9, 29, 44, .68);
+}
+.ax-associated-property-head,
+.ax-share-allocation-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ax-associated-property-head strong { color: #d9edf5; font-size: 12px; }
+.ax-add-associated-property { justify-self: start; display: inline-flex; align-items: center; gap: 7px; }
+.ax-share-allocation-row { align-items: end; padding: 10px; border: 1px solid #31546a; border-radius: 9px; }
+.ax-share-allocation-row > button { align-self: end; }
+.ax-share-allocation-footer strong { color: #8be2dc; font-size: 11px; }
+.ax-linked-assets { margin-top: 9px; display: grid; gap: 6px; }
+.ax-linked-assets > strong { color: #91cbdc; font-size: 10px; }
+.ax-linked-assets > span { display: block; line-height: 1.5; }
+@media (max-width: 680px) {
+  .ax-share-allocation-footer,
+  .ax-associated-property-head { align-items: flex-start; }
+  .ax-share-allocation-row { grid-template-columns: minmax(0, 1fr); }
+}
