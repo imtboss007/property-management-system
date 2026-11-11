@@ -2640,6 +2640,12 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             fields={active==="All Properties" ? [] : moduleFieldsFor(active)}
             contacts={contacts}
             whatsappGroups={savedWhatsAppGroups}
+            documents={documents}
+            tasks={tasks}
+            financials={financials}
+            risks={riskRecords}
+            approvals={approvalRequests}
+            onOpenSection={section=>go(section)}
             onEditModule={customModules.find(item=>item.name===active) ? ()=>editCustomModule(customModules.find(item=>item.name===active)!) : undefined}
             onDeleteModule={customModules.find(item=>item.name===active) ? ()=>deleteCustomModule(customModules.find(item=>item.name===active)!) : undefined}
             onAdd={()=>openPropertyForm()}
