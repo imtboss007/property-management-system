@@ -311,6 +311,8 @@ assert.match(app, /__primaryWhatsAppGroupIds/, "Records must retain multiple lin
 assert.match(app, /__followUpWhatsAppGroupIds/, "Records must retain multiple linked follow-up WhatsApp groups.");
 assert.match(followUpForm, /whatsAppGroupIds/, "Follow-up forms must allow multiple WhatsApp groups.");
 assert.match(registry, /linkedGroups\.map\(group=>group\.name\)/, "The follow-up registry must display linked WhatsApp groups.");
+assert.match(app, /Select all matching/, "Multi-contact and WhatsApp group pickers must support selecting every filtered match.");
+assert.match(app, /Owner 1 and Owner 2 shares must total 100%/, "Sharing Property must validate that the owner percentages total 100%.");
 assert.match(app, /Add custom module/, "Users must be able to create custom workspaces.");
 assert.match(app, /estateflow\.customModules/, "Custom workspaces must persist locally.");
 assert.match(readme, /Seventeen core workspaces/, "Documentation must identify the 17 core workspaces.");
