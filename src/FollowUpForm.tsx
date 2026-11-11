@@ -3,10 +3,12 @@ import type { FollowUpEntry, FollowUpPriority, FollowUpStatus } from "./lib/foll
 
 type Property = { id:string; title:string; module:string; value:string; status?:string };
 type Contact = { id:string; name:string; phone?:string; role?:string };
+type WhatsAppGroup = { id:string; name:string; jid?:string; subject?:string; size?:number };
 export type FollowUpDraft = { propertyId:string; entry:FollowUpEntry };
 type Props = {
   properties:Property[];
   contacts:Contact[];
+  groups?:WhatsAppGroup[];
   defaultPropertyId?:string;
   defaultContactId?:string;
   initial?:FollowUpEntry|null;
@@ -14,12 +16,13 @@ type Props = {
   onCancel:()=>void;
 };
 
-export default function FollowUpForm({properties,contacts,defaultPropertyId,defaultContactId,initial,onSave,onCancel}:Props) {
+export default function FollowUpForm({properties,contacts,groups=[],defaultPropertyId,defaultContactId,initial,onSave,onCancel}:Props) {
   const [form,setForm]=useState(()=>{
     const property=properties.find(item=>item.id===defaultPropertyId);
     return {
       propertyId:defaultPropertyId||"",
       contactIds:initial?.contactIds ?? (defaultContactId ? [defaultContactId] : []),
+      whatsAppGroupIds:initial?.whatsAppGroupIds ?? [],
       description:initial?.description ?? "",
       amount:initial?.amount ?? property?.value ?? "",
       date:initial?.date ?? new Date().toISOString().slice(0,10),
@@ -37,6 +40,7 @@ export default function FollowUpForm({properties,contacts,defaultPropertyId,defa
       ? previous.contactIds.filter(value=>value!==id)
       : [...previous.contactIds,id]}));
   };
+  const toggleGroup=(id:string)=>setForm(previous=>({...previous,whatsAppGroupIds:previous.whatsAppGroupIds.includes(id)?previous.whatsAppGroupIds.filter(value=>value!==id):[...previous.whatsAppGroupIds,id]}));
   return <form className="form-card ax-followup-form" onSubmit={event=>{
     event.preventDefault();
     if(!form.propertyId || !form.description.trim() || !form.date) return;
@@ -45,6 +49,7 @@ export default function FollowUpForm({properties,contacts,defaultPropertyId,defa
       entry:{
         id:initial?.id || (typeof crypto!=="undefined" && "randomUUID" in crypto ? crypto.randomUUID() : "fu-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)),
         contactIds:form.contactIds,
+        whatsAppGroupIds:form.whatsAppGroupIds,
         description:form.description.trim(),
         amount:form.amount,
         date:form.date,
@@ -68,6 +73,7 @@ export default function FollowUpForm({properties,contacts,defaultPropertyId,defa
     <div className="form-two"><label>Priority<select value={form.priority} onChange={event=>update("priority",event.target.value)}>{(["Urgent","High","Normal","Low"] as FollowUpPriority[]).map(value=><option key={value}>{value}</option>)}</select></label><label>Status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(["Open","In Progress","Completed","Cancelled"] as FollowUpStatus[]).map(value=><option key={value}>{value}</option>)}</select></label></div>
     <label>Follow-up amount (₹)<input inputMode="decimal" value={form.amount} onChange={event=>update("amount",event.target.value)} placeholder="Optional — defaults to linked record value"/></label>
     <fieldset className="ax-followup-contact-picker"><legend>Follow-up people</legend><p>Select one or more people responsible for this follow-up.</p><div className="ax-followup-contact-options">{contacts.length ? contacts.map(person=><label key={person.id} className={form.contactIds.includes(person.id)?"selected":""}><input type="checkbox" checked={form.contactIds.includes(person.id)} onChange={()=>toggleContact(person.id)}/><span><strong>{person.name}</strong><small>{person.role || person.phone || "Contact"}</small></span></label>) : <small>No contacts saved yet. Add contacts first.</small>}</div></fieldset>
+    <fieldset className="ax-followup-contact-picker"><legend>WhatsApp groups for this follow-up</legend><p>Select one or more saved groups to keep them linked to this follow-up.</p><div className="ax-followup-contact-options">{groups.length ? groups.map(group=><label key={group.id} className={form.whatsAppGroupIds.includes(group.id)?"selected":""}><input type="checkbox" checked={form.whatsAppGroupIds.includes(group.id)} onChange={()=>toggleGroup(group.id)}/><span><strong>{group.name}</strong><small>{group.size?group.size+" members · ":""}{group.subject||group.jid||"Saved WhatsApp group"}</small></span></label>) : <small>No saved WhatsApp groups yet. Import groups from WhatsApp Automation first.</small>}</div></fieldset>
     <label>Next action<input value={form.nextAction} onChange={event=>update("nextAction",event.target.value)} placeholder="Specific next step after this contact"/></label>
     <label>Notes<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Call notes, pending documents, commitments and context"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial?"Save follow-up changes":"Save follow-up"}</button></div>

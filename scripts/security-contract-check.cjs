@@ -185,14 +185,14 @@ check("one-time and repeated messages support individual contacts and groups",
 check("property, multi-stakeholder and role-specific contact selectors are searchable",
   has(read("src/App.tsx"), /function SearchableContactPicker/i) &&
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i) &&
-  has(read("src/App.tsx"), /label="Primary contact"/i) &&
+  has(read("src/App.tsx"), /label="Primary contacts \/ parties \(select multiple\)"/i) &&
   has(read("src/App.tsx"), /moduleContactFields\[form\.module\][\s\S]{0,220}SearchableContactPicker/i) &&
   has(read("src/styles.css"), /searchable-contact-picker__options/i));
 check("all related-contact fields use a searchable picker and search across extended contact details",
   (read("src/App.tsx").match(/<SearchableContactPicker label="Related contact"/g) || []).length === 5 &&
   has(read("src/App.tsx"), /contact\.customRoles/) &&
   has(read("src/App.tsx"), /contact\.whatsappJid/) &&
-  has(read("src/App.tsx"), /label="Primary contact"/i) &&
+  has(read("src/App.tsx"), /label="Primary contacts \/ parties \(select multiple\)"/i) &&
   has(read("src/App.tsx"), /Other linked stakeholders \(select multiple\)/i));
 check("all INR amount fields use an editable text input with Rupees, Thousands, Lakhs and Crores selector",
   has(read("src/App.tsx"), /type="text"[\s\S]{0,500}onChange=\{event=>writeAmount\(event\.target\.value,activeUnit\)\}/i) &&

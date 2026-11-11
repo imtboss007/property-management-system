@@ -5626,3 +5626,107 @@ h2,h3{color:#e5f2fc}
     animation: none !important;
   }
 }
+
+
+/* AXIVESTRA: repeatable property records and multi-group relationship selectors. */
+.ax-linked-property-card {
+  border: 1px solid rgba(110, 156, 184, .24);
+  border-radius: 14px;
+  padding: 15px;
+  margin: 12px 0;
+  background: rgba(9, 27, 43, .48);
+}
+.ax-linked-property-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ax-linked-property-card__heading strong {
+  color: #dff0f6;
+  font-size: 13px;
+}
+.ax-add-linked-property {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+.ax-linked-group-picker {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.ax-linked-group-picker__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  max-height: 190px;
+  overflow: auto;
+  padding: 2px;
+}
+.ax-linked-group-picker__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(114, 159, 186, .22);
+  border-radius: 10px;
+  background: rgba(12, 31, 48, .58);
+  cursor: pointer;
+}
+.ax-linked-group-picker__option input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.ax-linked-group-picker__option span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.ax-linked-group-picker__option strong {
+  color: #dcecf4;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ax-linked-group-picker__option small {
+  color: #85a3b6;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.ax-linked-group-picker__option:has(input:checked) {
+  border-color: rgba(110, 211, 174, .6);
+  background: rgba(45, 113, 92, .18);
+}
+.ax-module-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (max-width: 680px) {
+  .ax-linked-group-picker__options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ax-linked-property-card {
+    padding: 11px;
+  }
+  .ax-module-heading-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.ax-picker-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: -1px 0 2px;
+}
+.ax-picker-bulk-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}

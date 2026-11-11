@@ -2,7 +2,7 @@
 **Live web app:** https://axivestra.pages.dev (Cloudflare Pages Free, production branch `main`). The optional official WhatsApp cloud sender remains disabled until Meta Business Platform setup is complete.
 
 
-AXIVESTRA is a multi-asset, capital and relationship intelligence operating platform for Windows desktop, Android and browser use. It brings together property and deal workflows, credit and lending, ventures and equity, funds and investor relations, legal matters, risk and compliance, financial movements, counterparties, evidence and operational commitments. Its primary experience is an asset-intelligence overview and decision workspace; the orbital interface is an optional visual workspace explorer, not the product itself. The platform includes interactive record-derived analytics, domain workbenches, relationship workflows, data-completeness audits and a 16-workspace directory.
+AXIVESTRA is a multi-asset, capital and relationship intelligence operating platform for Windows desktop, Android and browser use. It brings together property and deal workflows, credit and lending, ventures and equity, funds and investor relations, legal matters, risk and compliance, financial movements, counterparties, evidence and operational commitments. Its primary experience is an asset-intelligence overview and decision workspace; the orbital interface is an optional visual workspace explorer, not the product itself. The platform includes interactive record-derived analytics, domain workbenches, relationship workflows, data-completeness audits and a 17-core-workspace directory with user-created custom workspaces.
 
 ## Product and intelligence boundary
 
@@ -19,7 +19,9 @@ See [AXIVESTRA-PRODUCT-ARCHITECTURE.md](AXIVESTRA-PRODUCT-ARCHITECTURE.md) for t
 
 ## Included workspaces
 
-- Sixteen workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC.
+- Seventeen core workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, Compliance & KYC, and Sharing Property. Users can also create additional custom workspaces.
+- Sharing Property captures co-ownership ratios, gift/transfer consideration, SR and market rates, registered deed and mortgage details, settlement details and multiple properties per record.
+- Records support repeatable linked-property entries and multiple primary/follow-up contacts and saved WhatsApp groups.
 - Property records with module, location, value, status, contact, and notes.
 - Contact register for buyers, sellers, brokers, lawyers, lenders, tenants, developers, and others.
 - Master contact intelligence: multiple standard/custom roles, profession, employer, designation, business type, associated company, optional income sources, email/address and referral context.

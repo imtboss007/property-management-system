@@ -134,8 +134,17 @@ export function remapWorkspaceContactReferences(workspace, remap) {
     const moduleData = { ...(property.moduleData || {}) };
     for (const [key, value] of Object.entries(moduleData)) {
       if (key.startsWith("__contact_")) moduleData[key] = remapId(value, remap);
-      if (key === "__linkedContactIds") {
+      if (["__primaryContactIds", "__linkedContactIds", "__followUpContactIds"].includes(key)) {
         moduleData[key] = [...new Set(String(value || "").split(",").map(id => remapId(id.trim(), remap)).filter(Boolean))].join(",");
+      }
+      if (key === "__followUps") {
+        try {
+          const entries = JSON.parse(String(value || "[]"));
+          if (Array.isArray(entries)) moduleData[key] = JSON.stringify(entries.map(entry => ({
+            ...entry,
+            contactIds: [...new Set((Array.isArray(entry.contactIds) ? entry.contactIds : []).map(id => remapId(id, remap)).filter(Boolean))]
+          })));
+        } catch { /* Preserve the original saved follow-up payload when it is not valid JSON. */ }
       }
     }
     return {
@@ -144,7 +153,7 @@ export function remapWorkspaceContactReferences(workspace, remap) {
       moduleData
     };
   });
-  const remapContactId = row => ({ ...row, contactId: remapId(row.contactId, remap) });
+  const remapContactId = row => ({ ...row, contactId: remapId(row.contactId, remap), ...(Array.isArray(row.followUpContactIds) ? { followUpContactIds: [...new Set(row.followUpContactIds.map(id => remapId(id, remap)).filter(Boolean))] } : {}) });
   return {
     properties,
     tasks: mapArray(workspace.tasks, remapContactId),

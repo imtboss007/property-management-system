@@ -7,7 +7,7 @@ type ModuleRecord = {
   nextAction?: string; notes: string; createdAt: string; surveyNumber: string; ownershipDetails: string;
   areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string; moduleData: Record<string, string>;
 };
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "select"; options?: string[] };
 type Contact = { id: string; name: string; phone: string; role: string; notes: string };
 type Props = {
   moduleName: string;
@@ -30,6 +30,7 @@ const currency = (value: number) => value ? INR.format(value) : "—";
 const dateLabel = (value?: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not scheduled";
 const contactIds = (record: ModuleRecord) => [
   record.primaryContactId || "",
+  ...(record.moduleData?.__primaryContactIds || "").split(","),
   ...(record.moduleData?.__linkedContactIds || "").split(","),
   ...(record.moduleData?.__followUpContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))

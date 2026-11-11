@@ -121,7 +121,7 @@ export default function AxivestraOrbitalHub({
     const stageHeight = stageSize.height || 570;
 
     return filtered.map((item, index) => {
-      // Keep the desktop Fibonacci sphere. On phones, project the 16 workspaces
+      // Keep the desktop Fibonacci sphere. On phones, project the workspace collection
       // onto two staggered 3D ellipses to give every card its own tap area.
       const ring = index % 2;
       let x: number;
@@ -217,7 +217,7 @@ export default function AxivestraOrbitalHub({
         <div>
           <span className="ax-orbit-kicker"><span className="ax-orbit-live" /> AXIVESTRA · RELATIONSHIP INTELLIGENCE GRID</span>
           <h2>Command your connected workspaces.</h2>
-          <p>Navigate all 16 live workspaces on one continuously rotating, depth-sorted 3D sphere around the intelligence globe. Each module opens its existing AXIVESTRA records.</p>
+          <p>Navigate all live workspaces on one continuously rotating, depth-sorted 3D sphere around the intelligence globe. Each module opens its existing AXIVESTRA records.</p>
         </div>
         <div className="ax-orbit-shortcuts">
           <button type="button" className="ax-orbit-shortcut ax-orbit-motion-toggle" aria-pressed={rotationPaused} onClick={() => setRotationPaused(value => !value)}>

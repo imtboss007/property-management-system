@@ -266,7 +266,7 @@ assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.ax-orb
 
 assert.match(orbit, /const singleMobileOrbit = filtered\.length <= 8/, "Small mobile result sets must distribute on one tap-friendly 3D ellipse.");
 assert.match(orbit, /const radiusX = positionRing === 0[\s\S]*?Math\.min\(95, layoutWidth \* 0\.28\)/, "The full mobile workspace set must use two distinct staggered ellipse radii.");
-assert.match(css, /width: 62px !important;[\s\S]*?\.ax-orbit-node__copy small \{ display: none; \}/, "Mobile orbital markers must be compact enough to keep all 16 tap targets distinct.");
+assert.match(css, /width: 62px !important;[\s\S]*?\.ax-orbit-node__copy small \{ display: none; \}/, "Mobile orbital markers must be compact enough to keep all 17 tap targets distinct.");
 
 
 assert.match(css, /\.ax-modern-shell \.ax-orbit-hub\.is-orbit-view \.ax-orbit-nodes\s*\{[^}]*z-index:\s*5[^}]*pointer-events:\s*none/, "The interactive workspace layer must sit above the globe while its empty space remains transparent to pointer events.");
@@ -292,3 +292,30 @@ assert.match(css, /\.ax-orbit-node-counter--outer\s*\{[^}]*animation: ax-orbit-n
 assert.match(css, /\.ax-orbit-node-counter--inner\s*\{[^}]*animation: ax-orbit-node-counter-inner 38s linear infinite/, "Inner module labels must counter-rotate to stay readable.");
 assert.match(css, /is-rotation-paused \.ax-orbit-ring--inner/, "Pause must stop the inner shell as well as the outer shell.");
 assert.match(css, /is-rotation-paused \.ax-orbit-route-ring--inner/, "Pause must stop the inner route overlay.");
+
+
+/* Sharing Property, multi-asset records, multiple linked people/groups and custom workspaces. */
+assert.match(app, /name: "Sharing Property"/, "Sharing Property must be the 17th core workspace.");
+assert.match(app, /ownershipArrangement/, "Sharing Property must capture ownership ratios.");
+assert.match(app, /giftAmount/, "Sharing Property must capture gift amount or consideration.");
+assert.match(app, /registeredDeedValue/, "Property records must capture registered deed value.");
+assert.match(app, /mortgageType/, "Property records must distinguish mortgage type.");
+assert.match(app, /srAreaValue/, "SR Rate Settlement must capture the full measured extent.");
+assert.match(app, /srCalculatedAmount/, "SR rate × size must produce a calculated total.");
+assert.match(app, /marketRatePerUnit/, "Property records must capture the market rate per unit.");
+assert.match(app, /rateBasisSquareFeet/, "SR and market totals must convert the property area into the selected rate unit before calculation.");
+assert.match(app, /settlementAmount/, "Settlement workflows must capture settlement amounts.");
+assert.match(app, /__linkedProperties/, "One record must be able to contain multiple property entries.");
+assert.match(app, /Add another property/, "Users must have an explicit add-property control.");
+assert.match(app, /Primary contacts \/ parties \(select multiple\)/, "Primary record links must allow multiple contacts.");
+assert.match(app, /__primaryWhatsAppGroupIds/, "Records must retain multiple linked primary WhatsApp groups.");
+assert.match(app, /__followUpWhatsAppGroupIds/, "Records must retain multiple linked follow-up WhatsApp groups.");
+assert.match(followUpForm, /whatsAppGroupIds/, "Follow-up forms must allow multiple WhatsApp groups.");
+assert.match(registry, /linkedGroups\.map\(group=>group\.name\)/, "The follow-up registry must display linked WhatsApp groups.");
+assert.match(app, /Select all matching/, "Multi-contact and WhatsApp group pickers must support selecting every filtered match.");
+assert.match(app, /Owner 1 and Owner 2 shares must total 100%/, "Sharing Property must validate that the owner percentages total 100%.");
+assert.match(app, /Add custom module/, "Users must be able to create custom workspaces.");
+assert.match(app, /estateflow\.customModules/, "Custom workspaces must persist locally.");
+assert.match(readme, /Seventeen core workspaces/, "Documentation must identify the 17 core workspaces.");
+
+assert.match(fs.readFileSync(path.join(root, "src", "lib", "contact-directory.mjs"), "utf8"), /__primaryContactIds/, "Contact deduplication must remap multi-primary contact references.");
