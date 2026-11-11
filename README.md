@@ -17,6 +17,8 @@ AXIVESTRA is designed around four connected layers:
 
 See [AXIVESTRA-PRODUCT-ARCHITECTURE.md](AXIVESTRA-PRODUCT-ARCHITECTURE.md) for the canonical product definition, current maturity assessment, target architecture and delivery gates.
 
+The Workspace Explorer displays the live count of configured workspaces, including user-created custom workspaces.
+
 ## Included workspaces
 
 - Seventeen standard workspaces: Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Sharing Property, Startup, Equity, Unsecured Company Loan, Personal Loan, Housing Loan, House Purchase, Litigation, Fund & Portfolio Management, Investor Relations, and Compliance & KYC.
