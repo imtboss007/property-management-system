@@ -101,7 +101,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   </div>;
 }
 
-const modules = [
+const standardModules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
   { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
@@ -641,8 +641,7 @@ type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const [active, setActive] = useState<Section>("Overview");
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
-  const workspaceModules = useMemo(() => [...modules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
-  const modules = workspaceModules;
+  const modules = useMemo(() => [...standardModules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -1372,7 +1371,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 
   const rangeSearches = useMemo(() => parsePropertyRangeQueries(search), [search]);
   const rangeSearch = rangeSearches[0] ?? null;
-  const filteredModules = rangeSearches.length ? workspaceModules : workspaceModules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredModules = rangeSearches.length ? modules : modules.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
   const filteredProperties = useMemo(() => properties.filter(property => {
     if (rangeSearches.length) return rangeSearches.every(range => propertyMatchesRange(property, range));
     const searchableText = [
@@ -1669,7 +1668,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
     const name = window.prompt("Name for the new AXIVESTRA workspace:");
     if (!name || !name.trim()) return;
     const cleanName = name.trim().replace(/\\s+/g, " ").slice(0, 60);
-    if (workspaceModules.some(item => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())) {
+    if (modules.some(item => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())) {
       setNotice("A workspace with that name already exists."); return;
     }
     const description = window.prompt("What will this workspace manage?") || "Custom workspace for your records, contacts and follow-ups.";
@@ -2301,7 +2300,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
-        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{workspaceModules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}<button type="button" className="ax-sidebar-module ax-sidebar-module-add" onClick={addCustomModule}><Plus size={14}/><span>Add custom module</span></button></div></details>
+        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}<button type="button" className="ax-sidebar-module ax-sidebar-module-add" onClick={addCustomModule}><Plus size={14}/><span>Add custom module</span></button></div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
           <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
@@ -2310,7 +2309,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       <section className="main-panel">
         <header className="topbar"><button className="menu-toggle" onClick={() => setMobileMenu(true)} aria-label="Open menu"><Menu size={21} /></button>
           <div className="breadcrumb">Workspace <span>/</span> <strong>{active === "Overview" ? "Asset Intelligence" : active}</strong></div>
-          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}{personalUserId && <div className="company-session personal-session"><span className="company-session-name">Personal workspace</span><span className="company-session-role">Private cloud</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={active === "Overview" ? "Asset Intelligence" : String(active)} sections={[...navigation.map(item=>item.label || item.name),...workspaceModules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section === "Asset Intelligence" ? "Overview" : section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;}}}/></div>
+          <div className="top-actions"><label className="search-box"><Search size={17} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records..." /><kbd>Ctrl K</kbd></label>{company && <div className="company-session"><span className="company-session-name">{company.name}</span><span className="company-session-role">{company.role.replace("_"," ")}</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}{personalUserId && <div className="company-session personal-session"><span className="company-session-name">Personal workspace</span><span className="company-session-role">Private cloud</span><button type="button" title="Switch workspace" onClick={onSwitchCompany}>Switch</button><button type="button" title="Sign out" onClick={onSignOut}>Sign out</button></div>}<UniversalInterface activeSection={active === "Overview" ? "Asset Intelligence" : String(active)} sections={[...navigation.map(item=>item.label || item.name),...modules.map(item=>item.name)]} entities={universalEntities} notifications={universalNotifications} onNavigate={(section,query)=>{setSearch(query || "");go(section === "Asset Intelligence" ? "Overview" : section);}} onQuickAdd={(action: QuickAddAction)=>{switch(action){case "property":openPropertyForm();break;case "contact":openContactForm();break;case "followup":openFollowUpForm();break;case "task":openTaskForm();break;case "transaction":openFinancialForm();break;case "risk":setShowRiskForm(true);break;case "approval":setShowApprovalForm(true);break;}}}/></div>
         </header>
         <div className="content">
           <div className="welcome-row"><div><div className="eyebrow"><span className="live-dot" /> {active === "Overview" ? "ASSET INTELLIGENCE DASHBOARD" : active === "Workspace Explorer" ? "WORKSPACE NAVIGATION" : "AXIVESTRA WORKSPACE"}</div><h1>{active === "Overview" ? "Understand assets, capital and exposure." : active}</h1><p className="subtitle">{active === "Overview" ? "A connected operating view across property, lending, investments, funds, investors, legal matters, risk and execution." : active === "Workspace Explorer" ? "Explore the 16 domain workspaces. The orbital map is navigation—not the intelligence engine." : `Manage your ${active.toLowerCase()} in one connected workspace.`}</p></div>
@@ -2364,12 +2363,12 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               </div>
               <div className="banner-aside">
                 <span>AVAILABLE WORKSPACES</span>
-                <strong>{workspaceModules.length}</strong>
+                <strong>{modules.length}</strong>
                 <small>Open a node to inspect its saved records and connected activity.</small>
               </div>
             </section>
               <AxivestraOrbitalHub
-                items={workspaceModules.map(item => ({
+                items={modules.map(item => ({
                   name: item.name,
                   group: item.group,
                   count: properties.filter(record => record.module === item.name).length,
@@ -2422,7 +2421,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 totalRecords={properties.length}
                 portfolioValue={portfolioValue}
                 openActions={upcomingTasks.length}
-                activeModules={workspaceModules.filter(item => properties.some(record => record.module === item.name && !["Completed", "Closed"].includes(record.status))).length}
+                activeModules={modules.filter(item => properties.some(record => record.module === item.name && !["Completed", "Closed"].includes(record.status))).length}
                 onOpen={name => go(name)}
               />
           </>}
@@ -2463,7 +2462,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
               financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
-              modules={workspaceModules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
+              modules={modules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
             />
             <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Seventeen connected business workspaces across assets, ownership, capital, lending, funds, investors, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
@@ -2494,7 +2493,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               <div className="banner-aside">
                 <span>LIVE WORKSPACE RECORDS</span>
                 <strong>{properties.length.toLocaleString("en-IN")}</strong>
-                <small>Saved records across {workspaceModules.length} operating workspaces</small>
+                <small>Saved records across {modules.length} operating workspaces</small>
               </div>
             </div>
             <IntentCanvas
@@ -2505,7 +2504,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               documents={documents}
               risks={riskRecords}
               approvals={approvalRequests}
-              modules={workspaceModules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
+              modules={modules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
               followUps={registryDashboardItems}
               today={today}
               onOpenModule={name=>go(name)}
@@ -2559,7 +2558,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               properties={properties.map(item => ({ id:item.id,title:item.title,module:item.module,value:item.value,status:item.status }))}
               financials={financials.map(item => ({ id:item.id,type:item.type,amount:item.amount,date:item.date }))}
               tasks={tasks.map(item => ({ id:item.id,date:item.date,done:item.done,type:item.type }))}
-              modules={workspaceModules.map(item => ({ name:item.name,value:0,count:properties.filter(property=>property.module===item.name).length }))}
+              modules={modules.map(item => ({ name:item.name,value:0,count:properties.filter(property=>property.module===item.name).length }))}
               onOpenModule={name=>go(name)}
             />
             <div className="ax-intelligence-lower">
@@ -2578,9 +2577,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             </div>
           </section>}
 
-          {active === "All Properties" || workspaceModules.some(m=>m.name===active) ? <ModuleWorkbench
+          {active === "All Properties" || modules.some(m=>m.name===active) ? <ModuleWorkbench
             moduleName={active === "All Properties" ? "All Properties" : active}
-            description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : workspaceModules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
+            description={active === "All Properties" ? "Search, inspect, compare and action every property, deal, loan, investment and legal workstream from one live register." : modules.find(item=>item.name===active)?.description || "Manage every detail, stakeholder, date, value and next action for this workstream."}
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
             fields={active==="All Properties" ? [] : moduleFields[active] || []}
             contacts={contacts}
@@ -2749,7 +2748,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : personalUserId ? "Personal cloud mode · private account" : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={workspaceModules.some(m=>m.name===active)?active:workspaceModules[0].name} availableModules={workspaceModules} contacts={contacts} savedGroups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} availableModules={modules} contacts={contacts} savedGroups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} groups={savedWhatsAppGroups} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
