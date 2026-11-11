@@ -3017,8 +3017,8 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
   const primaryArea=Number(form.areaValue);
   const srRate=normalizeIndianAmount(form.ratePerUnit);
   const marketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit || "");
-  const srRateNumber=srRate===null?null:Number(srRate);
-  const marketRateNumber=marketRate===null?null:Number(marketRate);
+  const srRateNumber=srRate===null||srRate===""?null:Number(srRate);
+  const marketRateNumber=marketRate===null||marketRate===""?null:Number(marketRate);
   const primarySrTotal=Number.isFinite(primaryArea)&&primaryArea>0&&srRateNumber!==null?primaryArea*srRateNumber:null;
   const primaryMarketTotal=Number.isFinite(primaryArea)&&primaryArea>0&&marketRateNumber!==null?primaryArea*marketRateNumber:null;
   const updateAssociated=(id:string,key:keyof AssociatedPropertyDraft,value:string)=>setAssociatedProperties(previous=>previous.map(row=>row.id===id?{...row,[key]:value}:row));
@@ -3050,8 +3050,8 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
     if(form.module==="SR Rate Settlement"){
       normalizedModuleData.srRatePerUnit=normalizedRate===null?"":String(normalizedRate);
       const size=Number(form.areaValue);
-      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null?String(size*Number(normalizedRate)):"";
-      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null?String(size*Number(normalizedMarketRate)):"";
+      normalizedModuleData.srValueTotal=Number.isFinite(size)&&size>0&&normalizedRate!==null&&normalizedRate!==""?String(size*Number(normalizedRate)):"";
+      normalizedModuleData.marketValueTotal=Number.isFinite(size)&&size>0&&normalizedMarketRate!==null&&normalizedMarketRate!==""?String(size*Number(normalizedMarketRate)):"";
     }
     for(const field of selectedFields){
       if(field.type!=="number" || !field.label.includes("₹"))continue;
@@ -3135,8 +3135,8 @@ function PropertyForm({defaultModule,availableModules,contacts,savedGroups=[],in
         const area=Number(row.areaValue);
         const sr=normalizeIndianAmount(row.srRatePerUnit);
         const market=normalizeIndianAmount(row.marketRatePerUnit);
-        const srNumber=sr===null?null:Number(sr);
-        const marketNumber=market===null?null:Number(market);
+        const srNumber=sr===null||sr===""?null:Number(sr);
+        const marketNumber=market===null||market===""?null:Number(market);
         const srTotal=row.areaValue&&Number.isFinite(area)&&area>0&&srNumber!==null?area*srNumber:null;
         const marketTotal=row.areaValue&&Number.isFinite(area)&&area>0&&marketNumber!==null?area*marketNumber:null;
         return <article className="ax-associated-property-card" key={row.id}>
