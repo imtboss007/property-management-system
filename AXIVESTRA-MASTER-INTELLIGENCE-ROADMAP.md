@@ -28,7 +28,7 @@ Master roles describe a person generally. A separate deal-party link records the
 Use stable IDs and explicit links between contacts, companies, properties, deals, loans, funds/investments, tasks, documents, financial transactions, communications, legal cases and approvals. Do not rely on display names as database keys. Where legacy records lack IDs, offer a match suggestion rather than silently merging them.
 
 ## 3. Connected workspaces
-Preserve all existing 16 workspaces and add Sharing Property as the 17th: Property Sale; Property Loans; JV / JDA / JD; SR Rate Settlement; Agricultural Land; Commercial Land; Startup; Equity; Unsecured Company Loan; Personal Loan; Housing Loan; House Purchase; Litigation; Fund & Portfolio Management; Investor Relations; Compliance & KYC.
+Preserve all existing 16 workspaces and add Sharing Property as the 17th: Property Sale; Property Loans; JV / JDA / JD; SR Rate Settlement; Agricultural Land; Commercial Land; Startup; Equity; Unsecured Company Loan; Personal Loan; Housing Loan; House Purchase; Litigation; Fund & Portfolio Management; Investor Relations; Compliance & KYC; Sharing Property.
 
 Each workspace must support:
 - Its own required and optional domain fields, stage/status, participants and role-in-this-deal.
