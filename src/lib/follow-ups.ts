@@ -76,12 +76,13 @@ export function legacyRecordFollowUp(record: FollowUpRecordLike): FollowUpEntry 
     : "Open" as const;
   const people = [
     ...(record.moduleData?.__followUpContactIds || "").split(","),
+    ...(record.moduleData?.__primaryContactIds || "").split(","),
     record.primaryContactId || ""
   ].map(id => id.trim()).filter(Boolean);
   return {
     id: "legacy:" + record.id,
     contactIds: Array.from(new Set(people)),
-    whatsAppGroupIds: [],
+    whatsAppGroupIds: String(record.moduleData?.__followUpWhatsAppGroupIds || "").split(",").map(id => id.trim()).filter(Boolean),
     description: record.nextAction || "Follow-up · " + record.title,
     amount: record.value || "",
     date: record.nextFollowUpDate,
