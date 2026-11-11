@@ -99,21 +99,21 @@ export default function UniversalInterface({ activeSection, sections, entities, 
   const togglePin = () => setPinned(current => isPinned ? current.filter(item => item !== activeSection) : [...current, activeSection].slice(-8));
 
   return <div className="ax-universal-controls">
-    <button type="button" className="ax-universal-command" onClick={() => { setPaletteOpen(true); setQuery(""); setSelected(null); }} aria-label="Open universal search and command palette">
+    <button type="button" className="ax-universal-command" onClick={() => { setPaletteOpen(true); setActionOpen(false); setNotificationOpen(false); setQuery(""); setSelected(null); }} aria-label="Open universal search and command palette">
       <Command size={15}/><span>Command</span><kbd>Ctrl K</kbd>
     </button>
     {pinned.length > 0 && <div className="ax-universal-pinned" aria-label="Pinned workspaces">
       {pinned.map(section => <button type="button" key={section} onClick={() => navigate(section)} title={"Open pinned workspace: "+section}>{section}</button>)}
     </div>}
     <div className="ax-universal-popover-anchor">
-      <button type="button" className="ax-universal-plus" onClick={() => { setActionOpen(open => !open); setNotificationOpen(false); }} aria-label="Create new item"><Plus size={18}/><span>New</span></button>
+      <button type="button" className="ax-universal-plus" onClick={() => { setActionOpen(open => { const next = !open; if (next) { setPaletteOpen(false); setNotificationOpen(false); setSelected(null); } return next; }); }} aria-label="Create new item"><Plus size={18}/><span>New</span></button>
       {actionOpen && <div className="ax-universal-popover ax-universal-action-menu">
         <div className="ax-universal-popover-title">CREATE ANYWHERE</div>
         {quickActions.map(action => <button type="button" key={action.id} onClick={() => runAction(action.id)}><span className="ax-universal-action-icon"><Plus size={15}/></span><span><strong>{action.label}</strong><small>{action.description}</small></span><ChevronRight size={14}/></button>)}
       </div>}
     </div>
     <div className="ax-universal-popover-anchor">
-      <button type="button" className={"ax-universal-bell"+(totalAlerts ? " has-alerts" : "")} onClick={() => { setNotificationOpen(open => !open); setActionOpen(false); }} aria-label={totalAlerts ? totalAlerts+" pending notifications" : "Notifications"}><Bell size={18}/>{totalAlerts > 0 && <i>{totalAlerts > 99 ? "99+" : totalAlerts}</i>}</button>
+      <button type="button" className={"ax-universal-bell"+(totalAlerts ? " has-alerts" : "")} onClick={() => { setNotificationOpen(open => { const next = !open; if (next) { setPaletteOpen(false); setActionOpen(false); setSelected(null); } return next; }); }} aria-label={totalAlerts ? totalAlerts+" pending notifications" : "Notifications"}><Bell size={18}/>{totalAlerts > 0 && <i>{totalAlerts > 99 ? "99+" : totalAlerts}</i>}</button>
       {notificationOpen && <div className="ax-universal-popover ax-universal-notifications">
         <div className="ax-universal-popover-title">ACTION CENTRE <span>{totalAlerts} pending</span></div>
         {activeNotices.length ? activeNotices.map(item => <button type="button" key={item.id} onClick={() => navigate(item.section)}><span className="ax-universal-notice-count">{item.count}</span><span><strong>{item.title}</strong><small>{item.description}</small></span><ChevronRight size={14}/></button>) : <p className="ax-universal-empty"><CheckCircle2 size={16}/> No pending alerts in this workspace.</p>}
