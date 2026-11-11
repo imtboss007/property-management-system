@@ -23,11 +23,11 @@ AXIVESTRA is not an orbital dashboard, a property CRM alone, a static contact bo
 
 ## 2. Product domains
 
-The existing 16 workspaces remain the domain entry points and must not be deleted or collapsed:
+The existing 17 workspaces remain the domain entry points and must not be deleted or collapsed:
 
 | Domain | Existing workspaces |
 |---|---|
-| Real assets and transactions | Property Sale; Agricultural Land; Commercial Land; House Purchase |
+| Real assets and transactions | Property Sale; Agricultural Land; Commercial Land; House Purchase; Sharing Property |
 | Development and settlement | JV / JDA / JD; SR Rate Settlement |
 | Credit and lending | Property Loans; Unsecured Company Loan; Personal Loan; Housing Loan |
 | Ventures and securities | Startup; Equity |
@@ -114,7 +114,7 @@ The application must present the product in this order:
 2. **Intelligence Hub** — cross-domain analysis, record-derived intelligence, explainable signals, relationship summaries and decision support.
 3. **Domain workspaces** — the 16 existing workspaces, each with domain-specific record fields, workflow, linked parties, evidence, timeline, analytics and completeness.
 4. **Cross-domain operations** — contacts/organisations, deals, tasks, follow-ups, financials, documents, risks, compliance and approvals.
-5. **Workspace Explorer** — optional orbital/grid visual navigation to open the 16 workspaces. It is not the product home, an intelligence engine or a data model.
+5. **Workspace Explorer** — optional orbital/grid visual navigation to open the 17 workspaces. It is not the product home, an intelligence engine or a data model.
 
 Desktop, tablet and mobile must preserve the same workflows and underlying records. Interaction affordances must actually work; decorative controls are not acceptance criteria.
 
@@ -124,7 +124,7 @@ This is a code/document review, not a production certification.
 
 | Capability | Observed in repository | Maturity |
 |---|---|---|
-| 16 domain workspaces and field maps | Present in `src/App.tsx` | Implemented foundation |
+| 17 domain workspaces and field maps | Present in `src/App.tsx` | Implemented foundation |
 | Shared property/deal record workbench | Cards, table, pipeline, analytics and data-health views in `src/ModuleWorkbench.tsx` | Partial; domain-specific depth varies |
 | Contact directory and multiple roles | Present; additional roles/profile details are stored on contact records | Partial |
 | Role-in-record links | Primary and role-specific contact IDs are stored in existing records; the new relationship resolver reads those IDs without name matching | Partial foundation; not a normalized person/organisation graph or complete role coverage |
@@ -144,7 +144,7 @@ This is a code/document review, not a production certification.
 
 ### Important data-quality limitation
 
-The application has a shared `PropertyRecord`-shaped collection for records across the 16 modules. Domain-specific values are stored in a flexible `moduleData` string map. The shared `value` field is also used as generic value/exposure across workspaces. Therefore, a sum of `value` across every module must be labelled **recorded value / exposure**, not net asset value, asset allocation, total wealth or a reconciled balance sheet. Debt, claim exposure, fund NAV and real-asset value must be separated by typed financial meaning before those conclusions are presented.
+The application has a shared `PropertyRecord`-shaped collection for records across the 17 modules. Domain-specific values are stored in a flexible `moduleData` string map. The shared `value` field is also used as generic value/exposure across workspaces. Therefore, a sum of `value` across every module must be labelled **recorded value / exposure**, not net asset value, asset allocation, total wealth or a reconciled balance sheet. Debt, claim exposure, fund NAV and real-asset value must be separated by typed financial meaning before those conclusions are presented.
 
 ## 6. Delivery order and gates
 
@@ -199,7 +199,7 @@ Select providers and official sources per jurisdiction and business need. Valida
 
 ## 7. Non-negotiable engineering rules
 
-1. Preserve all 16 workspaces and existing saved records.
+1. Preserve all 17 workspaces and existing saved records.
 2. Never delete or silently rewrite user data to simplify a UI.
 3. Do not treat a contact display name as an entity key.
 4. Do not combine asset value, debt, cash, commitment, fund NAV and disputed claim exposure into one financial measure.
@@ -209,3 +209,14 @@ Select providers and official sources per jurisdiction and business need. Valida
 8. Empty states must remain empty rather than use fabricated sample values.
 9. Keep the orbital workspace map as optional navigation; it must never displace core workflows.
 10. Mark external integrations, cloud configuration and production acceptance as pending until verified.
+
+
+## Property sharing, rate comparison and custom workspace additions
+
+The 17th standard workspace is **Sharing Property**. It records co-ownership allocations across linked people, flexible percentages that must total 100% when entered, gift amount, share-transfer consideration, deed / instrument type, mortgage type, lender, loan amount, outstanding balance, interest, EMI, tenure, registration date and transfer status. These fields support traceable recordkeeping and do not determine legal validity or tax treatment.
+
+The shared property form supports multiple linked property / collateral rows in Property Sale, Property Loans, JV / JDA / JD, SR Rate Settlement, Agricultural Land, Commercial Land, Startup, Equity, Housing Loan, House Purchase, Litigation and Sharing Property. Each additional property retains its own identifier, location, extent, SR / guidance rate per unit, market rate per unit and mortgage / encumbrance type. Extent multiplied by the corresponding rate is calculated per property; unlike units are not added into a misleading total.
+
+Settlement amount, status, date and terms are recorded in Property Sale, SR Rate Settlement, Agricultural Land, Commercial Land and Litigation. SR Rate Settlement separately retains the SR / guidance rate and market rate, with calculated SR and market amounts based on the primary property's area and unit.
+
+Records support multiple primary contacts, linked stakeholders and follow-up contacts. Saved WhatsApp groups can be associated separately with a record's primary links and follow-up links. Association does not trigger message delivery. Follow-up entries keep their contact and WhatsApp group assignments. Custom workspace definitions are additive, use stable IDs and are included in local, device and cloud synchronization plus JSON backup/restore.
