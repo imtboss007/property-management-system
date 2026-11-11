@@ -2438,7 +2438,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                     record.primaryContactId || "",
                     ...(record.moduleData?.__linkedContactIds || "").split(","),
                     ...(record.moduleData?.__followUpContactIds || "").split(","),
-                    ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([, value]) => String(value || ""))
+                    ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).flatMap(([, value]) => String(value || "").split(","))
                   ]).map(id => id.trim()).filter(Boolean));
                   return {
                     name: module.name,
@@ -2821,7 +2821,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactRecord[]): ContactRecord[] {
   const roleIds = Object.entries(property.moduleData ?? {})
     .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
-    .map(([,value]) => String(value));
+    .flatMap(([,value]) => String(value).split(","));
   const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__primaryContactIds ?? "").split(","), ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
