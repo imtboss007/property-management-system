@@ -16,6 +16,8 @@ import IntentCanvas from "./IntentCanvas";
 import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";
 import ModuleWorkbench from "./ModuleWorkbench";
 import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
+import CustomModuleBuilder from "./CustomModuleBuilder";
+import { normalizeCustomModules, type CustomModuleDefinition, type CustomModuleFieldType } from "./lib/custom-modules";
 import FollowUpRegistry from "./FollowUpRegistry";
 import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
@@ -138,7 +140,7 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date"; options?: string[] };
+type ModuleField = { key: string; label: string; placeholder: string; type?: CustomModuleFieldType; options?: string[]; required?: boolean };
 const moduleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
@@ -362,7 +364,7 @@ const moduleFields: Record<string, ModuleField[]> = {
   ]
 };
 type ModuleContactField = { key: string; label: string };
-type CustomModuleDefinition = { id: string; name: string; description: string; group: string; color: string };
+
 const moduleContactFields: Record<string, ModuleContactField[]> = {
   "Property Sale": [
     { key: "__contact_seller", label: "Seller / property owner" },
@@ -643,8 +645,11 @@ type AppProps = { company?: WorkspaceCompany; userId?: string; personalUserId?: 
 export default function App({ company, userId, personalUserId, onSignOut, onSwitchCompany }: AppProps = {}) {
   const storageMode = getStorageMode();
   const [active, setActive] = useState<Section>("Overview");
-  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => normalizeCustomModules(load("estateflow.customModules", [])));
+  const [customModuleBuilderOpen, setCustomModuleBuilderOpen] = useState(false);
+  const [editingCustomModule, setEditingCustomModule] = useState<CustomModuleDefinition | null>(null);
   const modules = useMemo(() => [...standardModules, ...customModules.map(item => ({ ...item, icon: FolderPlus }))], [customModules]);
+  const moduleFieldsFor = (name: string): ModuleField[] => moduleFields[name] || customModules.find(item => item.name === name)?.fields || [];
   const [mobileMenu, setMobileMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [contactRoleFilters, setContactRoleFilters] = useState<string[]>([]);
@@ -862,7 +867,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         if (JSON.stringify(collections.riskRecords) !== JSON.stringify(synced.riskRecords)) setRiskRecords(synced.riskRecords as RiskRecord[]);
         if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
-        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
+        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(normalizeCustomModules(synced.customModules));
         cloudPreviousRef.current = {
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
@@ -958,7 +963,10 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       setRiskRecords(current => JSON.stringify(current) === JSON.stringify(snapshot.riskRecords || []) ? current : (snapshot.riskRecords || []) as RiskRecord[]);
       setApprovalRequests(current => JSON.stringify(current) === JSON.stringify(snapshot.approvalRequests || []) ? current : (snapshot.approvalRequests || []) as ApprovalRequest[]);
       setAuditEvents(current => JSON.stringify(current) === JSON.stringify(snapshot.auditEvents || []) ? current : (snapshot.auditEvents || []) as AuditEvent[]);
-      setCustomModules(current => JSON.stringify(current) === JSON.stringify(snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
+      setCustomModules(current => {
+        const next = normalizeCustomModules(snapshot.customModules || []);
+        return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+      });
     };
     const readRemote = async (): Promise<DeviceSyncReply> => {
       if (desktopTransport && desktopApi?.getDataSync) return await desktopApi.getDataSync();
@@ -1682,16 +1690,41 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
   const addCustomModule = () => {
-    const name = window.prompt("Name for the new AXIVESTRA workspace:");
-    if (!name || !name.trim()) return;
-    const cleanName = name.trim().replace(/\\s+/g, " ").slice(0, 60);
-    if (modules.some(item => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())) {
-      setNotice("A workspace with that name already exists."); return;
+    setEditingCustomModule(null);
+    setCustomModuleBuilderOpen(true);
+  };
+  const editCustomModule = (item: CustomModuleDefinition) => {
+    setEditingCustomModule(item);
+    setCustomModuleBuilderOpen(true);
+  };
+  const saveCustomModuleDefinition = (item: CustomModuleDefinition) => {
+    const previous = customModules.find(existing => existing.id === item.id);
+    const duplicate = modules.some(existing => existing.name.toLocaleLowerCase() === item.name.toLocaleLowerCase() && existing.name !== previous?.name);
+    if (duplicate) { setNotice("A workspace with that name already exists."); return; }
+    setCustomModules(current => previous
+      ? current.map(existing => existing.id === item.id ? item : existing)
+      : [...current, item]);
+    if (previous && previous.name !== item.name) {
+      setProperties(current => current.map(record => record.module === previous.name ? { ...record, module: item.name } : record));
+      if (active === previous.name) setActive(item.name);
     }
-    const description = window.prompt("What will this workspace manage?") || "Custom workspace for your records, contacts and follow-ups.";
-    const item: CustomModuleDefinition = { id: uid(), name: cleanName, description: description.trim().slice(0, 180), group: "Custom Modules", color: "violet" };
-    setCustomModules(previous => [...previous, item]);
-    go(cleanName);
+    setCustomModuleBuilderOpen(false);
+    setEditingCustomModule(null);
+    setActive(item.name);
+    setNotice(previous ? "Custom workspace updated. Existing records and their links were preserved." : "Custom workspace created. Add a record to begin; its relationships and activity panels are ready.");
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: previous ? "updated" : "created", entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
+  };
+  const deleteCustomModule = (item: CustomModuleDefinition) => {
+    const linkedRecords = properties.filter(record => record.module === item.name);
+    if (linkedRecords.length) {
+      setNotice("This workspace has " + linkedRecords.length + " record(s). Move or delete those records first; the workspace cannot be removed while records are linked to it.");
+      return;
+    }
+    if (!window.confirm("Delete the empty custom workspace '" + item.name + "'? This cannot be undone.")) return;
+    setCustomModules(current => current.filter(existing => existing.id !== item.id));
+    if (active === item.name) setActive("Overview");
+    setNotice("Empty custom workspace deleted.");
+    setAuditEvents(current => [{ id: uid(), at: new Date().toISOString(), action: "deleted", entity: "Custom module", recordId: item.id, label: item.name }, ...current].slice(0, 500));
   };
   const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
   const closePropertyForm = () => { setShowPropertyForm(false); setEditingProperty(null); };
