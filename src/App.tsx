@@ -2458,7 +2458,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               properties={properties.map(item => ({ id: item.id, title: item.title, module: item.module, value: item.value, status: item.status }))}
               financials={financials.map(item => ({ id: item.id, type: item.type, amount: item.amount, date: item.date }))}
               tasks={tasks.map(item => ({ id: item.id, date: item.date, done: item.done, type: item.type }))}
-              workspaceModules={workspaceModules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
+              modules={workspaceModules.map(item => ({ name: item.name, value: 0, count: properties.filter(property => property.module === item.name).length }))}
               onOpenModule={name => go(name)}
             />
             <div className="section-heading module-section-heading"><div><span className="section-kicker">CONNECTED SYSTEMS</span><h2>Explore your operating modules</h2><p>Seventeen connected business workspaces across assets, ownership, capital, lending, funds, investors, transactions and legal matters.</p></div><button className="text-button" onClick={()=>go("All Properties")}>View all records <ArrowUpRight size={15}/></button></div>
@@ -2500,7 +2500,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               documents={documents}
               risks={riskRecords}
               approvals={approvalRequests}
-              workspaceModules={workspaceModules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
+              modules={workspaceModules.map(item=>({name:item.name,count:properties.filter(record=>record.module===item.name).length}))}
               followUps={registryDashboardItems}
               today={today}
               onOpenModule={name=>go(name)}
@@ -2554,7 +2554,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               properties={properties.map(item => ({ id:item.id,title:item.title,module:item.module,value:item.value,status:item.status }))}
               financials={financials.map(item => ({ id:item.id,type:item.type,amount:item.amount,date:item.date }))}
               tasks={tasks.map(item => ({ id:item.id,date:item.date,done:item.done,type:item.type }))}
-              workspaceModules={workspaceModules.map(item => ({ name:item.name,value:0,count:properties.filter(property=>property.module===item.name).length }))}
+              modules={workspaceModules.map(item => ({ name:item.name,value:0,count:properties.filter(property=>property.module===item.name).length }))}
               onOpenModule={name=>go(name)}
             />
             <div className="ax-intelligence-lower">
@@ -2823,7 +2823,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
   const openTasks=tasks.filter(task=>!task.done).sort((a,b)=>`${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const orderedProperties=[...properties].sort((a,b)=>(getPropertyDeadline(a)?.date || a.nextFollowUpDate || "9999-12-31").localeCompare(getPropertyDeadline(b)?.date || b.nextFollowUpDate || "9999-12-31"));
   return <section className="data-panel relationship-hub">
-    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 16 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
+    <div className="section-heading"><div><span className="section-kicker">CONNECTED CLIENT WORKFLOW</span><h2>Client, deal and loan control</h2><p>One linked view across all 17 business modules: clients, properties/deals, money movement, calls, follow-ups and deadlines.</p></div><div className="finance-actions"><button className="secondary-button" onClick={onAddContact}><Plus size={15}/> Add contact</button><button className="primary-button" onClick={onAddProperty}><Plus size={15}/> Add deal / property</button></div></div>
     <div className="finance-summary relationship-summary"><div><span>Contacts</span><strong>{contacts.length}</strong></div><div><span>Deal / module records</span><strong>{properties.length}</strong></div><div><span>Target deadlines overdue</span><strong>{overdueDeadlines.length}</strong></div><div><span>Follow-ups overdue</span><strong>{overdueFollowups.length}</strong></div></div>
     <div className="notice"><Handshake size={17}/>Select one saved contact on each deal record. The same contact then appears across call reminders, financial transactions, risk/approval items and WhatsApp follow-ups.</div>
     {properties.length===0 && <Empty icon={<LandPlot size={22}/>} title="Add your first deal or property record" text="Every module record can be linked to a client, deadline and next action here." action="Create deal record" onClick={onAddProperty}/>}
