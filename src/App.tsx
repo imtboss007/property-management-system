@@ -2579,6 +2579,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
             fields={active==="All Properties" ? [] : moduleFields[active] || []}
             contacts={contacts}
+            whatsappGroups={savedWhatsAppGroups}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
@@ -2745,7 +2746,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={workspaceModules.some(m=>m.name===active)?active:workspaceModules[0].name} availableModules={workspaceModules} contacts={contacts} savedGroups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
-      {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
+      {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} groups={savedWhatsAppGroups} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
       {showFinancialForm && <Modal title={editingFinancial ? "Edit financial transaction" : "Add financial transaction"} onClose={()=>closeFinancialForm()}><FinancialForm properties={properties} contacts={contacts} initial={editingFinancial} onSave={saveFinancial} onCancel={()=>closeFinancialForm()}/></Modal>}
       {showRiskForm && <Modal title="Log a risk" onClose={()=>setShowRiskForm(false)}><RiskForm properties={properties} contacts={contacts} onSave={saveRisk} onCancel={()=>setShowRiskForm(false)}/></Modal>}
       {showApprovalForm && <Modal title="Request approval" onClose={()=>setShowApprovalForm(false)}><ApprovalForm properties={properties} contacts={contacts} onSave={saveApproval} onCancel={()=>setShowApprovalForm(false)}/></Modal>}
@@ -2757,7 +2758,7 @@ function getLinkedContactsForRecord(property: PropertyRecord, contacts: ContactR
   const roleIds = Object.entries(property.moduleData ?? {})
     .filter(([key,value]) => key.startsWith("__contact_") && Boolean(value))
     .map(([,value]) => String(value));
-  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
+  const ids = [property.primaryContactId ?? "", ...(property.moduleData?.__primaryContactIds ?? "").split(","), ...(property.moduleData?.__linkedContactIds ?? "").split(","), ...roleIds].filter(Boolean);
   const linked = ids.map(id => contacts.find(contact => contact.id === id)).filter((contact): contact is ContactRecord => Boolean(contact));
   const unique = linked.filter((contact,index) => linked.findIndex(other => other.id === contact.id) === index);
   return unique;
