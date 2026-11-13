@@ -160,7 +160,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       const follow=followUpContactIds(record).map(id=>contactsById.get(id)?.name||"").filter(Boolean).join(", ");
       const readGroups=(key:string)=>String(record.moduleData?.[key]||"").split(",").map(id=>id.trim()).filter(Boolean).map(id=>groups.find(group=>group.id===id||group.jid===id)?.name||id).join(", ");
       const primaryGroup=includePrimaryGroup?readGroups("__primaryGroupIds"):"";
-      const followGroup=includeFollowGroup?readGroups("__followUpGroupIds"):"";
+      const followUpGroup=includeFollowGroup?readGroups("__followUpGroupIds"):"";
       return {
         title:record.title,module:record.module,location:record.location||"",
         value:currency(record.value),srRate:currency(srRateFor(record)),
