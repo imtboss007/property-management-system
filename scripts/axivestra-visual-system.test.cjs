@@ -316,8 +316,8 @@ assert.match(reportExporter, /Record \/ Module[\s\S]*?Value \/ Exposure[\s\S]*?S
 assert.match(followUpForm, /normalizeIndianAmount/, "Follow-up amount entries must normalize Indian currency shorthand before saving.");
 assert.match(registry, /Primary group:/, "Follow-up Registry must show primary group associations.");
 assert.match(registry, /Follow-up group:/, "Follow-up Registry must show follow-up group associations.");
-assert.match(registry, /Primary group<select/, "Follow-up Registry must filter by primary WhatsApp group.");
-assert.match(registry, /Follow-up group<select/, "Follow-up Registry must filter by follow-up WhatsApp group.");
+assert.match(registry, /MultiCheckList title="Primary group"/, "Follow-up Registry must filter by primary WhatsApp group using multi-select checkboxes.");
+assert.match(registry, /MultiCheckList title="Follow-up group"/, "Follow-up Registry must filter by follow-up WhatsApp group using multi-select checkboxes.");
 assert.match(registry, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Follow-up Registry must export filtered entries to PDF and PPT.");
 assert.match(app, /__primaryGroupIds/, "Every module record form must store selected primary WhatsApp group IDs.");
 assert.match(app, /__followUpGroupIds/, "Every module record form must store selected follow-up WhatsApp group IDs.");
