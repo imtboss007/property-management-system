@@ -523,7 +523,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
   await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
   await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
-  await expect(page.getByText("2026-11-15").first()).toBeVisible();
+  await expect(page.getByText("15 Nov 2026").first()).toBeVisible();
   await expect(page.getByText("11:15").first()).toBeVisible();
   await expect(page.getByText("QA Primary Group").first()).toBeVisible();
   await expect(page.getByText("QA Follow-up Group").first()).toBeVisible();
