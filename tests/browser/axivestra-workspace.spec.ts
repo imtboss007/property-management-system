@@ -442,7 +442,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   test.setTimeout(240_000);
   const openSection=async(name:string)=>{
     if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
-    await page.getByRole("button",{name:new RegExp("^"+name+"(?:\\s+\\d+)?$")}).click();
+    await page.getByTestId("module-directory-"+name).click();
   };
   for(const module of expectedModules){
     await openSection(module);
