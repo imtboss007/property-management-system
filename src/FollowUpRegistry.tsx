@@ -209,8 +209,11 @@ export default function FollowUpRegistry({
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
         value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
         area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
+        primaryContact:includePrimaryName?primary:"",
+        followUpContact:includeFollowName?follow:"",
+        primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:[includeFollowName&&follow?"Follow-up: "+follow:"",followGroup?"Follow-up group: "+followGroup:"","Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")].join(" | ")
+        followUpSummary:"Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
