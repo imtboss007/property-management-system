@@ -247,7 +247,14 @@ export default function FollowUpRegistry({
         followUpContact:includeFollowName?follow:"",
         primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:"Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")
+        followUpSummary:"Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:""),
+        detailsSummary:[
+          "Follow-up: "+(item.entry.description||"—"),
+          "Status: "+statusOf(item)+" · Priority: "+item.entry.priority,
+          item.entry.nextAction?"Next action: "+item.entry.nextAction:"",
+          item.record?.status?"Record status: "+item.record.status:"",
+          item.entry.notes?"Notes: "+item.entry.notes:""
+        ].filter(Boolean).join("\n")
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
