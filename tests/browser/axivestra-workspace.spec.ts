@@ -467,13 +467,14 @@ test("desktop and mobile: every module formats crores and opens table details, h
     if(module===expectedModules[0]){
       await row.getByRole("button",{name:"Edit record"}).click();
       const amountInputs=page.getByLabel("Amount in Indian rupees");
-      await expect(amountInputs).toHaveCount(4);
-      await expect(amountInputs.nth(0)).toHaveValue("4");
-      await expect(amountInputs.nth(1)).toHaveValue("2.5");
-      await expect(amountInputs.nth(2)).toHaveValue("5");
-      await expect(amountInputs.nth(3)).toHaveValue("3");
+      await expect(amountInputs.first()).toHaveValue("4");
+      const valuationInputs=page.locator(".ax-valuation-fields").getByLabel("Amount in Indian rupees");
+      await expect(valuationInputs).toHaveCount(3);
+      await expect(valuationInputs.nth(0)).toHaveValue("2.5");
+      await expect(valuationInputs.nth(1)).toHaveValue("5");
+      await expect(valuationInputs.nth(2)).toHaveValue("3");
       await expect(page.getByText("VALUATION & SETTLEMENT")).toBeVisible();
-      await expect(page.getByLabel("Amount unit").nth(1)).toHaveValue("crore");
+      await expect(page.locator(".ax-valuation-fields").getByLabel("Amount unit").first()).toHaveValue("crore");
       await page.getByRole("button",{name:"Cancel",exact:true}).click();
     }
   }
