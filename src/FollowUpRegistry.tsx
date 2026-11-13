@@ -204,7 +204,7 @@ export default function FollowUpRegistry({
       const primary=item.record?.primaryContactId ? contactById.get(item.record.primaryContactId)?.name || "" : (item.record?.contact||"");
       const follow=item.entry.contactIds.map(id=>contactById.get(id)?.name||"").filter(Boolean).join(", ");
       const primaryGroup=includePrimaryGroup?groupLabels(item.record,"primary").join(", "):"";
-      const followGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
+      const followUpGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
       return {
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
         value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
