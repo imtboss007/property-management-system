@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 const expectedModules = [
   "Property Sale",
@@ -266,4 +267,143 @@ test("desktop: Explorer quick links open the linked operational views", async ({
   hub = page.getByRole("region", { name: "AXIVESTRA orbital workspace navigation" });
   await hub.getByRole("button", { name: "Open all records" }).click();
   await expect(page.getByRole("heading", { name: "All Properties", level: 1 })).toBeVisible();
+});
+
+
+
+
+test("desktop and mobile: all report views independently include or omit contact and group data", async ({ page }, testInfo) => {
+  const sample = {
+    properties: [{
+      id: "qa-sr-settlement-001",
+      title: "QA Bengaluru settlement record",
+      module: "SR Rate Settlement",
+      location: "Bengaluru",
+      value: "350000000",
+      status: "Active",
+      contact: "Primary QA Contact",
+      primaryContactId: "qa-primary-contact",
+      createdAt: "2026-11-13T09:00:00.000Z",
+      nextFollowUpDate: "2026-11-14",
+      nextAction: "Confirm settlement terms",
+      notes: "Browser-only seeded record; no live data is changed.",
+      surveyNumber: "",
+      ownershipDetails: "",
+      areaValue: "86500",
+      areaUnit: "sq ft",
+      dimensions: "",
+      ratePerUnit: "400000000",
+      moduleData: {
+        srRate: "400000000",
+        marketRatePerUnit: "800000000",
+        settlementAmount: "350000000",
+        __followUpContactIds: "qa-follow-contact",
+        __primaryGroupIds: "qa-primary-group",
+        __followUpGroupIds: "qa-follow-group",
+        __followUps: JSON.stringify([{
+          id: "qa-follow-entry",
+          contactIds: ["qa-follow-contact"],
+          description: "QA follow-up for Bengaluru settlement",
+          amount: "350000000",
+          date: "2026-11-14",
+          time: "10:30",
+          priority: "High",
+          status: "Open",
+          notes: "Seeded for browser export verification",
+          nextAction: "Call contact",
+          assignedAt: "2026-11-13T09:00:00.000Z"
+        }])
+      }
+    }],
+    contacts: [
+      { id: "qa-primary-contact", name: "Primary QA Contact", phone: "9000000001", role: "Owner", notes: "" },
+      { id: "qa-follow-contact", name: "Follow-up QA Contact", phone: "9000000002", role: "Broker", notes: "" }
+    ],
+    groups: [
+      { id: "qa-primary-group", jid: "qa-primary-group@g.us", name: "Primary QA Group" },
+      { id: "qa-follow-group", jid: "qa-follow-group@g.us", name: "Follow-up QA Group" }
+    ]
+  };
+  await page.addInitScript((seed) => {
+    localStorage.setItem("estateflow.properties", JSON.stringify(seed.properties));
+    localStorage.setItem("estateflow.contacts", JSON.stringify(seed.contacts));
+    localStorage.setItem("estateflow.whatsappGroups", JSON.stringify(seed.groups));
+    localStorage.setItem("estateflow.tasks", JSON.stringify([]));
+  }, sample);
+  await page.goto("/");
+  const mobile = (page.viewportSize()?.width || 1440) <= 720;
+  const openSection = async (name: string) => {
+    if (mobile) await page.getByRole("button", { name: "Open menu" }).click();
+    await page.locator(".nav-list").getByRole("button", { name: new RegExp("^" + name) }).click();
+  };
+  const assertFourOptions = async (labels: string[]) => {
+    for (const label of labels) {
+      const box = page.getByRole("checkbox", { name: label, exact: true });
+      await expect(box).toBeVisible();
+      await expect(box).toBeChecked();
+    }
+  };
+  const setFourOptions = async (labels: string[], checked: boolean) => {
+    for (const label of labels) {
+      const box = page.getByRole("checkbox", { name: label, exact: true });
+      if (checked) await box.check(); else await box.uncheck();
+      await expect(box).toHaveJSProperty("checked", checked);
+    }
+  };
+  const pdfText = async (label: string) => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: label, exact: true }).click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
+    const file = await download.path();
+    if (!file) throw new Error("The browser did not provide the generated PDF file.");
+    return readFileSync(file).toString("latin1");
+  };
+  const expectIncluded = (content: string) => {
+    for (const value of ["Primary QA Contact", "Follow-up QA Contact", "Primary QA Group", "Follow-up QA Group"]) {
+      expect(content).toContain(value);
+    }
+  };
+  const pptxText = async (label: string) => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: label, exact: true }).click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
+    const file = await download.path();
+    if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
+    return readFileSync(file).toString("utf8");
+  };
+  const expectExcluded = (content: string) => {
+    for (const value of ["Primary QA Contact", "Follow-up QA Contact", "Primary QA Group", "Follow-up QA Group"]) {
+      expect(content).not.toContain(value);
+    }
+  };
+
+  const hubOptions = ["Include primary names", "Include follow-up names", "Include primary groups", "Include follow-up groups"];
+  await openSection("Intelligence Hub");
+  await expect(page.getByRole("heading", { name: "Intelligence Hub" })).toBeVisible();
+  await expect(page.locator(".ax-hub-export-summary strong")).toContainText("1 matching records");
+  await assertFourOptions(hubOptions);
+  expectIncluded(await pdfText("Download PDF"));
+  await setFourOptions(hubOptions, false);
+  expectExcluded(await pdfText("Download PDF"));
+  expectExcluded(await pptxText("Download PPT"));
+
+  const registryOptions = ["Primary names", "Follow-up names", "Primary groups", "Follow-up groups"];
+  await openSection("Follow-up Registry");
+  await expect(page.getByRole("heading", { name: "Follow-up Registry" })).toBeVisible();
+  await assertFourOptions(registryOptions);
+  expectIncluded(await pdfText("Download PDF"));
+  await setFourOptions(registryOptions, false);
+  expectExcluded(await pdfText("Download PDF"));
+  expectExcluded(await pptxText("Download PPT"));
+
+  const moduleOptions = ["Primary names", "Follow-up names", "Primary groups", "Follow-up groups"];
+  await openSection("All Properties");
+  await expect(page.getByRole("heading", { name: "All Properties", level: 2 })).toBeVisible();
+  await assertFourOptions(moduleOptions);
+  expectIncluded(await pdfText("PDF"));
+  await setFourOptions(moduleOptions, false);
+  expectExcluded(await pdfText("PDF"));
+  expectExcluded(await pptxText("PPT"));
 });

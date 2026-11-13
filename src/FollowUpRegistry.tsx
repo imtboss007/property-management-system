@@ -204,17 +204,20 @@ export default function FollowUpRegistry({
       const primary=item.record?.primaryContactId ? contactById.get(item.record.primaryContactId)?.name || "" : (item.record?.contact||"");
       const follow=item.entry.contactIds.map(id=>contactById.get(id)?.name||"").filter(Boolean).join(", ");
       const primaryGroup=includePrimaryGroup?groupLabels(item.record,"primary").join(", "):"";
-      const followGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
+      const followUpGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
       return {
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
         value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
         area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
+        primaryContact:includePrimaryName?primary:"",
+        followUpContact:includeFollowName?follow:"",
+        primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:[includeFollowName&&follow?"Follow-up: "+follow:"",followGroup?"Follow-up group: "+followGroup:"","Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")].join(" | ")
+        followUpSummary:"Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
-    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
+    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpContact.localeCompare(b.followUpContact)||a.title.localeCompare(b.title));
     if(reportGroupBy==="date")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
     const subtitle="Follow-up Registry · "+rows.length+" filtered entries · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date/time-wise");
     if(kind==="pdf")downloadIntelligencePdf("Follow-up Registry",subtitle,rows);

@@ -4,23 +4,37 @@ const escPdf = value => ascii(value).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").
 const xml = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const timestamp = () => new Date().toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
 const headers = ["Record / Module","Location","Value / Exposure","SR Rate","Market Rate","Settlement","Area","Contacts / Follow-up"];
-const rowValues = row => [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,[row.contactSummary,row.followUpSummary].filter(Boolean).join(" | ")];
+const rowValues = row => {
+  const contactLines = [
+    row.primaryContact ? "Primary: "+row.primaryContact : "",
+    row.followUpContact ? "Follow-up: "+row.followUpContact : "",
+    row.primaryGroup ? "Primary group: "+row.primaryGroup : "",
+    row.followUpGroup ? "Follow-up group: "+row.followUpGroup : "",
+    row.followUpSummary || ""
+  ].filter(Boolean);
+  const fallback = [row.contactSummary,row.followUpSummary].filter(Boolean);
+  return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
+};
 
 function makePdf(title, subtitle, rows) {
-  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[150,94,78,70,76,78,62,166];
+  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[130,80,72,60,62,65,48,257];
   const scale=usable/widths.reduce((a,b)=>a+b,0), ws=widths.map(w=>w*scale), xs=ws.map((_,i)=>margin+ws.slice(0,i).reduce((a,b)=>a+b,0));
-  const groups=[];for(let i=0;i<rows.length;i+=19)groups.push(rows.slice(i,i+19));if(!groups.length)groups.push([]);
+  const groups=[];for(let i=0;i<rows.length;i+=10)groups.push(rows.slice(i,i+10));if(!groups.length)groups.push([]);
   const objs=[];const add=s=>(objs.push(s),objs.length);
   const root=add("<< /Type /Catalog /Pages 2 0 R >>"), pages=add(""), font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), pageIds=[];
   const t=(x,y,size,value,color)=>"BT /F1 "+size+" Tf "+(color||"0.84 0.93 0.97")+" rg 1 0 0 1 "+x.toFixed(2)+" "+y.toFixed(2)+" Tm ("+escPdf(value)+") Tj ET";
+  const wrap=(value,max)=>{const words=String(value||"").split(/\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(next.length>max&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
   groups.forEach((group,pi)=>{
     const cmd=["q 0.035 0.09 0.14 rg 0 0 842 595 re f Q",t(margin,558,17,title,"0.88 0.98 1"),t(margin,540,8,subtitle,"0.55 0.73 0.82"),t(650,558,7,"Downloaded: "+timestamp(),"0.55 0.73 0.82"),t(650,540,7,"Page "+(pi+1)+" / "+groups.length,"0.55 0.73 0.82")];
     const hy=510;cmd.push("q 0.08 0.23 0.31 rg "+margin+" "+(hy-5)+" "+usable+" 20 re f Q");
     headers.forEach((h,i)=>cmd.push(t(xs[i]+4,hy+2,7,h,"0.35 0.94 0.91")));
     group.forEach((row,ri)=>{
-      const y=hy-20-ri*22, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
-      cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 22 re f Q");
-      rowValues(row).forEach((val,i)=>{const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.4,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));});
+      const y=hy-20-ri*42, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
+      cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 42 re f Q");
+      rowValues(row).forEach((val,i)=>{
+        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+10-j*7.2,5.7,line,"0.84 0.92 0.96")));}
+        else {const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.1,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));}
+      });
       cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+(y-6)+" m "+(margin+usable)+" "+(y-6)+" l S");
     });
     cmd.push(t(margin,24,7,"AXIVESTRA | "+rows.length+" records | Generated "+timestamp(),"0.48 0.67 0.76"));
@@ -37,18 +51,19 @@ function makePdf(title, subtitle, rows) {
 }
 function slideShape(id,name,text,x,y,w,h,size,bold,fill,color) {
   const fillXml=fill?'<a:solidFill><a:srgbClr val="'+fill+'"/></a:solidFill>':"<a:noFill/>";
-  return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+xml(name)+'"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'+fillXml+'<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="45000" rIns="45000" tIns="20000" bIns="20000"/><a:lstStyle/><a:p><a:pPr/><a:r><a:rPr lang="en-IN" sz="'+size+'" b="'+(bold?1:0)+'"><a:solidFill><a:srgbClr val="'+(color||"EAF5FA")+'"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>'+xml(text)+'</a:t></a:r><a:endParaRPr lang="en-IN" sz="'+size+'"/></a:p></p:txBody></p:sp>';
+  const paragraphs=String(text||"").split("\n").map(line=>'<a:p><a:pPr/><a:r><a:rPr lang="en-IN" sz="'+size+'" b="'+(bold?1:0)+'"><a:solidFill><a:srgbClr val="'+(color||"EAF5FA")+'"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>'+xml(line)+'</a:t></a:r><a:endParaRPr lang="en-IN" sz="'+size+'"/></a:p>').join("");
+  return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+xml(name)+'"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'+fillXml+'<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="45000" rIns="45000" tIns="20000" bIns="20000"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
 function makeSlide(title,subtitle,rows,page,totalPages) {
-  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",2500000],["Location",1400000],["Value / Exposure",1300000],["SR Rate",1050000],["Market Rate",1050000],["Settlement",1250000],["Area",900000],["Contacts / Follow-up",1900000]];
+  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",2050000],["Location",950000],["Value / Exposure",1050000],["SR Rate",850000],["Market Rate",850000],["Settlement",950000],["Area",650000],["Contacts / Follow-up",4070000]];
   const factor=usable/cols.reduce((a,c)=>a+c[1],0);let shapes="";
   shapes+=slideShape(2,"Title",title,margin,220000,usable,450000,2300,true,null,"E9FAFF");
   shapes+=slideShape(3,"Subtitle",subtitle+" | Downloaded "+timestamp(),margin,680000,usable,240000,900,false,null,"8FB5C6");
-  const y0=1080000,headerH=350000,rowH=520000;let x=margin;
+  const y0=1080000,headerH=350000,rowH=620000;let x=margin;
   cols.forEach((col,i)=>{const w=Math.floor(col[1]*factor);shapes+=slideShape(10+i,"Header "+col[0],col[0],x,y0,w,headerH,800,true,"123D50","65F0DF");x+=w;});
-  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-"),limit=i===0?43:32;shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt.length>limit?txt.slice(0,limit-3)+"...":txt,xx,y,w,rowH-25000,750,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
+  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=i===7?String(value||"-").split("\n").map(line=>ascii(line)).join("\n"):ascii(value||"-"),limit=i===0?43:i===7?220:32;shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt.length>limit?txt.slice(0,limit-3)+"...":txt,xx,y,w,rowH-25000,i===7?650:750,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
   shapes+=slideShape(4,"Footer","AXIVESTRA | "+rows.length+" records on this slide | Page "+page+" of "+totalPages,margin,6500000,usable,180000,800,false,null,"6F94A7");
-  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:sld>';
 }
 function crc32(bytes) { let c=0xFFFFFFFF;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xEDB88320:0);}return (c^0xFFFFFFFF)>>>0; }
 function zipStore(files) {
