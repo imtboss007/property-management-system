@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
+import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
 import { parseFollowUps } from "./lib/follow-ups";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileDown, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
@@ -156,7 +156,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const settlementValueFor = (record: ModuleRecord) => moduleAmount(record, ["settlementAmount","settlementValue","agreedSettlementAmount"], /settlement.*(?:amount|value)|(?:amount|value).*settlement/i);
   const formatField = (field: ModuleField, value: string) => {
     if (!value.trim()) return value;
-    return field.key === "value" || field.key === "ratePerUnit" || /₹|INR|rupee|amount|exposure|market.*value|settlement.*value/i.test(field.label)
+    return field.key === "value" || field.key === "ratePerUnit" || isIndianAmountLabel(field.label)
       ? currency(value)
       : value;
   };

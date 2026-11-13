@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount } from "../src/lib/indian-amount.mjs";
+import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount, isIndianAmountLabel } from "../src/lib/indian-amount.mjs";
 
 const cases = [
   ["25000", 25000],
@@ -49,4 +49,13 @@ test("formats compact Indian amounts without changing their numeric meaning", ()
   assert.equal(formatIndianCompactAmount(1250000), "₹12.5 Lakhs");
   assert.equal(formatIndianCompactAmount(500000), "₹5 Lakhs");
   assert.equal(formatIndianCompactAmount(25000), "₹25,000");
+});
+
+test("identifies monetary labels and excludes percentage fields", () => {
+  assert.equal(isIndianAmountLabel("Headline value / exposure (₹)"), true);
+  assert.equal(isIndianAmountLabel("SR / guidance rate"), true);
+  assert.equal(isIndianAmountLabel("Market rate per unit"), true);
+  assert.equal(isIndianAmountLabel("Settlement value"), true);
+  assert.equal(isIndianAmountLabel("Area / size"), false);
+  assert.equal(isIndianAmountLabel("Interest rate (%)"), false);
 });

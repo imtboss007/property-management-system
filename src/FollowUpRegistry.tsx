@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
+import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
 import { CalendarClock, CheckCircle2, Clock3, Download, FileDown, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
@@ -259,7 +259,7 @@ export default function FollowUpRegistry({
           "Status: "+statusOf(item)+" · Priority: "+item.entry.priority,
           item.entry.nextAction?"Next action: "+item.entry.nextAction:"",
           item.record?.status?"Record status: "+item.record.status:"",
-          ...(item.record?(moduleFields[item.record.module]||[]).filter(field=>String(item.record?.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+(field.label.includes("₹")?money(item.record?.moduleData?.[field.key]||""):String(item.record?.moduleData?.[field.key]))):[]),
+          ...(item.record?(moduleFields[item.record.module]||[]).filter(field=>String(item.record?.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+(isIndianAmountLabel(field.label)?money(item.record?.moduleData?.[field.key]||""):String(item.record?.moduleData?.[field.key]))):[]),
           item.entry.notes?"Notes: "+item.entry.notes:""
         ].filter(Boolean).join("\n")
       };
