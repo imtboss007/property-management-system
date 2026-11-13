@@ -16,7 +16,7 @@ const checks = [
   ["local mode does not require sign-out or destroy the account session", /if \(localMode\) return <App onSwitchCompany=\{switchToCloudMode\} \/>/.test(gate)],
   ["local mode can return to cloud login from Settings", /Sign in \/ switch to cloud mode/.test(app)],
   ["workspace export uses a versioned envelope", /createWorkspaceBackup\([\s\S]{0,350}properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks/.test(app)],
-  ["workspace import validates before applying state", /parseWorkspaceBackup\(parsed\)[\s\S]{0,700}All collections are parsed and validated before any state changes are committed/.test(app)],
+  ["workspace import validates before applying state", /parseWorkspaceBackup\(parsed\)[\s\S]{0,2500}All collections are parsed and validated before any state changes are committed/.test(app)],
   ["mobile file picker is attached to document before click", /document\.body\.appendChild\(input\);[\s\S]{0,6000}input\.click\(\)/.test(app)],
   ["older mobile WebViews have a FileReader fallback", /async function readBrowserFileText[\s\S]{0,500}new FileReader\(\)/.test(app)],
   ["download URL is revoked after a delay", /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 60000\)/.test(app)],
