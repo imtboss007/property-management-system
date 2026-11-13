@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarClock, Download, FileDown, Filter, MapPin, X } from "lucide-react";
 import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
-import { parseFollowUps, type FollowUpEntry, type FollowUpRecordLike } from "./lib/follow-ups";
+import { legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpRecordLike } from "./lib/follow-ups";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
 
 type HubRecord = FollowUpRecordLike & {
@@ -107,8 +107,8 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     if(loArea!==null&&loArea!==undefined&&(Number.isNaN(loArea)||!record.areaValue||area<loArea))return false;
     if(hiArea!==null&&hiArea!==undefined&&(Number.isNaN(hiArea)||!record.areaValue||area>hiArea))return false;
     const fields=moduleFields[record.module]||[];
-    const sr=Number(record.ratePerUnit||findMoney(record,fields,"sr")||0);
-    const value=Number(record.value||0),market=Number(findMoney(record,fields,"market")||0);
+    const sr=parseIndianAmount(record.ratePerUnit||findMoney(record,fields,"sr")||"")||0;
+    const value=parseIndianAmount(record.value||"")||0,market=parseIndianAmount(findMoney(record,fields,"market")||"")||0;
     const srLo=parseRange(srMin),srHi=parseRange(srMax),valueLo=parseRange(valueMin),valueHi=parseRange(valueMax),marketLo=parseRange(marketMin),marketHi=parseRange(marketMax);
     if(srLo!==null&&srLo!==undefined&&(Number.isNaN(srLo)||!sr||sr<srLo))return false;
     if(srHi!==null&&srHi!==undefined&&(Number.isNaN(srHi)||!sr||sr>srHi))return false;
@@ -124,7 +124,7 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     if(followGroups.length&&!followGroups.some(id=>canonicalGroupIds(fg).includes(id)))return false;
     return true;
   }),[properties,moduleIds,location,areaMin,areaMax,areaUnit,srMin,srMax,valueMin,valueMax,marketMin,marketMax,primaryIds,followIds,primaryGroups,followGroups,contacts,moduleFields]);
-  const totals=useMemo(()=>filtered.reduce((acc,record)=>({value:acc.value+(Number(record.value)||0),count:acc.count+1}),{value:0,count:0}),[filtered]);
+  const totals=useMemo(()=>filtered.reduce((acc,record)=>({value:acc.value+(parseIndianAmount(record.value||"")||0),count:acc.count+1}),{value:0,count:0}),[filtered]);
   const clearFilters=()=>{setModuleIds([]);setLocation("");setAreaMin("");setAreaMax("");setAreaUnit("sq ft");setSrMin("");setSrMax("");setValueMin("");setValueMax("");setMarketMin("");setMarketMax("");setPrimaryIds([]);setFollowIds([]);setPrimaryGroups([]);setFollowGroups([]);};
   const labelNames=(ids:string[])=>ids.map(id=>contacts.find(person=>person.id===id)?.name).filter(Boolean).join(", ");
   const reportRows=()=>{
@@ -147,7 +147,7 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     finally{window.setTimeout(()=>setReportBusy(false),700);}
   };
   const activeSelectedRecord=selectedRecord?properties.find(record=>record.id===selectedRecord.id)||selectedRecord:null;
-  const selectedFollowUps=activeSelectedRecord?parseFollowUps(activeSelectedRecord.moduleData):[];
+  const selectedFollowUps=activeSelectedRecord?(()=>{const saved=parseFollowUps(activeSelectedRecord.moduleData);const legacy=legacyRecordFollowUp(activeSelectedRecord);return saved.length?saved:(legacy?[legacy]:[]);})():[];
   return <section className="ax-hub-explorer data-panel">
     <div className="ax-hub-explorer__head"><div><span className="section-kicker">CROSS-MODULE RECORD SEARCH</span><h2>Filter, inspect and export saved records</h2><p>Filters operate on stored module records. Missing amounts and areas are not treated as zero-valued matches.</p></div><div className="ax-hub-explorer__head-actions"><button type="button" className="secondary-button" onClick={()=>setShowFilters(value=>!value)}><Filter size={15}/>{showFilters?"Hide filters":"Show filters"}</button><button type="button" className="secondary-button" onClick={clearFilters}>Clear all filters</button></div></div>
     {showFilters&&<div className="ax-hub-filter-grid">
@@ -177,15 +177,17 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       {filtered.map(record=>{
         const primary=labelNames(recordPrimaryIds(record,contacts)),follow=labelNames(recordFollowIds(record)),entries=parseFollowUps(record.moduleData),next=entries[0]||null;
         const sr=record.ratePerUnit||findMoney(record,moduleFields[record.module]||[],"sr");
-        return <tr key={record.id}><td><button type="button" className="ax-hub-record-link" onClick={()=>setSelectedRecord(record)}><strong>{record.title}</strong><small>{record.module} · {record.status||"Unspecified"}</small></button></td><td>{record.location||"—"}</td><td>{money(record.value||"")}</td><td>{money(sr)}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"market"))}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"settlement"))}</td><td>{record.areaValue?record.areaValue+" "+(record.areaUnit||"sq ft"):"—"}</td><td><button type="button" className="ax-hub-text-link" onClick={()=>setSelectedRecord(record)}>{primary?"P: "+primary:"Primary: —"}<br/>{follow?"F: "+follow:"Follow-up: —"}</button></td><td><button type="button" className="ax-hub-text-link" onClick={()=>setSelectedRecord(record)}>{next?next.date+(next.time?" · "+next.time:""):(record.nextFollowUpDate||"No follow-up date")}</button></td></tr>;
+        return <tr key={record.id}><td><button type="button" className="ax-hub-record-link" onClick={()=>setSelectedRecord(record)}><strong>{record.title}</strong><small>{record.module} · {record.status||"Unspecified"}</small></button></td><td>{record.location||"—"}</td><td>{money(record.value||"")}</td><td>{money(sr)}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"market"))}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"settlement"))}</td><td>{record.areaValue?record.areaValue+" "+(record.areaUnit||"sq ft"):"—"}</td><td><button type="button" className="ax-hub-text-link" onClick={()=>setSelectedRecord(record)}>{primary?"P: "+primary:"Primary: —"}<br/>{follow?"F: "+follow:"Follow-up: —"}</button></td><td><button type="button" className="ax-hub-text-link" aria-haspopup="dialog" data-testid={"hub-date-open-"+record.id} onClick={()=>setSelectedRecord(record)}>{next?next.date+(next.time?" · "+next.time:""):(record.nextFollowUpDate||"No follow-up date")}</button></td></tr>;
       })}
       {filtered.length===0&&<tr><td colSpan={9}>No saved records match the selected filters.</td></tr>}
     </tbody></table></div>
     {activeSelectedRecord&&<div className="ax-hub-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedRecord(null);}}><section className="ax-hub-record-modal" role="dialog" aria-modal="true" aria-label={"Record details: "+activeSelectedRecord.title}>
       <div className="ax-hub-record-modal__head"><div><span className="section-kicker">{activeSelectedRecord.module}</span><h2>{activeSelectedRecord.title}</h2><p>{activeSelectedRecord.location||"Location not entered"} · {activeSelectedRecord.status||"Unspecified"}</p></div><button type="button" aria-label="Close record details" onClick={()=>setSelectedRecord(null)}><X size={18}/></button></div>
       <div className="ax-hub-record-modal__grid">
-        {[["Value / exposure",money(activeSelectedRecord.value||"")],["SR / guidance rate",money(activeSelectedRecord.ratePerUnit||findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"sr"))],["Market rate",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"market"))],["Settlement value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"settlement"))],["Area",activeSelectedRecord.areaValue?activeSelectedRecord.areaValue+" "+(activeSelectedRecord.areaUnit||"sq ft"):"—"],["Primary contact",labelNames(recordPrimaryIds(activeSelectedRecord,contacts))||activeSelectedRecord.contact||"—"],["Follow-up contacts",labelNames(recordFollowIds(activeSelectedRecord))||"—"],["Next action",activeSelectedRecord.nextAction||"—"],["Notes / evidence",activeSelectedRecord.notes||"—"]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+        {[["Record / module",activeSelectedRecord.module],["Status",activeSelectedRecord.status||"—"],["Location",activeSelectedRecord.location||"—"],["Value / exposure",money(activeSelectedRecord.value||"")],["SR / guidance rate",money(activeSelectedRecord.ratePerUnit||findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"sr"))],["Market rate",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"market"))],["Settlement value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"settlement"))],["Area",activeSelectedRecord.areaValue?activeSelectedRecord.areaValue+" "+(activeSelectedRecord.areaUnit||"sq ft"):"—"],["Survey / property ID",activeSelectedRecord.surveyNumber||"—"],["Ownership / parties",activeSelectedRecord.ownershipDetails||"—"],["Primary contact",labelNames(recordPrimaryIds(activeSelectedRecord,contacts))||activeSelectedRecord.contact||"—"],["Follow-up contacts",labelNames(recordFollowIds(activeSelectedRecord))||"—"],["Primary groups",resolveGroupLabels(keysOf(activeSelectedRecord,"primary"),groups).join(", ")||"—"],["Follow-up groups",resolveGroupLabels(keysOf(activeSelectedRecord,"follow"),groups).join(", ")||"—"],["Target deadline",activeSelectedRecord.targetDeadline||"—"],["Next action",activeSelectedRecord.nextAction||"—"],["Notes / evidence",activeSelectedRecord.notes||"—"]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+        {(moduleFields[activeSelectedRecord.module]||[]).filter(field=>String(activeSelectedRecord.moduleData?.[field.key]||"").trim()).map(field=><article key={field.key}><span>{field.label}</span><strong>{field.label.includes("₹")?money(activeSelectedRecord.moduleData?.[field.key]||""):String(activeSelectedRecord.moduleData?.[field.key])}</strong></article>)}
       </div>
+      {activeSelectedRecord.notes&&<div className="ax-hub-modal-followups"><h3>Notes / evidence</h3><p>{activeSelectedRecord.notes}</p></div>}
       <div className="ax-hub-modal-followups"><h3><CalendarClock size={16}/> Follow-up entries</h3>{selectedFollowUps.length?selectedFollowUps.map(entry=><article key={entry.id}><div><strong>{entry.description}</strong><small>{entry.date}{entry.time?" · "+entry.time:" · Time not set"} · {entry.status} · {entry.priority}</small><small>{labelNames(entry.contactIds)}</small></div><button type="button" className="secondary-button" onClick={()=>onEditFollowUp(activeSelectedRecord,entry)}>Edit date / time and follow-up</button></article>):<p>No structured follow-up entries are saved on this record.</p>}</div>
       <div className="ax-hub-modal-actions"><button type="button" className="secondary-button" onClick={()=>onOpenModule(activeSelectedRecord.module)}>Open this module</button><button type="button" className="primary-button" onClick={()=>onEditRecord(activeSelectedRecord)}>Edit record</button></div>
     </section></div>}
