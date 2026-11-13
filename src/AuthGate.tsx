@@ -301,12 +301,6 @@ export default function AuthGate() {
     void openPersonal(false);
   };
 
-  useEffect(() => {
-    if (userId && membershipsReady && memberships.length === 0 && !activeCompany && !activePersonal && !migrationPersonal && !migrationCompany) {
-      choosePersonal();
-    }
-  }, [userId, membershipsReady, memberships.length, activeCompany, activePersonal, migrationPersonal, migrationCompany]);
-
   const openWorkspaceChooser = () => {
     localStorage.removeItem("axivestra.workspaceMode");
     setLocalMode(false);
