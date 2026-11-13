@@ -271,7 +271,7 @@ export default function FollowUpRegistry({
       const followGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
       return {
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
-        value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
+        value:money(item.record?.value||item.entry.amount||""),srRate:money(String(recordRate(item.record,"sr")??"")),marketRate:money(String(recordRate(item.record,"market")??"")),settlementValue:money(String(recordRate(item.record,"settlement")??"")),
         area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
         followUpSummary:[includeFollowName&&follow?"Follow-up: "+follow:"",followGroup?"Follow-up group: "+followGroup:"","Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")].join(" | ")
@@ -280,7 +280,8 @@ export default function FollowUpRegistry({
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
     if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
     if(reportGroupBy==="date")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
-    const subtitle="Follow-up Registry · "+rows.length+" filtered entries · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date/time-wise");
+    const totalValue=visible.reduce((sum,item)=>sum+(amountNumber(item.record?.value)||0),0);
+    const subtitle="Follow-up Registry · "+rows.length+" filtered entries · Total recorded value / exposure "+money(String(totalValue))+" · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date/time-wise");
     if(kind==="pdf")downloadIntelligencePdf("Follow-up Registry",subtitle,rows);
     else downloadIntelligencePptx("Follow-up Registry",subtitle,rows);
   };
