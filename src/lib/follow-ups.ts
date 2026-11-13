@@ -19,6 +19,9 @@ export type FollowUpRecordLike = {
   id: string;
   title: string;
   module: string;
+  location?: string;
+  areaValue?: string;
+  areaUnit?: string;
   value?: string;
   contact?: string;
   primaryContactId?: string;
