@@ -525,4 +525,10 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByRole("checkbox",{name:"QA Primary Contact · Owner"})).toBeVisible();
   await expect(page.getByRole("checkbox",{name:"QA Primary Group"})).toBeVisible();
   await expect(page.getByRole("checkbox",{name:"QA Follow-up Group"})).toBeVisible();
+  await page.getByRole("checkbox",{name:"Property Sale",exact:true}).check();
+  await expect(page.locator(".ax-followup-export__head span")).toContainText("1 entries");
+  await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
+  await expect(page.getByText("QA appointment · Property Loans",{exact:true})).toHaveCount(0);
+  await page.getByRole("button",{name:"Clear all filters"}).click();
+  await expect(page.locator(".ax-followup-export__head span")).toContainText("16 entries");
 });
