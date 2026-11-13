@@ -174,7 +174,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
-    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
+    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpContact.localeCompare(b.followUpContact)||a.title.localeCompare(b.title));
     if(reportGroupBy==="date")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
     const subtitle=moduleName+" · "+rows.length+" filtered records · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date-wise");
     if(kind==="pdf")downloadIntelligencePdf(moduleName,subtitle,rows);
