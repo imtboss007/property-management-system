@@ -104,7 +104,6 @@ export default function FollowUpRegistry({
   const [includeFollowName,setIncludeFollowName]=useState(true);
   const [includePrimaryGroup,setIncludePrimaryGroup]=useState(true);
   const [includeFollowGroup,setIncludeFollowGroup]=useState(true);
-  const [moduleFilter, setModuleFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [amountSort, setAmountSort] = useState<"none"|"high"|"low">("none");
   const [month, setMonth] = useState(today.slice(0,7));
@@ -121,7 +120,6 @@ export default function FollowUpRegistry({
   const linkedFollowContacts=contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id)));
   const linkedPrimaryGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"primary").includes(group.id)));
   const linkedFollowGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"follow").includes(group.id)));
-  const selectedModules=modules.map(module=>({id:module,label:module}));
 
 
   const items = useMemo<Item[]>(() => {
@@ -164,6 +162,7 @@ export default function FollowUpRegistry({
   }), [items, today]);
 
   const modules = useMemo(() => Array.from(new Set(items.map(item => item.module).filter(Boolean))).sort(), [items]);
+  const selectedModules=modules.map(module=>({id:module,label:module}));
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
     let result = items.filter(item => {
@@ -335,16 +334,20 @@ export default function FollowUpRegistry({
       <div className="section-heading"><div><h2>Follow-up search and filters</h2><p>Search by person, record, module, description or next action.</p></div><button type="button" className="primary-button" onClick={onAdd}><Plus size={16}/> Add follow-up</button></div>
       <div className="ax-followup-filter-grid">
         <label className="ax-followup-search"><Search size={15}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search follow-ups, people, records…"/></label>
-        <label>Follow-up contact<select value={personFilter} onChange={event=>setPersonFilter(event.target.value)}><option value="">All linked follow-up contacts</option>{contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id))).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-        <label>Primary contact<select value={primaryPersonFilter} onChange={event=>setPrimaryPersonFilter(event.target.value)}><option value="">All linked primary contacts</option>{contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase()))).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-        <label>Primary group<select value={primaryGroupFilter} onChange={event=>setPrimaryGroupFilter(event.target.value)}><option value="">All linked primary groups</option>{groups.filter(group=>properties.some(record=>readGroupIds(record,"primary").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
-        <label>Follow-up group<select value={followGroupFilter} onChange={event=>setFollowGroupFilter(event.target.value)}><option value="">All linked follow-up groups</option>{groups.filter(group=>properties.some(record=>readGroupIds(record,"follow").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
-        <label>Location<input value={locationFilter} onChange={event=>setLocationFilter(event.target.value)} placeholder="Search location"/></label>
-        <label>Amount from (₹)<input value={minimumAmount} onChange={event=>setMinimumAmount(event.target.value)} placeholder="e.g. 2 Cr"/></label>
-        <label>Amount to (₹)<input value={maximumAmount} onChange={event=>setMaximumAmount(event.target.value)} placeholder="e.g. 10 Cr"/></label>
-        <label>Module<select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option value="">All modules</option>{modules.map(module=><option key={module}>{module}</option>)}</select></label>
+        <MultiCheckList title="Module type" items={selectedModules} selected={moduleFilters} onChange={setModuleFilters}/>
+        <MultiCheckList title="Follow-up contact" items={linkedFollowContacts.map(person=>({id:person.id,label:person.name}))} selected={personFilters} onChange={setPersonFilters}/>
+        <MultiCheckList title="Primary contact" items={linkedPrimaryContacts.map(person=>({id:person.id,label:person.name}))} selected={primaryPersonFilters} onChange={setPrimaryPersonFilters}/>
+        <MultiCheckList title="Primary group" items={linkedPrimaryGroups.map(group=>({id:group.id,label:group.name}))} selected={primaryGroupFilters} onChange={setPrimaryGroupFilters}/>
+        <MultiCheckList title="Follow-up group" items={linkedFollowGroups.map(group=>({id:group.id,label:group.name}))} selected={followGroupFilters} onChange={setFollowGroupFilters}/>
+        <label>Location search<input value={locationFilter} onChange={event=>setLocationFilter(event.target.value)} placeholder="Search location"/></label>
+        <label>Follow-up amount from (₹)<input value={minimumAmount} onChange={event=>setMinimumAmount(event.target.value)} placeholder="e.g. 2 Cr"/></label>
+        <label>Follow-up amount to (₹)<input value={maximumAmount} onChange={event=>setMaximumAmount(event.target.value)} placeholder="e.g. 10 Cr"/></label>
+        <label>Area / size from<div className="ax-followup-range"><input value={areaFrom} onChange={event=>setAreaFrom(event.target.value)} placeholder="From" inputMode="decimal"/><input value={areaTo} onChange={event=>setAreaTo(event.target.value)} placeholder="To" inputMode="decimal"/><select value={areaUnit} onChange={event=>setAreaUnit(event.target.value)}>{AREA_UNITS.map(unit=><option key={unit}>{unit}</option>)}</select></div></label>
+        <label>SR / guidance rate from (₹)<div className="ax-followup-range"><input value={srFrom} onChange={event=>setSrFrom(event.target.value)} placeholder="From"/><input value={srTo} onChange={event=>setSrTo(event.target.value)} placeholder="To"/></div></label>
+        <label>Value / exposure from (₹)<div className="ax-followup-range"><input value={valueFrom} onChange={event=>setValueFrom(event.target.value)} placeholder="From"/><input value={valueTo} onChange={event=>setValueTo(event.target.value)} placeholder="To"/></div></label>
+        <label>Market value / rate from (₹)<div className="ax-followup-range"><input value={marketFrom} onChange={event=>setMarketFrom(event.target.value)} placeholder="From"/><input value={marketTo} onChange={event=>setMarketTo(event.target.value)} placeholder="To"/></div></label>
         <label>Priority<select value={priorityFilter} onChange={event=>setPriorityFilter(event.target.value)}><option value="">All priorities</option>{["Urgent","High","Normal","Low"].map(priority=><option key={priority}>{priority}</option>)}</select></label>
-        <label>Amount order<select value={amountSort} onChange={event=>setAmountSort(event.target.value as typeof amountSort)}><option value="none">Date order</option><option value="high">Highest amount first</option><option value="low">Lowest amount first</option></select></label><button type="button" className="secondary-button" onClick={()=>{setQuery("");setPersonFilter("");setPrimaryPersonFilter("");setPrimaryGroupFilter("");setFollowGroupFilter("");setLocationFilter("");setMinimumAmount("");setMaximumAmount("");setModuleFilter("");setPriorityFilter("");setAmountSort("none");setTab("All");}}>Clear all filters</button>
+        <label>Amount order<select value={amountSort} onChange={event=>setAmountSort(event.target.value as typeof amountSort)}><option value="none">Date order</option><option value="high">Highest amount first</option><option value="low">Lowest amount first</option></select></label><button type="button" className="secondary-button" onClick={()=>{setQuery("");setPersonFilters([]);setPrimaryPersonFilters([]);setPrimaryGroupFilters([]);setFollowGroupFilters([]);setModuleFilters([]);setLocationFilter("");setMinimumAmount("");setMaximumAmount("");setAreaFrom("");setAreaTo("");setAreaUnit("sq ft");setSrFrom("");setSrTo("");setValueFrom("");setValueTo("");setMarketFrom("");setMarketTo("");setPriorityFilter("");setAmountSort("none");setTab("All");}}>Clear all filters</button>
       </div>
       <div className="ax-followup-tabs">{(["All","Today","Overdue","Upcoming","Completed"] as const).map(value=><button key={value} type="button" className={tab===value?"active":""} onClick={()=>setTab(value)}>{value}{value==="All"?" ("+counts.all+")":value==="Today"?" ("+counts.today+")":value==="Overdue"?" ("+counts.overdue+")":value==="Upcoming"?" ("+counts.upcoming+")":" ("+counts.completed+")"}</button>)}</div>
       <div className="ax-followup-export">
