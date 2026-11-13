@@ -364,6 +364,15 @@ test("desktop and mobile: all report views independently include or omit contact
       expect(content).toContain(value);
     }
   };
+  const pptxText = async (label: string) => {
+    const pending = page.waitForEvent("download");
+    await page.getByRole("button", { name: label, exact: true }).click();
+    const download = await pending;
+    expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
+    const file = await download.path();
+    if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
+    return readFileSync(file).toString("utf8");
+  };
   const expectExcluded = (content: string) => {
     for (const value of ["Primary QA Contact", "Follow-up QA Contact", "Primary QA Group", "Follow-up QA Group"]) {
       expect(content).not.toContain(value);
@@ -378,9 +387,7 @@ test("desktop and mobile: all report views independently include or omit contact
   expectIncluded(await pdfText("Download PDF"));
   await setFourOptions(hubOptions, false);
   expectExcluded(await pdfText("Download PDF"));
-  const hubPpt = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download PPT" }).click();
-  expect((await hubPpt).suggestedFilename()).toMatch(/\.pptx$/i);
+  expectExcluded(await pptxText("Download PPT"));
 
   const registryOptions = ["Primary names", "Follow-up names", "Primary groups", "Follow-up groups"];
   await openSection("Follow-up Registry");
@@ -389,9 +396,7 @@ test("desktop and mobile: all report views independently include or omit contact
   expectIncluded(await pdfText("Download PDF"));
   await setFourOptions(registryOptions, false);
   expectExcluded(await pdfText("Download PDF"));
-  const registryPpt = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download PPT" }).click();
-  expect((await registryPpt).suggestedFilename()).toMatch(/\.pptx$/i);
+  expectExcluded(await pptxText("Download PPT"));
 
   const moduleOptions = ["Primary names", "Follow-up names", "Primary groups", "Follow-up groups"];
   await openSection("All Properties");
@@ -400,7 +405,5 @@ test("desktop and mobile: all report views independently include or omit contact
   expectIncluded(await pdfText("PDF"));
   await setFourOptions(moduleOptions, false);
   expectExcluded(await pdfText("PDF"));
-  const modulePpt = page.waitForEvent("download");
-  await page.getByRole("button", { name: "PPT", exact: true }).click();
-  expect((await modulePpt).suggestedFilename()).toMatch(/\.pptx$/i);
+  expectExcluded(await pptxText("PPT"));
 });
