@@ -409,6 +409,7 @@ test("desktop and mobile: all report views independently include or omit contact
 });
 
 
+// Browser acceptance for all 16 workspaces, shared valuation fields, linked follow-ups and responsive filters.
 test("desktop and mobile: every module formats crores and opens table details, hub dates and linked follow-ups", async ({ page }) => {
   const seededProperties = expectedModules.map((module,index)=>({
     id:"qa-module-"+(index+1),title:"QA "+module+" record",module,location:"Bengaluru",
