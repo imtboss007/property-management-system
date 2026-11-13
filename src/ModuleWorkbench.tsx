@@ -166,8 +166,11 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         value:currency(record.value),srRate:currency(srRateFor(record)),
         marketRate:currency(marketRateFor(record)),settlementValue:currency(settlementValueFor(record)),
         area:record.areaValue?record.areaValue+" "+(record.areaUnit||"sq ft"):"",
+        primaryContact:includePrimaryName?primary:"",
+        followUpContact:includeFollowName?follow:"",
+        primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:[includeFollowName&&follow?"Follow-up: "+follow:"",followGroup?"Follow-up group: "+followGroup:"",record.nextFollowUpDate?"Date: "+record.nextFollowUpDate:""].filter(Boolean).join(" | ")
+        followUpSummary:record.nextFollowUpDate?"Date: "+record.nextFollowUpDate:""
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
