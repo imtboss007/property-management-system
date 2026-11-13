@@ -23,6 +23,7 @@ export type CompanyRole = "owner" | "admin" | "manager" | "staff" | "read_only";
 export type WorkspaceCompany = { id: string; name: string; role: CompanyRole };
 export type WorkspaceCollections = {
   properties: Array<Record<string, unknown> & { id: string }>;
+  customModules: Array<Record<string, unknown> & { id: string }>;
   contacts: Array<Record<string, unknown> & { id: string }>;
   whatsappGroups: Array<Record<string, unknown> & { id: string }>;
   tasks: Array<Record<string, unknown> & { id: string }>;
@@ -38,6 +39,7 @@ export const collectionKeys: Array<{
   recordType: string;
 }> = [
   { stateKey: "properties", storageKey: "estateflow.properties", recordType: "property" },
+  { stateKey: "customModules", storageKey: "estateflow.customModules", recordType: "custom_module" },
   { stateKey: "contacts", storageKey: "estateflow.contacts", recordType: "contact" },
   { stateKey: "whatsappGroups", storageKey: "estateflow.whatsappGroups", recordType: "whatsapp_group" },
   { stateKey: "tasks", storageKey: "estateflow.tasks", recordType: "task" },
