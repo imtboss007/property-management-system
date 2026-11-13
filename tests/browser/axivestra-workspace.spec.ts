@@ -373,7 +373,7 @@ test("desktop and mobile: all report views independently include or omit contact
   const hubOptions = ["Include primary names", "Include follow-up names", "Include primary groups", "Include follow-up groups"];
   await openSection("Intelligence Hub");
   await expect(page.getByRole("heading", { name: "Intelligence Hub" })).toBeVisible();
-  await expect(page.getByText("1 matching record")).toBeVisible();
+  await expect(page.locator(".ax-hub-export-summary strong")).toContainText("1 matching records");
   await assertFourOptions(hubOptions);
   expectIncluded(await pdfText("Download PDF"));
   await setFourOptions(hubOptions, false);
