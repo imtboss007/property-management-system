@@ -152,7 +152,7 @@ export default function FollowUpRegistry({
       return date || (a.entry.time || "").localeCompare(b.entry.time || "");
     });
     return result;
-  }, [items, tab, today, personFilter, primaryPersonFilter, primaryGroupFilter, followGroupFilter, minimumAmount, maximumAmount, locationFilter, moduleFilter, priorityFilter, query, amountSort, contactById]);
+  }, [items, tab, today, personFilter, primaryPersonFilter, primaryGroupFilter, followGroupFilter, minimumAmount, maximumAmount, locationFilter, moduleFilter, priorityFilter, query, amountSort, contactById, groups]);
 
   const peopleGroups = useMemo(() => {
     const groups = new Map<string,{id:string;name:string;items:Item[]}>();
