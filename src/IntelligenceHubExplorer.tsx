@@ -7,7 +7,8 @@ import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-
 type HubRecord = FollowUpRecordLike & {
   location?: string; areaValue?: string; areaUnit?: string; ratePerUnit?: string;
   moduleData?: Record<string,string>; contact?: string; primaryContactId?: string;
-  status?: string; nextFollowUpDate?: string; nextAction?: string; notes?: string;
+  status?: string; targetDeadline?: string; nextFollowUpDate?: string; nextAction?: string; notes?: string;
+  surveyNumber?: string; ownershipDetails?: string;
 };
 type HubContact = {id:string;name:string;phone?:string;role?:string;roles?:string[];customRoles?:string};
 type HubGroup = {id:string;jid:string;name:string;subject?:string};
