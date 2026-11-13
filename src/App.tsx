@@ -2991,7 +2991,7 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? initial?.moduleData?.srRate ?? "",
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || "",
     moduleData:initial?.moduleData ?? {}
   });
   const [amountError,setAmountError]=useState("");
