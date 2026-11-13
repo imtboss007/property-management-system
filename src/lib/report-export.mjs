@@ -10,7 +10,8 @@ const rowValues = row => {
     row.followUpContact ? "Follow-up: "+row.followUpContact : "",
     row.primaryGroup ? "Primary group: "+row.primaryGroup : "",
     row.followUpGroup ? "Follow-up group: "+row.followUpGroup : "",
-    row.followUpSummary || ""
+    row.followUpSummary || "",
+    row.detailsSummary || ""
   ].filter(Boolean);
   const fallback = [row.contactSummary,row.followUpSummary].filter(Boolean);
   return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
@@ -19,7 +20,7 @@ const rowValues = row => {
 function makePdf(title, subtitle, rows) {
   const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[130,80,72,60,62,65,48,257];
   const scale=usable/widths.reduce((a,b)=>a+b,0), ws=widths.map(w=>w*scale), xs=ws.map((_,i)=>margin+ws.slice(0,i).reduce((a,b)=>a+b,0));
-  const groups=[];for(let i=0;i<rows.length;i+=10)groups.push(rows.slice(i,i+10));if(!groups.length)groups.push([]);
+  const groups=[];for(let i=0;i<rows.length;i+=8)groups.push(rows.slice(i,i+8));if(!groups.length)groups.push([]);
   const objs=[];const add=s=>(objs.push(s),objs.length);
   const root=add("<< /Type /Catalog /Pages 2 0 R >>"), pages=add(""), font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), pageIds=[];
   const t=(x,y,size,value,color)=>"BT /F1 "+size+" Tf "+(color||"0.84 0.93 0.97")+" rg 1 0 0 1 "+x.toFixed(2)+" "+y.toFixed(2)+" Tm ("+escPdf(value)+") Tj ET";
@@ -29,10 +30,10 @@ function makePdf(title, subtitle, rows) {
     const hy=510;cmd.push("q 0.08 0.23 0.31 rg "+margin+" "+(hy-5)+" "+usable+" 20 re f Q");
     headers.forEach((h,i)=>cmd.push(t(xs[i]+4,hy+2,7,h,"0.35 0.94 0.91")));
     group.forEach((row,ri)=>{
-      const y=hy-20-ri*42, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
-      cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 42 re f Q");
+      const y=hy-20-ri*52, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
+      cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 52 re f Q");
       rowValues(row).forEach((val,i)=>{
-        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+10-j*7.2,5.7,line,"0.84 0.92 0.96")));}
+        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+17-j*7.2,5.7,line,"0.84 0.92 0.96")));}
         else {const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.1,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));}
       });
       cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+(y-6)+" m "+(margin+usable)+" "+(y-6)+" l S");
