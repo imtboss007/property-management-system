@@ -39,9 +39,10 @@ const contactIds = (record: ModuleRecord) => [
   ...(record.moduleData?.__followUpContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
 ].filter(Boolean);
-const followUpContactIds = (record: ModuleRecord) => Array.from(new Set(
-  (record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean)
-));
+const followUpContactIds = (record: ModuleRecord) => Array.from(new Set([
+  ...(record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean),
+  ...parseFollowUps(record.moduleData).flatMap(entry => entry.contactIds)
+]));
 
 function ModuleEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" }) {
   if (type === "donut") return <svg className="ax-empty-chart-ring" viewBox="0 0 180 180" role="img" aria-label="Empty donut chart preview"><circle cx="90" cy="90" r="62" fill="none" stroke="#1a354a" strokeWidth="21" strokeDasharray="6 7"/><circle cx="90" cy="90" r="45" fill="#0b1d2d"/><text x="90" y="86" textAnchor="middle" fill="#69879c" fontSize="9" letterSpacing="1">NO DATA</text><text x="90" y="105" textAnchor="middle" fill="#89a7bb" fontSize="14" fontWeight="800">0</text></svg>;

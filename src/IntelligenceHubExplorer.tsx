@@ -70,7 +70,7 @@ function CheckList({title,items,selected,onChange,searchable=true}:{title:string
   return <div className="ax-hub-checklist">
     <div className="ax-hub-checklist__head"><strong>{title}</strong><span>{selected.length} selected</span></div>
     {searchable&&<input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder={"Search "+title.toLowerCase()+"…"} aria-label={"Search "+title}/>}
-    <div className="ax-hub-checklist__actions"><button type="button" onClick={()=>onChange(items.map(item=>item.id))}>Select all</button><button type="button" onClick={()=>onChange([])}>Clear</button></div>
+    <div className="ax-hub-checklist__actions"><button type="button" onClick={()=>onChange(Array.from(new Set([...selected,...filtered.map(item=>item.id)])))}>Select visible</button><button type="button" onClick={()=>onChange([])}>Clear</button></div>
     <div className="ax-hub-checklist__items">{filtered.map(item=><label key={item.id}><input type="checkbox" checked={selected.includes(item.id)} onChange={event=>toggle(item.id,event.target.checked)}/><span>{item.label}</span></label>)}{filtered.length===0&&<small>No matching options.</small>}</div>
   </div>;
 }
@@ -91,8 +91,12 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
   const [reportBusy,setReportBusy]=useState(false);
 
   const canonicalGroupIds=(ids:string[])=>Array.from(new Set(ids.map(token=>groups.find(group=>group.id===token||group.jid===token||group.name.toLowerCase()===token.toLowerCase())?.id||"").filter(Boolean)));
-  const groupOptions=useMemo(()=>{
-    const usedIds=new Set(properties.flatMap(record=>canonicalGroupIds([...keysOf(record,"primary"),...keysOf(record,"follow")])));
+  const primaryGroupOptions=useMemo(()=>{
+    const usedIds=new Set(properties.flatMap(record=>canonicalGroupIds(keysOf(record,"primary"))));
+    return groups.filter(group=>usedIds.has(group.id)).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
+  },[groups,properties]);
+  const followGroupOptions=useMemo(()=>{
+    const usedIds=new Set(properties.flatMap(record=>canonicalGroupIds(keysOf(record,"follow"))));
     return groups.filter(group=>usedIds.has(group.id)).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
   },[groups,properties]);
   const moduleOptions=modules.map(item=>({id:item.name,label:item.name+" · "+(item.group||"Workspace")}));
@@ -162,8 +166,8 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       <div className="ax-hub-filter-field"><label>Market value / rate (₹)</label><div className="ax-hub-range"><input value={marketMin} onChange={event=>setMarketMin(event.target.value)} placeholder="From"/><input value={marketMax} onChange={event=>setMarketMax(event.target.value)} placeholder="To"/></div></div>
       <CheckList title="Primary contact" items={primaryContactOptions} selected={primaryIds} onChange={setPrimaryIds}/>
       <CheckList title="Follow-up contact" items={followContactOptions} selected={followIds} onChange={setFollowIds}/>
-      <CheckList title="Primary WhatsApp group" items={groupOptions} selected={primaryGroups} onChange={setPrimaryGroups}/>
-      <CheckList title="Follow-up WhatsApp group" items={groupOptions} selected={followGroups} onChange={setFollowGroups}/>
+      <CheckList title="Primary WhatsApp group" items={primaryGroupOptions} selected={primaryGroups} onChange={setPrimaryGroups}/>
+      <CheckList title="Follow-up WhatsApp group" items={followGroupOptions} selected={followGroups} onChange={setFollowGroups}/>
     </div>}
     <div className="ax-hub-export-panel">
       <div className="ax-hub-export-summary"><strong>{filtered.length.toLocaleString("en-IN")} matching records</strong><span>Recorded value / exposure: {money(totals.value)}</span></div>
