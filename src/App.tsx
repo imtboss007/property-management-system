@@ -12,6 +12,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, syncPersonalW
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import IntentCanvas from "./IntentCanvas";
+import IntelligenceHubExplorer from "./IntelligenceHubExplorer";
 import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";
 import ModuleWorkbench from "./ModuleWorkbench";
 import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
@@ -2443,6 +2444,16 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenFinancials={()=>go("Financials")}
               onOpenSchedule={()=>go("Schedule & Tasks")}
               onOpenDocuments={()=>go("Documents")}
+            />
+            <IntelligenceHubExplorer
+              properties={properties}
+              contacts={contacts}
+              modules={modules.map(item=>({name:item.name,group:item.group}))}
+              moduleFields={moduleFields}
+              groups={savedWhatsAppGroups}
+              onOpenModule={name=>go(name)}
+              onEditRecord={record=>openPropertyForm(record as PropertyRecord)}
+              onEditFollowUp={(record,entry)=>openFollowUpEditor(record as PropertyRecord,entry)}
             />
             <RelationshipIntelligencePanel
               contacts={contacts}
