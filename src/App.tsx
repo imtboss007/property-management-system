@@ -12,6 +12,7 @@ import { supabase, softDeleteCompanyRecords, syncCompanyWorkspace, syncPersonalW
 import WhatsAppScheduler from "./WhatsAppScheduler";
 import PortfolioAnalytics from "./PortfolioAnalytics";
 import IntentCanvas from "./IntentCanvas";
+import IntelligenceHubExplorer from "./IntelligenceHubExplorer";
 import RelationshipIntelligencePanel from "./RelationshipIntelligencePanel";
 import ModuleWorkbench from "./ModuleWorkbench";
 import UniversalInterface, { type UniversalEntity, type QuickAddAction } from "./UniversalInterface";
@@ -20,7 +21,7 @@ import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "./lib/indian-amount.mjs";
+import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import { parseContactImport, contactsToVCard } from "./lib/contact-portability.mjs";
 import {
@@ -175,8 +176,10 @@ const moduleFields: Record<string, ModuleField[]> = {
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
     { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
-    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
-    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "srRate", label: "SR / guidance rate per unit (₹)", placeholder: "e.g. 4 Cr", type: "number" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "e.g. 8 Cr", type: "number" },
+    { key: "settlementRate", label: "Agreed settlement rate per unit (₹)", placeholder: "Rate", type: "number" },
+    { key: "settlementAmount", label: "Settlement amount / value (₹)", placeholder: "Amount", type: "number" },
     { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
     { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
     { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
@@ -1338,7 +1341,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   }, [filteredProperties, rangeSearches, rangeSort]);
   const formatRangePrice = (property: PropertyRecord) => {
     const value = getPropertyPriceForRangeSearch(property);
-    return value === null ? "Value not entered" : "₹" + value.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+    return value === null ? "Value not entered" : formatIndianCompactAmount(value);
   };
   const upcomingTasks = tasks.filter(t => !t.done).sort((a,b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
   const nowForLocalDate = new Date();
@@ -1385,11 +1388,11 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   });
   const activeContactFilterCount = contactRoleFilters.length + Number(Boolean(contactProfessionFilter)) + Number(Boolean(contactCompanyFilter));
   const universalEntities: UniversalEntity[] = [
-    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? "₹"+Number(record.value).toLocaleString("en-IN") : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? formatIndianCompactAmount(Number(record.value)) : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
     ...tasks.slice(0,250).map(record => ({ id: record.id, kind: "Task", title: record.title, section: "Schedule & Tasks", subtitle: [record.date,record.time,record.done?"Completed":"Open"].filter(Boolean).join(" · "), details: [{label:"Date",value:record.date},{label:"Time",value:record.time},{label:"Related property",value:record.property},{label:"Contact",value:record.contactName || ""},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...documents.slice(0,250).map(record => ({ id: record.id, kind: "Document", title: record.name, section: "Documents", subtitle: [record.category,record.property].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Property",value:record.property},{label:"Expiry",value:record.expiresOn},{label:"Notes",value:record.notes}] })),
-    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,"₹"+Number(record.amount||0).toLocaleString("en-IN")].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:"₹"+Number(record.amount||0).toLocaleString("en-IN")},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
+    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,formatIndianCompactAmount(Number(record.amount||0))].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:formatIndianCompactAmount(Number(record.amount||0))},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
     ...riskRecords.slice(0,150).map(record => ({ id: record.id, kind: "Risk", title: record.title, section: "Risk & Compliance", subtitle: [record.category,record.severity,record.status].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Severity",value:record.severity},{label:"Status",value:record.status},{label:"Owner",value:record.owner},{label:"Due date",value:record.dueDate},{label:"Mitigation",value:record.mitigation}] })),
     ...approvalRequests.slice(0,150).map(record => ({ id: record.id, kind: "Approval", title: record.title, section: "Approvals", subtitle: [record.area,record.priority,record.status].filter(Boolean).join(" · "), details: [{label:"Area",value:record.area},{label:"Priority",value:record.priority},{label:"Status",value:record.status},{label:"Approver",value:record.approver},{label:"Rationale",value:record.rationale}] }))
   ];
@@ -2249,7 +2252,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 <span className="section-kicker">{rangeSearches.length > 1 ? "COMBINED FILTERS" : rangeSearch?.kind === "price" ? "PRICE RANGE" : "LAND / AREA RANGE"} · SMART PROPERTY SEARCH</span>
                 <h2>{rangeSearches.length > 1 ? "Properties matching every range" : rangeSearch?.kind === "price" ? "Properties by value" : "Properties by area"}</h2>
                 <p>Query: <strong>{search}</strong> · {filteredProperties.length} matching record{filteredProperties.length === 1 ? "" : "s"}</p>
-                <div className="ax-property-range-chips">{rangeSearches.map((range,index)=><span className="ax-property-range-chip" key={range.kind + "-" + index}>{range.kind === "price" ? "Price" : "Area"}: {range.kind === "price" ? "₹" + range.min.toLocaleString("en-IN") + " – ₹" + range.max.toLocaleString("en-IN") : Math.round(range.min).toLocaleString("en-IN") + " – " + Math.round(range.max).toLocaleString("en-IN") + " sq ft equivalent"}</span>)}</div>
+                <div className="ax-property-range-chips">{rangeSearches.map((range,index)=><span className="ax-property-range-chip" key={range.kind + "-" + index}>{range.kind === "price" ? "Price" : "Area"}: {range.kind === "price" ? formatIndianCompactAmount(range.min) + " – " + formatIndianCompactAmount(range.max) : Math.round(range.min).toLocaleString("en-IN") + " – " + Math.round(range.max).toLocaleString("en-IN") + " sq ft equivalent"}</span>)}</div>
               </div>
               <div className="ax-property-range-results__controls">
                 <label>Sort results<select value={rangeSort} onChange={event => setRangeSort(event.target.value as typeof rangeSort)}>
@@ -2364,7 +2367,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               </div>
               <div className="banner-aside">
                 <span>RECORDED VALUE / EXPOSURE</span>
-                <strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong>
+                <strong>{formatIndianCompactAmount(portfolioValue)}</strong>
                 <small>Sum of entered record values across all workspaces; not a net asset valuation</small>
                 <div className="banner-divider"/>
                 <div className="banner-aside-row"><span>Last refreshed</span><strong>{new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}</strong></div>
@@ -2444,6 +2447,16 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenSchedule={()=>go("Schedule & Tasks")}
               onOpenDocuments={()=>go("Documents")}
             />
+            <IntelligenceHubExplorer
+              properties={properties}
+              contacts={contacts}
+              modules={modules.map(item=>({name:item.name,group:item.group}))}
+              moduleFields={moduleFields}
+              groups={savedWhatsAppGroups}
+              onOpenModule={name=>go(name)}
+              onEditRecord={record=>openPropertyForm(record as PropertyRecord)}
+              onEditFollowUp={(record,entry)=>openFollowUpEditor(record as PropertyRecord,entry)}
+            />
             <RelationshipIntelligencePanel
               contacts={contacts}
               properties={properties}
@@ -2455,7 +2468,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
               onOpenWorkspace={name => go(name)}
             />
             <div className="ax-intelligence-kpis">
-              <article><span>RECORDED VALUE / EXPOSURE</span><strong>₹{portfolioValue.toLocaleString("en-IN",{maximumFractionDigits:0})}</strong><small>Sum of entered record values across all workspaces; not a net asset valuation</small></article>
+              <article><span>RECORDED VALUE / EXPOSURE</span><strong>{formatIndianCompactAmount(portfolioValue)}</strong><small>Sum of entered record values across all workspaces; not a net asset valuation</small></article>
               <article><span>OPEN ACTIONS</span><strong>{tasks.filter(item=>!item.done).length}</strong><small>Tasks not yet completed</small></article>
               <article><span>PENDING APPROVALS</span><strong>{approvalRequests.filter(item=>item.status==="pending").length}</strong><small>Awaiting a recorded decision</small></article>
               <article><span>OPEN HIGH RISKS</span><strong>{riskRecords.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase())).length}</strong><small>High / critical open risk records</small></article>
@@ -2475,7 +2488,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                 {registryDashboardItems.filter(item=>!isFollowUpClosed(item.entry.status)).sort((a,b)=>(a.entry.date||"9999-12-31").localeCompare(b.entry.date||"9999-12-31")).slice(0,5).map(item=>{
                   const people=item.entry.contactIds.map(id=>contacts.find(contact=>contact.id===id)?.name).filter(Boolean);
                   return <article key={item.record?.id+":"+item.entry.id}>
-                    <div><span className={"ax-followup-priority priority-"+item.entry.priority.toLowerCase()}>{item.entry.priority}</span><strong>{item.entry.description}</strong><small>{item.module} · {item.recordTitle} · {item.entry.date || "No date"}{item.entry.time ? " · "+item.entry.time : ""}</small><p>{people.length ? people.join(" · ") : "No follow-up person assigned"}{item.amount ? " · ₹"+Number(item.amount).toLocaleString("en-IN",{maximumFractionDigits:0}) : ""}</p></div>
+                    <div><span className={"ax-followup-priority priority-"+item.entry.priority.toLowerCase()}>{item.entry.priority}</span><strong>{item.entry.description}</strong><small>{item.module} · {item.recordTitle} · {item.entry.date || "No date"}{item.entry.time ? " · "+item.entry.time : ""}</small><p>{people.length ? people.join(" · ") : "No follow-up person assigned"}{item.amount ? " · "+formatIndianCompactAmount(item.amount) : ""}</p></div>
                     <div className="ax-shift-actions"><button className="secondary-button" onClick={()=>go("Follow-up Registry")}>Open</button>{item.record && <button className="secondary-button" onClick={()=>openFollowUpForm(item.record as PropertyRecord)}>Add linked</button>}</div>
                   </article>;
                 })}
@@ -2511,6 +2524,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
             fields={active==="All Properties" ? [] : moduleFields[active] || []}
             contacts={contacts}
+            groups={savedWhatsAppGroups}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
@@ -2554,6 +2568,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             properties={properties}
             contacts={contacts}
             tasks={tasks}
+            groups={savedWhatsAppGroups}
             today={today}
             onAdd={()=>openFollowUpForm()}
             onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
@@ -2616,9 +2631,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 
           {active === "Financials" && <section className="data-panel">
             <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
-            <div className="finance-summary"><div><span>Tracked inflows</span><strong>₹{totalInflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Tracked outflows</span><strong>₹{totalOutflow.toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div><div><span>Net recorded movement</span><strong>₹{(totalInflow-totalOutflow).toLocaleString("en-IN",{maximumFractionDigits:2})}</strong></div></div>
+            <div className="finance-summary"><div><span>Tracked inflows</span><strong>{formatIndianCompactAmount(totalInflow)}</strong></div><div><span>Tracked outflows</span><strong>{formatIndianCompactAmount(totalOutflow)}</strong></div><div><span>Net recorded movement</span><strong>{formatIndianCompactAmount(totalInflow-totalOutflow)}</strong></div></div>
             <p className="finance-footnote">Totals are category-based summaries of records entered here, not verified bank balances or accounting advice. Review transaction types and source documents before relying on settlement figures.</p>
-            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · ₹{Number(item.amount||0).toLocaleString("en-IN",{maximumFractionDigits:2})}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
+            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · {formatIndianCompactAmount(Number(item.amount||0))}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
           </section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
@@ -2674,7 +2689,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : personalUserId ? "Personal cloud mode · private account" : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} groups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
@@ -2777,14 +2792,14 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
           {deadline && <small><strong>{deadline.label}:</strong> <span className={deadlineOverdue?"deadline-overdue":""}>{deadline.date}{deadlineOverdue?" · OVERDUE":""}</span></small>}
           {property.nextFollowUpDate && <small><strong>Next follow-up:</strong> <span className={followupOverdue?"deadline-overdue":""}>{property.nextFollowUpDate}{followupOverdue?" · OVERDUE":""}</span></small>}
           {property.nextAction && <small><strong>Next action:</strong> {property.nextAction}</small>}
-          <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: ₹{recordedAmount.toLocaleString("en-IN",{maximumFractionDigits:2})}</small>
+          <small>Linked open tasks: {relatedTasks.length} · Financial records: {relatedFinancials.length} · Recorded transaction total: {formatIndianCompactAmount(recordedAmount)}</small>
           {relatedTasks.slice(0,2).map(task=><small key={task.id}>Next task: {task.title} · {task.date} {task.time}{task.contactName ? ` · ${task.contactName}` : ""}</small>)}
           <div className="linked-actions">
             <button className="secondary-button" onClick={()=>onEditProperty(property)}><Pencil size={14}/> Edit links / deadlines</button>
             {stakeholders.map(stakeholder=><span className="linked-stakeholder" key={stakeholder.id}><strong>{stakeholder.name}</strong><small>{getLinkedContactRoleLabels(property,contacts).filter(label=>label.endsWith(": "+stakeholder.name)).join(" · ") || stakeholder.role}</small>{stakeholder.phone && <a className="secondary-button" href={`tel:${stakeholder.phone}`}><Phone size={14}/> Call</a>}<button className="secondary-button" onClick={()=>onSchedule(property,stakeholder)}><CalendarClock size={14}/> Schedule call</button><button className="secondary-button" onClick={()=>onWhatsApp(stakeholder.id,property.id)}><MessageCircle size={14}/> WhatsApp</button></span>)}
           </div>
         </div>
-        <div className="record-side"><strong>{property.value ? `₹ ${Number(property.value).toLocaleString("en-IN",{maximumFractionDigits:2})}` : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
+        <div className="record-side"><strong>{property.value ? formatIndianCompactAmount(Number(property.value)) : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
       </article>;
     })}</div>}
     <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
@@ -2868,7 +2883,7 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
-function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",
@@ -2915,6 +2930,17 @@ function PropertyForm({defaultModule,contacts,initial,onSave,onCancel}:{defaultM
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
     <SearchableContactPicker label="Follow-up contacts (multiple people)" contacts={contacts} multiple value={(form.moduleData.__followUpContactIds ?? "").split(",").filter(Boolean)} placeholder="Search people responsible for the next follow-up…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__followUpContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Add every person who must be contacted for this record. This is saved separately from the primary contact and other stakeholders."/>
+    {groups.length>0 && <div className="ax-record-group-links">
+      <div className="form-section-title"><span className="section-kicker">WHATSAPP GROUP LINKS</span><p>Attach saved WhatsApp groups to this record. These links power primary-group and follow-up-group filters in Intelligence Hub and Follow-up Registry.</p></div>
+      {([{key:"__primaryGroupIds",label:"Primary groups"},{key:"__followUpGroupIds",label:"Follow-up groups"}] as const).map(config=>{
+        const selected=(form.moduleData[config.key]||"").split(",").map(id=>id.trim()).filter(Boolean);
+        const setSelected=(ids:string[])=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[config.key]:ids.join(",")}}));
+        return <div className="ax-record-group-links__set" key={config.key}>
+          <div><strong>{config.label}</strong><span>{selected.length} selected</span><button type="button" onClick={()=>setSelected(groups.map(group=>group.id))}>Select all</button><button type="button" onClick={()=>setSelected([])}>Clear</button></div>
+          <div className="ax-record-group-links__options">{groups.map(group=><label key={group.id}><input type="checkbox" checked={selected.includes(group.id)} onChange={event=>setSelected(event.target.checked?Array.from(new Set([...selected,group.id])):selected.filter(id=>id!==group.id))}/><span>{group.name}</span></label>)}</div>
+        </div>;
+      })}
+    </div>}
     {(moduleContactFields[form.module] ?? []).length > 0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">ROLE-SPECIFIC CONTACT LINKS</span><p>Choose the actual saved contact for each role. This makes the lender, borrower, owner and person-to-call traceable across the workspace.</p></div><div className="module-data-grid">{(moduleContactFields[form.module] ?? []).map(field=><SearchableContactPicker key={field.key} label={field.label} contacts={contacts} value={form.moduleData[field.key] ?? ""} placeholder="Not linked" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:String(value)}}))}/>)}</div></div>}
     <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">DEAL DEADLINES & NEXT ACTION</span><p>Use this for loan approval/disbursement deadlines, property registration, document collection or any other module milestone.</p></div>
       <div className="form-two"><label>Target completion / loan deadline<input type="date" value={form.targetDeadline} onChange={event=>update("targetDeadline",event.target.value)}/></label><label>Next contact / follow-up date<input type="date" value={form.nextFollowUpDate} onChange={event=>update("nextFollowUpDate",event.target.value)}/></label></div>

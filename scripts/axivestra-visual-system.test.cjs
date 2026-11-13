@@ -292,3 +292,33 @@ assert.match(css, /\.ax-orbit-node-counter--outer\s*\{[^}]*animation: ax-orbit-n
 assert.match(css, /\.ax-orbit-node-counter--inner\s*\{[^}]*animation: ax-orbit-node-counter-inner 38s linear infinite/, "Inner module labels must counter-rotate to stay readable.");
 assert.match(css, /is-rotation-paused \.ax-orbit-ring--inner/, "Pause must stop the inner shell as well as the outer shell.");
 assert.match(css, /is-rotation-paused \.ax-orbit-route-ring--inner/, "Pause must stop the inner route overlay.");
+
+
+const hubExplorer = fs.readFileSync(path.join(root, "src", "IntelligenceHubExplorer.tsx"), "utf8");
+const reportExporter = fs.readFileSync(path.join(root, "src", "lib", "report-export.mjs"), "utf8");
+const indianAmount = fs.readFileSync(path.join(root, "src", "lib", "indian-amount.mjs"), "utf8");
+assert.match(indianAmount, /formatIndianCompactAmount/, "A shared compact Indian INR formatter must be available to every view.");
+assert.match(indianAmount, /10000000/, "The compact INR formatter must use the Indian crore boundary.");
+assert.match(mw, /formatIndianCompactAmount/, "Module records must render INR using the shared formatter.");
+assert.match(mw, /<th>SR rate<\/th>[\s\S]*?<th>Market rate<\/th>[\s\S]*?<th>Settlement value<\/th>/, "Module table must show SR rate, market rate and settlement value.");
+assert.match(mw, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Every module must expose PDF and PPT export actions.");
+assert.match(app, /<IntelligenceHubExplorer[\s\S]*?groups=\{savedWhatsAppGroups\}/, "The Intelligence Hub must receive saved records, contacts and WhatsApp groups.");
+assert.match(hubExplorer, /Area \/ size range/, "Intelligence Hub must filter area using from/to values.");
+assert.match(hubExplorer, /SR \/ guidance rate/, "Intelligence Hub must filter SR/guidance rate using from/to values.");
+assert.match(hubExplorer, /Value \/ exposure/, "Intelligence Hub must filter value/exposure using from/to values.");
+assert.match(hubExplorer, /Market value \/ rate/, "Intelligence Hub must filter market value/rate using from/to values.");
+assert.match(hubExplorer, /Primary WhatsApp group/, "Intelligence Hub must expose primary-group filtering.");
+assert.match(hubExplorer, /Follow-up WhatsApp group/, "Intelligence Hub must expose follow-up-group filtering.");
+assert.match(hubExplorer, /role="dialog"[\s\S]*?Edit date \/ time and follow-up/, "Intelligence Hub must open a record detail dialog and edit linked follow-ups.");
+assert.match(hubExplorer, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Intelligence Hub must export PDF and PPT reports.");
+assert.match(reportExporter, /Downloaded:/, "Reports must include their download timestamp.");
+assert.match(reportExporter, /Record \/ Module[\s\S]*?Value \/ Exposure[\s\S]*?SR Rate[\s\S]*?Settlement/, "Reports must use structured multi-column tables.");
+assert.match(followUpForm, /normalizeIndianAmount/, "Follow-up amount entries must normalize Indian currency shorthand before saving.");
+assert.match(registry, /Primary group:/, "Follow-up Registry must show primary group associations.");
+assert.match(registry, /Follow-up group:/, "Follow-up Registry must show follow-up group associations.");
+assert.match(registry, /Primary group<select/, "Follow-up Registry must filter by primary WhatsApp group.");
+assert.match(registry, /Follow-up group<select/, "Follow-up Registry must filter by follow-up WhatsApp group.");
+assert.match(registry, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Follow-up Registry must export filtered entries to PDF and PPT.");
+assert.match(app, /__primaryGroupIds/, "Every module record form must store selected primary WhatsApp group IDs.");
+assert.match(app, /__followUpGroupIds/, "Every module record form must store selected follow-up WhatsApp group IDs.");
+console.log("AXIVESTRA Intelligence Hub, INR and report-export contract passed.");

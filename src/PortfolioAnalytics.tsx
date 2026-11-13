@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
@@ -17,8 +18,7 @@ type Props = {
 const PALETTE = ["#20d9ef", "#2578ff", "#7a6dff", "#28c78a", "#ffbf68", "#fc7796", "#57b4d4", "#a7b8cd"];
 const INFLOW = new Set(["Sale", "Advance", "Loan Disbursal", "Receipt"]);
 const OUTFLOW = new Set(["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"]);
-const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-const compact = (value: number) => value >= 10000000 ? "₹" + (value / 10000000).toFixed(1) + " Cr" : value >= 100000 ? "₹" + (value / 100000).toFixed(1) + " L" : INR.format(value);
+const compact = (value: number) => formatIndianCompactAmount(value) || "—";
 
 export default function PortfolioAnalytics({ properties, financials, tasks, modules, onOpenModule }: Props) {
   const [focus, setFocus] = useState<"allocation" | "pipeline" | "cashflow">("allocation");
