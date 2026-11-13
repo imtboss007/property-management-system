@@ -33,7 +33,7 @@ function makePdf(title, subtitle, rows) {
       const y=hy-20-ri*52, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
       cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 52 re f Q");
       rowValues(row).forEach((val,i)=>{
-        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+38-j*7.2,5.7,line,"0.84 0.92 0.96")));}
+        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,6);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+38-j*7.2,5.7,line,"0.84 0.92 0.96")));}
         else {const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.1,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));}
       });
       cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+(y-6)+" m "+(margin+usable)+" "+(y-6)+" l S");
