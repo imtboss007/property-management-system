@@ -21,7 +21,7 @@ import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { parseIndianAmount, normalizeIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import { parseContactImport, contactsToVCard } from "./lib/contact-portability.mjs";
 import { createWorkspaceBackup, parseWorkspaceBackup } from "./lib/workspace-backup.mjs";
@@ -1403,11 +1403,11 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   });
   const activeContactFilterCount = contactRoleFilters.length + Number(Boolean(contactProfessionFilter)) + Number(Boolean(contactCompanyFilter));
   const universalEntities: UniversalEntity[] = [
-    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? formatIndianCompactAmount(Number(record.value)) : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? formatIndianCompactAmount(record.value) : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
     ...tasks.slice(0,250).map(record => ({ id: record.id, kind: "Task", title: record.title, section: "Schedule & Tasks", subtitle: [record.date,record.time,record.done?"Completed":"Open"].filter(Boolean).join(" · "), details: [{label:"Date",value:record.date},{label:"Time",value:record.time},{label:"Related property",value:record.property},{label:"Contact",value:record.contactName || ""},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...documents.slice(0,250).map(record => ({ id: record.id, kind: "Document", title: record.name, section: "Documents", subtitle: [record.category,record.property].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Property",value:record.property},{label:"Expiry",value:record.expiresOn},{label:"Notes",value:record.notes}] })),
-    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,formatIndianCompactAmount(Number(record.amount||0))].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:formatIndianCompactAmount(Number(record.amount||0))},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
+    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,formatIndianCompactAmount(record.amount||0)].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:formatIndianCompactAmount(record.amount||0)},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
     ...riskRecords.slice(0,150).map(record => ({ id: record.id, kind: "Risk", title: record.title, section: "Risk & Compliance", subtitle: [record.category,record.severity,record.status].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Severity",value:record.severity},{label:"Status",value:record.status},{label:"Owner",value:record.owner},{label:"Due date",value:record.dueDate},{label:"Mitigation",value:record.mitigation}] })),
     ...approvalRequests.slice(0,150).map(record => ({ id: record.id, kind: "Approval", title: record.title, section: "Approvals", subtitle: [record.area,record.priority,record.status].filter(Boolean).join(" · "), details: [{label:"Area",value:record.area},{label:"Priority",value:record.priority},{label:"Status",value:record.status},{label:"Approver",value:record.approver},{label:"Rationale",value:record.rationale}] }))
   ];
@@ -1417,9 +1417,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   ];
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
-  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
+  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
+  const portfolioValue = properties.reduce((sum, item) => sum + (parseIndianAmount(item.value) || 0), 0);
   const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
   const openLitigationCount = properties.filter(item => item.module === "Litigation" && !["Completed", "Closed"].includes(item.status)).length;
   const startupCount = properties.filter(item => item.module === "Startup" && !["Completed", "Closed"].includes(item.status)).length;
@@ -1737,7 +1737,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       : [record, ...prev]);
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
-      value: record.value.trim() ? Number(record.value) : null, status: record.status,
+      value: record.value.trim() ? (parseIndianAmount(record.value) ?? null) : null, status: record.status,
       contact: record.contact, primary_contact_id: record.primaryContactId || null,
       target_deadline: record.targetDeadline || null, next_follow_up_date: record.nextFollowUpDate || null,
       next_action: record.nextAction || "", notes: record.notes, created_at: record.createdAt,
@@ -2198,7 +2198,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       property_label: record.property,
       contact_id: record.contactId || null,
       transaction_type: record.type,
-      amount: Number(record.amount),
+      amount: parseIndianAmount(record.amount) ?? 0,
       transaction_date: record.date,
       party: record.party,
       reference_number: record.reference,
@@ -2319,7 +2319,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
-        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
+        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} data-testid={"module-directory-"+name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
           <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
@@ -2657,6 +2657,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             contacts={contacts}
             tasks={tasks}
             groups={savedWhatsAppGroups}
+            moduleFields={moduleFields}
             today={today}
             onAdd={()=>openFollowUpForm()}
             onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
@@ -2721,7 +2722,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
             <div className="finance-summary"><div><span>Tracked inflows</span><strong>{formatIndianCompactAmount(totalInflow)}</strong></div><div><span>Tracked outflows</span><strong>{formatIndianCompactAmount(totalOutflow)}</strong></div><div><span>Net recorded movement</span><strong>{formatIndianCompactAmount(totalInflow-totalOutflow)}</strong></div></div>
             <p className="finance-footnote">Totals are category-based summaries of records entered here, not verified bank balances or accounting advice. Review transaction types and source documents before relying on settlement figures.</p>
-            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · {formatIndianCompactAmount(Number(item.amount||0))}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
+            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · {formatIndianCompactAmount(item.amount||0)}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
           </section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
@@ -2869,7 +2870,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
       const deadline=getPropertyDeadline(property);
       const deadlineOverdue=Boolean(deadline && deadline.date<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
       const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
-      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
+      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+(parseIndianAmount(item.amount) || 0),0);
       return <article className="record-card relationship-record" key={property.id}>
         <div className="record-symbol"><Building2 size={20}/></div>
         <div className="record-main">
@@ -2887,7 +2888,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
             {stakeholders.map(stakeholder=><span className="linked-stakeholder" key={stakeholder.id}><strong>{stakeholder.name}</strong><small>{getLinkedContactRoleLabels(property,contacts).filter(label=>label.endsWith(": "+stakeholder.name)).join(" · ") || stakeholder.role}</small>{stakeholder.phone && <a className="secondary-button" href={`tel:${stakeholder.phone}`}><Phone size={14}/> Call</a>}<button className="secondary-button" onClick={()=>onSchedule(property,stakeholder)}><CalendarClock size={14}/> Schedule call</button><button className="secondary-button" onClick={()=>onWhatsApp(stakeholder.id,property.id)}><MessageCircle size={14}/> WhatsApp</button></span>)}
           </div>
         </div>
-        <div className="record-side"><strong>{property.value ? formatIndianCompactAmount(Number(property.value)) : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
+        <div className="record-side"><strong>{property.value ? formatIndianCompactAmount(property.value) : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
       </article>;
     })}</div>}
     <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
@@ -2922,16 +2923,27 @@ const amountUnitFromSuffix = (suffix:string): IndianAmountUnit => {
 };
 function IndianAmountInput({value,onChange,placeholder,required=false}:{value:string;onChange:(value:string)=>void;placeholder?:string;required?:boolean}) {
   const raw=String(value ?? "");
-  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
+  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,4})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
   const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
-  const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):"rupees");
-  // Keep a unit selected while the input is still empty. The previous effect
-  // reset it to Rupees whenever a user chose Lakhs/Crores before typing.
+  const storedPlainAmount=!simpleAmount?.[2] && !hasCombinedShorthand && /^\s*₹?\s*\d[\d,]*(?:\.\d{1,4})?\s*$/.test(raw);
+  const inferStoredUnit=():IndianAmountUnit=>{
+    const parsedStored=parseIndianAmount(raw);
+    if(parsedStored!==null && storedPlainAmount){
+      if(parsedStored>=10000000)return "crore";
+      if(parsedStored>=100000)return "lakh";
+      if(parsedStored>=1000)return "thousand";
+    }
+    return "rupees";
+  };
+  const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):inferStoredUnit());
+  // Keep a user's selected unit when the field is empty; infer the unit again if another saved record is loaded.
   useEffect(()=>{
     if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
-  },[simpleAmount?.[2]]);
+    else if(storedPlainAmount)setUnit(inferStoredUnit());
+  },[simpleAmount?.[2],storedPlainAmount,raw]);
   const activeUnit=simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):unit;
-  const displayValue=simpleAmount?simpleAmount[1]:raw;
+  const unitDivisor=activeUnit==="crore"?10000000:activeUnit==="lakh"?100000:activeUnit==="thousand"?1000:1;
+  const displayValue=simpleAmount ? (storedPlainAmount && unitDivisor>1 ? String(Number((parseIndianAmount(raw)||0)/unitDivisor).toFixed(4)).replace(/\.?0+$/,"") : simpleAmount[1]) : raw;
   const hasValue=raw.trim().length>0;
   const parsed=hasValue?parseIndianAmount(raw):null;
   const writeAmount=(amount:string,nextUnit:IndianAmountUnit)=>{
@@ -2967,7 +2979,7 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
       </select>
     </div>
     <small className="ax-inr-amount-help">Type the amount, then choose Rupees, Thousands, Lakhs or Crores. Example: 25 + Lakhs = ₹25,00,000.</small>
-    {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianAmount(parsed)}</small>}
+    {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianCompactAmount(parsed)}</small>}
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
@@ -2979,23 +2991,36 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
-    moduleData:initial?.moduleData ?? {}
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || initial?.moduleData?.guidanceRate || initial?.moduleData?.settlementRate || initial?.moduleData?.srGuidanceRate || "",
+    moduleData:(initial?.moduleData ? {
+      ...initial.moduleData,
+      marketRatePerUnit:initial.moduleData.marketRatePerUnit || initial.moduleData.marketRate || initial.moduleData.marketValue || initial.moduleData.marketAmount || "",
+      settlementAmount:initial.moduleData.settlementAmount || initial.moduleData.settlementValue || initial.moduleData.agreedSettlementAmount || ""
+    } : {}) as Record<string,string>
   });
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
+  const universalAmountKeys = new Set(["srRate","marketRatePerUnit","settlementAmount"]);
+  const visibleSelectedFields = selectedFields.filter(field=>!universalAmountKeys.has(field.key));
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
     const normalizedValue=normalizeIndianAmount(form.value);
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
+    const normalizedMarketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit ?? "");
+    const normalizedSettlementValue=normalizeIndianAmount(form.moduleData.settlementAmount ?? "");
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
-    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("Rate per unit");
+    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("SR / guidance rate");
+    if(String(form.moduleData.marketRatePerUnit ?? "").trim() && normalizedMarketRate===null)invalidLabels.push("Market rate per unit");
+    if(String(form.moduleData.settlementAmount ?? "").trim() && normalizedSettlementValue===null)invalidLabels.push("Settlement value");
+    normalizedModuleData.srRate=normalizedRate ?? "";
+    normalizedModuleData.marketRatePerUnit=normalizedMarketRate ?? "";
+    normalizedModuleData.settlementAmount=normalizedSettlementValue ?? "";
     for(const field of selectedFields){
-      if(field.type!=="number" || !field.label.includes("₹"))continue;
+      if(universalAmountKeys.has(field.key) || field.type!=="number" || !field.label.includes("₹"))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
       if(!raw.trim())continue;
       const normalized=normalizeIndianAmount(raw);
@@ -3014,6 +3039,10 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
+    <div className="property-detail-section ax-valuation-fields"><div className="form-section-title"><span className="section-kicker">VALUATION & SETTLEMENT</span><p>These three INR fields are available in every module and feed the same table, Intelligence Hub and report columns.</p></div>
+      <div className="form-two"><label>SR / guidance rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>{update("ratePerUnit",value);setAmountError("");}} placeholder="e.g. 2.5 Cr"/></label><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,marketRatePerUnit:value}}));}} placeholder="e.g. 5 Cr"/></label></div>
+      <label>Settlement value / agreed amount (₹)<IndianAmountInput value={form.moduleData.settlementAmount ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,settlementAmount:value}}));}} placeholder="e.g. 3 Cr"/></label>
+    </div>
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
@@ -3037,9 +3066,9 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
       <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
-      <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Optional amount"/></label></div>
+      <label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label>
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>

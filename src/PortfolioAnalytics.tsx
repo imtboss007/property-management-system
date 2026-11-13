@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { ArrowUpRight, BarChart3, TrendingUp, CircleDollarSign, PieChart, Sparkles } from "lucide-react";
 
 type PropertyRow = { id: string; title: string; module: string; value: string; status: string };
@@ -33,7 +33,7 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
     return {
       ...module,
       count: items.length,
-      value: items.reduce((sum, property) => sum + (Number(property.value) || 0), 0),
+      value: items.reduce((sum, property) => sum + (parseIndianAmount(property.value) || 0), 0),
       color: PALETTE[index % PALETTE.length]
     };
   }).filter(row => row.count > 0 || row.value > 0), [modules, properties]);
@@ -53,15 +53,15 @@ export default function PortfolioAnalytics({ properties, financials, tasks, modu
       const month = new Date(now.getFullYear(), now.getMonth() - (period - 1 - index), 1);
       const key = month.getFullYear() + "-" + String(month.getMonth() + 1).padStart(2, "0");
       const rows = financials.filter(row => String(row.date || "").slice(0, 7) === key);
-      const inflow = rows.filter(row => INFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-      const outflow = rows.filter(row => OUTFLOW.has(row.type)).reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+      const inflow = rows.filter(row => INFLOW.has(row.type)).reduce((sum, row) => sum + (parseIndianAmount(row.amount) || 0), 0);
+      const outflow = rows.filter(row => OUTFLOW.has(row.type)).reduce((sum, row) => sum + (parseIndianAmount(row.amount) || 0), 0);
       return { key, name: month.toLocaleDateString("en-IN", { month: "short" }), fullName: month.toLocaleDateString("en-IN", { month: "long", year: "numeric" }), inflow, outflow, net: inflow - outflow, count: rows.length };
     });
   }, [financials, period]);
 
-  const trackedValue = properties.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
-  const totalInflow = financials.filter(item => INFLOW.has(item.type)).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-  const totalOutflow = financials.filter(item => OUTFLOW.has(item.type)).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const trackedValue = properties.reduce((sum, item) => sum + (parseIndianAmount(item.value) || 0), 0);
+  const totalInflow = financials.filter(item => INFLOW.has(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
+  const totalOutflow = financials.filter(item => OUTFLOW.has(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
   const openTasks = tasks.filter(task => !task.done).length;
   const overdueTasks = tasks.filter(task => !task.done && task.date < new Date().toISOString().slice(0, 10)).length;
   const chartItems = focus === "allocation" ? moduleRows.map(row => ({ name: row.name, value: metric === "value" ? row.value : row.count, count: row.count, color: row.color })) : stageRows;

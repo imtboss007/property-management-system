@@ -3,3 +3,4 @@ export function normalizeIndianAmount(input: string | number | null | undefined)
 export function formatIndianAmount(input: string | number | null | undefined): string;
 
 export function formatIndianCompactAmount(input: string | number | null | undefined): string;
+export function isIndianAmountLabel(label: string | null | undefined): boolean;

@@ -10,43 +10,64 @@ const rowValues = row => {
     row.followUpContact ? "Follow-up: "+row.followUpContact : "",
     row.primaryGroup ? "Primary group: "+row.primaryGroup : "",
     row.followUpGroup ? "Follow-up group: "+row.followUpGroup : "",
-    row.followUpSummary || ""
+    row.followUpSummary || "",
+    row.detailsSummary || ""
   ].filter(Boolean);
-  const fallback = [row.contactSummary,row.followUpSummary].filter(Boolean);
+  const fallback = [row.contactSummary,row.followUpSummary,row.detailsSummary].filter(Boolean);
   return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
 };
 
 function makePdf(title, subtitle, rows) {
   const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[130,80,72,60,62,65,48,257];
   const scale=usable/widths.reduce((a,b)=>a+b,0), ws=widths.map(w=>w*scale), xs=ws.map((_,i)=>margin+ws.slice(0,i).reduce((a,b)=>a+b,0));
-  const groups=[];for(let i=0;i<rows.length;i+=10)groups.push(rows.slice(i,i+10));if(!groups.length)groups.push([]);
+  const wrap=(value,max)=>{const words=String(value||"").split(/\\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(next.length>max&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines.length?lines:["-"];};
+  const prepared=rows.map(row=>{
+    const cells=rowValues(row);
+    const lines=cells.map((value,i)=>String(value||"-").split("\\n").flatMap(part=>wrap(part,Math.max(8,Math.floor((ws[i]-8)/(i===7?3.0:4.0))))));
+    const lineCount=Math.max(1,...lines.map(value=>value.length));
+    const lineHeight=lineCount>44?5.4:7.2;
+    const height=Math.max(52,lineCount*lineHeight+16);
+    return {lines,lineHeight,height,lineCount};
+  });
+  const pages=[];let page=[],used=0;const available=438;
+  prepared.forEach((item,index)=>{
+    if(page.length&&used+item.height>available){pages.push(page);page=[];used=0;}
+    page.push(index);used+=Math.min(item.height,available);
+    if(item.height>available){pages.push(page);page=[];used=0;}
+  });
+  if(page.length||!pages.length)pages.push(page);
   const objs=[];const add=s=>(objs.push(s),objs.length);
-  const root=add("<< /Type /Catalog /Pages 2 0 R >>"), pages=add(""), font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), pageIds=[];
+  const root=add("<< /Type /Catalog /Pages 2 0 R >>"), pagesObj=add(""), font=add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), pageIds=[];
   const t=(x,y,size,value,color)=>"BT /F1 "+size+" Tf "+(color||"0.84 0.93 0.97")+" rg 1 0 0 1 "+x.toFixed(2)+" "+y.toFixed(2)+" Tm ("+escPdf(value)+") Tj ET";
-  const wrap=(value,max)=>{const words=String(value||"").split(/\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(next.length>max&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
-  groups.forEach((group,pi)=>{
-    const cmd=["q 0.035 0.09 0.14 rg 0 0 842 595 re f Q",t(margin,558,17,title,"0.88 0.98 1"),t(margin,540,8,subtitle,"0.55 0.73 0.82"),t(650,558,7,"Downloaded: "+timestamp(),"0.55 0.73 0.82"),t(650,540,7,"Page "+(pi+1)+" / "+groups.length,"0.55 0.73 0.82")];
+  pages.forEach((indices,pi)=>{
+    const cmd=["q 0.035 0.09 0.14 rg 0 0 842 595 re f Q",t(margin,558,17,title,"0.88 0.98 1"),t(margin,540,8,subtitle,"0.55 0.73 0.82"),t(650,558,7,"Downloaded: "+timestamp(),"0.55 0.73 0.82"),t(650,540,7,"Page "+(pi+1)+" / "+pages.length,"0.55 0.73 0.82")];
     const hy=510;cmd.push("q 0.08 0.23 0.31 rg "+margin+" "+(hy-5)+" "+usable+" 20 re f Q");
     headers.forEach((h,i)=>cmd.push(t(xs[i]+4,hy+2,7,h,"0.35 0.94 0.91")));
-    group.forEach((row,ri)=>{
-      const y=hy-20-ri*42, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
-      cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 42 re f Q");
-      rowValues(row).forEach((val,i)=>{
-        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+10-j*7.2,5.7,line,"0.84 0.92 0.96")));}
-        else {const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.1,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));}
+    let cursor=hy-20;
+    indices.forEach(index=>{
+      const item=prepared[index],height=Math.min(item.height,available),bottom=cursor-height;
+      const bg=indices.indexOf(index)%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
+      cmd.push("q "+bg+" rg "+margin+" "+bottom.toFixed(2)+" "+usable+" "+height.toFixed(2)+" re f Q");
+      item.lines.forEach((cellLines,i)=>{
+        const maxLines=Math.max(1,Math.floor((height-16)/item.lineHeight));
+        cellLines.slice(0,maxLines).forEach((line,j)=>{
+          const fontSize=item.lineCount>44?4.6:(i===7?5.5:6.1);
+          cmd.push(t(xs[i]+4,cursor-13-j*item.lineHeight,fontSize,line,"0.84 0.92 0.96"));
+        });
       });
-      cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+(y-6)+" m "+(margin+usable)+" "+(y-6)+" l S");
+      cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+bottom.toFixed(2)+" m "+(margin+usable)+" "+bottom.toFixed(2)+" l S");
+      cursor=bottom;
     });
     cmd.push(t(margin,24,7,"AXIVESTRA | "+rows.length+" records | Generated "+timestamp(),"0.48 0.67 0.76"));
-    const stream=cmd.join("\n"), streamId=add("<< /Length "+stream.length+" >>\nstream\n"+stream+"\nendstream");
-    pageIds.push(add("<< /Type /Page /Parent "+pages+" 0 R /MediaBox [0 0 "+pageW+" "+pageH+"] /Resources << /Font << /F1 "+font+" 0 R >> >> /Contents "+streamId+" 0 R >>"));
+    const stream=cmd.join("\\n"),streamId=add("<< /Length "+stream.length+" >>\\nstream\\n"+stream+"\\nendstream");
+    pageIds.push(add("<< /Type /Page /Parent "+pagesObj+" 0 R /MediaBox [0 0 "+pageW+" "+pageH+"] /Resources << /Font << /F1 "+font+" 0 R >> >> /Contents "+streamId+" 0 R >>"));
   });
-  objs[pages-1]="<< /Type /Pages /Kids ["+pageIds.map(id=>id+" 0 R").join(" ")+"] /Count "+pageIds.length+" >>";
-  let out="%PDF-1.4\n%AXIVESTRA\n";const offsets=[0];
-  objs.forEach((obj,i)=>{offsets.push(out.length);out+=(i+1)+" 0 obj\n"+obj+"\nendobj\n";});
-  const xref=out.length;out+="xref\n0 "+(objs.length+1)+"\n0000000000 65535 f \n";
-  offsets.slice(1).forEach(n=>{out+=String(n).padStart(10,"0")+" 00000 n \n";});
-  out+="trailer\n<< /Size "+(objs.length+1)+" /Root "+root+" 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+  objs[pagesObj-1]="<< /Type /Pages /Kids ["+pageIds.map(id=>id+" 0 R").join(" ")+"] /Count "+pageIds.length+" >>";
+  let out="%PDF-1.4\\n%AXIVESTRA\\n";const offsets=[0];
+  objs.forEach((obj,i)=>{offsets.push(out.length);out+=(i+1)+" 0 obj\\n"+obj+"\\nendobj\\n";});
+  const xref=out.length;out+="xref\\n0 "+(objs.length+1)+"\\n0000000000 65535 f \\n";
+  offsets.slice(1).forEach(n=>{out+=String(n).padStart(10,"0")+" 00000 n \\n";});
+  out+="trailer\\n<< /Size "+(objs.length+1)+" /Root "+root+" 0 R >>\\nstartxref\\n"+xref+"\\n%%EOF";
   return new Blob([out],{type:"application/pdf"});
 }
 function slideShape(id,name,text,x,y,w,h,size,bold,fill,color) {
@@ -59,11 +80,11 @@ function makeSlide(title,subtitle,rows,page,totalPages) {
   const factor=usable/cols.reduce((a,c)=>a+c[1],0);let shapes="";
   shapes+=slideShape(2,"Title",title,margin,220000,usable,450000,2300,true,null,"E9FAFF");
   shapes+=slideShape(3,"Subtitle",subtitle+" | Downloaded "+timestamp(),margin,680000,usable,240000,900,false,null,"8FB5C6");
-  const y0=1080000,headerH=350000,rowH=620000;let x=margin;
+  const y0=1080000,headerH=350000,rowH=1200000;let x=margin;
   cols.forEach((col,i)=>{const w=Math.floor(col[1]*factor);shapes+=slideShape(10+i,"Header "+col[0],col[0],x,y0,w,headerH,800,true,"123D50","65F0DF");x+=w;});
-  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=i===7?String(value||"-").split("\n").map(line=>ascii(line)).join("\n"):ascii(value||"-"),limit=i===0?43:i===7?220:32;shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt.length>limit?txt.slice(0,limit-3)+"...":txt,xx,y,w,rowH-25000,i===7?650:750,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
+  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-");shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt,xx,y,w,rowH-25000,i===7?600:720,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
   shapes+=slideShape(4,"Footer","AXIVESTRA | "+rows.length+" records on this slide | Page "+page+" of "+totalPages,margin,6500000,usable,180000,800,false,null,"6F94A7");
-  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:sld>';
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
 function crc32(bytes) { let c=0xFFFFFFFF;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xEDB88320:0);}return (c^0xFFFFFFFF)>>>0; }
 function zipStore(files) {
@@ -80,7 +101,7 @@ function zipStore(files) {
   return new Blob([...local,...central,end],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
 }
 function makePptx(title,subtitle,rows) {
-  const sets=[];for(let i=0;i<rows.length;i+=8)sets.push(rows.slice(i,i+8));if(!sets.length)sets.push([]);
+  const sets=[];for(let i=0;i<rows.length;i+=4)sets.push(rows.slice(i,i+4));if(!sets.length)sets.push([]);
   const slides=sets.map((set,i)=>makeSlide(title,subtitle,set,i+1,sets.length)),slideOverrides=slides.map((_,i)=>'<Override PartName="/ppt/slides/slide'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>').join("");
   const files={
     "[Content_Types].xml":'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'+slideOverrides+'</Types>',

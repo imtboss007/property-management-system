@@ -23,7 +23,7 @@ export default function FollowUpForm({properties,contacts,defaultPropertyId,defa
       propertyId:defaultPropertyId||"",
       contactIds:initial?.contactIds ?? (defaultContactId ? [defaultContactId] : []),
       description:initial?.description ?? "",
-      amount:initial?.amount ?? (property?.value ? formatIndianCompactAmount(Number(property.value)) : ""),
+      amount:initial?.amount ? (formatIndianCompactAmount(initial.amount) || initial.amount) : (property?.value ? formatIndianCompactAmount(property.value) : ""),
       date:initial?.date ?? new Date().toISOString().slice(0,10),
       time:initial?.time ?? "10:00",
       priority:initial?.priority ?? "Normal" as FollowUpPriority,
@@ -65,9 +65,9 @@ export default function FollowUpForm({properties,contacts,defaultPropertyId,defa
     <label>Related module record *<select required value={form.propertyId} onChange={event=>{
       const id=event.target.value;
       const item=properties.find(property=>property.id===id);
-      setForm(previous=>({...previous,propertyId:id,amount:previous.amount || item?.value || ""}));
+      setForm(previous=>({...previous,propertyId:id,amount:previous.amount || (item?.value ? (formatIndianCompactAmount(item.value) || item.value) : "")}));
     }}><option value="">Choose source record</option>{properties.map(item=><option key={item.id} value={item.id}>{item.module} · {item.title}</option>)}</select></label>
-    {selectedProperty && <div className="ax-followup-source-context"><strong>{selectedProperty.module}</strong><span>{selectedProperty.title}</span><small>Record value / amount: {formatIndianCompactAmount(Number(selectedProperty.value||0))}</small></div>}
+    {selectedProperty && <div className="ax-followup-source-context"><strong>{selectedProperty.module}</strong><span>{selectedProperty.title}</span><small>Record value / amount: {formatIndianCompactAmount(selectedProperty.value)}</small></div>}
     <label>Follow-up description *<input required value={form.description} onChange={event=>update("description",event.target.value)} placeholder="What specifically must be followed up?"/></label>
     <div className="form-two"><label>Follow-up date *<input required type="date" value={form.date} onChange={event=>update("date",event.target.value)}/></label><label>Follow-up time<input type="time" value={form.time} onChange={event=>update("time",event.target.value)}/></label></div>
     <div className="form-two"><label>Priority<select value={form.priority} onChange={event=>update("priority",event.target.value)}>{(["Urgent","High","Normal","Low"] as FollowUpPriority[]).map(value=><option key={value}>{value}</option>)}</select></label><label>Status<select value={form.status} onChange={event=>update("status",event.target.value)}>{(["Open","In Progress","Completed","Cancelled"] as FollowUpStatus[]).map(value=><option key={value}>{value}</option>)}</select></label></div>

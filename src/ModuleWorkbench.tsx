@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
+import { parseFollowUps } from "./lib/follow-ups";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileDown, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
 
 type ModuleRecord = {
@@ -30,6 +31,7 @@ type Props = {
 
 const CLOSED = new Set(["completed", "closed", "settled", "rejected", "cancelled"]);
 const currency = (value: number | string) => formatIndianCompactAmount(value) || "—";
+const numericINR = (value: number | string | null | undefined) => parseIndianAmount(value ?? "") ?? 0;
 const dateLabel = (value?: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not scheduled";
 const contactIds = (record: ModuleRecord) => [
   record.primaryContactId || "",
@@ -37,9 +39,10 @@ const contactIds = (record: ModuleRecord) => [
   ...(record.moduleData?.__followUpContactIds || "").split(","),
   ...Object.entries(record.moduleData || {}).filter(([key]) => key.startsWith("__contact_")).map(([,value]) => String(value || ""))
 ].filter(Boolean);
-const followUpContactIds = (record: ModuleRecord) => Array.from(new Set(
-  (record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean)
-));
+const followUpContactIds = (record: ModuleRecord) => Array.from(new Set([
+  ...(record.moduleData?.__followUpContactIds || "").split(",").map(id => id.trim()).filter(Boolean),
+  ...parseFollowUps(record.moduleData).flatMap(entry => entry.contactIds)
+]));
 
 function ModuleEmptyChartPreview({ type }: { type: "donut" | "bar" | "line" }) {
   if (type === "donut") return <svg className="ax-empty-chart-ring" viewBox="0 0 180 180" role="img" aria-label="Empty donut chart preview"><circle cx="90" cy="90" r="62" fill="none" stroke="#1a354a" strokeWidth="21" strokeDasharray="6 7"/><circle cx="90" cy="90" r="45" fill="#0b1d2d"/><text x="90" y="86" textAnchor="middle" fill="#69879c" fontSize="9" letterSpacing="1">NO DATA</text><text x="90" y="105" textAnchor="middle" fill="#89a7bb" fontSize="14" fontWeight="800">0</text></svg>;
@@ -75,6 +78,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const [filter, setFilter] = useState("All");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [inspectedRecord,setInspectedRecord] = useState<ModuleRecord|null>(null);
   const [showAllFields, setShowAllFields] = useState(false);
   const [moduleChartType, setModuleChartType] = useState<"donut" | "bar" | "line">("donut");
   const [moduleMetric, setModuleMetric] = useState<"status" | "value" | "followup">("status");
@@ -90,7 +94,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     const text = [record.title, record.location, record.status, record.contact, record.nextAction, record.notes, ...Object.values(record.moduleData || {})].join(" ").toLowerCase();
     return (filter === "All" || record.status === filter || (filter === "Follow-up set" && Boolean(record.nextFollowUpDate)) || (filter === "No follow-up" && !record.nextFollowUpDate)) && text.includes(query.toLowerCase());
   }), [records, filter, query]);
-  const totalValue = records.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
+  const totalValue = records.reduce((sum, row) => sum + (numericINR(row.value)), 0);
   const active = records.filter(row => !CLOSED.has(String(row.status).toLowerCase())).length;
   const followups = records.filter(row => row.nextFollowUpDate).length;
   const missingData = records.filter(row => !row.location || !row.value || (fields.length > 0 && fields.some(field => !String(row.moduleData?.[field.key] || "").trim()))).length;
@@ -116,7 +120,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       const name = moduleMetric === "followup" ? (record.nextFollowUpDate ? "Follow-up set" : "No follow-up") : (record.status || "Unspecified");
       const existing = groups.get(name) || { name, value: 0, color: ["#20d9ef","#2877ff","#8171ff","#28c78a","#ffbf68","#fc7796"][groups.size%6], records: 0 };
       existing.records += 1;
-      existing.value += moduleMetric === "value" ? (Number(record.value)||0) : 1;
+      existing.value += moduleMetric === "value" ? (numericINR(record.value)) : 1;
       groups.set(name,existing);
     });
     return Array.from(groups.values()).sort((a,b)=>b.value-a.value);
@@ -124,6 +128,10 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
   const moduleChartTotal = moduleChartData.reduce((sum,item)=>sum+item.value,0);
   const expandedHas = (id: string) => expanded.includes(id);
   const toggleExpanded = (id: string) => setExpanded(previous => previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
+  const linkedGroups = (record:ModuleRecord,kind:"primary"|"follow") => {
+    const key=kind==="primary"?"__primaryGroupIds":"__followUpGroupIds";
+    return String(record.moduleData?.[key]||"").split(",").map(id=>id.trim()).filter(Boolean).map(id=>groups.find(group=>group.id===id||group.jid===id)?.name||id);
+  };
   const linkedContacts = (record: ModuleRecord) => {
     const ids = contactIds(record);
     const linked = ids.map(id => contactsById.get(id)).filter((item): item is Contact => Boolean(item));
@@ -145,11 +153,11 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     return entry ? String(entry[1]) : "";
   };
   const srRateFor = (record: ModuleRecord) => record.ratePerUnit || moduleAmount(record, ["srRate","guidanceRate","settlementRate"], /(?:sr|guidance).*(?:rate|value)|(?:rate|guidance).*(?:sr)/i);
-  const marketRateFor = (record: ModuleRecord) => moduleAmount(record, ["marketRate","marketRatePerUnit"], /market.*(?:rate|value|amount)|(?:rate|value|amount).*market/i);
+  const marketRateFor = (record: ModuleRecord) => moduleAmount(record, ["marketRatePerUnit","marketRate","marketValue","marketAmount"], /market.*(?:rate|value|amount)|(?:rate|value|amount).*market/i);
   const settlementValueFor = (record: ModuleRecord) => moduleAmount(record, ["settlementAmount","settlementValue","agreedSettlementAmount"], /settlement.*(?:amount|value)|(?:amount|value).*settlement/i);
   const formatField = (field: ModuleField, value: string) => {
     if (!value.trim()) return value;
-    return field.key === "value" || field.key === "ratePerUnit" || /₹|INR|rupee|amount|exposure|market.*value|settlement.*value/i.test(field.label)
+    return field.key === "value" || field.key === "ratePerUnit" || isIndianAmountLabel(field.label)
       ? currency(value)
       : value;
   };
@@ -170,7 +178,14 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         followUpContact:includeFollowName?follow:"",
         primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:record.nextFollowUpDate?"Date: "+record.nextFollowUpDate:""
+        followUpSummary:[record.nextFollowUpDate?"Next date: "+record.nextFollowUpDate:"",...parseFollowUps(record.moduleData).map(entry=>entry.date+(entry.time?" "+entry.time:"")+" · "+entry.description+" ("+entry.status+")")].filter(Boolean).join("; "),
+        detailsSummary:[
+          "Status: "+record.status,
+          record.targetDeadline?"Target deadline: "+record.targetDeadline:"",
+          record.nextAction?"Next action: "+record.nextAction:"",
+          ...fields.filter(field=>String(record.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+formatField(field,String(record.moduleData[field.key]))),
+          record.notes?"Notes: "+record.notes:""
+        ].filter(Boolean).join("\n")
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
@@ -240,9 +255,18 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       <div className="ax-module-chart-legend">{moduleChartData.map(item=><button key={item.name} onClick={()=>{setFilter(moduleMetric==="followup"?item.name:(statuses.includes(item.name)?item.name:"All"));setView("overview")}}><i style={{background:item.color}}/><span>{item.name}</span><strong>{moduleMetric==="value"?currency(item.value):item.value}</strong><small>{item.records} record{item.records===1?"":"s"}</small></button>)}</div>
       <div className="ax-module-analytics-note"><CheckCircle2 size={14}/> Chart is linked to this module’s saved records. Changes in records update these views automatically.</div>
     </div>
-    : view==="table" ? <div className="ax-record-table-wrap"><table className="ax-record-table"><thead><tr><th>Record / opportunity</th><th>Status</th><th>Location / collateral</th><th>Value / exposure</th><th>SR rate</th><th>Market rate</th><th>Settlement value</th><th>Next action</th><th>Completeness</th><th>Actions</th></tr></thead><tbody>{filtered.map(record=><tr key={record.id}><td><strong>{record.title}</strong><small>{record.module}</small></td><td><span className={"ax-status-chip " + (CLOSED.has(String(record.status).toLowerCase())?"closed":"open")}>{record.status}</span></td><td>{record.location || "Not entered"}</td><td>{currency(Number(record.value)||0)}</td><td>{currency(srRateFor(record))}</td><td>{currency(marketRateFor(record))}</td><td>{currency(settlementValueFor(record))}</td><td>{record.nextAction || (record.nextFollowUpDate ? "Follow-up due " + dateLabel(record.nextFollowUpDate) : "Not scheduled")}</td><td><span className="ax-completeness">{presentFields(record)}/{dataFields.length}</span></td><td><div className="ax-row-actions"><button onClick={()=>onAddFollowUp(record,linkedContacts(record)[0])} title="Add follow-up" aria-label={"Add follow-up for "+record.title}><Plus size={14}/></button><button onClick={()=>toggleExpanded(record.id)} title="Inspect record" aria-label="Inspect record"><Eye size={14}/></button><button onClick={()=>onEdit(record)} title="Edit record" aria-label="Edit record"><Pencil size={14}/></button><button className="danger" onClick={()=>onDelete(record.id)} title="Delete record" aria-label={"Delete "+record.title}><Trash2 size={14}/></button></div></td></tr>)}</tbody></table></div>
+    : view==="table" ? <>
+    <div className="ax-record-table-wrap"><table className="ax-record-table"><thead><tr><th>Record / opportunity</th><th>Status</th><th>Location / collateral</th><th>Value / exposure</th><th>SR rate</th><th>Market rate</th><th>Settlement value</th><th>Next action</th><th>Completeness</th><th>Actions</th></tr></thead><tbody>{filtered.map(record=><tr key={record.id}><td><strong>{record.title}</strong><small>{record.module}</small></td><td><span className={"ax-status-chip " + (CLOSED.has(String(record.status).toLowerCase())?"closed":"open")}>{record.status}</span></td><td>{record.location || "Not entered"}</td><td>{currency(numericINR(record.value))}</td><td>{currency(srRateFor(record))}</td><td>{currency(marketRateFor(record))}</td><td>{currency(settlementValueFor(record))}</td><td>{record.nextAction || (record.nextFollowUpDate ? "Follow-up due " + dateLabel(record.nextFollowUpDate) : "Not scheduled")}</td><td><span className="ax-completeness">{presentFields(record)}/{dataFields.length}</span></td><td><div className="ax-row-actions"><button onClick={()=>onAddFollowUp(record,linkedContacts(record)[0])} title="Add follow-up" aria-label={"Add follow-up for "+record.title}><Plus size={14}/></button><button type="button" onClick={()=>setInspectedRecord(record)} title="View record details" aria-label={"View details for "+record.title}><Eye size={14}/></button><button onClick={()=>onEdit(record)} title="Edit record" aria-label="Edit record"><Pencil size={14}/></button><button className="danger" onClick={()=>onDelete(record.id)} title="Delete record" aria-label={"Delete "+record.title}><Trash2 size={14}/></button></div></td></tr>)}</tbody></table></div>
+    {inspectedRecord&&<div className="ax-hub-modal-backdrop ax-module-detail-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setInspectedRecord(null);}}><section className="ax-hub-record-modal ax-module-detail-modal" role="dialog" aria-modal="true" aria-label={"Record details: "+inspectedRecord.title}>
+      <div className="ax-hub-record-modal__head"><div><span className="section-kicker">{inspectedRecord.module}</span><h2>{inspectedRecord.title}</h2><p>{inspectedRecord.location||"Location not entered"} · {inspectedRecord.status}</p></div><button type="button" aria-label="Close record details" onClick={()=>setInspectedRecord(null)}>×</button></div>
+      <div className="ax-hub-record-modal__grid">{[["Value / exposure",currency(inspectedRecord.value)],["SR / guidance rate",currency(srRateFor(inspectedRecord))],["Market rate",currency(marketRateFor(inspectedRecord))],["Settlement value",currency(settlementValueFor(inspectedRecord))],["Area",inspectedRecord.areaValue?inspectedRecord.areaValue+" "+(inspectedRecord.areaUnit||"sq ft"):"—"],["Primary contact",linkedContacts(inspectedRecord).find(person=>person.id===inspectedRecord.primaryContactId)?.name||inspectedRecord.contact||"—"],["Follow-up contacts",followUpContactIds(inspectedRecord).map(id=>contactsById.get(id)?.name||"").filter(Boolean).join(", ")||"—"],["Primary groups",linkedGroups(inspectedRecord,"primary").join(", ")||"—"],["Follow-up groups",linkedGroups(inspectedRecord,"follow").join(", ")||"—"],["Survey / property ID",inspectedRecord.surveyNumber||"—"],["Ownership / parties",inspectedRecord.ownershipDetails||"—"],["Target deadline",inspectedRecord.targetDeadline||"—"],["Next follow-up",inspectedRecord.nextFollowUpDate?dateLabel(inspectedRecord.nextFollowUpDate):"—"],["Next action",inspectedRecord.nextAction||"—"]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+      {dataFields.filter(field=>getFieldValue(inspectedRecord,field.key).trim()).map(field=><article key={field.key}><span>{field.label}</span><strong>{formatField(field,getFieldValue(inspectedRecord,field.key))}</strong></article>)}</div>
+      {parseFollowUps(inspectedRecord.moduleData).length>0&&<div className="ax-module-detail-notes"><strong>Follow-up history</strong>{parseFollowUps(inspectedRecord.moduleData).map(entry=><p key={entry.id}>{entry.date}{entry.time?" · "+entry.time:""} · {entry.description} · {entry.status} · {entry.priority}{entry.nextAction?" · Next: "+entry.nextAction:""}</p>)}</div>}
+      {inspectedRecord.notes&&<div className="ax-module-detail-notes"><strong>Notes / evidence</strong><p>{inspectedRecord.notes}</p></div>}
+      <div className="ax-hub-modal-actions"><button type="button" className="secondary-button" onClick={()=>setInspectedRecord(null)}>Close</button><button type="button" className="primary-button" onClick={()=>{const record=inspectedRecord;if(record){setInspectedRecord(null);onEdit(record);}}}>Edit record</button></div>
+    </section></div>}</>
     : view==="pipeline" ? <div className="ax-kanban">
-      {stageCounts.filter(stage=>filter==="All"||stage.status===filter).map(stage=><div className="ax-kanban-column" key={stage.status}><header><span>{stage.status}</span><strong>{filtered.filter(record=>record.status===stage.status).length}</strong></header>{filtered.filter(record=>record.status===stage.status).map(record=><article className="ax-kanban-card" key={record.id}><small>{record.location || "Location to be captured"}</small><h3>{record.title}</h3><strong>{currency(Number(record.value)||0)}</strong><p>{record.nextAction || "No next action recorded"}</p><div><button onClick={()=>onAddFollowUp(record,linkedContacts(record)[0])}><Plus size={13}/> Follow-up</button><button onClick={()=>onEdit(record)}><Pencil size={13}/> Edit</button><button onClick={()=>toggleExpanded(record.id)}><Eye size={13}/> Details</button></div>{expandedHas(record.id)&&<section className="ax-kanban-details">{dataFields.filter(field=>getFieldValue(record,field.key).trim()).map(field=><p key={field.key}><span>{field.label}</span><strong>{formatField(field,getFieldValue(record,field.key))}</strong></p>)}</section>}</article>)}</div>)}
+      {stageCounts.filter(stage=>filter==="All"||stage.status===filter).map(stage=><div className="ax-kanban-column" key={stage.status}><header><span>{stage.status}</span><strong>{filtered.filter(record=>record.status===stage.status).length}</strong></header>{filtered.filter(record=>record.status===stage.status).map(record=><article className="ax-kanban-card" key={record.id}><small>{record.location || "Location to be captured"}</small><h3>{record.title}</h3><strong>{currency(numericINR(record.value))}</strong><p>{record.nextAction || "No next action recorded"}</p><div><button onClick={()=>onAddFollowUp(record,linkedContacts(record)[0])}><Plus size={13}/> Follow-up</button><button onClick={()=>onEdit(record)}><Pencil size={13}/> Edit</button><button onClick={()=>toggleExpanded(record.id)}><Eye size={13}/> Details</button></div>{expandedHas(record.id)&&<section className="ax-kanban-details">{dataFields.filter(field=>getFieldValue(record,field.key).trim()).map(field=><p key={field.key}><span>{field.label}</span><strong>{formatField(field,getFieldValue(record,field.key))}</strong></p>)}</section>}</article>)}</div>)}
     </div>
     : view==="data" ? <div className="ax-data-health">
       <div className="ax-data-health-head"><div><span className="ax-kicker"><ShieldCheck size={13}/> RECORD COMPLETENESS AUDIT</span><h3>Fields that keep deals moving</h3><p>Use this review to spot gaps before follow-up, negotiation, disbursal or registration.</p></div><label className="ax-inline-check"><input type="checkbox" checked={showAllFields} onChange={event=>setShowAllFields(event.target.checked)}/> Show empty fields too</label></div>
@@ -257,7 +281,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
       return <article className="ax-module-record-card" key={record.id}>
         <div className="ax-record-topline"><span className="ax-record-type">{moduleName}</span><span className={"ax-status-chip "+(CLOSED.has(String(record.status).toLowerCase())?"closed":"open")}>{record.status}</span></div>
         <h3>{record.title}</h3><p className="ax-record-location">{record.location || "Location / collateral not entered"}</p>
-        <strong className="ax-record-value">{currency(Number(record.value)||0)}</strong>
+        <strong className="ax-record-value">{currency(numericINR(record.value))}</strong>
         <div className="ax-record-progress"><span className="ax-progress-track"><i style={{width:(dataFields.length?presentFields(record)/dataFields.length*100:0)+"%"}}/></span><span>{presentFields(record)}/{dataFields.length} field groups</span></div>
         <div className="ax-record-next"><CalendarClock size={14}/><span>{record.nextAction || (record.nextFollowUpDate ? "Next follow-up " + dateLabel(record.nextFollowUpDate) : "No next action captured")}</span></div>
         <div className="ax-record-followup-people">

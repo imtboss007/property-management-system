@@ -242,9 +242,10 @@ check("module editor uses a wide landscape PC modal and a single-column mobile l
   read("src/App.tsx").includes("module-record-form") &&
   has(read("src/styles.css"), /@media \(min-width: 1100px\)[\s\S]{0,400}\.modal\.module-record-modal[\s\S]{0,300}width: min\(1480px, 94vw\)/i) &&
   has(read("src/styles.css"), /@media \(max-width: 719px\)[\s\S]{0,300}\.modal\.module-record-modal[\s\S]{0,250}width: 100%/i));
-check("selected INR unit remains selected before the user starts typing",
-  has(read("src/App.tsx"), /Keep a unit selected while the input is still empty/i) &&
-  !has(read("src/App.tsx"), /else if\(!raw\.trim\(\)\)setUnit\("rupees"\)/i));
+check("selected INR unit remains selected before the user starts typing and saved INR values infer display units",
+  has(read("src/App.tsx"), /Keep a user's selected unit when the field is empty/i) &&
+  has(read("src/App.tsx"), /else if\(storedPlainAmount\)setUnit\(inferStoredUnit\(\)\)/i) &&
+  has(read("src/App.tsx"), /const unitDivisor=activeUnit===\"crore\"\?10000000/i));
 
 check("pre-existing WhatsApp cache duplicates are removed on load and cleanup counts are shown",
   has(whatsappService, /whatsappContacts = deduplicateWhatsAppContacts\(whatsappContacts\)/i) &&

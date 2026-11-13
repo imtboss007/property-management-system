@@ -57,7 +57,7 @@ All AXIVESTRA fields labelled with ₹ accept either plain numeric amounts or In
 - `2 crore` → ₹2,00,00,000
 - `1 crore 25 lakh` → ₹1,25,00,000
 
-This applies across the module worksheets' rupee fields, common property value/exposure and rate-per-unit fields, and Financials transactions. Percentage, area, quantity, year and tenure fields remain ordinary numeric inputs. Amounts are normalized to a numeric INR value before saving, so existing records, calculations and CSV exports continue using rupees rather than display text.
+This applies across every module's rupee fields, common headline value/exposure, SR/guidance rate per unit, market rate per unit and settlement value, plus Financials and follow-up amounts. Every module record exposes the same three valuation fields, so the module table, Intelligence Hub, Follow-up Registry, analytics and report exports can use consistent values even when a particular module has no extra worksheet field for that value. Amounts are normalized to numeric INR before saving; compact display uses Indian crore/lakh notation (for example, ₹4 Cr and ₹25 Lakhs) while percentage, area, quantity, year and tenure fields remain ordinary numeric inputs.
 
 
 ## Build Windows + Android

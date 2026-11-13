@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, ArrowUpRight, Bookmark, CalendarClock, ChevronRight, CircleAlert, Command, Focus, ListTodo, Pin, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from "lucide-react";
 import type { FollowUpEntry } from "./lib/follow-ups";
-import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { buildRelationshipIntelligence } from "./lib/relationship-intelligence.mjs";
 
 type Property = {
@@ -58,9 +58,9 @@ export default function IntentCanvas(props:Props) {
 
   const moduleValues=useMemo(()=>modules.map(module=>{
     const rows=properties.filter(item=>item.module===module.name);
-    return {...module,count:rows.length,value:rows.reduce((sum,item)=>sum+(Number(item.value)||0),0)};
+    return {...module,count:rows.length,value:rows.reduce((sum,item)=>sum+(parseIndianAmount(item.value)||0),0)};
   }).sort((a,b)=>b.value-a.value),[modules,properties]);
-  const totalValue=properties.reduce((sum,item)=>sum+(Number(item.value)||0),0);
+  const totalValue=properties.reduce((sum,item)=>sum+(parseIndianAmount(item.value)||0),0);
   const activeRecords=properties.filter(item=>!["completed","closed","settled"].includes(String(item.status||"").toLowerCase()));
   const openFollowUps=followUps.filter(item=>!["Completed","Cancelled"].includes(item.entry.status));
   const dueToday= openFollowUps.filter(item=>item.entry.date===today);
@@ -68,8 +68,8 @@ export default function IntentCanvas(props:Props) {
   const upcoming= openFollowUps.filter(item=>item.entry.date && item.entry.date>today);
   const pending=approvals.filter(item=>String(item.status).toLowerCase()==="pending");
   const highRisks=risks.filter(item=>!["closed","resolved"].includes(String(item.status).toLowerCase()) && ["high","critical"].includes(String(item.severity).toLowerCase()));
-  const inflows=financials.filter(item=>IN_KEY.has(item.type)).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
-  const outflows=financials.filter(item=>OUT_KEY.has(item.type)).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
+  const inflows=financials.filter(item=>IN_KEY.has(item.type)).reduce((sum,item)=>sum+(parseIndianAmount(item.amount)||0),0);
+  const outflows=financials.filter(item=>OUT_KEY.has(item.type)).reduce((sum,item)=>sum+(parseIndianAmount(item.amount)||0),0);
   const relationshipIntelligence=useMemo(()=>buildRelationshipIntelligence({contacts,properties,tasks,financials,risks,approvals,documents}),[contacts,properties,tasks,financials,risks,approvals,documents]);
   const tasksOpen=tasks.filter(item=>!item.done);
   const statusGroups=useMemo(()=>{

@@ -11,6 +11,15 @@ const UNIT_MULTIPLIERS = Object.freeze({
   k: 1000
 });
 
+const INDIAN_AMOUNT_LABEL = /(?:₹|\bINR\b|\brupees?\b|\b(?:amount|value|exposure|price|consideration|capital|investment|principal|outstanding|advance)\b|\b(?:sr|guidance|market)\b.*\b(?:rate|value|amount)\b|\bsettlement\b.*\b(?:amount|value|consideration)\b|\brate\b.*\b(?:per unit|per sq\.? ?ft|per acre)\b|\bloan\b.*\b(?:amount|value|exposure)\b)/i;
+
+/** True when a field label describes an INR-denominated amount or rate. */
+export function isIndianAmountLabel(label) {
+  const text = String(label ?? "");
+  if (/%|\bpercent(?:age)?\b/i.test(text)) return false;
+  return INDIAN_AMOUNT_LABEL.test(text);
+}
+
 const TOKEN = /(\d+(?:\.\d+)?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?/g;
 
 /**
