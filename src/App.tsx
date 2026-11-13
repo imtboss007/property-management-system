@@ -2657,6 +2657,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             contacts={contacts}
             tasks={tasks}
             groups={savedWhatsAppGroups}
+            moduleFields={moduleFields}
             today={today}
             onAdd={()=>openFollowUpForm()}
             onEditEntry={(record,entry)=>{const source=properties.find(item=>item.id===record.id);if(source)openFollowUpEditor(source,entry);}}
