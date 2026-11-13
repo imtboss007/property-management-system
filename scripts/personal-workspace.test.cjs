@@ -19,7 +19,7 @@ const checks = [
   ["personal workspace cache is user-scoped", /axivestra\.personal\.\$\{userId\}/i.test(client)],
   ["personal workspace initialization reads personal_records", /preparePersonalWorkspace[\s\S]{0,900}from\("personal_records"\)/i.test(client)],
   ["personal workspace sync uses owner filtering", /syncPersonalWorkspace[\s\S]{0,900}from\("personal_records"\)[\s\S]{0,120}eq\("user_id", userId\)/i.test(client)],
-  ["new users without company memberships default to Personal Mode", /memberships\.length === 0[\s\S]{0,220}choosePersonal\(\)/i.test(gate)],
+  ["new users without company memberships can choose Personal or Local Mode", /Open Personal Workspace/.test(gate) && /Use this device locally/.test(gate)],
   ["Personal Mode passes a user-scoped identity into the app", /<App key=\{"personal:" \+ userId\} personalUserId=\{userId\} userId=\{userId\}/i.test(gate)],
   ["Personal cloud sync is used by the app's workspace sync loop", /syncPersonalWorkspace\(personalUserId!/i.test(app)],
   ["company migration leaves personal records in the personal scope", /personalStorageKey\(userId, item\.storageKey\)/i.test(client) && /importingPersonalWorkspace/i.test(gate)],
