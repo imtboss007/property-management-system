@@ -267,3 +267,66 @@ test("desktop: Explorer quick links open the linked operational views", async ({
   await hub.getByRole("button", { name: "Open all records" }).click();
   await expect(page.getByRole("heading", { name: "All Properties", level: 1 })).toBeVisible();
 });
+
+
+test("desktop and mobile: primary/follow-up names and groups are independently optional in exports", async ({ page }, testInfo) => {
+  await page.goto("/");
+  const mobile = (page.viewportSize()?.width || 1440) <= 720;
+  const openSection = async (name: string) => {
+    if (mobile) await page.getByRole("button", { name: "Open menu" }).click();
+    await page.locator(".nav-list").getByRole("button", { name: new RegExp("^" + name) }).click();
+  };
+  const assertIndependentOptions = async (labels: string[]) => {
+    for (const label of labels) {
+      const box = page.getByRole("checkbox", { name: label, exact: true });
+      await expect(box).toBeVisible();
+      await expect(box).toBeChecked();
+    }
+    for (const label of labels) {
+      const box = page.getByRole("checkbox", { name: label, exact: true });
+      await box.uncheck();
+      await expect(box).not.toBeChecked();
+      await box.check();
+      await expect(box).toBeChecked();
+    }
+  };
+
+  await openSection("Intelligence Hub");
+  await expect(page.getByRole("heading", { name: "Intelligence Hub" })).toBeVisible();
+  await assertIndependentOptions([
+    "Include primary names",
+    "Include follow-up names",
+    "Include primary groups",
+    "Include follow-up groups",
+  ]);
+  const hubPdf = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PDF" }).click();
+  expect((await hubPdf).suggestedFilename()).toMatch(/\.pdf$/i);
+  const hubPpt = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PPT" }).click();
+  expect((await hubPpt).suggestedFilename()).toMatch(/\.pptx$/i);
+
+  await openSection("Follow-up Registry");
+  await expect(page.getByRole("heading", { name: "Follow-up Registry" })).toBeVisible();
+  await assertIndependentOptions([
+    "Primary names",
+    "Follow-up names",
+    "Primary groups",
+    "Follow-up groups",
+  ]);
+  const registryPdf = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PDF" }).click();
+  expect((await registryPdf).suggestedFilename()).toMatch(/\.pdf$/i);
+  const registryPpt = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PPT" }).click();
+  expect((await registryPpt).suggestedFilename()).toMatch(/\.pptx$/i);
+
+  await openSection("All Properties");
+  await expect(page.getByRole("heading", { name: "All Properties" })).toBeVisible();
+  await assertIndependentOptions([
+    "Primary names",
+    "Follow-up names",
+    "Primary groups",
+    "Follow-up groups",
+  ]);
+});
