@@ -13,7 +13,7 @@ const rowValues = row => {
     row.followUpSummary || "",
     row.detailsSummary || ""
   ].filter(Boolean);
-  const fallback = [row.contactSummary,row.followUpSummary].filter(Boolean);
+  const fallback = [row.contactSummary,row.followUpSummary,row.detailsSummary].filter(Boolean);
   return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
 };
 
@@ -33,7 +33,7 @@ function makePdf(title, subtitle, rows) {
       const y=hy-20-ri*52, bg=ri%2===0?"0.055 0.13 0.20":"0.07 0.16 0.23";
       cmd.push("q "+bg+" rg "+margin+" "+(y-6)+" "+usable+" 52 re f Q");
       rowValues(row).forEach((val,i)=>{
-        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+17-j*7.2,5.7,line,"0.84 0.92 0.96")));}
+        if(i===7){const max=Math.max(16,Math.floor((ws[i]-8)/3.3)),lines=String(val||"-").split("\n").flatMap(line=>wrap(line,max)).slice(0,5);lines.forEach((line,j)=>cmd.push(t(xs[i]+4,y+38-j*7.2,5.7,line,"0.84 0.92 0.96")));}
         else {const max=Math.max(7,Math.floor((ws[i]-8)/4.2)),s=ascii(val||"-");cmd.push(t(xs[i]+4,y+2,6.1,s.length>max?s.slice(0,max-1)+"...":s,"0.84 0.92 0.96"));}
       });
       cmd.push("0.12 0.25 0.33 RG 0.3 w "+margin+" "+(y-6)+" m "+(margin+usable)+" "+(y-6)+" l S");
@@ -62,7 +62,7 @@ function makeSlide(title,subtitle,rows,page,totalPages) {
   shapes+=slideShape(3,"Subtitle",subtitle+" | Downloaded "+timestamp(),margin,680000,usable,240000,900,false,null,"8FB5C6");
   const y0=1080000,headerH=350000,rowH=620000;let x=margin;
   cols.forEach((col,i)=>{const w=Math.floor(col[1]*factor);shapes+=slideShape(10+i,"Header "+col[0],col[0],x,y0,w,headerH,800,true,"123D50","65F0DF");x+=w;});
-  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=i===7?String(value||"-").split("\n").map(line=>ascii(line)).join("\n"):ascii(value||"-"),limit=i===0?43:i===7?220:32;shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt.length>limit?txt.slice(0,limit-3)+"...":txt,xx,y,w,rowH-25000,i===7?650:750,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
+  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=i===7?String(value||"-").split("\n").map(line=>ascii(line)).join("\n"):ascii(value||"-"),limit=i===0?43:i===7?520:32;shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt.length>limit?txt.slice(0,limit-3)+"...":txt,xx,y,w,rowH-25000,i===7?650:750,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
   shapes+=slideShape(4,"Footer","AXIVESTRA | "+rows.length+" records on this slide | Page "+page+" of "+totalPages,margin,6500000,usable,180000,800,false,null,"6F94A7");
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:sld>';
 }
