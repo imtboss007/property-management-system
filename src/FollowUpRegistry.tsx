@@ -43,6 +43,43 @@ type Props = {
 const money = (value: string) => formatIndianCompactAmount(value) || "—";
 const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not dated";
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
+const AREA_FACTORS:Record<string,number>={"sq ft":1,"sq yd":9,"sq m":10.7639104167,acre:43560,gunta:1089,hectare:107639.104167,cent:435.6};
+const AREA_UNITS=Object.keys(AREA_FACTORS);
+const amountNumber=(raw:unknown):number|null=>{
+  if(raw===undefined||raw===null||String(raw).trim()==="")return null;
+  const parsed=parseIndianAmount(String(raw));
+  if(parsed!==null&&Number.isFinite(parsed))return parsed;
+  const numeric=Number(String(raw).replace(/[^0-9.-]/g,""));
+  return Number.isFinite(numeric)?numeric:null;
+};
+const rangeNumber=(raw:string)=>raw.trim()?amountNumber(raw):null;
+const recordRate=(record:FollowUpRecordLike|null,kind:"sr"|"market"|"settlement"):number|null=>{
+  if(!record)return null;
+  const data=record.moduleData||{};
+  const keys=kind==="sr"?["srRate","guidanceRate","srGuidanceRate","settlementRate"]:
+    kind==="market"?["marketRate","marketRatePerUnit","marketValue","marketAmount"]:
+    ["settlementAmount","settlementValue","agreedSettlementAmount"];
+  for(const key of keys){const value=amountNumber(data[key]);if(value!==null)return value;}
+  const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:
+    kind==="market"?/market.*(rate|value|amount)|(rate|value|amount).*market/i:
+    /settlement.*(amount|value)|(amount|value).*settlement/i;
+  const entry=Object.entries(data).find(([key,value])=>pattern.test(key)&&amountNumber(value)!==null);
+  if(entry)return amountNumber(entry[1]);
+  return kind==="sr"?amountNumber(record.ratePerUnit):null;
+};
+function MultiCheckList({title,items,selected,onChange}:{title:string;items:{id:string;label:string}[];selected:string[];onChange:(value:string[])=>void}) {
+  const [query,setQuery]=useState("");
+  const filtered=items.filter(item=>!query||item.label.toLowerCase().includes(query.toLowerCase()));
+  const toggle=(id:string,checked:boolean)=>onChange(checked?Array.from(new Set([...selected,id])):selected.filter(value=>value!==id));
+  return <details className="ax-followup-multicheck">
+    <summary>{title} <span>{selected.length ? selected.length+" selected" : "All linked"}</span></summary>
+    <div className="ax-followup-multicheck__body">
+      <input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder={"Search "+title.toLowerCase()+"…"} aria-label={"Search "+title}/>
+      <div className="ax-followup-multicheck__actions"><button type="button" onClick={()=>onChange(items.map(item=>item.id))}>Select all</button><button type="button" onClick={()=>onChange([])}>Clear</button></div>
+      <div className="ax-followup-multicheck__items">{filtered.map(item=><label key={item.id}><input type="checkbox" checked={selected.includes(item.id)} onChange={event=>toggle(item.id,event.target.checked)}/><span>{item.label}</span></label>)}{filtered.length===0&&<small>No linked options match.</small>}</div>
+    </div>
+  </details>;
+}
 
 export default function FollowUpRegistry({
   initialTab="All", properties, contacts, groups, tasks, today, onAdd, onEditEntry, onUpdateEntry,
@@ -50,13 +87,18 @@ export default function FollowUpRegistry({
 }: Props) {
   const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">(initialTab);
   const [query, setQuery] = useState("");
-  const [personFilter, setPersonFilter] = useState("");
-  const [primaryPersonFilter,setPrimaryPersonFilter]=useState("");
-  const [primaryGroupFilter,setPrimaryGroupFilter]=useState("");
-  const [followGroupFilter,setFollowGroupFilter]=useState("");
+  const [personFilters,setPersonFilters]=useState<string[]>([]);
+  const [primaryPersonFilters,setPrimaryPersonFilters]=useState<string[]>([]);
+  const [primaryGroupFilters,setPrimaryGroupFilters]=useState<string[]>([]);
+  const [followGroupFilters,setFollowGroupFilters]=useState<string[]>([]);
+  const [moduleFilters,setModuleFilters]=useState<string[]>([]);
   const [minimumAmount,setMinimumAmount]=useState("");
   const [maximumAmount,setMaximumAmount]=useState("");
   const [locationFilter,setLocationFilter]=useState("");
+  const [areaFrom,setAreaFrom]=useState("");const [areaTo,setAreaTo]=useState("");const [areaUnit,setAreaUnit]=useState("sq ft");
+  const [srFrom,setSrFrom]=useState("");const [srTo,setSrTo]=useState("");
+  const [valueFrom,setValueFrom]=useState("");const [valueTo,setValueTo]=useState("");
+  const [marketFrom,setMarketFrom]=useState("");const [marketTo,setMarketTo]=useState("");
   const [reportGroupBy,setReportGroupBy]=useState("all");
   const [includePrimaryName,setIncludePrimaryName]=useState(true);
   const [includeFollowName,setIncludeFollowName]=useState(true);
@@ -73,7 +115,13 @@ export default function FollowUpRegistry({
     const key=kind==="primary"?"__primaryGroupIds":"__followUpGroupIds";
     return String(record.moduleData[key]||"").split(",").map(id=>id.trim()).filter(Boolean);
   };
-  const groupLabels=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id)?.name||id);
+  const groupLabels=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id||group.name.toLowerCase()===id.toLowerCase())?.name||id);
+  const canonicalGroupIds=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id||group.name.toLowerCase()===id.toLowerCase())?.id||"").filter(Boolean);
+  const linkedPrimaryContacts=contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase())));
+  const linkedFollowContacts=contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id)));
+  const linkedPrimaryGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"primary").includes(group.id)));
+  const linkedFollowGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"follow").includes(group.id)));
+  const selectedModules=modules.map(module=>({id:module,label:module}));
 
 
   const items = useMemo<Item[]>(() => {
@@ -124,16 +172,33 @@ export default function FollowUpRegistry({
       if (tab === "Overdue" && (isFollowUpClosed(status) || !item.entry.date || item.entry.date >= today)) return false;
       if (tab === "Upcoming" && (isFollowUpClosed(status) || !item.entry.date || item.entry.date <= today)) return false;
       if (tab === "Completed" && status !== "Completed") return false;
-      if (personFilter && !item.entry.contactIds.includes(personFilter)) return false;
-      if (primaryPersonFilter && item.record?.primaryContactId !== primaryPersonFilter) return false;
-      if (primaryGroupFilter && !readGroupIds(item.record,"primary").includes(primaryGroupFilter)) return false;
-      if (followGroupFilter && !readGroupIds(item.record,"follow").includes(followGroupFilter)) return false;
+      if (personFilters.length && !personFilters.some(id=>item.entry.contactIds.includes(id))) return false;
+      const primaryIds=item.record?.primaryContactId?[item.record.primaryContactId]:
+        (item.record?.contact?[contacts.find(person=>person.name.trim().toLowerCase()===item.record?.contact?.trim().toLowerCase())?.id||""]:[]);
+      if (primaryPersonFilters.length && !primaryPersonFilters.some(id=>primaryIds.includes(id))) return false;
+      if (primaryGroupFilters.length && !primaryGroupFilters.some(id=>canonicalGroupIds(item.record,"primary").includes(id))) return false;
+      if (followGroupFilters.length && !followGroupFilters.some(id=>canonicalGroupIds(item.record,"follow").includes(id))) return false;
+      if (moduleFilters.length && !moduleFilters.includes(item.module)) return false;
       if (locationFilter.trim() && !String(item.record?.location||"").toLowerCase().includes(locationFilter.trim().toLowerCase())) return false;
-      const amount=Number(item.entry.amount)||Number(item.record?.value)||0;
-      const min=parseIndianAmount(minimumAmount),max=parseIndianAmount(maximumAmount);
-      if (minimumAmount.trim() && (min===null || amount<min)) return false;
-      if (maximumAmount.trim() && (max===null || amount>max)) return false;
-      if (moduleFilter && item.module !== moduleFilter) return false;
+      const amount=amountNumber(item.entry.amount)??amountNumber(item.record?.value);
+      const min=rangeNumber(minimumAmount),max=rangeNumber(maximumAmount);
+      if(minimumAmount.trim()&&(min===null||amount===null||amount<min))return false;
+      if(maximumAmount.trim()&&(max===null||amount===null||amount>max))return false;
+      const area=amountNumber(item.record?.areaValue);
+      const areaFactor=(AREA_FACTORS[item.record?.areaUnit||"sq ft"]||1)/(AREA_FACTORS[areaUnit]||1);
+      const convertedArea=area===null?null:area*areaFactor;
+      const areaLo=rangeNumber(areaFrom),areaHi=rangeNumber(areaTo);
+      if(areaFrom.trim()&&(areaLo===null||convertedArea===null||convertedArea<areaLo))return false;
+      if(areaTo.trim()&&(areaHi===null||convertedArea===null||convertedArea>areaHi))return false;
+      const sr=recordRate(item.record,"sr"),srLo=rangeNumber(srFrom),srHi=rangeNumber(srTo);
+      if(srFrom.trim()&&(srLo===null||sr===null||sr<srLo))return false;
+      if(srTo.trim()&&(srHi===null||sr===null||sr>srHi))return false;
+      const value=amountNumber(item.record?.value),valueLo=rangeNumber(valueFrom),valueHi=rangeNumber(valueTo);
+      if(valueFrom.trim()&&(valueLo===null||value===null||value<valueLo))return false;
+      if(valueTo.trim()&&(valueHi===null||value===null||value>valueHi))return false;
+      const market=recordRate(item.record,"market"),marketLo=rangeNumber(marketFrom),marketHi=rangeNumber(marketTo);
+      if(marketFrom.trim()&&(marketLo===null||market===null||market<marketLo))return false;
+      if(marketTo.trim()&&(marketHi===null||market===null||market>marketHi))return false;
       if (priorityFilter && item.entry.priority !== priorityFilter) return false;
       if (term) {
         const people = item.entry.contactIds.map(id => contactById.get(id)?.name || "").join(" ");
@@ -143,8 +208,8 @@ export default function FollowUpRegistry({
       return true;
     });
     if (amountSort !== "none") result = [...result].sort((a,b) => {
-      const av = Number(a.entry.amount) || Number(a.record?.value) || 0;
-      const bv = Number(b.entry.amount) || Number(b.record?.value) || 0;
+      const av = amountNumber(a.entry.amount) ?? amountNumber(a.record?.value) ?? 0;
+      const bv = amountNumber(b.entry.amount) ?? amountNumber(b.record?.value) ?? 0;
       return amountSort === "high" ? bv-av : av-bv;
     });
     else result = [...result].sort((a,b) => {
@@ -152,7 +217,7 @@ export default function FollowUpRegistry({
       return date || (a.entry.time || "").localeCompare(b.entry.time || "");
     });
     return result;
-  }, [items, tab, today, personFilter, primaryPersonFilter, primaryGroupFilter, followGroupFilter, minimumAmount, maximumAmount, locationFilter, moduleFilter, priorityFilter, query, amountSort, contactById, groups]);
+  }, [items, tab, today, personFilters, primaryPersonFilters, primaryGroupFilters, followGroupFilters, moduleFilters, minimumAmount, maximumAmount, locationFilter, areaFrom, areaTo, areaUnit, srFrom, srTo, valueFrom, valueTo, marketFrom, marketTo, contacts, priorityFilter, query, amountSort, contactById, groups]);
 
   const peopleGroups = useMemo(() => {
     const groups = new Map<string,{id:string;name:string;items:Item[]}>();
