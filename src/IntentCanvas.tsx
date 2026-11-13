@@ -162,7 +162,7 @@ export default function IntentCanvas(props:Props) {
       {visible.filter(panel=>!focus||panel===focus).map(panel=>{
         if(panel==="portfolio") return <section className="ax-intent-panel" key={panel}>
           {panelHeader(panel,"Portfolio & exposure intelligence","Entered record values and live status",<TrendingUp size={16}/>,()=>props.onOpenModule("All Properties"),"Open portfolio")}
-          <div className="ax-intent-big-number">{INR.format(totalValue)}<small>Recorded value / exposure · {properties.length} records</small></div>
+          <div className="ax-intent-big-number">{formatIndianCompactAmount(totalValue)}<small>Recorded value / exposure · {properties.length} records</small></div>
           <div className="ax-intent-stat-row"><span>Active records <strong>{activeRecords.length}</strong></span><span>Operating modules <strong>{modules.length}</strong></span><span>Tasks open <strong>{tasksOpen.length}</strong></span></div>
           <div className="ax-intent-module-bars">{moduleValues.slice(0,5).map(item=><button type="button" key={item.name} onClick={()=>props.onOpenModule(item.name)}><span>{item.name}</span><i><b style={{width:(totalValue>0?Math.max(2,item.value/totalValue*100):0)+"%"}}/></i><strong>{item.count}</strong></button>)}</div>
         </section>;
@@ -175,8 +175,8 @@ export default function IntentCanvas(props:Props) {
 
         if(panel==="finance") return <section className="ax-intent-panel" key={panel}>
           {panelHeader(panel,"Financial movement","Recorded transactions only",<Wallet size={16}/>,props.onOpenFinancials,"Open financials")}
-          <div className="ax-intent-finance-columns"><div><span>Recorded inflows</span><strong>{INR.format(inflows)}</strong><small>{financials.filter(item=>IN_KEY.has(item.type)).length} entries</small></div><div><span>Recorded outflows</span><strong>{INR.format(outflows)}</strong><small>{financials.filter(item=>OUT_KEY.has(item.type)).length} entries</small></div></div>
-          <p className="ax-intent-footnote">Net recorded movement: <strong>{INR.format(inflows-outflows)}</strong>. This is not a bank balance or a forecast.</p>
+          <div className="ax-intent-finance-columns"><div><span>Recorded inflows</span><strong>{formatIndianCompactAmount(inflows)}</strong><small>{financials.filter(item=>IN_KEY.has(item.type)).length} entries</small></div><div><span>Recorded outflows</span><strong>{formatIndianCompactAmount(outflows)}</strong><small>{financials.filter(item=>OUT_KEY.has(item.type)).length} entries</small></div></div>
+          <p className="ax-intent-footnote">Net recorded movement: <strong>{formatIndianCompactAmount(inflows-outflows)}</strong>. This is not a bank balance or a forecast.</p>
         </section>;
 
         if(panel==="people") return <section className="ax-intent-panel" key={panel}>
