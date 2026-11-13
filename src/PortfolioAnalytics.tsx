@@ -175,7 +175,7 @@ function HorizontalBars({ items, selected, onSelect, showLabels }: {
 }) {
   const max = Math.max(1, ...items.map(item => item.value));
   return <div className="ax-horizontal-bars">{items.slice(0, 10).map(item => <button key={item.name} className={"ax-bar-row " + (selected === item.name ? "selected" : "")} onClick={() => onSelect(selected === item.name ? "" : item.name)}>
-    <span className="ax-bar-label">{item.name}</span><span className="ax-bar-track"><i style={{ width: (item.value / max * 100) + "%", background: item.color }}/></span>{showLabels && <strong>{item.value.toLocaleString("en-IN")}</strong>}
+    <span className="ax-bar-label">{item.name}</span><span className="ax-bar-track"><i style={{ width: (item.value / max * 100) + "%", background: item.color }}/></span>{showLabels && <strong>{focus==="allocation"&&metric==="value" || focus==="cashflow" ? compact(item.value) : item.value.toLocaleString("en-IN")}</strong>}
   </button>)}</div>;
 }
 
