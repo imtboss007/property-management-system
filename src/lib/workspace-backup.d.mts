@@ -13,7 +13,7 @@ export type ParsedWorkspaceBackup = Partial<WorkspaceBackupCollections> & Pick<W
 export const WORKSPACE_BACKUP_FORMAT: "AXIVESTRA_WORKSPACE_BACKUP";
 export const WORKSPACE_BACKUP_VERSION: 1;
 export const WORKSPACE_BACKUP_KEYS: readonly string[];
-export function createWorkspaceBackup(collections: WorkspaceBackupCollections, exportedAt?: string): {
+export function createWorkspaceBackup(collections: Record<string, unknown[]>, exportedAt?: string): {
   format: "AXIVESTRA_WORKSPACE_BACKUP";
   schemaVersion: 1;
   exportedAt: string;
