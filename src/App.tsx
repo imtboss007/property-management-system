@@ -1403,11 +1403,11 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   });
   const activeContactFilterCount = contactRoleFilters.length + Number(Boolean(contactProfessionFilter)) + Number(Boolean(contactCompanyFilter));
   const universalEntities: UniversalEntity[] = [
-    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? formatIndianCompactAmount(Number(record.value)) : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
+    ...properties.slice(0,300).map(record => ({ id: record.id, kind: record.module, title: record.title, section: "All Properties", subtitle: [record.location, record.status].filter(Boolean).join(" · "), details: [{label:"Module",value:record.module},{label:"Location",value:record.location},{label:"Value / exposure",value:record.value ? formatIndianCompactAmount(record.value) : ""},{label:"Status",value:record.status},{label:"Primary contact",value:record.contact},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...contacts.slice(0,300).map(record => ({ id: record.id, kind: "Contact", title: record.name, section: "Contacts", subtitle: [record.role,record.phone].filter(Boolean).join(" · "), details: [{label:"Role",value:record.role},{label:"Phone",value:record.phone},{label:"Email",value:record.email || ""},{label:"Organisation",value:record.associatedCompany || ""},{label:"Notes",value:record.notes}] })),
     ...tasks.slice(0,250).map(record => ({ id: record.id, kind: "Task", title: record.title, section: "Schedule & Tasks", subtitle: [record.date,record.time,record.done?"Completed":"Open"].filter(Boolean).join(" · "), details: [{label:"Date",value:record.date},{label:"Time",value:record.time},{label:"Related property",value:record.property},{label:"Contact",value:record.contactName || ""},{label:"Next action",value:record.nextAction || ""},{label:"Notes",value:record.notes}] })),
     ...documents.slice(0,250).map(record => ({ id: record.id, kind: "Document", title: record.name, section: "Documents", subtitle: [record.category,record.property].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Property",value:record.property},{label:"Expiry",value:record.expiresOn},{label:"Notes",value:record.notes}] })),
-    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,formatIndianCompactAmount(Number(record.amount||0))].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:formatIndianCompactAmount(Number(record.amount||0))},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
+    ...financials.slice(0,250).map(record => ({ id: record.id, kind: "Financial", title: record.reference || record.type, section: "Financials", subtitle: [record.type,record.party,formatIndianCompactAmount(record.amount||0)].filter(Boolean).join(" · "), details: [{label:"Type",value:record.type},{label:"Amount",value:formatIndianCompactAmount(record.amount||0)},{label:"Date",value:record.date},{label:"Party",value:record.party},{label:"Reference",value:record.reference},{label:"Notes",value:record.notes}] })),
     ...riskRecords.slice(0,150).map(record => ({ id: record.id, kind: "Risk", title: record.title, section: "Risk & Compliance", subtitle: [record.category,record.severity,record.status].filter(Boolean).join(" · "), details: [{label:"Category",value:record.category},{label:"Severity",value:record.severity},{label:"Status",value:record.status},{label:"Owner",value:record.owner},{label:"Due date",value:record.dueDate},{label:"Mitigation",value:record.mitigation}] })),
     ...approvalRequests.slice(0,150).map(record => ({ id: record.id, kind: "Approval", title: record.title, section: "Approvals", subtitle: [record.area,record.priority,record.status].filter(Boolean).join(" · "), details: [{label:"Area",value:record.area},{label:"Priority",value:record.priority},{label:"Status",value:record.status},{label:"Approver",value:record.approver},{label:"Rationale",value:record.rationale}] }))
   ];
@@ -1417,9 +1417,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   ];
   const inflowTypes = ["Sale", "Advance", "Loan Disbursal", "Receipt"];
   const outflowTypes = ["Purchase", "Loan Repayment", "Interest", "Instalment", "Brokerage", "Expense", "Settlement"];
-  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  const portfolioValue = properties.reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const totalInflow = financials.filter(item => inflowTypes.includes(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
+  const totalOutflow = financials.filter(item => outflowTypes.includes(item.type)).reduce((sum, item) => sum + (parseIndianAmount(item.amount) || 0), 0);
+  const portfolioValue = properties.reduce((sum, item) => sum + (parseIndianAmount(item.value) || 0), 0);
   const activeRecordCount = properties.filter(item => !["Completed", "Closed"].includes(item.status)).length;
   const openLitigationCount = properties.filter(item => item.module === "Litigation" && !["Completed", "Closed"].includes(item.status)).length;
   const startupCount = properties.filter(item => item.module === "Startup" && !["Completed", "Closed"].includes(item.status)).length;
@@ -2721,7 +2721,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             <div className="section-heading"><div><h2>Financial intelligence</h2><p>{financials.length} recorded transactions · amounts in INR</p></div><div className="finance-actions"><button className="secondary-button" onClick={()=>{const rows=[["Date","Type","Property","Amount INR","Party","Reference","Notes"],...financials.map(item=>[item.date,item.type,item.property,item.amount,item.party,item.reference,item.notes])];const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(",")).join("\n");const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));link.download=`estateflow-financials-${today}.csv`;link.click();URL.revokeObjectURL(link.href);}}>Export CSV</button><button className="primary-button" onClick={()=>openFinancialForm()}><Plus size={16}/> Add transaction</button></div></div>
             <div className="finance-summary"><div><span>Tracked inflows</span><strong>{formatIndianCompactAmount(totalInflow)}</strong></div><div><span>Tracked outflows</span><strong>{formatIndianCompactAmount(totalOutflow)}</strong></div><div><span>Net recorded movement</span><strong>{formatIndianCompactAmount(totalInflow-totalOutflow)}</strong></div></div>
             <p className="finance-footnote">Totals are category-based summaries of records entered here, not verified bank balances or accounting advice. Review transaction types and source documents before relying on settlement figures.</p>
-            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · {formatIndianCompactAmount(Number(item.amount||0))}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
+            {financials.length ? <div className="record-list">{[...financials].sort((a,b)=>b.date.localeCompare(a.date)).map(item=><article className="record-card" key={item.id}><div className="record-symbol"><Calculator size={20}/></div><div className="record-main"><h3>{item.type} · {formatIndianCompactAmount(item.amount||0)}</h3><p>{item.date}{item.property ? <><span>•</span>{item.property}</> : null}</p>{item.party&&<small>Party: {item.party}</small>}{item.reference&&<small>Reference: {item.reference}</small>}{item.notes&&<small>{item.notes}</small>}</div><div className="record-side"><button className="edit-button" onClick={()=>openFinancialForm(item)} aria-label={`Edit ${item.type} transaction`}><Pencil size={15}/></button><button className="delete-button" onClick={()=>deleteFinancial(item.id)} aria-label="Delete financial transaction"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<Calculator size={22}/>} title="No financial transactions yet" text="Record advances, purchase/sale values, loans, repayments, interest, receipts, brokerage, expenses and settlements." action="Add transaction" onClick={()=>openFinancialForm()}/>}
           </section>}
           {active === "Client & Deal Hub" && <RelationshipHub
             properties={properties} contacts={contacts} tasks={tasks} financials={financials} today={today}
@@ -2869,7 +2869,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
       const deadline=getPropertyDeadline(property);
       const deadlineOverdue=Boolean(deadline && deadline.date<today && !["Completed","Closed","Settled","Disbursed"].includes(property.status));
       const followupOverdue=Boolean(property.nextFollowUpDate && property.nextFollowUpDate<today);
-      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+Number(item.amount||0),0);
+      const recordedAmount=relatedFinancials.reduce((sum,item)=>sum+(parseIndianAmount(item.amount) || 0),0);
       return <article className="record-card relationship-record" key={property.id}>
         <div className="record-symbol"><Building2 size={20}/></div>
         <div className="record-main">
@@ -2887,7 +2887,7 @@ function RelationshipHub({properties,contacts,tasks,financials,today,onEditPrope
             {stakeholders.map(stakeholder=><span className="linked-stakeholder" key={stakeholder.id}><strong>{stakeholder.name}</strong><small>{getLinkedContactRoleLabels(property,contacts).filter(label=>label.endsWith(": "+stakeholder.name)).join(" · ") || stakeholder.role}</small>{stakeholder.phone && <a className="secondary-button" href={`tel:${stakeholder.phone}`}><Phone size={14}/> Call</a>}<button className="secondary-button" onClick={()=>onSchedule(property,stakeholder)}><CalendarClock size={14}/> Schedule call</button><button className="secondary-button" onClick={()=>onWhatsApp(stakeholder.id,property.id)}><MessageCircle size={14}/> WhatsApp</button></span>)}
           </div>
         </div>
-        <div className="record-side"><strong>{property.value ? formatIndianCompactAmount(Number(property.value)) : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
+        <div className="record-side"><strong>{property.value ? formatIndianCompactAmount(property.value) : "Value not set"}</strong><span className={`status-pill ${deadlineOverdue?"deadline-status":""}`}>{deadlineOverdue?"Deadline overdue":property.status}</span></div>
       </article>;
     })}</div>}
     <div className="section-heading"><div><span className="section-kicker">CALLS & FOLLOW-UP QUEUE</span><h2>Next actions across your contacts</h2><p>Each reminder can be linked to a person and a deal.</p></div><button className="secondary-button" onClick={onOpenTasks}>Open full schedule <ArrowUpRight size={15}/></button></div>
@@ -2924,14 +2924,25 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
   const raw=String(value ?? "");
   const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
   const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
-  const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):"rupees");
+  const [unit,setUnit]=useState<IndianAmountUnit>(()=>{
+    if(simpleAmount?.[2])return amountUnitFromSuffix(simpleAmount[2]);
+    const parsedStored=parseIndianAmount(raw);
+    if(parsedStored!==null && /^\\s*₹?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?\\s*$/.test(raw)) {
+      if(parsedStored>=10000000)return "crore";
+      if(parsedStored>=100000)return "lakh";
+      if(parsedStored>=1000)return "thousand";
+    }
+    return "rupees";
+  });
   // Keep a unit selected while the input is still empty. The previous effect
   // reset it to Rupees whenever a user chose Lakhs/Crores before typing.
   useEffect(()=>{
     if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
   },[simpleAmount?.[2]]);
   const activeUnit=simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):unit;
-  const displayValue=simpleAmount?simpleAmount[1]:raw;
+  const storedPlainAmount=!simpleAmount?.[2] && !hasCombinedShorthand && /^\\s*₹?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?\\s*$/.test(raw);
+  const unitDivisor=activeUnit==="crore"?10000000:activeUnit==="lakh"?100000:activeUnit==="thousand"?1000:1;
+  const displayValue=simpleAmount ? (storedPlainAmount && unitDivisor>1 ? String(Number((parseIndianAmount(raw)||0)/unitDivisor).toFixed(2)).replace(/\\.?0+$/,"") : simpleAmount[1]) : raw;
   const hasValue=raw.trim().length>0;
   const parsed=hasValue?parseIndianAmount(raw):null;
   const writeAmount=(amount:string,nextUnit:IndianAmountUnit)=>{
