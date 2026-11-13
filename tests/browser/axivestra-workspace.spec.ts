@@ -460,6 +460,12 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await expect(dialog).toContainText("₹4 Cr");
     await expect(dialog).toContainText("Settlement value");
     await dialog.getByRole("button",{name:"Close record details"}).click();
+    if(module===expectedModules[0]){
+      await row.getByRole("button",{name:"Edit record"}).click();
+      await expect(page.getByLabel("Amount in Indian rupees").first()).toHaveValue("4");
+      await expect(page.getByLabel("Amount unit").first()).toHaveValue("crore");
+      await page.getByRole("button",{name:"Cancel",exact:true}).click();
+    }
   }
   await openSection("Intelligence Hub");
   const dateButton=page.getByTestId("hub-date-open-qa-module-1");
@@ -477,6 +483,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await page.getByRole("button",{name:"Clear all filters"}).click();
   await openSection("Follow-up Registry");
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
+  await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
   await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
   await expect(page.getByText("QA Primary Group").first()).toBeVisible();
   await expect(page.getByText("QA Follow-up Group").first()).toBeVisible();
