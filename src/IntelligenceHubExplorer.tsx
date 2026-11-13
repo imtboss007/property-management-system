@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarClock, Download, FileDown, Filter, MapPin, Search, Users, X } from "lucide-react";
+import { CalendarClock, Download, FileDown, Filter, MapPin, X } from "lucide-react";
 import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { parseFollowUps, type FollowUpEntry, type FollowUpRecordLike } from "./lib/follow-ups";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
@@ -20,7 +20,6 @@ type Props = {
   onEditRecord:(record:HubRecord)=>void;
   onEditFollowUp:(record:HubRecord,entry:FollowUpEntry)=>void;
 };
-type GroupValue = {id:string;label:string};
 const money = (value:string|number) => formatIndianCompactAmount(value) || "—";
 const parseRange = (value:string) => value.trim() ? parseIndianAmount(value) : null;
 const AREA_FACTORS:Record<string,number> = { "sq ft":1, "sq yd":9, acre:43560, gunta:1089, "sq m":10.7639104167, hectare:107639.104167, cent:435.6 };
@@ -150,7 +149,6 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     try{const data=reportRows();const subtitle="Intelligence Hub · "+filtered.length+" filtered records · Recorded value / exposure "+money(totals.value)+(reportGroup==="primary"?" · Primary-contact-wise":reportGroup==="follow"?" · Follow-up-contact-wise":reportGroup==="date"?" · Follow-up date/time-wise":" · All filtered records");if(kind==="pdf")downloadIntelligencePdf("Intelligence Hub",subtitle,data);else downloadIntelligencePptx("Intelligence Hub",subtitle,data);}
     finally{window.setTimeout(()=>setReportBusy(false),700);}
   };
-  const resetActive=moduleIds.length||location||areaMin||areaMax||srMin||srMax||valueMin||valueMax||marketMin||marketMax||primaryIds.length||followIds.length||primaryGroups.length||followGroups.length;
   const selectedFollowUps=selectedRecord?parseFollowUps(selectedRecord.moduleData):[];
   return <section className="ax-hub-explorer data-panel">
     <div className="ax-hub-explorer__head"><div><span className="section-kicker">CROSS-MODULE RECORD SEARCH</span><h2>Filter, inspect and export saved records</h2><p>Filters operate on stored module records. Missing amounts and areas are not treated as zero-valued matches.</p></div><div className="ax-hub-explorer__head-actions"><button type="button" className="secondary-button" onClick={()=>setShowFilters(value=>!value)}><Filter size={15}/>{showFilters?"Hide filters":"Show filters"}</button><button type="button" className="secondary-button" onClick={clearFilters}>Clear all filters</button></div></div>
