@@ -133,7 +133,10 @@ export default function FollowUpRegistry({
   const primaryGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"primary").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
   const followGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"follow").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
   const moneyField=(record:FollowUpRecordLike|null,kind:"sr"|"market")=>{
-    if(!record?.moduleData)return 0;
+    if(!record)return 0;
+    const recordRate=(record as FollowUpRecordLike & {ratePerUnit?:string}).ratePerUnit;
+    if(kind==="sr" && String(recordRate||"").trim())return parseIndianAmount(recordRate)||0;
+    if(!record.moduleData)return 0;
     const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:["marketRate","marketRatePerUnit","marketValue","marketAmount"];
     for(const key of exact){const value=record.moduleData[key];if(String(value||"").trim())return parseIndianAmount(value)||0;}
     const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:/market.*(rate|value|amount)|(rate|value|amount).*market/i;
