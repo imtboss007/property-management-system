@@ -7,6 +7,10 @@ export type IntelligenceReportRow = {
   marketRate?: string;
   settlementValue?: string;
   area?: string;
+  primaryContact?: string;
+  followUpContact?: string;
+  primaryGroup?: string;
+  followUpGroup?: string;
   contactSummary?: string;
   followUpSummary?: string;
 };
