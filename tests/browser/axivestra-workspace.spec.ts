@@ -499,8 +499,11 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await hubDialog.getByRole("button",{name:"Edit date / time and follow-up"}).click();
   await expect(page.getByLabel("Follow-up date *")).toHaveValue("2026-11-14");
   await expect(page.getByLabel("Follow-up time")).toHaveValue("10:30");
-  await page.getByRole("button",{name:"Cancel",exact:true}).click();
-  await expect(hubDialog).toBeVisible();
+  await page.getByLabel("Follow-up date *").fill("2026-11-15");
+  await page.getByLabel("Follow-up time").fill("11:15");
+  await page.getByRole("button",{name:"Save follow-up changes"}).click();
+  await expect(hubDialog).toContainText("2026-11-15");
+  await expect(hubDialog).toContainText("11:15");
   await hubDialog.getByRole("button",{name:"Close record details"}).click();
   await expect(page.getByText("Area / size range")).toBeVisible();
   await expect(page.getByText("SR / guidance rate")).toBeVisible();
@@ -519,6 +522,8 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
   await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
   await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
+  await expect(page.getByText("2026-11-15").first()).toBeVisible();
+  await expect(page.getByText("11:15").first()).toBeVisible();
   await expect(page.getByText("QA Primary Group").first()).toBeVisible();
   await expect(page.getByText("QA Follow-up Group").first()).toBeVisible();
   await expect(page.getByRole("checkbox",{name:"QA Follow-up Contact · Broker"})).toBeVisible();
