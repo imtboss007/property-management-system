@@ -442,7 +442,8 @@ test("desktop and mobile: every module formats crores and opens table details, h
   test.setTimeout(240_000);
   const openSection=async(name:string)=>{
     if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
-    await page.getByTestId("module-directory-"+name).click();
+    if(expectedModules.includes(name)) await page.getByTestId("module-directory-"+name).click();
+    else await page.locator(".nav-list").getByRole("button",{name:new RegExp("^"+name)}).click();
   };
   for(const module of expectedModules){
     await openSection(module);
@@ -479,11 +480,28 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(hubDialog).toContainText("QA Primary Contact");
   await expect(hubDialog).toContainText("QA Follow-up Group");
   await expect(hubDialog).toContainText("₹4 Cr");
+  await expect(hubDialog).toContainText("QA Follow-up Contact");
+  await expect(hubDialog).toContainText("QA appointment · Property Sale");
+  await expect(hubDialog).toContainText("10:30");
+  await hubDialog.getByRole("button",{name:"Edit date / time and follow-up"}).click();
+  await expect(page.getByLabel("Follow-up date *")).toHaveValue("2026-11-14");
+  await expect(page.getByLabel("Follow-up time")).toHaveValue("10:30");
+  await page.getByRole("button",{name:"Cancel",exact:true}).click();
+  await expect(hubDialog).toBeVisible();
   await hubDialog.getByRole("button",{name:"Close record details"}).click();
   await expect(page.getByText("Area / size range")).toBeVisible();
   await expect(page.getByText("SR / guidance rate")).toBeVisible();
   await expect(page.getByText("Market value / rate")).toBeVisible();
+  await page.getByRole("checkbox",{name:/Property Sale/}).check();
+  await expect(page.getByText("1 matching records")).toBeVisible();
+  const primaryGroups=page.locator(".ax-hub-checklist").filter({hasText:"Primary WhatsApp group"});
+  const followGroups=page.locator(".ax-hub-checklist").filter({hasText:"Follow-up WhatsApp group"});
+  await expect(primaryGroups.getByText("QA Primary Group")).toBeVisible();
+  await expect(primaryGroups.getByText("QA Follow-up Group")).toHaveCount(0);
+  await expect(followGroups.getByText("QA Follow-up Group")).toBeVisible();
+  await expect(followGroups.getByText("QA Primary Group")).toHaveCount(0);
   await page.getByRole("button",{name:"Clear all filters"}).click();
+  await expect(page.getByText("16 matching records")).toBeVisible();
   await openSection("Follow-up Registry");
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
   await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
