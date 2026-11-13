@@ -176,8 +176,10 @@ const moduleFields: Record<string, ModuleField[]> = {
   "SR Rate Settlement": [
     { key: "settlementParties", label: "Settlement parties", placeholder: "Names / entities" },
     { key: "settlementBasis", label: "Settlement basis", placeholder: "Rate per unit / area / fixed amount" },
-    { key: "settlementRate", label: "Agreed rate per unit (₹)", placeholder: "Rate", type: "number" },
-    { key: "settlementAmount", label: "Settlement amount (₹)", placeholder: "Amount", type: "number" },
+    { key: "srRate", label: "SR / guidance rate per unit (₹)", placeholder: "e.g. 4 Cr", type: "number" },
+    { key: "marketRatePerUnit", label: "Market rate per unit (₹)", placeholder: "e.g. 8 Cr", type: "number" },
+    { key: "settlementRate", label: "Agreed settlement rate per unit (₹)", placeholder: "Rate", type: "number" },
+    { key: "settlementAmount", label: "Settlement amount / value (₹)", placeholder: "Amount", type: "number" },
     { key: "settlementStage", label: "Settlement stage", placeholder: "Proposal / negotiation / approved / paid" },
     { key: "targetSettlementDate", label: "Target settlement date", placeholder: "Date", type: "date" },
     { key: "supportingReference", label: "MOU / reference / supporting documents", placeholder: "Reference details" }
