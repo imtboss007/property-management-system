@@ -21,7 +21,7 @@ import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { isIndianAmountLabel, parseIndianAmount, normalizeIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import { parseContactImport, contactsToVCard } from "./lib/contact-portability.mjs";
 import { createWorkspaceBackup, parseWorkspaceBackup } from "./lib/workspace-backup.mjs";
@@ -38,6 +38,7 @@ type PropertyRecord = {
   id: string; title: string; module: string; location: string; value: string;
   status: string; contact: string; primaryContactId?: string; targetDeadline?: string; nextFollowUpDate?: string; nextAction?: string; notes: string; createdAt: string;
   surveyNumber: string; ownershipDetails: string; areaValue: string; areaUnit: string; dimensions: string; ratePerUnit: string;
+  landSizeValue?: string; landSizeUnit?: string; builtUpSizeValue?: string; builtUpSizeUnit?: string;
   moduleData: Record<string, string>;
 };
 type ContactRecord = { id: string; name: string; phone: string; role: string; roles?: string[]; customRoles?: string; email?: string; address?: string; profession?: string; employer?: string; designation?: string; businessType?: string; incomeSources?: string; associatedCompany?: string; relationshipNotes?: string; notes: string; whatsappName?: string; whatsappJid?: string };
@@ -103,7 +104,7 @@ function SearchableContactPicker({ label, contacts, value, onChange, multiple = 
   </div>;
 }
 
-const modules = [
+const baseModules = [
   { name: "Property Sale", icon: Building2, color: "mint", group: "Real Assets", description: "Sales pipeline, price, counterparty and closing milestones." },
   { name: "Property Loans", icon: HandCoins, color: "blue", group: "Credit", description: "Secured facilities, collateral, balances and repayments." },
   { name: "JV / JDA / JD", icon: Handshake, color: "violet", group: "Development", description: "Landowner and developer terms, shares and obligations." },
@@ -138,8 +139,9 @@ const navigation = [
   { name: "WhatsApp Automation", icon: MessageCircle }
 ];
 
-type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" };
-const moduleFields: Record<string, ModuleField[]> = {
+type ModuleField = { key: string; label: string; placeholder: string; type?: "text" | "number" | "date" | "amount" };
+type CustomModuleDefinition = { id: string; name: string; group: string; description: string; fields: ModuleField[]; createdAt: string };
+const defaultModuleFields: Record<string, ModuleField[]> = {
   "Property Sale": [
     { key: "seller", label: "Seller / owner", placeholder: "Seller contact or legal entity" },
     { key: "buyer", label: "Buyer", placeholder: "Buyer contact or legal entity" },
@@ -616,6 +618,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const [contactImportBusy, setContactImportBusy] = useState(false);
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
+  const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
+  const modules = useMemo(() => [...baseModules, ...customModules.map(item => ({ ...item, icon: Building2, color: "blue" }))], [customModules]);
+  const moduleFields = useMemo<Record<string, ModuleField[]>>(() => ({ ...defaultModuleFields, ...Object.fromEntries(customModules.map(item => [item.name, item.fields])) }), [customModules]);
   const [contacts, setContacts] = useState<ContactRecord[]>(() => load("estateflow.contacts", []));
   const [savedWhatsAppGroups, setSavedWhatsAppGroups] = useState<SavedWhatsAppGroup[]>(() => load("estateflow.whatsappGroups", []));
   // Mutable references let background cache restoration merge with the latest records, never an initial render snapshot.
@@ -640,6 +645,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [documentVaultBusy, setDocumentVaultBusy] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
+  const [showCustomModuleForm, setShowCustomModuleForm] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
@@ -715,6 +721,9 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   useEffect(() => {
     saveLocal("estateflow.properties", properties);
   }, [properties]);
+  useEffect(() => {
+    saveLocal("estateflow.customModules", customModules);
+  }, [customModules]);
 
   useEffect(() => {
     saveLocal("estateflow.contacts", contacts);
@@ -765,6 +774,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       const sequence = ++cloudSyncSequenceRef.current;
       cloudSyncInFlightRef.current = true;
       const collections: WorkspaceCollections = {
+        customModules: customModules as WorkspaceCollections["customModules"],
         properties: properties as WorkspaceCollections["properties"],
         contacts: contacts as WorkspaceCollections["contacts"],
         whatsappGroups: savedWhatsAppGroups as WorkspaceCollections["whatsappGroups"],
@@ -775,6 +785,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         auditEvents: auditEvents as WorkspaceCollections["auditEvents"]
       };
       const currentKeys: Record<string, Set<string>> = {
+        custom_module: new Set(customModules.map(record => record.id)),
         property: new Set(properties.map(record => record.id)),
         contact: new Set(contacts.map(record => record.id)),
         whatsapp_group: new Set(savedWhatsAppGroups.map(record => record.id)),
@@ -798,6 +809,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           : await syncPersonalWorkspace(personalUserId!, collections);
         if (disposed || cloudSyncSequenceRef.current !== sequence) return;
 
+        if (JSON.stringify(collections.customModules) !== JSON.stringify(synced.customModules)) setCustomModules(synced.customModules as CustomModuleDefinition[]);
         if (JSON.stringify(collections.properties) !== JSON.stringify(synced.properties)) setProperties(synced.properties as PropertyRecord[]);
         if (JSON.stringify(collections.contacts) !== JSON.stringify(synced.contacts)) setContacts(synced.contacts as ContactRecord[]);
         if (JSON.stringify(collections.whatsappGroups) !== JSON.stringify(synced.whatsappGroups)) setSavedWhatsAppGroups(synced.whatsappGroups as SavedWhatsAppGroup[]);
@@ -807,6 +819,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         if (JSON.stringify(collections.approvalRequests) !== JSON.stringify(synced.approvalRequests)) setApprovalRequests(synced.approvalRequests as ApprovalRequest[]);
         if (JSON.stringify(collections.auditEvents) !== JSON.stringify(synced.auditEvents)) setAuditEvents(synced.auditEvents as AuditEvent[]);
         cloudPreviousRef.current = {
+          custom_module: new Set(synced.customModules.map(record => record.id)),
           property: new Set(synced.properties.map(record => record.id)),
           contact: new Set(synced.contacts.map(record => record.id)),
           whatsapp_group: new Set(synced.whatsappGroups.map(record => record.id)),
@@ -845,7 +858,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       window.clearTimeout(debounce);
       window.clearInterval(interval);
     };
-  }, [company?.id, company?.role, personalUserId, userId, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
+  }, [company?.id, company?.role, personalUserId, userId, customModules, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents]);
 
   // Windows publishes a local pairing QR. The Android app scans it once, then both
   // clients keep this shared snapshot synchronized automatically while they are connected.
@@ -888,10 +901,11 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
 
     let disposed = false;
     const localSnapshot: SyncSnapshot = {
-      properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
+      customModules, properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks, financials,
       riskRecords, approvalRequests, auditEvents
     };
     const applySnapshot = (snapshot: Partial<SyncSnapshot>) => {
+      setCustomModules(current => JSON.stringify(current) === JSON.stringify(snapshot.customModules || []) ? current : (snapshot.customModules || []) as CustomModuleDefinition[]);
       setProperties(current => JSON.stringify(current) === JSON.stringify(snapshot.properties || []) ? current : (snapshot.properties || []) as PropertyRecord[]);
       setContacts(current => JSON.stringify(current) === JSON.stringify(snapshot.contacts || []) ? current : (snapshot.contacts || []) as ContactRecord[]);
       setSavedWhatsAppGroups(current => JSON.stringify(current) === JSON.stringify(snapshot.whatsappGroups || []) ? current : (snapshot.whatsappGroups || []) as SavedWhatsAppGroup[]);
@@ -980,7 +994,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       window.clearInterval(syncInterval);
       if (deviceSyncRunRef.current === runSync) deviceSyncRunRef.current = null;
     };
-  }, [company?.id, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
+  }, [company?.id, customModules, properties, contacts, savedWhatsAppGroups, tasks, financials, riskRecords, approvalRequests, auditEvents, syncHost, syncToken]);
 
   useEffect(() => {
     let disposed = false;
@@ -1624,7 +1638,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const exportWorkspaceBackup = () => {
     try {
       const backup = createWorkspaceBackup({
-        properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks,
+        customModules, properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks,
         financials, riskRecords, approvalRequests, auditEvents
       });
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json;charset=utf-8" });
@@ -1664,6 +1678,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           const parsed = JSON.parse(await readBrowserFileText(file)) as unknown;
           const collections = parseWorkspaceBackup(parsed);
           const counts = [
+            "Custom modules: " + (collections.customModules?.length ?? "not included"),
             "Properties: " + collections.properties.length,
             "Contacts: " + collections.contacts.length,
             "WhatsApp groups: " + (collections.whatsappGroups?.length ?? "not included"),
@@ -1675,6 +1690,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           ].join("\n");
           if (!window.confirm("Importing this backup replaces the matching record collections in the current workspace. Collections omitted by an older backup will be left unchanged.\n\n" + counts + "\n\nExport a backup of the current workspace first. Continue?")) return;
           // All collections are parsed and validated before any state changes are committed.
+          if (collections.customModules) setCustomModules(collections.customModules as unknown as CustomModuleDefinition[]);
           setProperties(collections.properties as unknown as PropertyRecord[]);
           setContacts(collections.contacts as unknown as ContactRecord[]);
           setTasks(collections.tasks as unknown as TaskRecord[]);
@@ -2319,7 +2335,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <button className="mobile-close" onClick={() => setMobileMenu(false)} aria-label="Close menu"><X size={19} /></button></div>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="nav-list">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={`nav-item ${active === name ? "active" : ""}`} onClick={() => go(name)}><Icon size={18} strokeWidth={1.8} /><span>{label || name}</span>{name === "Schedule & Tasks" && upcomingTasks.length > 0 && <span className="nav-count">{upcomingTasks.length}</span>}{name === "Follow-up Registry" && followUpNavCount > 0 && <span className="nav-count">{followUpNavCount}</span>}</button>)}</nav>
-        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} data-testid={"module-directory-"+name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div></details>
+        <details className="ax-sidebar-modules" open><summary><span>MODULE DIRECTORY</span><ChevronDown size={13}/></summary><div className="ax-sidebar-module-list">{modules.map(({name,icon:Icon},index)=><button key={name} data-testid={"module-directory-"+name} className={`ax-sidebar-module ${active===name?"active":""}`} onClick={()=>go(name)}><Icon size={14}/><span>{name}</span><small>{String(index+1).padStart(2,"0")}</small></button>)}</div><button type="button" className="ax-module-create-button" onClick={()=>setShowCustomModuleForm(true)}><Plus size={14}/> Create new module</button></details>
         <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><Clock3 size={18} /></span><strong>Stay ahead</strong><p>Keep every deal and deadline in one place.</p></div>
           <button className={`nav-item ${active === "Settings" ? "active" : ""}`} onClick={() => go("Settings")}><Settings size={18} /> Settings</button>
           <div className="profile"><div className="avatar ax-avatar">AX</div><div className="profile-text"><strong>AXIVESTRA</strong><span>Command workspace</span></div><span className="online-dot" /></div></div>
@@ -2778,7 +2794,8 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
           <footer className="footer"><span>AXIVESTRA © 2026</span><span>{company ? `Company cloud mode · ${company.role.replace("_"," ")} access` : personalUserId ? "Personal cloud mode · private account" : "Local-first mode · optional trusted-network sync"}</span></footer>
         </div>
       </section>
-      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} contacts={contacts} groups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
+      {showCustomModuleForm && <Modal title="Create a new module" onClose={()=>setShowCustomModuleForm(false)}><CustomModuleForm existingNames={modules.map(item=>item.name)} onCancel={()=>setShowCustomModuleForm(false)} onSave={definition=>{setCustomModules(previous=>[...previous,definition]);setShowCustomModuleForm(false);go(definition.name);setNotice("Custom module created and saved to this workspace.");}}/></Modal>}
+      {showPropertyForm && <Modal className="module-record-modal" title={editingProperty ? "Edit property record" : "Add property record"} onClose={()=>closePropertyForm()}><PropertyForm defaultModule={modules.some(m=>m.name===active)?active:modules[0].name} availableModules={modules} fieldsByModule={moduleFields} contacts={contacts} groups={savedWhatsAppGroups} initial={editingProperty} onSave={saveProperty} onCancel={()=>closePropertyForm()}/></Modal>}
       {showContactForm && <Modal title={editingContact ? "Edit contact" : "Add contact"} onClose={()=>closeContactForm()}><ContactForm initial={editingContact} onSave={saveContact} onCancel={()=>closeContactForm()}/></Modal>}
       {showTaskForm && <Modal title={editingTask ? "Edit scheduled task" : "Schedule a one-time task"} onClose={()=>closeTaskForm()}><TaskForm properties={properties} contacts={contacts} initial={editingTask} defaultValues={taskPrefill} onSave={saveTask} onCancel={()=>closeTaskForm()}/></Modal>}
       {showFollowUpForm && <Modal title={editingFollowUp ? "Edit follow-up" : "Add follow-up"} onClose={closeFollowUpForm} className="ax-followup-modal"><FollowUpForm properties={properties} contacts={contacts} defaultPropertyId={editingFollowUp?.record.id || followUpDefault?.propertyId} defaultContactId={followUpDefault?.contactId} initial={editingFollowUp?.entry} onSave={saveFollowUp} onCancel={closeFollowUpForm}/></Modal>}
@@ -2983,15 +3000,38 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
-function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{defaultModule:string;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
+function CustomModuleForm({existingNames,onSave,onCancel}:{existingNames:string[];onSave:(module:CustomModuleDefinition)=>void;onCancel:()=>void}) {
+  const [name,setName]=useState("");const [group,setGroup]=useState("Custom Workspaces");const [description,setDescription]=useState("");
+  const [fields,setFields]=useState<ModuleField[]>([]);const [fieldLabel,setFieldLabel]=useState("");
+  const [fieldType,setFieldType]=useState<NonNullable<ModuleField["type"]>>("text");const [error,setError]=useState("");
+  const addField=()=>{const label=fieldLabel.trim();if(!label)return;const base=label.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"field";const key="custom_"+base;if(fields.some(field=>field.key===key)){setError("A field with this name already exists.");return;}setFields(previous=>[...previous,{key,label,placeholder:"Enter "+label.toLowerCase(),type:fieldType}]);setFieldLabel("");setError("");};
+  const save=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const cleaned=name.trim();if(!cleaned){setError("Enter a module name.");return;}if(existingNames.some(item=>item.toLowerCase()===cleaned.toLowerCase())){setError("A module with this name already exists.");return;}onSave({id:"custom-module-"+uid(),name:cleaned,group:group.trim()||"Custom Workspaces",description:description.trim()||"Custom workspace created in AXIVESTRA.",fields,createdAt:new Date().toISOString()});};
+  return <form className="form-card ax-custom-module-form" onSubmit={save}>
+    <p>Create a workspace that appears in the module directory and participates in record tables, Intelligence Hub, follow-up registry, backups and sync.</p>
+    <label>Module name *<input required value={name} onChange={event=>setName(event.target.value)} placeholder="e.g. Land Acquisition Pipeline"/></label>
+    <div className="form-two"><label>Module group<input value={group} onChange={event=>setGroup(event.target.value)} placeholder="e.g. Real Assets"/></label><label>Description<input value={description} onChange={event=>setDescription(event.target.value)} placeholder="What this workspace manages"/></label></div>
+    <div className="ax-custom-module-fields"><div className="form-section-title"><span className="section-kicker">OPTIONAL CUSTOM FIELDS</span><p>Standard INR valuation, settlement, land size and built-up size fields are included in every module.</p></div>
+      <div className="form-two"><label>Field label<input value={fieldLabel} onChange={event=>setFieldLabel(event.target.value)} placeholder="e.g. Approval reference"/></label><label>Field type<select value={fieldType} onChange={event=>setFieldType(event.target.value as NonNullable<ModuleField["type"]>)}><option value="text">Text</option><option value="number">Number</option><option value="amount">INR amount</option><option value="date">Date</option></select></label></div>
+      <button type="button" className="secondary-button" onClick={addField}><Plus size={14}/> Add field</button>
+      {fields.map(field=><div className="ax-custom-module-field" key={field.key}><span>{field.label} · {field.type}</span><button type="button" aria-label={"Remove "+field.label} onClick={()=>setFields(previous=>previous.filter(item=>item.key!==field.key))}>Remove</button></div>)}
+    </div>
+    {error&&<p className="form-error" role="alert">{error}</p>}
+    <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button"><Plus size={15}/> Create module</button></div>
+  </form>;
+}
+
+function PropertyForm({defaultModule,availableModules,fieldsByModule,contacts,groups,initial,onSave,onCancel}:{defaultModule:string;availableModules:Array<{name:string}>;fieldsByModule:Record<string,ModuleField[]>;contacts:ContactRecord[];groups:SavedWhatsAppGroup[];initial?:PropertyRecord|null;onSave:(v:Omit<PropertyRecord,"id"|"createdAt">)=>void;onCancel:()=>void}) {
   const [form,setForm]=useState({
     title:initial?.title ?? "",module:initial?.module ?? defaultModule,location:initial?.location ?? "",
     value:initial?.value ?? "",status:initial?.status ?? "Active",contact:initial?.contact ?? "",
     primaryContactId:initial?.primaryContactId ?? contacts.find(item=>item.name.trim().toLowerCase()===(initial?.contact ?? "").trim().toLowerCase())?.id ?? "",
     targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
-    surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || initial?.moduleData?.guidanceRate || initial?.moduleData?.settlementRate || initial?.moduleData?.srGuidanceRate || "",
+    surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? initial?.landSizeValue ?? "",
+    areaUnit:initial?.areaUnit ?? initial?.landSizeUnit ?? "sq ft",landSizeValue:initial?.landSizeValue ?? initial?.areaValue ?? "",landSizeUnit:initial?.landSizeUnit ?? initial?.areaUnit ?? "sq ft",
+    builtUpSizeValue:initial?.builtUpSizeValue ?? initial?.moduleData?.builtUpSizeValue ?? initial?.moduleData?.builtUpSize ?? initial?.moduleData?.builtUpArea ?? "",
+    builtUpSizeUnit:initial?.builtUpSizeUnit ?? initial?.moduleData?.builtUpSizeUnit ?? initial?.areaUnit ?? "sq ft",
+    dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || initial?.moduleData?.guidanceRate || initial?.moduleData?.settlementRate || initial?.moduleData?.srGuidanceRate || "",
     moduleData:(initial?.moduleData ? {
       ...initial.moduleData,
       marketRatePerUnit:initial.moduleData.marketRatePerUnit || initial.moduleData.marketRate || initial.moduleData.marketValue || initial.moduleData.marketAmount || "",
@@ -3000,27 +3040,33 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
   });
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
-  const selectedFields=moduleFields[form.module] ?? [];
-  const universalAmountKeys = new Set(["srRate","marketRatePerUnit","settlementAmount"]);
+  const selectedFields=fieldsByModule[form.module] ?? [];
+  const universalAmountKeys = new Set(["srValue","srRate","marketValue","marketRatePerUnit","settlementAmount"]);
   const visibleSelectedFields = selectedFields.filter(field=>!universalAmountKeys.has(field.key));
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
     const normalizedValue=normalizeIndianAmount(form.value);
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
+    const normalizedSrValue=normalizeIndianAmount(form.moduleData.srValue ?? "");
+    const normalizedMarketValue=normalizeIndianAmount(form.moduleData.marketValue ?? "");
     const normalizedMarketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit ?? "");
     const normalizedSettlementValue=normalizeIndianAmount(form.moduleData.settlementAmount ?? "");
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
     if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("SR / guidance rate");
+    if(String(form.moduleData.srValue ?? "").trim() && normalizedSrValue===null)invalidLabels.push("SR value");
+    if(String(form.moduleData.marketValue ?? "").trim() && normalizedMarketValue===null)invalidLabels.push("Market value");
     if(String(form.moduleData.marketRatePerUnit ?? "").trim() && normalizedMarketRate===null)invalidLabels.push("Market rate per unit");
     if(String(form.moduleData.settlementAmount ?? "").trim() && normalizedSettlementValue===null)invalidLabels.push("Settlement value");
     normalizedModuleData.srRate=normalizedRate ?? "";
+    normalizedModuleData.srValue=normalizedSrValue ?? "";
+    normalizedModuleData.marketValue=normalizedMarketValue ?? "";
     normalizedModuleData.marketRatePerUnit=normalizedMarketRate ?? "";
     normalizedModuleData.settlementAmount=normalizedSettlementValue ?? "";
     for(const field of selectedFields){
-      if(universalAmountKeys.has(field.key) || field.type!=="number" || !field.label.includes("₹"))continue;
+      if(universalAmountKeys.has(field.key) || (field.type!=="number" && field.type!=="amount") || !isIndianAmountLabel(field.label))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
       if(!raw.trim())continue;
       const normalized=normalizeIndianAmount(raw);
@@ -3032,15 +3078,16 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
       return;
     }
     setAmountError("");
-    onSave({...form,value:normalizedValue ?? "",ratePerUnit:normalizedRate ?? "",moduleData:normalizedModuleData});
+    onSave({...form,value:normalizedValue ?? "",ratePerUnit:normalizedRate ?? "",areaValue:form.landSizeValue,areaUnit:form.landSizeUnit,moduleData:{...normalizedModuleData,builtUpSizeValue:form.builtUpSizeValue,builtUpSizeUnit:form.builtUpSizeUnit}});
   };
   return <form className="form-card module-record-form" onSubmit={saveRecord}>
     <div className="form-section-title"><span className="section-kicker">RECORD IDENTITY</span><p>Use the same contact record across every business module. This creates a reusable link across the workspace.</p></div>
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
-    <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
+    <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{availableModules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
     <div className="property-detail-section ax-valuation-fields"><div className="form-section-title"><span className="section-kicker">VALUATION & SETTLEMENT</span><p>These three INR fields are available in every module and feed the same table, Intelligence Hub and report columns.</p></div>
-      <div className="form-two"><label>SR / guidance rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>{update("ratePerUnit",value);setAmountError("");}} placeholder="e.g. 2.5 Cr"/></label><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,marketRatePerUnit:value}}));}} placeholder="e.g. 5 Cr"/></label></div>
+      <div className="form-two"><label>SR value (₹)<IndianAmountInput value={form.moduleData.srValue ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,srValue:value}}));}} placeholder="e.g. 2 Cr"/></label><label>SR / guidance rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>{update("ratePerUnit",value);setAmountError("");}} placeholder="e.g. 2.5 Cr"/></label></div>
+      <div className="form-two"><label>Market value (₹)<IndianAmountInput value={form.moduleData.marketValue ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,marketValue:value}}));}} placeholder="e.g. 5 Cr"/></label><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,marketRatePerUnit:value}}));}} placeholder="e.g. 5 Cr"/></label></div>
       <label>Settlement value / agreed amount (₹)<IndianAmountInput value={form.moduleData.settlementAmount ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,settlementAmount:value}}));}} placeholder="e.g. 3 Cr"/></label>
     </div>
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
@@ -3065,10 +3112,11 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     </div>
     {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
-      <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
+      <div className="form-two"><label>Land size<input type="number" min="0" step="0.0001" value={form.landSizeValue} onChange={event=>setForm(previous=>({...previous,landSizeValue:event.target.value,areaValue:event.target.value}))} placeholder="Land extent / plot area"/></label><label>Land size unit<select value={form.landSizeUnit} onChange={event=>setForm(previous=>({...previous,landSizeUnit:event.target.value,areaUnit:event.target.value}))}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
+      <div className="form-two"><label>Built-up size<input type="number" min="0" step="0.0001" value={form.builtUpSizeValue} onChange={event=>update("builtUpSizeValue",event.target.value)} placeholder="Built-up / constructed area"/></label><label>Built-up size unit<select value={form.builtUpSizeUnit} onChange={event=>update("builtUpSizeUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
       <label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label>
     </div>}
-    {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{(field.type==="amount" || (field.type==="number" && isIndianAmountLabel(field.label))) ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type === "amount" ? "text" : field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>

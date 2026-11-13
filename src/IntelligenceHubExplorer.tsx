@@ -6,6 +6,7 @@ import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-
 
 type HubRecord = FollowUpRecordLike & {
   location?: string; areaValue?: string; areaUnit?: string; ratePerUnit?: string;
+  landSizeValue?: string; landSizeUnit?: string; builtUpSizeValue?: string; builtUpSizeUnit?: string;
   moduleData?: Record<string,string>; contact?: string; primaryContactId?: string;
   status?: string; targetDeadline?: string; nextFollowUpDate?: string; nextAction?: string; notes?: string;
   surveyNumber?: string; ownershipDetails?: string;
@@ -39,14 +40,18 @@ const resolveGroupLabels=(ids:string[],groups:HubGroup[]) => ids.map(id=>{
   const match=groups.find(group=>group.id===id||group.jid===id||group.name.toLowerCase()===id.toLowerCase());
   return match?.name||id;
 });
-function findMoney(record:HubRecord,fields:HubField[],kind:"sr"|"market"|"settlement") {
+function findMoney(record:HubRecord,fields:HubField[],kind:"srValue"|"sr"|"marketValue"|"market"|"settlement") {
   const data=record.moduleData||{};
-  const explicit=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:
-    kind==="market"?["marketRatePerUnit","marketRate","marketValue","marketAmount"]:
+  const explicit=kind==="srValue"?["srValue","guidanceValue","srGuidanceValue"]:
+    kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:
+    kind==="marketValue"?["marketValue","marketAmount","currentMarketValue"]:
+    kind==="market"?["marketRatePerUnit","marketRate"]:
     ["settlementAmount","settlementValue","agreedSettlementAmount"];
   for(const key of explicit){if(String(data[key]||"").trim())return String(data[key]);}
-  const rx=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:
-    kind==="market"?/market.*(rate|value|amount)|(rate|value|amount).*market/i:
+  const rx=kind==="srValue"?/(sr|guidance).*(value|amount)|(value|amount).*(sr|guidance)/i:
+    kind==="sr"?/(sr|guidance).*rate|rate.*(sr|guidance)/i:
+    kind==="marketValue"?/market.*(value|amount)|(value|amount).*market/i:
+    kind==="market"?/market.*rate|rate.*market/i:
     /settlement.*(amount|value)|(amount|value).*settlement/i;
   const field=fields.find(item=>rx.test(item.label)&&String(data[item.key]||"").trim());
   if(field)return String(data[field.key]);
@@ -81,6 +86,7 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
   const [srMin,setSrMin]=useState("");const [srMax,setSrMax]=useState("");
   const [valueMin,setValueMin]=useState("");const [valueMax,setValueMax]=useState("");
   const [marketMin,setMarketMin]=useState("");const [marketMax,setMarketMax]=useState("");
+  const [marketValueMin,setMarketValueMin]=useState("");const [marketValueMax,setMarketValueMax]=useState("");
   const [primaryIds,setPrimaryIds]=useState<string[]>([]);const [followIds,setFollowIds]=useState<string[]>([]);
   const [primaryGroups,setPrimaryGroups]=useState<string[]>([]);const [followGroups,setFollowGroups]=useState<string[]>([]);
   const [showFilters,setShowFilters]=useState(true);
@@ -107,20 +113,25 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
   const filtered=useMemo(()=>properties.filter(record=>{
     if(moduleIds.length&& !moduleIds.includes(record.module))return false;
     if(location.trim()&&!String(record.location||"").toLowerCase().includes(location.trim().toLowerCase()))return false;
-    const factor=AREA_FACTORS[areaUnit]||1, area=Number(record.areaValue||0)*(AREA_FACTORS[record.areaUnit||"sq ft"]||1)/factor;
+    const landSize=record.landSizeValue||record.areaValue||"";
+    const landUnit=record.landSizeUnit||record.areaUnit||"sq ft";
+    const factor=AREA_FACTORS[areaUnit]||1, area=Number(landSize||0)*(AREA_FACTORS[landUnit]||1)/factor;
     const loArea=parseRange(areaMin),hiArea=parseRange(areaMax);
-    if(loArea!==null&&loArea!==undefined&&(Number.isNaN(loArea)||!record.areaValue||area<loArea))return false;
-    if(hiArea!==null&&hiArea!==undefined&&(Number.isNaN(hiArea)||!record.areaValue||area>hiArea))return false;
+    if(loArea!==null&&loArea!==undefined&&(Number.isNaN(loArea)||!landSize||area<loArea))return false;
+    if(hiArea!==null&&hiArea!==undefined&&(Number.isNaN(hiArea)||!landSize||area>hiArea))return false;
     const fields=moduleFields[record.module]||[];
     const sr=parseIndianAmount(record.ratePerUnit||findMoney(record,fields,"sr")||"")||0;
     const value=parseIndianAmount(record.value||"")||0,market=parseIndianAmount(findMoney(record,fields,"market")||"")||0;
-    const srLo=parseRange(srMin),srHi=parseRange(srMax),valueLo=parseRange(valueMin),valueHi=parseRange(valueMax),marketLo=parseRange(marketMin),marketHi=parseRange(marketMax);
+    const marketValue=parseIndianAmount(findMoney(record,fields,"marketValue")||"")||0;
+    const srLo=parseRange(srMin),srHi=parseRange(srMax),valueLo=parseRange(valueMin),valueHi=parseRange(valueMax),marketLo=parseRange(marketMin),marketHi=parseRange(marketMax),marketValueLo=parseRange(marketValueMin),marketValueHi=parseRange(marketValueMax);
     if(srLo!==null&&srLo!==undefined&&(Number.isNaN(srLo)||!sr||sr<srLo))return false;
     if(srHi!==null&&srHi!==undefined&&(Number.isNaN(srHi)||!sr||sr>srHi))return false;
     if(valueLo!==null&&valueLo!==undefined&&(Number.isNaN(valueLo)||!record.value||value<valueLo))return false;
     if(valueHi!==null&&valueHi!==undefined&&(Number.isNaN(valueHi)||!record.value||value>valueHi))return false;
     if(marketLo!==null&&marketLo!==undefined&&(Number.isNaN(marketLo)||!market||market<marketLo))return false;
     if(marketHi!==null&&marketHi!==undefined&&(Number.isNaN(marketHi)||!market||market>marketHi))return false;
+    if(marketValueLo!==null&&marketValueLo!==undefined&&(Number.isNaN(marketValueLo)||!marketValue||marketValue<marketValueLo))return false;
+    if(marketValueHi!==null&&marketValueHi!==undefined&&(Number.isNaN(marketValueHi)||!marketValue||marketValue>marketValueHi))return false;
     const prim=recordPrimaryIds(record,contacts),follow=recordFollowIds(record);
     if(primaryIds.length&&!primaryIds.some(id=>prim.includes(id)))return false;
     if(followIds.length&&!followIds.some(id=>follow.includes(id)))return false;
@@ -128,9 +139,9 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     if(primaryGroups.length&&!primaryGroups.some(id=>canonicalGroupIds(pg).includes(id)))return false;
     if(followGroups.length&&!followGroups.some(id=>canonicalGroupIds(fg).includes(id)))return false;
     return true;
-  }),[properties,moduleIds,location,areaMin,areaMax,areaUnit,srMin,srMax,valueMin,valueMax,marketMin,marketMax,primaryIds,followIds,primaryGroups,followGroups,contacts,moduleFields]);
+  }),[properties,moduleIds,location,areaMin,areaMax,areaUnit,srMin,srMax,valueMin,valueMax,marketMin,marketMax,marketValueMin,marketValueMax,primaryIds,followIds,primaryGroups,followGroups,contacts,moduleFields]);
   const totals=useMemo(()=>filtered.reduce((acc,record)=>({value:acc.value+(parseIndianAmount(record.value||"")||0),count:acc.count+1}),{value:0,count:0}),[filtered]);
-  const clearFilters=()=>{setModuleIds([]);setLocation("");setAreaMin("");setAreaMax("");setAreaUnit("sq ft");setSrMin("");setSrMax("");setValueMin("");setValueMax("");setMarketMin("");setMarketMax("");setPrimaryIds([]);setFollowIds([]);setPrimaryGroups([]);setFollowGroups([]);};
+  const clearFilters=()=>{setModuleIds([]);setLocation("");setAreaMin("");setAreaMax("");setAreaUnit("sq ft");setSrMin("");setSrMax("");setValueMin("");setValueMax("");setMarketMin("");setMarketMax("");setMarketValueMin("");setMarketValueMax("");setPrimaryIds([]);setFollowIds([]);setPrimaryGroups([]);setFollowGroups([]);};
   const labelNames=(ids:string[])=>ids.map(id=>contacts.find(person=>person.id===id)?.name).filter(Boolean).join(", ");
   const reportRows=()=>{
     const data=filtered.map(record=>{
@@ -141,7 +152,7 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       const next=record.nextFollowUpDate||parseFollowUps(record.moduleData).map(entry=>entry.date+(entry.time?" "+entry.time:"")).filter(Boolean).join("; ");
       const customDetails=(moduleFields[record.module]||[]).filter(field=>String(record.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+(isIndianAmountLabel(field.label)?money(record.moduleData?.[field.key]||""):String(record.moduleData?.[field.key])));
       const followDetails=parseFollowUps(record.moduleData).map(entry=>entry.date+(entry.time?" "+entry.time:"")+" · "+entry.description+" ("+entry.status+", "+entry.priority+")");
-      return {record,title:record.title,module:record.module,location:record.location||"",value:money(record.value||""),srRate:money(record.ratePerUnit||findMoney(record,moduleFields[record.module]||[],"sr")),marketRate:money(findMoney(record,moduleFields[record.module]||[],"market")),settlementValue:money(findMoney(record,moduleFields[record.module]||[],"settlement")),area:record.areaValue?String(record.areaValue)+" "+(record.areaUnit||"sq ft"):"",primaryContact:includePrimary?prim:"",followUpContact:includeFollow?follow:"",primaryGroup:primGroup,followUpGroup:followGroup,contactSummary:[includePrimary?("Primary: "+prim):"",primGroup?("Primary group: "+primGroup):""].filter(Boolean).join(" | "),followUpSummary:[includeFollow?("Follow-up: "+follow):"",followGroup?("Follow-up group: "+followGroup):"",next?"Date/time: "+next:""].filter(Boolean).join(" | "),detailsSummary:[ "Status: "+(record.status||"Unspecified"),record.targetDeadline?"Deadline: "+record.targetDeadline:"",record.nextAction?"Next action: "+record.nextAction:"",...customDetails,...followDetails,record.notes?"Notes: "+record.notes:"" ].filter(Boolean).join("\n")};
+      return {record,title:record.title,module:record.module,location:record.location||"",value:money(record.value||""),srValue:money(findMoney(record,moduleFields[record.module]||[],"srValue")),srRate:money(record.ratePerUnit||findMoney(record,moduleFields[record.module]||[],"sr")),marketValue:money(findMoney(record,moduleFields[record.module]||[],"marketValue")),marketRate:money(findMoney(record,moduleFields[record.module]||[],"market")),settlementValue:money(findMoney(record,moduleFields[record.module]||[],"settlement")),landSize:(record.landSizeValue||record.areaValue)?String(record.landSizeValue||record.areaValue)+" "+(record.landSizeUnit||record.areaUnit||"sq ft"):"",builtUpSize:(record.builtUpSizeValue||record.moduleData?.builtUpSizeValue||record.moduleData?.builtUpSize||record.moduleData?.builtUpArea)?String(record.builtUpSizeValue||record.moduleData?.builtUpSizeValue||record.moduleData?.builtUpSize||record.moduleData?.builtUpArea)+" "+(record.builtUpSizeUnit||record.moduleData?.builtUpSizeUnit||"sq ft"):"",primaryContact:includePrimary?prim:"",followUpContact:includeFollow?follow:"",primaryGroup:primGroup,followUpGroup:followGroup,contactSummary:[includePrimary?("Primary: "+prim):"",primGroup?("Primary group: "+primGroup):""].filter(Boolean).join(" | "),followUpSummary:[includeFollow?("Follow-up: "+follow):"",followGroup?("Follow-up group: "+followGroup):"",next?"Date/time: "+next:""].filter(Boolean).join(" | "),detailsSummary:[ "Status: "+(record.status||"Unspecified"),record.targetDeadline?"Deadline: "+record.targetDeadline:"",record.nextAction?"Next action: "+record.nextAction:"",...customDetails,...followDetails,record.notes?"Notes: "+record.notes:"" ].filter(Boolean).join("\n")};
     });
     if(reportGroup==="primary")data.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary)||a.title.localeCompare(b.title));
     else if(reportGroup==="follow")data.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary)||a.title.localeCompare(b.title));
@@ -163,7 +174,8 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       <div className="ax-hub-filter-field"><label>Area / size range</label><div className="ax-hub-range"><input value={areaMin} onChange={event=>setAreaMin(event.target.value)} placeholder="From" inputMode="decimal"/><input value={areaMax} onChange={event=>setAreaMax(event.target.value)} placeholder="To" inputMode="decimal"/><select value={areaUnit} onChange={event=>setAreaUnit(event.target.value)}>{AREA_UNITS.map(unit=><option key={unit}>{unit}</option>)}</select></div></div>
       <div className="ax-hub-filter-field"><label>SR / guidance rate (₹)</label><div className="ax-hub-range"><input value={srMin} onChange={event=>setSrMin(event.target.value)} placeholder="From (e.g. 2 Cr)"/><input value={srMax} onChange={event=>setSrMax(event.target.value)} placeholder="To (e.g. 5 Cr)"/></div></div>
       <div className="ax-hub-filter-field"><label>Value / exposure (₹)</label><div className="ax-hub-range"><input value={valueMin} onChange={event=>setValueMin(event.target.value)} placeholder="From"/><input value={valueMax} onChange={event=>setValueMax(event.target.value)} placeholder="To"/></div></div>
-      <div className="ax-hub-filter-field"><label>Market value / rate (₹)</label><div className="ax-hub-range"><input value={marketMin} onChange={event=>setMarketMin(event.target.value)} placeholder="From"/><input value={marketMax} onChange={event=>setMarketMax(event.target.value)} placeholder="To"/></div></div>
+      <div className="ax-hub-filter-field"><label>Market rate (₹)</label><div className="ax-hub-range"><input value={marketMin} onChange={event=>setMarketMin(event.target.value)} placeholder="From"/><input value={marketMax} onChange={event=>setMarketMax(event.target.value)} placeholder="To"/></div></div>
+      <div className="ax-hub-filter-field"><label>Market value (₹)</label><div className="ax-hub-range"><input value={marketValueMin} onChange={event=>setMarketValueMin(event.target.value)} placeholder="From"/><input value={marketValueMax} onChange={event=>setMarketValueMax(event.target.value)} placeholder="To"/></div></div>
       <CheckList title="Primary contact" items={primaryContactOptions} selected={primaryIds} onChange={setPrimaryIds}/>
       <CheckList title="Follow-up contact" items={followContactOptions} selected={followIds} onChange={setFollowIds}/>
       <CheckList title="Primary WhatsApp group" items={primaryGroupOptions} selected={primaryGroups} onChange={setPrimaryGroups}/>
@@ -180,18 +192,18 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       </div>
       <div className="ax-hub-export-buttons"><button type="button" className="secondary-button" disabled={reportBusy} onClick={()=>exportReport("pdf")}><FileDown size={15}/> Download PDF</button><button type="button" className="primary-button" disabled={reportBusy} onClick={()=>exportReport("pptx")}><Download size={15}/> Download PPT</button></div>
     </div>
-    <div className="ax-hub-results-wrap"><table className="ax-hub-results"><thead><tr><th>Record / module</th><th>Location</th><th>Value / exposure</th><th>SR rate</th><th>Market rate</th><th>Settlement value</th><th>Area</th><th>Primary / follow-up</th><th>Follow-up date / time</th></tr></thead><tbody>
+    <div className="ax-hub-results-wrap"><table className="ax-hub-results"><thead><tr><th>Record / module</th><th>Location</th><th>Value / exposure</th><th>SR value</th><th>SR rate</th><th>Market value</th><th>Market rate</th><th>Settlement value</th><th>Land size</th><th>Built-up size</th><th>Primary / follow-up</th><th>Follow-up date / time</th></tr></thead><tbody>
       {filtered.map(record=>{
         const primary=labelNames(recordPrimaryIds(record,contacts)),follow=labelNames(recordFollowIds(record)),entries=parseFollowUps(record.moduleData),next=entries[0]||null;
         const sr=record.ratePerUnit||findMoney(record,moduleFields[record.module]||[],"sr");
-        return <tr key={record.id}><td><button type="button" className="ax-hub-record-link" onClick={()=>setSelectedRecord(record)}><strong>{record.title}</strong><small>{record.module} · {record.status||"Unspecified"}</small></button></td><td>{record.location||"—"}</td><td>{money(record.value||"")}</td><td>{money(sr)}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"market"))}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"settlement"))}</td><td>{record.areaValue?record.areaValue+" "+(record.areaUnit||"sq ft"):"—"}</td><td><button type="button" className="ax-hub-text-link" onClick={()=>setSelectedRecord(record)}>{primary?"P: "+primary:"Primary: —"}<br/>{follow?"F: "+follow:"Follow-up: —"}</button></td><td><button type="button" className="ax-hub-text-link" aria-haspopup="dialog" data-testid={"hub-date-open-"+record.id} onClick={()=>setSelectedRecord(record)}>{next?next.date+(next.time?" · "+next.time:""):(record.nextFollowUpDate||"No follow-up date")}</button></td></tr>;
+        return <tr key={record.id}><td><button type="button" className="ax-hub-record-link" onClick={()=>setSelectedRecord(record)}><strong>{record.title}</strong><small>{record.module} · {record.status||"Unspecified"}</small></button></td><td>{record.location||"—"}</td><td>{money(record.value||"")}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"srValue"))}</td><td>{money(sr)}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"marketValue"))}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"market"))}</td><td>{money(findMoney(record,moduleFields[record.module]||[],"settlement"))}</td><td>{(record.landSizeValue||record.areaValue)?(record.landSizeValue||record.areaValue)+" "+(record.landSizeUnit||record.areaUnit||"sq ft"):"—"}</td><td>{(record.builtUpSizeValue||record.moduleData?.builtUpSizeValue||record.moduleData?.builtUpSize||record.moduleData?.builtUpArea)?(record.builtUpSizeValue||record.moduleData?.builtUpSizeValue||record.moduleData?.builtUpSize||record.moduleData?.builtUpArea)+" "+(record.builtUpSizeUnit||record.moduleData?.builtUpSizeUnit||"sq ft"):"—"}</td><td><button type="button" className="ax-hub-text-link" onClick={()=>setSelectedRecord(record)}>{primary?"P: "+primary:"Primary: —"}<br/>{follow?"F: "+follow:"Follow-up: —"}</button></td><td><button type="button" className="ax-hub-text-link" aria-haspopup="dialog" data-testid={"hub-date-open-"+record.id} onClick={()=>setSelectedRecord(record)}>{next?next.date+(next.time?" · "+next.time:""):(record.nextFollowUpDate||"No follow-up date")}</button></td></tr>;
       })}
-      {filtered.length===0&&<tr><td colSpan={9}>No saved records match the selected filters.</td></tr>}
+      {filtered.length===0&&<tr><td colSpan={12}>No saved records match the selected filters.</td></tr>}
     </tbody></table></div>
     {activeSelectedRecord&&<div className="ax-hub-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setSelectedRecord(null);}}><section className="ax-hub-record-modal" role="dialog" aria-modal="true" aria-label={"Record details: "+activeSelectedRecord.title}>
       <div className="ax-hub-record-modal__head"><div><span className="section-kicker">{activeSelectedRecord.module}</span><h2>{activeSelectedRecord.title}</h2><p>{activeSelectedRecord.location||"Location not entered"} · {activeSelectedRecord.status||"Unspecified"}</p></div><button type="button" aria-label="Close record details" onClick={()=>setSelectedRecord(null)}><X size={18}/></button></div>
       <div className="ax-hub-record-modal__grid">
-        {[["Record / module",activeSelectedRecord.module],["Status",activeSelectedRecord.status||"—"],["Location",activeSelectedRecord.location||"—"],["Value / exposure",money(activeSelectedRecord.value||"")],["SR / guidance rate",money(activeSelectedRecord.ratePerUnit||findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"sr"))],["Market rate",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"market"))],["Settlement value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"settlement"))],["Area",activeSelectedRecord.areaValue?activeSelectedRecord.areaValue+" "+(activeSelectedRecord.areaUnit||"sq ft"):"—"],["Survey / property ID",activeSelectedRecord.surveyNumber||"—"],["Ownership / parties",activeSelectedRecord.ownershipDetails||"—"],["Primary contact",labelNames(recordPrimaryIds(activeSelectedRecord,contacts))||activeSelectedRecord.contact||"—"],["Follow-up contacts",labelNames(recordFollowIds(activeSelectedRecord))||"—"],["Primary groups",resolveGroupLabels(keysOf(activeSelectedRecord,"primary"),groups).join(", ")||"—"],["Follow-up groups",resolveGroupLabels(keysOf(activeSelectedRecord,"follow"),groups).join(", ")||"—"],["Target deadline",activeSelectedRecord.targetDeadline||"—"],["Next action",activeSelectedRecord.nextAction||"—"],["Notes / evidence",activeSelectedRecord.notes||"—"]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}
+        {[["Record / module",activeSelectedRecord.module],["Status",activeSelectedRecord.status||"—"],["Location",activeSelectedRecord.location||"—"],["Value / exposure",money(activeSelectedRecord.value||"")],["SR value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"srValue"))],["SR / guidance rate",money(activeSelectedRecord.ratePerUnit||findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"sr"))],["Market value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"marketValue"))],["Market rate",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"market"))],["Settlement value",money(findMoney(activeSelectedRecord,moduleFields[activeSelectedRecord.module]||[],"settlement"))],["Land size",(activeSelectedRecord.landSizeValue||activeSelectedRecord.areaValue)?(activeSelectedRecord.landSizeValue||activeSelectedRecord.areaValue)+" "+(activeSelectedRecord.landSizeUnit||activeSelectedRecord.areaUnit||"sq ft"):"—"],["Built-up size",(activeSelectedRecord.builtUpSizeValue||activeSelectedRecord.moduleData?.builtUpSizeValue||activeSelectedRecord.moduleData?.builtUpSize||activeSelectedRecord.moduleData?.builtUpArea)?(activeSelectedRecord.builtUpSizeValue||activeSelectedRecord.moduleData?.builtUpSizeValue||activeSelectedRecord.moduleData?.builtUpSize||activeSelectedRecord.moduleData?.builtUpArea)+" "+(activeSelectedRecord.builtUpSizeUnit||activeSelectedRecord.moduleData?.builtUpSizeUnit||"sq ft"):"—"],["Survey / property ID",activeSelectedRecord.surveyNumber||"—"],["Ownership / parties",activeSelectedRecord.ownershipDetails||"—"],["Primary contact",labelNames(recordPrimaryIds(activeSelectedRecord,contacts))||activeSelectedRecord.contact||"—"],["Follow-up contacts",labelNames(recordFollowIds(activeSelectedRecord))||"—"],["Primary groups",resolveGroupLabels(keysOf(activeSelectedRecord,"primary"),groups).join(", ")||"—"],["Follow-up groups",resolveGroupLabels(keysOf(activeSelectedRecord,"follow"),groups).join(", ")||"—"],["Target deadline",activeSelectedRecord.targetDeadline||"—"],["Next action",activeSelectedRecord.nextAction||"—"],["Notes / evidence",activeSelectedRecord.notes||"—"]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}
         {(moduleFields[activeSelectedRecord.module]||[]).filter(field=>String(activeSelectedRecord.moduleData?.[field.key]||"").trim()).map(field=><article key={field.key}><span>{field.label}</span><strong>{isIndianAmountLabel(field.label)?money(activeSelectedRecord.moduleData?.[field.key]||""):String(activeSelectedRecord.moduleData?.[field.key])}</strong></article>)}
       </div>
       {activeSelectedRecord.notes&&<div className="ax-hub-modal-followups"><h3>Notes / evidence</h3><p>{activeSelectedRecord.notes}</p></div>}

@@ -9,7 +9,8 @@ export const WORKSPACE_BACKUP_KEYS = [
   "financials",
   "riskRecords",
   "approvalRequests",
-  "auditEvents"
+  "auditEvents",
+  "customModules"
 ];
 
 const REQUIRED_LEGACY_KEYS = ["properties", "contacts", "tasks"];
@@ -35,7 +36,7 @@ export function createWorkspaceBackup(collections, exportedAt = new Date().toISO
   if (!isRecord(collections)) throw new Error("Workspace records are required.");
   const normalized = {};
   for (const key of WORKSPACE_BACKUP_KEYS) {
-    normalized[key] = validateCollection(key, collections[key]);
+    normalized[key] = validateCollection(key, key === "customModules" && collections[key] === undefined ? [] : collections[key]);
   }
   return {
     format: WORKSPACE_BACKUP_FORMAT,
@@ -60,7 +61,7 @@ export function parseWorkspaceBackup(value) {
     }
     if (!isRecord(value.collections)) throw new Error("The backup collections are missing.");
     collections = value.collections;
-    for (const key of WORKSPACE_BACKUP_KEYS) {
+    for (const key of WORKSPACE_BACKUP_KEYS.filter(key => key !== "customModules")) {
       if (!Object.prototype.hasOwnProperty.call(collections, key)) {
         throw new Error("The backup is incomplete: missing '" + key + "'.");
       }
