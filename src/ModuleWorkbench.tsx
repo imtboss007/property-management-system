@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
+import { parseFollowUps } from "./lib/follow-ups";
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, ClipboardList, Download, Eye, FileDown, LayoutGrid, ListFilter, MessageCircle, Pencil, PieChart, Plus, Search, ShieldCheck, Sparkles, Table2, TrendingUp, Trash2, Users } from "lucide-react";
 
 type ModuleRecord = {
@@ -172,7 +173,14 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
         followUpContact:includeFollowName?follow:"",
         primaryGroup,followUpGroup,
         contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
-        followUpSummary:record.nextFollowUpDate?"Date: "+record.nextFollowUpDate:""
+        followUpSummary:[record.nextFollowUpDate?"Next date: "+record.nextFollowUpDate:"",...parseFollowUps(record.moduleData).map(entry=>entry.date+(entry.time?" "+entry.time:"")+" · "+entry.description+" ("+entry.status+")")].filter(Boolean).join("; "),
+        detailsSummary:[
+          "Status: "+record.status,
+          record.targetDeadline?"Target deadline: "+record.targetDeadline:"",
+          record.nextAction?"Next action: "+record.nextAction:"",
+          ...fields.filter(field=>String(record.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+formatField(field,String(record.moduleData[field.key]))),
+          record.notes?"Notes: "+record.notes:""
+        ].filter(Boolean).join("\n")
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
