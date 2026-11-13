@@ -6,6 +6,7 @@ import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEn
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
 type Group = { id:string; jid:string; name:string };
+type RegistryField = {key:string;label:string};
 type Task = {
   id: string; title: string; date: string; time: string; type: string; property: string;
   propertyId?: string; contactId?: string; contactName?: string; notes: string; done: boolean;
@@ -26,6 +27,7 @@ type Props = {
   properties: FollowUpRecordLike[];
   contacts: Contact[];
   groups: Group[];
+  moduleFields: Record<string,RegistryField[]>;
   tasks: Task[];
   today: string;
   onAdd: () => void;
@@ -53,7 +55,7 @@ function RegistryCheckList({title,items,selected,onChange}:{title:string;items:{
 const AREA_FACTORS:Record<string,number>={"sq ft":1,"sq yd":9,"sq m":10.7639104167,acre:43560,gunta:1089,hectare:107639.104167,cent:435.6};
 
 export default function FollowUpRegistry({
-  initialTab="All", properties, contacts, groups, tasks, today, onAdd, onEditEntry, onUpdateEntry,
+  initialTab="All", properties, contacts, groups, moduleFields, tasks, today, onAdd, onEditEntry, onUpdateEntry,
   onDeleteEntry, onEditRecord, onEditTask, onToggleTask, onDeleteTask, onOpenModule, onWhatsApp
 }: Props) {
   const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">(initialTab);
@@ -132,14 +134,14 @@ export default function FollowUpRegistry({
   const primaryPersonOptions=contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase()))).map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")})).sort((a,b)=>a.label.localeCompare(b.label));
   const primaryGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"primary").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
   const followGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"follow").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
-  const moneyField=(record:FollowUpRecordLike|null,kind:"sr"|"market")=>{
+  const moneyField=(record:FollowUpRecordLike|null,kind:"sr"|"market"|"settlement")=>{
     if(!record)return 0;
     const recordRate=(record as FollowUpRecordLike & {ratePerUnit?:string}).ratePerUnit;
     if(kind==="sr" && String(recordRate||"").trim())return parseIndianAmount(recordRate)||0;
     if(!record.moduleData)return 0;
-    const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:["marketRate","marketRatePerUnit","marketValue","marketAmount"];
+    const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:kind==="market"?["marketRate","marketRatePerUnit","marketValue","marketAmount"]:["settlementAmount","settlementValue","agreedSettlementAmount"];
     for(const key of exact){const value=record.moduleData[key];if(String(value||"").trim())return parseIndianAmount(value)||0;}
-    const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:/market.*(rate|value|amount)|(rate|value|amount).*market/i;
+    const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:kind==="market"?/market.*(rate|value|amount)|(rate|value|amount).*market/i:/settlement.*(amount|value)|(amount|value).*settlement/i;
     const entry=Object.entries(record.moduleData).find(([key,value])=>pattern.test(key)&&String(value||"").trim());
     return entry?parseIndianAmount(entry[1])||0:0;
   };
@@ -244,7 +246,7 @@ export default function FollowUpRegistry({
       const followUpGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
       return {
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
-        value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
+        value:money(item.record?.value||item.entry.amount||""),srRate:money(moneyField(item.record,"sr")),marketRate:money(moneyField(item.record,"market")),settlementValue:money(moneyField(item.record,"settlement")),
         area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
         primaryContact:includePrimaryName?primary:"",
         followUpContact:includeFollowName?follow:"",
@@ -253,9 +255,11 @@ export default function FollowUpRegistry({
         followUpSummary:"Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:""),
         detailsSummary:[
           "Follow-up: "+(item.entry.description||"—"),
+          "Follow-up amount: "+(item.entry.amount?money(item.entry.amount):"—"),
           "Status: "+statusOf(item)+" · Priority: "+item.entry.priority,
           item.entry.nextAction?"Next action: "+item.entry.nextAction:"",
           item.record?.status?"Record status: "+item.record.status:"",
+          ...(item.record?(moduleFields[item.record.module]||[]).filter(field=>String(item.record?.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+(field.label.includes("₹")?money(item.record?.moduleData?.[field.key]||""):String(item.record?.moduleData?.[field.key]))):[]),
           item.entry.notes?"Notes: "+item.entry.notes:""
         ].filter(Boolean).join("\n")
       };
