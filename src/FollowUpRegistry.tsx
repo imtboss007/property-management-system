@@ -117,7 +117,6 @@ export default function FollowUpRegistry({
   const groupLabels=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id||group.name.toLowerCase()===id.toLowerCase())?.name||id);
   const canonicalGroupIds=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id||group.name.toLowerCase()===id.toLowerCase())?.id||"").filter(Boolean);
   const linkedPrimaryContacts=contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase())));
-  const linkedFollowContacts=contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id)));
   const linkedPrimaryGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"primary").includes(group.id)));
   const linkedFollowGroups=groups.filter(group=>properties.some(record=>canonicalGroupIds(record,"follow").includes(group.id)));
 
@@ -162,6 +161,8 @@ export default function FollowUpRegistry({
   }), [items, today]);
 
   const modules = useMemo(() => Array.from(new Set(items.map(item => item.module).filter(Boolean))).sort(), [items]);
+  const linkedFollowContacts=contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id)));
+
   const selectedModules=modules.map(module=>({id:module,label:module}));
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
