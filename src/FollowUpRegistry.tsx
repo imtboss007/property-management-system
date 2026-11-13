@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { CalendarClock, CheckCircle2, Clock3, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
@@ -36,11 +37,7 @@ type Props = {
   onWhatsApp: (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => void;
 };
 
-const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-const money = (value: string) => {
-  const amount = Number(String(value || "").replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(amount) && amount !== 0 ? INR.format(amount) : "—";
-};
+const money = (value: string) => formatIndianCompactAmount(value) || "—";
 const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not dated";
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
