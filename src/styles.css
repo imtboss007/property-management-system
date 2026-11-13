@@ -5732,3 +5732,25 @@ h2,h3{color:#e5f2fc}
   .ax-modern-shell .ax-followup-export__head { align-items:flex-start; flex-direction:column; }
   .ax-modern-shell .ax-followup-export__buttons { display:grid; grid-template-columns:1fr 1fr; }
 }
+
+
+/* Follow-up Registry: full property intelligence range filters and linked multi-selects */
+.ax-modern-shell .ax-followup-multicheck { min-width:0; padding:0; border:1px solid #24455a; border-radius:10px; background:#091f2e; color:#d7eaf1; }
+.ax-modern-shell .ax-followup-multicheck>summary { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:40px; padding:9px 11px; cursor:pointer; color:#c8e0ea; font-size:11px; font-weight:700; list-style:none; }
+.ax-modern-shell .ax-followup-multicheck>summary::-webkit-details-marker { display:none; }
+.ax-modern-shell .ax-followup-multicheck>summary span { color:#73d7d8; font-size:10px; white-space:nowrap; }
+.ax-modern-shell .ax-followup-multicheck__body { padding:0 10px 10px; }
+.ax-modern-shell .ax-followup-multicheck__body>input { width:100%; min-width:0; padding:8px 9px; border:1px solid #294a60; border-radius:8px; background:#071827; color:#e5f4f8; font-size:10px; }
+.ax-modern-shell .ax-followup-multicheck__actions { display:flex; gap:13px; padding:7px 0; }
+.ax-modern-shell .ax-followup-multicheck__actions button { border:0; padding:0; background:none; color:#78d9dc; font-size:10px; font-weight:750; }
+.ax-modern-shell .ax-followup-multicheck__items { display:flex; flex-direction:column; gap:6px; max-height:135px; overflow:auto; }
+.ax-modern-shell .ax-followup-multicheck__items label { display:flex; align-items:flex-start; gap:7px; color:#a9c3d0; font-size:10px; line-height:1.35; }
+.ax-modern-shell .ax-followup-multicheck__items input { margin:1px 0 0; accent-color:#28d3cb; }
+.ax-modern-shell .ax-followup-range { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:5px; }
+.ax-modern-shell .ax-followup-range input,.ax-modern-shell .ax-followup-range select { width:100%; min-width:0; padding:8px 9px; border:1px solid #294a60; border-radius:8px; background:#071827; color:#e3f2f7; font-size:10px; }
+.ax-modern-shell .ax-followup-range select { grid-column:1/-1; }
+.ax-modern-shell .ax-followup-filter-grid>label { min-width:0; }
+@media (max-width:640px) {
+  .ax-modern-shell .ax-followup-multicheck__items { max-height:115px; }
+  .ax-modern-shell .ax-followup-range { grid-template-columns:1fr 1fr; }
+}
