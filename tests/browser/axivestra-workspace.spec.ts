@@ -463,18 +463,24 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await expect(dialog).toContainText("Settlement value");
     await expect(dialog).toContainText("QA Primary Group");
     await expect(dialog).toContainText("QA Follow-up Group");
+    await expect(dialog).toContainText("QA Follow-up Contact");
     await dialog.getByRole("button",{name:"Close record details"}).click();
-    if(module===expectedModules[0]){
+    if(module===expectedModules[0] || module===expectedModules[expectedModules.length-1]){
       await row.getByRole("button",{name:"Edit record"}).click();
-      const amountInputs=page.getByLabel("Amount in Indian rupees");
-      await expect(amountInputs.first()).toHaveValue("4");
       const valuationInputs=page.locator(".ax-valuation-fields").getByLabel("Amount in Indian rupees");
       await expect(valuationInputs).toHaveCount(3);
-      await expect(valuationInputs.nth(0)).toHaveValue("2.5");
-      await expect(valuationInputs.nth(1)).toHaveValue("5");
-      await expect(valuationInputs.nth(2)).toHaveValue("3");
-      await expect(page.getByText("VALUATION & SETTLEMENT")).toBeVisible();
-      await expect(page.locator(".ax-valuation-fields").getByLabel("Amount unit").first()).toHaveValue("crore");
+      if(module===expectedModules[0]){
+        const amountInputs=page.getByLabel("Amount in Indian rupees");
+        await expect(amountInputs.first()).toHaveValue("4");
+        await expect(valuationInputs.nth(0)).toHaveValue("2.5");
+        await expect(valuationInputs.nth(1)).toHaveValue("5");
+        await expect(valuationInputs.nth(2)).toHaveValue("3");
+        await expect(page.locator(".ax-valuation-fields").getByLabel("Amount unit").first()).toHaveValue("crore");
+      } else {
+        await expect(page.locator(".ax-valuation-fields")).toContainText("SR / guidance rate per unit");
+        await expect(page.locator(".ax-valuation-fields")).toContainText("Market rate per unit");
+        await expect(page.locator(".ax-valuation-fields")).toContainText("Settlement value");
+      }
       await page.getByRole("button",{name:"Cancel",exact:true}).click();
     }
   }
