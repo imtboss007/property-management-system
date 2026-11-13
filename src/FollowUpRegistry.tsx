@@ -75,7 +75,6 @@ export default function FollowUpRegistry({
   const [includeFollowName,setIncludeFollowName]=useState(true);
   const [includePrimaryGroup,setIncludePrimaryGroup]=useState(true);
   const [includeFollowGroup,setIncludeFollowGroup]=useState(true);
-  const [moduleFilter, setModuleFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [amountSort, setAmountSort] = useState<"none"|"high"|"low">("none");
   const [month, setMonth] = useState(today.slice(0,7));
@@ -187,7 +186,7 @@ export default function FollowUpRegistry({
       return date || (a.entry.time || "").localeCompare(b.entry.time || "");
     });
     return result;
-  }, [items, tab, today, personFilter, primaryPersonFilter, primaryGroupFilter, followGroupFilter, minimumAmount, maximumAmount, locationFilter, moduleFilter, priorityFilter, query, amountSort, contactById, groups]);
+  }, [items, tab, today, personFilters, primaryPersonFilters, primaryGroupFilters, followGroupFilters, moduleFilters, minimumAmount, maximumAmount, locationFilter, priorityFilter, query, amountSort, contactById, groups, contacts, areaMin, areaMax, areaUnit, srMin, srMax, valueMin, valueMax, marketMin, marketMax]);
 
   const peopleGroups = useMemo(() => {
     const groups = new Map<string,{id:string;name:string;items:Item[]}>();
