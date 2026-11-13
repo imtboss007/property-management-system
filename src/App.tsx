@@ -1737,7 +1737,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       : [record, ...prev]);
     remoteUpsert("property_records", {
       id: record.id, title: record.title, module: record.module, location: record.location,
-      value: record.value.trim() ? Number(record.value) : null, status: record.status,
+      value: record.value.trim() ? (parseIndianAmount(record.value) ?? null) : null, status: record.status,
       contact: record.contact, primary_contact_id: record.primaryContactId || null,
       target_deadline: record.targetDeadline || null, next_follow_up_date: record.nextFollowUpDate || null,
       next_action: record.nextAction || "", notes: record.notes, created_at: record.createdAt,
@@ -2198,7 +2198,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       property_label: record.property,
       contact_id: record.contactId || null,
       transaction_type: record.type,
-      amount: Number(record.amount),
+      amount: parseIndianAmount(record.amount) ?? 0,
       transaction_date: record.date,
       party: record.party,
       reference_number: record.reference,
