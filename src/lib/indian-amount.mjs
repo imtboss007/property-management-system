@@ -83,3 +83,19 @@ export function formatIndianAmount(input) {
     maximumFractionDigits: 2
   }).format(parsed);
 }
+
+
+/**
+ * Compact Indian-currency display for dashboards, records and exports.
+ * Stored values remain full INR numbers; only their presentation is compacted.
+ */
+export function formatIndianCompactAmount(input) {
+  const parsed = typeof input === "number" ? input : parseIndianAmount(String(input ?? ""));
+  if (parsed === null || !Number.isFinite(parsed)) return "";
+  const absolute = Math.abs(parsed);
+  const sign = parsed < 0 ? "-" : "";
+  const compact = (value) => Number(value.toFixed(2)).toString();
+  if (absolute >= 10000000) return sign + "₹" + compact(absolute / 10000000) + " Cr";
+  if (absolute >= 100000) return sign + "₹" + compact(absolute / 100000) + (absolute >= 200000 ? " Lakhs" : " Lakh");
+  return sign + new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(absolute);
+}
