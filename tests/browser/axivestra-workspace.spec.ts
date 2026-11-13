@@ -442,9 +442,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   test.setTimeout(240_000);
   const openSection=async(name:string)=>{
     if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
-    const escaped=name.replace(/[.*+?^${}()|[\]\\]/g,"\\  const openSection=async(name:string)=>{
-    if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
-    await page.locator(".nav-list").getByRole("button",{name:new RegExp("^"+name)}).click();
+    await page.getByRole("button",{name:new RegExp("^"+name+"(?:\\s+\\d+)?$")}).click();
   };
   for(const module of expectedModules){");
     await page.getByRole("button",{name:new RegExp("^"+escaped+"(?:\\s+\\d+)?$")}).click();
