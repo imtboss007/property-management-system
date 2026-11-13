@@ -1662,18 +1662,27 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
         try {
           if (file.size > 150 * 1024 * 1024) throw new Error("This JSON backup exceeds the 150 MB import limit.");
           const parsed = JSON.parse(await readBrowserFileText(file)) as unknown;
-          const collections = parseWorkspaceBackup(parsed) as Record<string, unknown[]>;
-          const counts = Object.entries(collections).map(([key, rows]) => key + ": " + rows.length).join("\n");
+          const collections = parseWorkspaceBackup(parsed);
+          const counts = [
+            "Properties: " + collections.properties.length,
+            "Contacts: " + collections.contacts.length,
+            "WhatsApp groups: " + (collections.whatsappGroups?.length ?? "not included"),
+            "Tasks: " + collections.tasks.length,
+            "Financials: " + (collections.financials?.length ?? "not included"),
+            "Risks: " + (collections.riskRecords?.length ?? "not included"),
+            "Approvals: " + (collections.approvalRequests?.length ?? "not included"),
+            "Audit events: " + (collections.auditEvents?.length ?? "not included")
+          ].join("\n");
           if (!window.confirm("Importing this backup replaces the matching record collections in the current workspace. Collections omitted by an older backup will be left unchanged.\n\n" + counts + "\n\nExport a backup of the current workspace first. Continue?")) return;
           // All collections are parsed and validated before any state changes are committed.
-          setProperties(collections.properties as PropertyRecord[]);
-          setContacts(collections.contacts as ContactRecord[]);
-          setTasks(collections.tasks as TaskRecord[]);
-          if (Array.isArray(collections.whatsappGroups)) setSavedWhatsAppGroups(collections.whatsappGroups as SavedWhatsAppGroup[]);
-          if (Array.isArray(collections.financials)) setFinancials(collections.financials as FinancialRecord[]);
-          if (Array.isArray(collections.riskRecords)) setRiskRecords(collections.riskRecords as RiskRecord[]);
-          if (Array.isArray(collections.approvalRequests)) setApprovalRequests(collections.approvalRequests as ApprovalRequest[]);
-          if (Array.isArray(collections.auditEvents)) setAuditEvents(collections.auditEvents as AuditEvent[]);
+          setProperties(collections.properties as unknown as PropertyRecord[]);
+          setContacts(collections.contacts as unknown as ContactRecord[]);
+          setTasks(collections.tasks as unknown as TaskRecord[]);
+          if (collections.whatsappGroups) setSavedWhatsAppGroups(collections.whatsappGroups as unknown as SavedWhatsAppGroup[]);
+          if (collections.financials) setFinancials(collections.financials as unknown as FinancialRecord[]);
+          if (collections.riskRecords) setRiskRecords(collections.riskRecords as unknown as RiskRecord[]);
+          if (collections.approvalRequests) setApprovalRequests(collections.approvalRequests as unknown as ApprovalRequest[]);
+          if (collections.auditEvents) setAuditEvents(collections.auditEvents as unknown as AuditEvent[]);
           setNotice("Workspace backup imported successfully. Restore original document files separately from the Documents workspace.");
         } catch (error) {
           setNotice("Workspace backup import failed: " + (error instanceof Error ? error.message : String(error)));
