@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, CalendarClock, ClipboardCheck, Coins, Command, Grid3X3, Link2, Layers3, Orbit, Pause, Play, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import type { ReactNode } from "react";
+import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 
 export type AxivestraOrbitalItem = {
   name: string;
@@ -45,11 +46,7 @@ type AxivestraOrbitalHubProps = {
   onOpen: (name: string) => void;
 };
 
-const formatINR = (value: number) => new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-}).format(Number.isFinite(value) ? value : 0);
+const formatINR = (value: number | string) => formatIndianCompactAmount(value) || "—";
 
 export default function AxivestraOrbitalHub({
   items,
@@ -424,7 +421,7 @@ export default function AxivestraOrbitalHub({
             <article><span>FOLLOW-UPS SET</span><strong>{inspectedDetail.records.filter(record => record.nextFollowUpDate).length}</strong></article>
             <article><span>CONNECTED CONTACTS</span><strong>{inspectedDetail.contacts.length}</strong></article>
             <article><span>LINKED DOCUMENTS</span><strong>{inspectedDetail.documents.length}</strong></article>
-            <article><span>RECORDED VALUE</span><strong>{formatINR(inspectedDetail.records.reduce((sum, record) => sum + (Number(String(record.value).replace(/[^0-9.-]/g, "")) || 0), 0))}</strong></article>
+            <article><span>RECORDED VALUE</span><strong>{formatINR(inspectedDetail.records.reduce((sum, record) => sum + (parseIndianAmount(record.value) || 0), 0))}</strong></article>
           </div>
 
           <div className="ax-orbit-detail__body">
@@ -439,14 +436,14 @@ export default function AxivestraOrbitalHub({
                         <span className="ax-orbit-detail-record__status">{record.status || "Unspecified"}</span>
                       </div>
                       <div className="ax-orbit-detail-record__meta">
-                        {record.value && <span><Coins size={12}/>{record.value}</span>}
+                        {record.value && <span><Coins size={12}/>{formatINR(record.value)}</span>}
                         {record.contact && <span><Users size={12}/>{record.contact}</span>}
                         {record.nextFollowUpDate && <span><CalendarClock size={12}/>{record.nextFollowUpDate}</span>}
                       </div>
                       {record.nextAction && <p className="ax-orbit-detail-record__action"><b>Next:</b> {record.nextAction}</p>}
                       {record.fieldValues.length > 0 && (
                         <div className="ax-orbit-detail-record__fields">
-                          {record.fieldValues.slice(0, 4).map(field => <span key={field.label}><small>{field.label}</small><strong>{field.value}</strong></span>)}
+                          {record.fieldValues.slice(0, 4).map(field => <span key={field.label}><small>{field.label}</small><strong>{isIndianAmountLabel(field.label) ? formatINR(field.value) : field.value}</strong></span>)}
                         </div>
                       )}
                     </article>
@@ -508,7 +505,7 @@ export default function AxivestraOrbitalHub({
                 {inspectedDetail.financials.slice(0, 2).map(entry => (
                   <div className="ax-orbit-detail-activity" key={"financial-" + entry.id}>
                     <span className="ax-orbit-detail-activity__kind">FINANCE</span>
-                    <div><strong>{entry.type} · {entry.amount}</strong><small>{entry.date || "No date"}{entry.party ? " · " + entry.party : ""}</small></div>
+                    <div><strong>{entry.type} · {formatINR(entry.amount)}</strong><small>{entry.date || "No date"}{entry.party ? " · " + entry.party : ""}</small></div>
                   </div>
                 ))}
                 {inspectedDetail.risks.slice(0, 2).map(risk => (

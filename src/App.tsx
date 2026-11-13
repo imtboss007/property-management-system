@@ -21,7 +21,7 @@ import FollowUpForm, { type FollowUpDraft } from "./FollowUpForm";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, serializeFollowUps, type FollowUpEntry } from "./lib/follow-ups";
 import AxivestraOrbitalHub from "./AxivestraOrbitalHub";
 import { parsePropertyRangeQueries, propertyMatchesRange, getPropertyPriceForRangeSearch, getPropertyAreaInSquareFeet } from "./lib/property-range-search";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
+import { parseIndianAmount, normalizeIndianAmount, formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { canonicalContactPhone, deduplicateMasterContacts, remapWorkspaceContactReferences } from "./lib/contact-directory.mjs";
 import { parseContactImport, contactsToVCard } from "./lib/contact-portability.mjs";
 import { createWorkspaceBackup, parseWorkspaceBackup } from "./lib/workspace-backup.mjs";
@@ -2979,7 +2979,7 @@ function IndianAmountInput({value,onChange,placeholder,required=false}:{value:st
       </select>
     </div>
     <small className="ax-inr-amount-help">Type the amount, then choose Rupees, Thousands, Lakhs or Crores. Example: 25 + Lakhs = ₹25,00,000.</small>
-    {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianAmount(parsed)}</small>}
+    {hasValue && parsed!==null && <small className="ax-inr-amount-preview">Calculated INR: {formatIndianCompactAmount(parsed)}</small>}
     {hasValue && parsed===null && <small className="ax-inr-amount-error">Enter a valid amount. Example: 25000 or 25 with Lakh selected.</small>}
   </div>;
 }
