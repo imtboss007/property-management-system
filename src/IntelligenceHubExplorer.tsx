@@ -89,19 +89,16 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
   const [includePrimaryGroup,setIncludePrimaryGroup]=useState(true);const [includeFollowGroup,setIncludeFollowGroup]=useState(true);
   const [reportBusy,setReportBusy]=useState(false);
 
+  const canonicalGroupIds=(ids:string[])=>Array.from(new Set(ids.map(token=>groups.find(group=>group.id===token||group.jid===token||group.name.toLowerCase()===token.toLowerCase())?.id||"").filter(Boolean)));
   const groupOptions=useMemo(()=>{
-    const values=new Map<string,string>();
-    groups.forEach(group=>values.set(group.id,group.name));
-    properties.forEach(record=>{
-      [...keysOf(record,"primary"),...keysOf(record,"follow")].forEach(token=>{
-        const group=groups.find(item=>item.id===token||item.jid===token||item.name.toLowerCase()===token.toLowerCase());
-        if(group)values.set(group.id,group.name);
-      });
-    });
-    return Array.from(values.entries()).map(([id,label])=>({id,label})).sort((a,b)=>a.label.localeCompare(b.label));
+    const usedIds=new Set(properties.flatMap(record=>canonicalGroupIds([...keysOf(record,"primary"),...keysOf(record,"follow")])));
+    return groups.filter(group=>usedIds.has(group.id)).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
   },[groups,properties]);
   const moduleOptions=modules.map(item=>({id:item.name,label:item.name+" · "+(item.group||"Workspace")}));
-  const contactOptions=contacts.map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")+(person.phone?" · "+person.phone:"")})).sort((a,b)=>a.label.localeCompare(b.label));
+  const usedPrimaryIds=new Set(properties.flatMap(record=>recordPrimaryIds(record,contacts)));
+  const usedFollowIds=new Set(properties.flatMap(record=>recordFollowIds(record)));
+  const primaryContactOptions=contacts.filter(person=>usedPrimaryIds.has(person.id)).map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")+(person.phone?" · "+person.phone:"")})).sort((a,b)=>a.label.localeCompare(b.label));
+  const followContactOptions=contacts.filter(person=>usedFollowIds.has(person.id)).map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")+(person.phone?" · "+person.phone:"")})).sort((a,b)=>a.label.localeCompare(b.label));
   const filtered=useMemo(()=>properties.filter(record=>{
     if(moduleIds.length&& !moduleIds.includes(record.module))return false;
     if(location.trim()&&!String(record.location||"").toLowerCase().includes(location.trim().toLowerCase()))return false;
@@ -123,8 +120,8 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
     if(primaryIds.length&&!primaryIds.some(id=>prim.includes(id)))return false;
     if(followIds.length&&!followIds.some(id=>follow.includes(id)))return false;
     const pg=keysOf(record,"primary"),fg=keysOf(record,"follow");
-    if(primaryGroups.length&&!primaryGroups.some(id=>pg.includes(id)))return false;
-    if(followGroups.length&&!followGroups.some(id=>fg.includes(id)))return false;
+    if(primaryGroups.length&&!primaryGroups.some(id=>canonicalGroupIds(pg).includes(id)))return false;
+    if(followGroups.length&&!followGroups.some(id=>canonicalGroupIds(fg).includes(id)))return false;
     return true;
   }),[properties,moduleIds,location,areaMin,areaMax,areaUnit,srMin,srMax,valueMin,valueMax,marketMin,marketMax,primaryIds,followIds,primaryGroups,followGroups,contacts,moduleFields]);
   const totals=useMemo(()=>filtered.reduce((acc,record)=>({value:acc.value+(Number(record.value)||0),count:acc.count+1}),{value:0,count:0}),[filtered]);
@@ -159,8 +156,8 @@ export default function IntelligenceHubExplorer({properties,contacts,modules,mod
       <div className="ax-hub-filter-field"><label>SR / guidance rate (₹)</label><div className="ax-hub-range"><input value={srMin} onChange={event=>setSrMin(event.target.value)} placeholder="From (e.g. 2 Cr)"/><input value={srMax} onChange={event=>setSrMax(event.target.value)} placeholder="To (e.g. 5 Cr)"/></div></div>
       <div className="ax-hub-filter-field"><label>Value / exposure (₹)</label><div className="ax-hub-range"><input value={valueMin} onChange={event=>setValueMin(event.target.value)} placeholder="From"/><input value={valueMax} onChange={event=>setValueMax(event.target.value)} placeholder="To"/></div></div>
       <div className="ax-hub-filter-field"><label>Market value / rate (₹)</label><div className="ax-hub-range"><input value={marketMin} onChange={event=>setMarketMin(event.target.value)} placeholder="From"/><input value={marketMax} onChange={event=>setMarketMax(event.target.value)} placeholder="To"/></div></div>
-      <CheckList title="Primary contact" items={contactOptions} selected={primaryIds} onChange={setPrimaryIds}/>
-      <CheckList title="Follow-up contact" items={contactOptions} selected={followIds} onChange={setFollowIds}/>
+      <CheckList title="Primary contact" items={primaryContactOptions} selected={primaryIds} onChange={setPrimaryIds}/>
+      <CheckList title="Follow-up contact" items={followContactOptions} selected={followIds} onChange={setFollowIds}/>
       <CheckList title="Primary WhatsApp group" items={groupOptions} selected={primaryGroups} onChange={setPrimaryGroups}/>
       <CheckList title="Follow-up WhatsApp group" items={groupOptions} selected={followGroups} onChange={setFollowGroups}/>
     </div>}
