@@ -23,7 +23,7 @@ type Props = {
 type GroupValue = {id:string;label:string};
 const money = (value:string|number) => formatIndianCompactAmount(value) || "—";
 const parseRange = (value:string) => value.trim() ? parseIndianAmount(value) : null;
-const AREA_FACTORS:Record<string,number> = { "sq ft":1, "sq yd":9, acre:43560, gunta:1089, "sq m":10.7639104167 };
+const AREA_FACTORS:Record<string,number> = { "sq ft":1, "sq yd":9, acre:43560, gunta:1089, "sq m":10.7639104167, hectare:107639.104167, cent:435.6 };
 const AREA_UNITS = Object.keys(AREA_FACTORS);
 const keysOf = (record:HubRecord, kind:"primary"|"follow") => {
   const data=record.moduleData||{};
@@ -58,9 +58,10 @@ function recordFollowIds(record:HubRecord) {
   return Array.from(new Set([...ids,...parseFollowUps(record.moduleData).flatMap(entry=>entry.contactIds)]));
 }
 function recordPrimaryIds(record:HubRecord,contacts:HubContact[]) {
-  const found=[record.primaryContactId||"",...(record.moduleData?.__linkedContactIds||"").split(",")].map(id=>id.trim()).filter(Boolean);
-  if(!found.length&&record.contact){const match=contacts.find(person=>person.name.trim().toLowerCase()===record.contact!.trim().toLowerCase());if(match)found.push(match.id);}
-  return Array.from(new Set(found));
+  const primary=String(record.primaryContactId||"").trim();
+  if(primary)return [primary];
+  if(record.contact){const match=contacts.find(person=>person.name.trim().toLowerCase()===record.contact!.trim().toLowerCase());if(match)return [match.id];}
+  return [];
 }
 function CheckList({title,items,selected,onChange,searchable=true}:{title:string;items:{id:string;label:string}[];selected:string[];onChange:(value:string[])=>void;searchable?:boolean}) {
   const [query,setQuery]=useState("");
