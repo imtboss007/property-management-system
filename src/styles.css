@@ -5665,6 +5665,9 @@ h2,h3{color:#e5f2fc}
 .ax-modern-shell .ax-hub-text-link { color:#7cd8df; font-size:10px; line-height:1.6; }
 .ax-modern-shell .ax-hub-record-link:hover strong,.ax-modern-shell .ax-hub-text-link:hover { color:#a4f4ed; text-decoration:underline; }
 .ax-modern-shell .ax-hub-modal-backdrop { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(2,10,17,.78); backdrop-filter:blur(7px); }
+/* Follow-up editor opened from the Hub must sit above the Hub detail dialog. */
+.ax-modern-shell .ax-followup-modal-backdrop { z-index:10001; }
+.ax-modern-shell .ax-followup-modal-backdrop .ax-followup-modal { position:relative; z-index:1; }
 .ax-modern-shell .ax-hub-record-modal { width:min(820px,100%); max-height:min(88vh,900px); overflow:auto; padding:20px; border:1px solid #2b596d; border-radius:18px; background:#0a2030; box-shadow:0 24px 80px rgba(0,0,0,.48); }
 .ax-modern-shell .ax-hub-record-modal__head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid #1e3e53; }
 .ax-modern-shell .ax-hub-record-modal__head h2 { margin:4px 0; color:#e6f6fc; font-size:19px; }
