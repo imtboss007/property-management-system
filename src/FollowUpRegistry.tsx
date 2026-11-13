@@ -42,7 +42,7 @@ type Props = {
   onWhatsApp: (contactId?: string, propertyId?: string, taskId?: string, taskTitle?: string) => void;
 };
 
-const money = (value: string) => formatIndianCompactAmount(value) || "—";
+const money = (value: string | number) => formatIndianCompactAmount(value) || "—";
 const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not dated";
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
