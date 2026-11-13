@@ -44,16 +44,29 @@ const money = (value: string) => formatIndianCompactAmount(value) || "—";
 const dateLabel = (value: string) => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Not dated";
 const statusOf = (item: Item) => item.source === "task" ? (item.task?.done ? "Completed" : "Open") : item.entry.status;
 
+function RegistryCheckList({title,items,selected,onChange}:{title:string;items:{id:string;label:string}[];selected:string[];onChange:(value:string[])=>void}) {
+  const [query,setQuery]=useState("");
+  const filtered=items.filter(item=>!query||item.label.toLowerCase().includes(query.toLowerCase()));
+  const toggle=(id:string,checked:boolean)=>onChange(checked?Array.from(new Set([...selected,id])):selected.filter(value=>value!==id));
+  return <div className="ax-followup-multi-filter"><strong>{title}</strong><small>{selected.length} selected</small><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder={"Search "+title.toLowerCase()+"…"} aria-label={"Search "+title}/><div className="ax-followup-multi-filter__actions"><button type="button" onClick={()=>onChange(items.map(item=>item.id))}>Select all</button><button type="button" onClick={()=>onChange([])}>Clear</button></div><div className="ax-followup-multi-filter__items">{filtered.map(item=><label key={item.id}><input type="checkbox" checked={selected.includes(item.id)} onChange={event=>toggle(item.id,event.target.checked)}/><span>{item.label}</span></label>)}{filtered.length===0&&<small>No matching options.</small>}</div></div>;
+}
+const AREA_FACTORS:Record<string,number>={"sq ft":1,"sq yd":9,"sq m":10.7639104167,acre:43560,gunta:1089,hectare:107639.104167,cent:435.6};
+
 export default function FollowUpRegistry({
   initialTab="All", properties, contacts, groups, tasks, today, onAdd, onEditEntry, onUpdateEntry,
   onDeleteEntry, onEditRecord, onEditTask, onToggleTask, onDeleteTask, onOpenModule, onWhatsApp
 }: Props) {
   const [tab, setTab] = useState<"All"|"Today"|"Overdue"|"Upcoming"|"Completed">(initialTab);
   const [query, setQuery] = useState("");
-  const [personFilter, setPersonFilter] = useState("");
-  const [primaryPersonFilter,setPrimaryPersonFilter]=useState("");
-  const [primaryGroupFilter,setPrimaryGroupFilter]=useState("");
-  const [followGroupFilter,setFollowGroupFilter]=useState("");
+  const [personFilters,setPersonFilters]=useState<string[]>([]);
+  const [primaryPersonFilters,setPrimaryPersonFilters]=useState<string[]>([]);
+  const [primaryGroupFilters,setPrimaryGroupFilters]=useState<string[]>([]);
+  const [followGroupFilters,setFollowGroupFilters]=useState<string[]>([]);
+  const [moduleFilters,setModuleFilters]=useState<string[]>([]);
+  const [areaMin,setAreaMin]=useState("");const [areaMax,setAreaMax]=useState("");const [areaUnit,setAreaUnit]=useState("sq ft");
+  const [srMin,setSrMin]=useState("");const [srMax,setSrMax]=useState("");
+  const [valueMin,setValueMin]=useState("");const [valueMax,setValueMax]=useState("");
+  const [marketMin,setMarketMin]=useState("");const [marketMax,setMarketMax]=useState("");
   const [minimumAmount,setMinimumAmount]=useState("");
   const [maximumAmount,setMaximumAmount]=useState("");
   const [locationFilter,setLocationFilter]=useState("");
@@ -116,6 +129,18 @@ export default function FollowUpRegistry({
   }), [items, today]);
 
   const modules = useMemo(() => Array.from(new Set(items.map(item => item.module).filter(Boolean))).sort(), [items]);
+  const followPersonOptions=contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id))).map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")})).sort((a,b)=>a.label.localeCompare(b.label));
+  const primaryPersonOptions=contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase()))).map(person=>({id:person.id,label:person.name+(person.role?" · "+person.role:"")})).sort((a,b)=>a.label.localeCompare(b.label));
+  const primaryGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"primary").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
+  const followGroupOptions=groups.filter(group=>properties.some(record=>readGroupIds(record,"follow").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=>({id:group.id,label:group.name})).sort((a,b)=>a.label.localeCompare(b.label));
+  const moneyField=(record:FollowUpRecordLike|null,kind:"sr"|"market")=>{
+    if(!record?.moduleData)return 0;
+    const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:["marketRate","marketRatePerUnit","marketValue","marketAmount"];
+    for(const key of exact){const value=record.moduleData[key];if(String(value||"").trim())return parseIndianAmount(value)||0;}
+    const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:/market.*(rate|value|amount)|(rate|value|amount).*market/i;
+    const entry=Object.entries(record.moduleData).find(([key,value])=>pattern.test(key)&&String(value||"").trim());
+    return entry?parseIndianAmount(entry[1])||0:0;
+  };
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
     let result = items.filter(item => {
@@ -124,16 +149,26 @@ export default function FollowUpRegistry({
       if (tab === "Overdue" && (isFollowUpClosed(status) || !item.entry.date || item.entry.date >= today)) return false;
       if (tab === "Upcoming" && (isFollowUpClosed(status) || !item.entry.date || item.entry.date <= today)) return false;
       if (tab === "Completed" && status !== "Completed") return false;
-      if (personFilter && !item.entry.contactIds.includes(personFilter)) return false;
-      if (primaryPersonFilter && item.record?.primaryContactId !== primaryPersonFilter) return false;
-      if (primaryGroupFilter && !readGroupIds(item.record,"primary").includes(primaryGroupFilter)) return false;
-      if (followGroupFilter && !readGroupIds(item.record,"follow").includes(followGroupFilter)) return false;
+      if (personFilters.length && !personFilters.some(id=>item.entry.contactIds.includes(id))) return false;
+      const primaryId=item.record?.primaryContactId || contacts.find(person=>person.name.trim().toLowerCase()===(item.record?.contact||"").trim().toLowerCase())?.id || "";
+      if (primaryPersonFilters.length && !primaryPersonFilters.includes(primaryId)) return false;
+      if (primaryGroupFilters.length && !primaryGroupFilters.some(id=>readGroupIds(item.record,"primary").some(value=>value===id||groups.find(group=>group.id===id)?.jid===value||groups.find(group=>group.id===id)?.name===value))) return false;
+      if (followGroupFilters.length && !followGroupFilters.some(id=>readGroupIds(item.record,"follow").some(value=>value===id||groups.find(group=>group.id===id)?.jid===value||groups.find(group=>group.id===id)?.name===value))) return false;
       if (locationFilter.trim() && !String(item.record?.location||"").toLowerCase().includes(locationFilter.trim().toLowerCase())) return false;
-      const amount=Number(item.entry.amount)||Number(item.record?.value)||0;
+      const amount=parseIndianAmount(item.entry.amount||"")||parseIndianAmount(item.record?.value||"")||0;
       const min=parseIndianAmount(minimumAmount),max=parseIndianAmount(maximumAmount);
       if (minimumAmount.trim() && (min===null || amount<min)) return false;
       if (maximumAmount.trim() && (max===null || amount>max)) return false;
-      if (moduleFilter && item.module !== moduleFilter) return false;
+      if (moduleFilters.length && !moduleFilters.includes(item.module)) return false;
+      const factor=AREA_FACTORS[areaUnit]||1, area=(Number(item.record?.areaValue||0)*(AREA_FACTORS[item.record?.areaUnit||"sq ft"]||1))/factor;
+      const areaLo=parseIndianAmount(areaMin),areaHi=parseIndianAmount(areaMax);
+      if(areaMin.trim()&&(areaLo===null||!item.record?.areaValue||area<areaLo))return false;
+      if(areaMax.trim()&&(areaHi===null||!item.record?.areaValue||area>areaHi))return false;
+      const sr=moneyField(item.record,"sr"),recordValue=parseIndianAmount(item.record?.value||"")||0,market=moneyField(item.record,"market");
+      const srLo=parseIndianAmount(srMin),srHi=parseIndianAmount(srMax),valueLo=parseIndianAmount(valueMin),valueHi=parseIndianAmount(valueMax),marketLo=parseIndianAmount(marketMin),marketHi=parseIndianAmount(marketMax);
+      if(srMin.trim()&&(srLo===null||!sr||sr<srLo))return false;if(srMax.trim()&&(srHi===null||!sr||sr>srHi))return false;
+      if(valueMin.trim()&&(valueLo===null||!item.record?.value||recordValue<valueLo))return false;if(valueMax.trim()&&(valueHi===null||!item.record?.value||recordValue>valueHi))return false;
+      if(marketMin.trim()&&(marketLo===null||!market||market<marketLo))return false;if(marketMax.trim()&&(marketHi===null||!market||market>marketHi))return false;
       if (priorityFilter && item.entry.priority !== priorityFilter) return false;
       if (term) {
         const people = item.entry.contactIds.map(id => contactById.get(id)?.name || "").join(" ");
@@ -143,8 +178,8 @@ export default function FollowUpRegistry({
       return true;
     });
     if (amountSort !== "none") result = [...result].sort((a,b) => {
-      const av = Number(a.entry.amount) || Number(a.record?.value) || 0;
-      const bv = Number(b.entry.amount) || Number(b.record?.value) || 0;
+      const av = parseIndianAmount(a.entry.amount||"") || parseIndianAmount(a.record?.value||"") || 0;
+      const bv = parseIndianAmount(b.entry.amount||"") || parseIndianAmount(b.record?.value||"") || 0;
       return amountSort === "high" ? bv-av : av-bv;
     });
     else result = [...result].sort((a,b) => {
@@ -273,16 +308,25 @@ export default function FollowUpRegistry({
       <div className="section-heading"><div><h2>Follow-up search and filters</h2><p>Search by person, record, module, description or next action.</p></div><button type="button" className="primary-button" onClick={onAdd}><Plus size={16}/> Add follow-up</button></div>
       <div className="ax-followup-filter-grid">
         <label className="ax-followup-search"><Search size={15}/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="Search follow-ups, people, records…"/></label>
-        <label>Follow-up contact<select value={personFilter} onChange={event=>setPersonFilter(event.target.value)}><option value="">All linked follow-up contacts</option>{contacts.filter(person=>items.some(item=>item.entry.contactIds.includes(person.id))).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-        <label>Primary contact<select value={primaryPersonFilter} onChange={event=>setPrimaryPersonFilter(event.target.value)}><option value="">All linked primary contacts</option>{contacts.filter(person=>properties.some(record=>record.primaryContactId===person.id||(!record.primaryContactId&&record.contact?.trim().toLowerCase()===person.name.trim().toLowerCase()))).map(person=><option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-        <label>Primary group<select value={primaryGroupFilter} onChange={event=>setPrimaryGroupFilter(event.target.value)}><option value="">All linked primary groups</option>{groups.filter(group=>properties.some(record=>readGroupIds(record,"primary").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
-        <label>Follow-up group<select value={followGroupFilter} onChange={event=>setFollowGroupFilter(event.target.value)}><option value="">All linked follow-up groups</option>{groups.filter(group=>properties.some(record=>readGroupIds(record,"follow").some(id=>id===group.id||id===group.jid||id===group.name))).map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
+        <RegistryCheckList title="Follow-up contact" items={followPersonOptions} selected={personFilters} onChange={setPersonFilters}/>
+        <RegistryCheckList title="Primary contact" items={primaryPersonOptions} selected={primaryPersonFilters} onChange={setPrimaryPersonFilters}/>
+        <RegistryCheckList title="Primary group" items={primaryGroupOptions} selected={primaryGroupFilters} onChange={setPrimaryGroupFilters}/>
+        <RegistryCheckList title="Follow-up group" items={followGroupOptions} selected={followGroupFilters} onChange={setFollowGroupFilters}/>
+        <RegistryCheckList title="Module" items={modules.map(module=>({id:module,label:module}))} selected={moduleFilters} onChange={setModuleFilters}/>
         <label>Location<input value={locationFilter} onChange={event=>setLocationFilter(event.target.value)} placeholder="Search location"/></label>
-        <label>Amount from (₹)<input value={minimumAmount} onChange={event=>setMinimumAmount(event.target.value)} placeholder="e.g. 2 Cr"/></label>
-        <label>Amount to (₹)<input value={maximumAmount} onChange={event=>setMaximumAmount(event.target.value)} placeholder="e.g. 10 Cr"/></label>
-        <label>Module<select value={moduleFilter} onChange={event=>setModuleFilter(event.target.value)}><option value="">All modules</option>{modules.map(module=><option key={module}>{module}</option>)}</select></label>
+        <label>Follow-up amount from (₹)<input value={minimumAmount} onChange={event=>setMinimumAmount(event.target.value)} placeholder="e.g. 2 Cr"/></label>
+        <label>Follow-up amount to (₹)<input value={maximumAmount} onChange={event=>setMaximumAmount(event.target.value)} placeholder="e.g. 10 Cr"/></label>
+        <label>Area / size from<input value={areaMin} onChange={event=>setAreaMin(event.target.value)} placeholder="e.g. 1200" inputMode="decimal"/></label>
+        <label>Area / size to<input value={areaMax} onChange={event=>setAreaMax(event.target.value)} placeholder="e.g. 2" inputMode="decimal"/></label>
+        <label>Area unit<select value={areaUnit} onChange={event=>setAreaUnit(event.target.value)}>{Object.keys(AREA_FACTORS).map(unit=><option key={unit}>{unit}</option>)}</select></label>
+        <label>SR rate from (₹)<input value={srMin} onChange={event=>setSrMin(event.target.value)} placeholder="e.g. 2 Cr"/></label>
+        <label>SR rate to (₹)<input value={srMax} onChange={event=>setSrMax(event.target.value)} placeholder="e.g. 5 Cr"/></label>
+        <label>Value / exposure from (₹)<input value={valueMin} onChange={event=>setValueMin(event.target.value)} placeholder="e.g. 2 Cr"/></label>
+        <label>Value / exposure to (₹)<input value={valueMax} onChange={event=>setValueMax(event.target.value)} placeholder="e.g. 10 Cr"/></label>
+        <label>Market value / rate from (₹)<input value={marketMin} onChange={event=>setMarketMin(event.target.value)} placeholder="e.g. 3 Cr"/></label>
+        <label>Market value / rate to (₹)<input value={marketMax} onChange={event=>setMarketMax(event.target.value)} placeholder="e.g. 12 Cr"/></label>
         <label>Priority<select value={priorityFilter} onChange={event=>setPriorityFilter(event.target.value)}><option value="">All priorities</option>{["Urgent","High","Normal","Low"].map(priority=><option key={priority}>{priority}</option>)}</select></label>
-        <label>Amount order<select value={amountSort} onChange={event=>setAmountSort(event.target.value as typeof amountSort)}><option value="none">Date order</option><option value="high">Highest amount first</option><option value="low">Lowest amount first</option></select></label><button type="button" className="secondary-button" onClick={()=>{setQuery("");setPersonFilter("");setPrimaryPersonFilter("");setPrimaryGroupFilter("");setFollowGroupFilter("");setLocationFilter("");setMinimumAmount("");setMaximumAmount("");setModuleFilter("");setPriorityFilter("");setAmountSort("none");setTab("All");}}>Clear all filters</button>
+        <label>Amount order<select value={amountSort} onChange={event=>setAmountSort(event.target.value as typeof amountSort)}><option value="none">Date order</option><option value="high">Highest amount first</option><option value="low">Lowest amount first</option></select></label><button type="button" className="secondary-button" onClick={()=>{setQuery("");setPersonFilters([]);setPrimaryPersonFilters([]);setPrimaryGroupFilters([]);setFollowGroupFilters([]);setModuleFilters([]);setLocationFilter("");setMinimumAmount("");setMaximumAmount("");setAreaMin("");setAreaMax("");setAreaUnit("sq ft");setSrMin("");setSrMax("");setValueMin("");setValueMax("");setMarketMin("");setMarketMax("");setPriorityFilter("");setAmountSort("none");setTab("All");}}>Clear all filters</button>
       </div>
       <div className="ax-followup-tabs">{(["All","Today","Overdue","Upcoming","Completed"] as const).map(value=><button key={value} type="button" className={tab===value?"active":""} onClick={()=>setTab(value)}>{value}{value==="All"?" ("+counts.all+")":value==="Today"?" ("+counts.today+")":value==="Overdue"?" ("+counts.overdue+")":value==="Upcoming"?" ("+counts.upcoming+")":" ("+counts.completed+")"}</button>)}</div>
       <div className="ax-followup-export">
