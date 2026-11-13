@@ -444,9 +444,6 @@ test("desktop and mobile: every module formats crores and opens table details, h
     if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
     await page.getByRole("button",{name:new RegExp("^"+name+"(?:\\s+\\d+)?$")}).click();
   };
-  for(const module of expectedModules){");
-    await page.getByRole("button",{name:new RegExp("^"+escaped+"(?:\\s+\\d+)?$")}).click();
-  };
   for(const module of expectedModules){
     await openSection(module);
     const workbench=page.locator(".ax-module-workbench");
