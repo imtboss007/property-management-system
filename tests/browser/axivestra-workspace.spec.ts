@@ -415,9 +415,9 @@ test("desktop and mobile: every module formats crores and opens table details, h
     value:"40000000",status:"Active",contact:"QA Primary Contact",primaryContactId:"qa-primary",
     createdAt:"2026-11-13T09:00:00.000Z",targetDeadline:"2026-12-01",nextFollowUpDate:"2026-11-14",
     nextAction:"Confirm next step for "+module,notes:"QA-only record for automated browser coverage.",
-    surveyNumber:"QA-"+(index+1),ownershipDetails:"QA owner",areaValue:"1200",areaUnit:"sq ft",dimensions:"",
+    surveyNumber:"QA-"+(index+1),ownershipDetails:"QA owner",areaValue:"1200",areaUnit:"sq ft",landSizeValue:"1200",landSizeUnit:"sq ft",builtUpSizeValue:"900",builtUpSizeUnit:"sq ft",dimensions:"",
     ratePerUnit:"25000000",
-    moduleData:{srRate:"25000000",marketRatePerUnit:"50000000",settlementAmount:"30000000",
+    moduleData:{srValue:"20000000",srRate:"25000000",marketValue:"45000000",marketRatePerUnit:"50000000",settlementAmount:"30000000",
       __followUpContactIds:"qa-follow",__primaryGroupIds:"qa-primary-group",__followUpGroupIds:"qa-follow-group",
       __followUps:JSON.stringify([{id:"qa-follow-"+index,contactIds:["qa-follow"],description:"QA appointment · "+module,
         amount:"40000000",date:"2026-11-14",time:"10:30",priority:"High",status:"Open",
@@ -442,8 +442,11 @@ test("desktop and mobile: every module formats crores and opens table details, h
   test.setTimeout(240_000);
   const openSection=async(name:string)=>{
     if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
-    if(expectedModules.includes(name)) await page.getByTestId("module-directory-"+name).click();
-    else await page.locator(".nav-list").getByRole("button",{name:new RegExp("^"+name)}).click();
+    if(name === "Intelligence Hub" || name === "Follow-up Registry" || name === "Workspace Explorer" || name === "Overview" || name === "All Properties") {
+      await page.locator(".nav-list").getByRole("button",{name:new RegExp("^"+name)}).click();
+    } else {
+      await page.getByTestId("module-directory-"+name).click();
+    }
   };
   for(const module of expectedModules){
     await openSection(module);
@@ -453,13 +456,21 @@ test("desktop and mobile: every module formats crores and opens table details, h
     const row=workbench.getByRole("row",{name:new RegExp("QA "+module+" record")});
     await expect(row).toBeVisible();
     await expect(row.getByRole("cell").nth(3)).toContainText("₹4 Cr");
-    await expect(row.getByRole("cell").nth(4)).toContainText("₹2.5 Cr");
-    await expect(row.getByRole("cell").nth(5)).toContainText("₹5 Cr");
-    await expect(row.getByRole("cell").nth(6)).toContainText("₹3 Cr");
+    await expect(row.getByRole("cell").nth(4)).toContainText("₹2 Cr");
+    await expect(row.getByRole("cell").nth(5)).toContainText("₹2.5 Cr");
+    await expect(row.getByRole("cell").nth(6)).toContainText("₹4.5 Cr");
+    await expect(row.getByRole("cell").nth(7)).toContainText("₹5 Cr");
+    await expect(row.getByRole("cell").nth(8)).toContainText("₹3 Cr");
+    await expect(row).toContainText("1200 sq ft");
+    await expect(row).toContainText("900 sq ft");
     await row.getByRole("button",{name:"View details for QA "+module+" record"}).click();
     const dialog=page.getByRole("dialog",{name:"Record details: QA "+module+" record"});
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("₹4 Cr");
+    await expect(dialog).toContainText("SR value");
+    await expect(dialog).toContainText("Market value");
+    await expect(dialog).toContainText("Land size");
+    await expect(dialog).toContainText("Built-up size");
     await expect(dialog).toContainText("Settlement value");
     await expect(dialog).toContainText("QA Primary Group");
     await expect(dialog).toContainText("QA Follow-up Group");
@@ -468,13 +479,15 @@ test("desktop and mobile: every module formats crores and opens table details, h
     if(module===expectedModules[0] || module===expectedModules[expectedModules.length-1]){
       await row.getByRole("button",{name:"Edit record"}).click();
       const valuationInputs=page.locator(".ax-valuation-fields").getByLabel("Amount in Indian rupees");
-      await expect(valuationInputs).toHaveCount(3);
+      await expect(valuationInputs).toHaveCount(5);
       if(module===expectedModules[0]){
         const amountInputs=page.getByLabel("Amount in Indian rupees");
         await expect(amountInputs.first()).toHaveValue("4");
-        await expect(valuationInputs.nth(0)).toHaveValue("2.5");
-        await expect(valuationInputs.nth(1)).toHaveValue("5");
-        await expect(valuationInputs.nth(2)).toHaveValue("3");
+        await expect(valuationInputs.nth(0)).toHaveValue("2");
+        await expect(valuationInputs.nth(1)).toHaveValue("2.5");
+        await expect(valuationInputs.nth(2)).toHaveValue("4.5");
+        await expect(valuationInputs.nth(3)).toHaveValue("5");
+        await expect(valuationInputs.nth(4)).toHaveValue("3");
         await expect(page.locator(".ax-valuation-fields").getByLabel("Amount unit").first()).toHaveValue("crore");
       } else {
         await expect(page.locator(".ax-valuation-fields")).toContainText("SR / guidance rate per unit");
@@ -493,6 +506,10 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(hubDialog).toContainText("QA Primary Contact");
   await expect(hubDialog).toContainText("QA Follow-up Group");
   await expect(hubDialog).toContainText("₹4 Cr");
+  await expect(hubDialog).toContainText("SR value");
+  await expect(hubDialog).toContainText("Market value");
+  await expect(hubDialog).toContainText("Land size");
+  await expect(hubDialog).toContainText("Built-up size");
   await expect(hubDialog).toContainText("QA Follow-up Contact");
   await expect(hubDialog).toContainText("QA appointment · Property Sale");
   await expect(hubDialog).toContainText("10:30");
@@ -537,4 +554,29 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByText("QA appointment · Property Loans",{exact:true})).toHaveCount(0);
   await page.getByRole("button",{name:"Clear all filters"}).click();
   await expect(page.locator(".ax-followup-export__head span")).toContainText("16 entries");
+});
+
+test("desktop and mobile: Create New Module builds a persistent workspace with the standard record fields", async ({ page }) => {
+  await page.goto("/");
+  const mobile=(page.viewportSize()?.width||1440)<=720;
+  if(mobile) await page.getByRole("button",{name:"Open menu"}).click();
+  await page.locator(".ax-module-create-button").click();
+  await expect(page.getByRole("heading",{name:"Create a new module"})).toBeVisible();
+  await page.getByLabel("Module name *").fill("QA Custom Land Desk");
+  await page.getByLabel("Module group").fill("QA Workspaces");
+  await page.getByLabel("Field label").fill("Approval reference");
+  await page.getByLabel("Field type").selectOption("text");
+  await page.getByRole("button",{name:"Add field"}).click();
+  await page.getByRole("button",{name:"Create module"}).click();
+  await expect(page.getByRole("heading",{name:"QA Custom Land Desk"})).toBeVisible();
+  await page.locator(".ax-module-hero").getByRole("button",{name:"Create record"}).click();
+  await expect(page.getByLabel("Land size")).toBeVisible();
+  await expect(page.getByLabel("Built-up size")).toBeVisible();
+  await expect(page.getByLabel("SR value (₹)")).toBeVisible();
+  await expect(page.getByLabel("Market value (₹)")).toBeVisible();
+  await expect(page.getByLabel("Approval reference")).toBeVisible();
+  await page.getByRole("button",{name:"Cancel",exact:true}).click();
+  await page.reload();
+  if(mobile) await page.getByRole("button",{name:"Open menu"}).click();
+  await expect(page.getByTestId("module-directory-QA Custom Land Desk")).toBeVisible();
 });
