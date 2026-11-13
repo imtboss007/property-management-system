@@ -459,6 +459,8 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("₹4 Cr");
     await expect(dialog).toContainText("Settlement value");
+    await expect(dialog).toContainText("QA Primary Group");
+    await expect(dialog).toContainText("QA Follow-up Group");
     await dialog.getByRole("button",{name:"Close record details"}).click();
     if(module===expectedModules[0]){
       await row.getByRole("button",{name:"Edit record"}).click();
