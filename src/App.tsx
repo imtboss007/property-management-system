@@ -1781,7 +1781,17 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
       const current = parseFollowUps(record.moduleData);
       const exists = current.some(item => item.id === entry.id);
       const next = exists ? current.map(item => item.id === entry.id ? entry : item) : [entry, ...current];
-      return { ...record, moduleData: { ...record.moduleData, __followUps: serializeFollowUps(next) } };
+      const keepTopLevelFollowUpInSync = Boolean(
+        editingFollowUp &&
+        record.id === target.id &&
+        record.nextFollowUpDate &&
+        record.nextFollowUpDate === editingFollowUp.entry.date
+      );
+      return {
+        ...record,
+        ...(keepTopLevelFollowUpInSync ? { nextFollowUpDate: entry.date } : {}),
+        moduleData: { ...record.moduleData, __followUps: serializeFollowUps(next) }
+      };
     }));
     setAuditEvents(previous => [{
       id: uid(), at: new Date().toISOString(), action: editingFollowUp ? "updated" as const : "created" as const,
