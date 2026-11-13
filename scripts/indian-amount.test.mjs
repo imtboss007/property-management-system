@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount } from "../src/lib/indian-amount.mjs";
+import { parseIndianAmount, normalizeIndianAmount, formatIndianAmount, formatIndianCompactAmount } from "../src/lib/indian-amount.mjs";
 
 const cases = [
   ["25000", 25000],
@@ -41,4 +41,12 @@ test("formats INR previews in Indian digit grouping", () => {
   assert.equal(formatIndianAmount("5 lakh"), "₹5,00,000");
   assert.equal(formatIndianAmount("2 crore"), "₹2,00,00,000");
   assert.equal(formatIndianAmount("12.75"), "₹12.75");
+});
+
+test("formats compact Indian amounts without changing their numeric meaning", () => {
+  assert.equal(formatIndianCompactAmount(40000000), "₹4 Cr");
+  assert.equal(formatIndianCompactAmount(350000000), "₹35 Cr");
+  assert.equal(formatIndianCompactAmount(1250000), "₹12.5 Lakhs");
+  assert.equal(formatIndianCompactAmount(500000), "₹5 Lakhs");
+  assert.equal(formatIndianCompactAmount(25000), "₹25,000");
 });
