@@ -2923,27 +2923,27 @@ const amountUnitFromSuffix = (suffix:string): IndianAmountUnit => {
 };
 function IndianAmountInput({value,onChange,placeholder,required=false}:{value:string;onChange:(value:string)=>void;placeholder?:string;required?:boolean}) {
   const raw=String(value ?? "");
-  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
+  const simpleAmount=/^\s*₹?\s*(\d[\d,]*(?:\.\d{1,4})?)\s*(crores?|cr|lakhs?|lacs?|thousands?|k)?\s*$/i.exec(raw);
   const hasCombinedShorthand=!simpleAmount && /\b(?:crores?|cr|lakhs?|lacs?|thousands?|k)\b/i.test(raw);
-  const [unit,setUnit]=useState<IndianAmountUnit>(()=>{
-    if(simpleAmount?.[2])return amountUnitFromSuffix(simpleAmount[2]);
+  const storedPlainAmount=!simpleAmount?.[2] && !hasCombinedShorthand && /^\s*₹?\s*\d[\d,]*(?:\.\d{1,4})?\s*$/.test(raw);
+  const inferStoredUnit=():IndianAmountUnit=>{
     const parsedStored=parseIndianAmount(raw);
-    if(parsedStored!==null && /^\\s*₹?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?\\s*$/.test(raw)) {
+    if(parsedStored!==null && storedPlainAmount){
       if(parsedStored>=10000000)return "crore";
       if(parsedStored>=100000)return "lakh";
       if(parsedStored>=1000)return "thousand";
     }
     return "rupees";
-  });
-  // Keep a unit selected while the input is still empty. The previous effect
-  // reset it to Rupees whenever a user chose Lakhs/Crores before typing.
+  };
+  const [unit,setUnit]=useState<IndianAmountUnit>(()=>simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):inferStoredUnit());
+  // Keep a user's selected unit when the field is empty; infer the unit again if another saved record is loaded.
   useEffect(()=>{
     if(simpleAmount?.[2])setUnit(amountUnitFromSuffix(simpleAmount[2]));
-  },[simpleAmount?.[2]]);
+    else if(storedPlainAmount)setUnit(inferStoredUnit());
+  },[simpleAmount?.[2],storedPlainAmount,raw]);
   const activeUnit=simpleAmount?.[2]?amountUnitFromSuffix(simpleAmount[2]):unit;
-  const storedPlainAmount=!simpleAmount?.[2] && !hasCombinedShorthand && /^\\s*₹?\\s*\\d[\\d,]*(?:\\.\\d{1,2})?\\s*$/.test(raw);
   const unitDivisor=activeUnit==="crore"?10000000:activeUnit==="lakh"?100000:activeUnit==="thousand"?1000:1;
-  const displayValue=simpleAmount ? (storedPlainAmount && unitDivisor>1 ? String(Number((parseIndianAmount(raw)||0)/unitDivisor).toFixed(2)).replace(/\\.?0+$/,"") : simpleAmount[1]) : raw;
+  const displayValue=simpleAmount ? (storedPlainAmount && unitDivisor>1 ? String(Number((parseIndianAmount(raw)||0)/unitDivisor).toFixed(4)).replace(/\.?0+$/,"") : simpleAmount[1]) : raw;
   const hasValue=raw.trim().length>0;
   const parsed=hasValue?parseIndianAmount(raw):null;
   const writeAmount=(amount:string,nextUnit:IndianAmountUnit)=>{
