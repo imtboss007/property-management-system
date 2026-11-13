@@ -2991,8 +2991,12 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || "",
-    moduleData:initial?.moduleData ?? {}
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit || initial?.moduleData?.srRate || initial?.moduleData?.guidanceRate || initial?.moduleData?.settlementRate || initial?.moduleData?.srGuidanceRate || "",
+    moduleData:initial?.moduleData ? {
+      ...initial.moduleData,
+      marketRatePerUnit:initial.moduleData.marketRatePerUnit || initial.moduleData.marketRate || initial.moduleData.marketValue || initial.moduleData.marketAmount || "",
+      settlementAmount:initial.moduleData.settlementAmount || initial.moduleData.settlementValue || initial.moduleData.agreedSettlementAmount || ""
+    } : {}
   });
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
