@@ -217,7 +217,7 @@ export default function FollowUpRegistry({
       };
     });
     if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
-    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
+    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpContact.localeCompare(b.followUpContact)||a.title.localeCompare(b.title));
     if(reportGroupBy==="date")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
     const subtitle="Follow-up Registry · "+rows.length+" filtered entries · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date/time-wise");
     if(kind==="pdf")downloadIntelligencePdf("Follow-up Registry",subtitle,rows);
