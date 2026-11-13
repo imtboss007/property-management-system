@@ -322,3 +322,15 @@ assert.match(registry, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/
 assert.match(app, /__primaryGroupIds/, "Every module record form must store selected primary WhatsApp group IDs.");
 assert.match(app, /__followUpGroupIds/, "Every module record form must store selected follow-up WhatsApp group IDs.");
 console.log("AXIVESTRA Intelligence Hub, INR and report-export contract passed.");
+
+
+assert.match(registry, /Area \/ size from/, "Follow-up Registry must filter record area with from/to values and a unit.");
+assert.match(registry, /SR \/ guidance rate from/, "Follow-up Registry must filter SR/guidance rates with from/to values.");
+assert.match(registry, /Value \/ exposure from/, "Follow-up Registry must filter recorded exposure with from/to values.");
+assert.match(registry, /Market value \/ rate from/, "Follow-up Registry must filter market value/rates with from/to values.");
+assert.match(registry, /MultiCheckList title="Module type"/, "Follow-up Registry module types must support multi-select checkboxes.");
+assert.match(registry, /MultiCheckList title="Primary contact"/, "Follow-up Registry primary contacts must support multi-select checkboxes.");
+assert.match(registry, /MultiCheckList title="Follow-up contact"/, "Follow-up Registry follow-up contacts must support multi-select checkboxes.");
+assert.match(registry, /MultiCheckList title="Primary group"/, "Follow-up Registry primary groups must support multi-select checkboxes.");
+assert.match(registry, /MultiCheckList title="Follow-up group"/, "Follow-up Registry follow-up groups must support multi-select checkboxes.");
+assert.match(registry, /recordRate\(item\.record,"market"\)/, "Follow-up Registry exports must include market rate data where saved.");
