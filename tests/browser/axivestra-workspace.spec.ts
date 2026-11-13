@@ -501,6 +501,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByLabel("Follow-up time")).toHaveValue("10:30");
   await page.getByLabel("Follow-up date *").fill("2026-11-15");
   await page.getByLabel("Follow-up time").fill("11:15");
+  // Saving from the Hub must refresh the same linked follow-up shown in the Registry.
   await page.getByRole("button",{name:"Save follow-up changes"}).click();
   await expect(hubDialog).toContainText("2026-11-15");
   await expect(hubDialog).toContainText("11:15");
