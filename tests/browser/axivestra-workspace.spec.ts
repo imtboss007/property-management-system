@@ -448,7 +448,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await openSection(module);
     const workbench=page.locator(".ax-module-workbench");
     await expect(workbench).toBeVisible();
-    await workbench.getByRole("button",{name:/Table/}).click();
+    await workbench.getByRole("tab",{name:/Table/}).click();
     const row=workbench.getByRole("row",{name:new RegExp("QA "+module+" record")});
     await expect(row).toBeVisible();
     await expect(row.getByRole("cell").nth(3)).toContainText("₹4 Cr");
