@@ -2522,6 +2522,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             records={filteredProperties.filter(record=>active==="All Properties"||record.module===active)}
             fields={active==="All Properties" ? [] : moduleFields[active] || []}
             contacts={contacts}
+            groups={savedWhatsAppGroups}
             onAdd={()=>openPropertyForm()}
             onEdit={record=>openPropertyForm(record)}
             onDelete={deleteProperty}
