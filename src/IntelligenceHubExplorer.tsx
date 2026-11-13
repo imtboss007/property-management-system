@@ -42,7 +42,7 @@ const resolveGroupLabels=(ids:string[],groups:HubGroup[]) => ids.map(id=>{
 function findMoney(record:HubRecord,fields:HubField[],kind:"sr"|"market"|"settlement") {
   const data=record.moduleData||{};
   const explicit=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:
-    kind==="market"?["marketRate","marketRatePerUnit","marketValue","marketAmount"]:
+    kind==="market"?["marketRatePerUnit","marketRate","marketValue","marketAmount"]:
     ["settlementAmount","settlementValue","agreedSettlementAmount"];
   for(const key of explicit){if(String(data[key]||"").trim())return String(data[key]);}
   const rx=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:

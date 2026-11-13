@@ -466,8 +466,14 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await dialog.getByRole("button",{name:"Close record details"}).click();
     if(module===expectedModules[0]){
       await row.getByRole("button",{name:"Edit record"}).click();
-      await expect(page.getByLabel("Amount in Indian rupees").first()).toHaveValue("4");
-      await expect(page.getByLabel("Amount unit").first()).toHaveValue("crore");
+      const amountInputs=page.getByLabel("Amount in Indian rupees");
+      await expect(amountInputs).toHaveCount(4);
+      await expect(amountInputs.nth(0)).toHaveValue("4");
+      await expect(amountInputs.nth(1)).toHaveValue("2.5");
+      await expect(amountInputs.nth(2)).toHaveValue("5");
+      await expect(amountInputs.nth(3)).toHaveValue("3");
+      await expect(page.getByText("VALUATION & SETTLEMENT")).toBeVisible();
+      await expect(page.getByLabel("Amount unit").nth(1)).toHaveValue("crore");
       await page.getByRole("button",{name:"Cancel",exact:true}).click();
     }
   }

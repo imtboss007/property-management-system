@@ -139,7 +139,7 @@ export default function FollowUpRegistry({
     const recordRate=(record as FollowUpRecordLike & {ratePerUnit?:string}).ratePerUnit;
     if(kind==="sr" && String(recordRate||"").trim())return parseIndianAmount(recordRate)||0;
     if(!record.moduleData)return 0;
-    const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:kind==="market"?["marketRate","marketRatePerUnit","marketValue","marketAmount"]:["settlementAmount","settlementValue","agreedSettlementAmount"];
+    const exact=kind==="sr"?["srRate","guidanceRate","settlementRate","srGuidanceRate"]:kind==="market"?["marketRatePerUnit","marketRate","marketValue","marketAmount"]:["settlementAmount","settlementValue","agreedSettlementAmount"];
     for(const key of exact){const value=record.moduleData[key];if(String(value||"").trim())return parseIndianAmount(value)||0;}
     const pattern=kind==="sr"?/(sr|guidance).*(rate|value)|(rate|guidance).*(sr)/i:kind==="market"?/market.*(rate|value|amount)|(rate|value|amount).*market/i:/settlement.*(amount|value)|(amount|value).*settlement/i;
     const entry=Object.entries(record.moduleData).find(([key,value])=>pattern.test(key)&&String(value||"").trim());

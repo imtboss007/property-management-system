@@ -2991,23 +2991,32 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     targetDeadline:initial?.targetDeadline ?? "",nextFollowUpDate:initial?.nextFollowUpDate ?? "",
     nextAction:initial?.nextAction ?? "",notes:initial?.notes ?? "",
     surveyNumber:initial?.surveyNumber ?? "",ownershipDetails:initial?.ownershipDetails ?? "",areaValue:initial?.areaValue ?? "",
-    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? "",
+    areaUnit:initial?.areaUnit ?? "sq ft",dimensions:initial?.dimensions ?? "",ratePerUnit:initial?.ratePerUnit ?? initial?.moduleData?.srRate ?? "",
     moduleData:initial?.moduleData ?? {}
   });
   const [amountError,setAmountError]=useState("");
   const update=(key:string,value:string)=>{setForm(previous=>({...previous,[key]:value}));if(key==="value" || key==="ratePerUnit")setAmountError("");};
   const selectedFields=moduleFields[form.module] ?? [];
+  const universalAmountKeys = new Set(["srRate","marketRatePerUnit","settlementAmount"]);
+  const visibleSelectedFields = selectedFields.filter(field=>!universalAmountKeys.has(field.key));
   const saveRecord=(event:FormEvent<HTMLFormElement>)=>{
     event.preventDefault();
     if(!form.title.trim())return;
     const normalizedValue=normalizeIndianAmount(form.value);
     const normalizedRate=normalizeIndianAmount(form.ratePerUnit);
+    const normalizedMarketRate=normalizeIndianAmount(form.moduleData.marketRatePerUnit ?? "");
+    const normalizedSettlementValue=normalizeIndianAmount(form.moduleData.settlementAmount ?? "");
     const normalizedModuleData={...form.moduleData};
     const invalidLabels:string[]=[];
     if(form.value.trim() && normalizedValue===null)invalidLabels.push("Headline value / exposure");
-    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("Rate per unit");
+    if(form.ratePerUnit.trim() && normalizedRate===null)invalidLabels.push("SR / guidance rate");
+    if(String(form.moduleData.marketRatePerUnit ?? "").trim() && normalizedMarketRate===null)invalidLabels.push("Market rate per unit");
+    if(String(form.moduleData.settlementAmount ?? "").trim() && normalizedSettlementValue===null)invalidLabels.push("Settlement value");
+    normalizedModuleData.srRate=normalizedRate ?? "";
+    normalizedModuleData.marketRatePerUnit=normalizedMarketRate ?? "";
+    normalizedModuleData.settlementAmount=normalizedSettlementValue ?? "";
     for(const field of selectedFields){
-      if(field.type!=="number" || !field.label.includes("₹"))continue;
+      if(universalAmountKeys.has(field.key) || field.type!=="number" || !field.label.includes("₹"))continue;
       const raw=String(normalizedModuleData[field.key] ?? "");
       if(!raw.trim())continue;
       const normalized=normalizeIndianAmount(raw);
@@ -3026,6 +3035,10 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     <label>Record / deal name *<input required value={form.title} onChange={event=>update("title",event.target.value)} placeholder="e.g. Apartment purchase / Housing loan file"/></label>
     <label>Business module<select value={form.module} onChange={event=>{const module=event.target.value;setForm(previous=>({...previous,module,moduleData:Object.fromEntries(Object.entries(previous.moduleData).filter(([key])=>!key.startsWith("__contact_")))}));}}>{modules.map(module=><option key={module.name}>{module.name}</option>)}</select></label>
     <div className="form-two"><label>Location / jurisdiction<input value={form.location} onChange={event=>update("location",event.target.value)} placeholder="City, state, country or court"/></label><label>Headline value / exposure (₹)<IndianAmountInput value={form.value} onChange={value=>update("value",value)} placeholder="Enter amount or 2 crore"/></label></div>
+    <div className="property-detail-section ax-valuation-fields"><div className="form-section-title"><span className="section-kicker">VALUATION & SETTLEMENT</span><p>These three INR fields are available in every module and feed the same table, Intelligence Hub and report columns.</p></div>
+      <div className="form-two"><label>SR / guidance rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>{update("ratePerUnit",value);setAmountError("");}} placeholder="e.g. 2.5 Cr"/></label><label>Market rate per unit (₹)<IndianAmountInput value={form.moduleData.marketRatePerUnit ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,marketRatePerUnit:value}}));}} placeholder="e.g. 5 Cr"/></label></div>
+      <label>Settlement value / agreed amount (₹)<IndianAmountInput value={form.moduleData.settlementAmount ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,settlementAmount:value}}));}} placeholder="e.g. 3 Cr"/></label>
+    </div>
     <div className="form-two"><label>Record status<select value={form.status} onChange={event=>update("status",event.target.value)}>{["Active","Under review","Negotiation","On hold","Completed","Closed","Filed","Awaiting documents","Due diligence","Term sheet","Disbursed","Repayment","Default","Hearing scheduled","Settled"].map(status=><option key={status}>{status}</option>)}</select></label><SearchableContactPicker label="Primary contact" contacts={contacts} value={form.primaryContactId || ""} placeholder="No contact linked" onChange={value=>{const id=String(value);setForm(previous=>({...previous,primaryContactId:id,contact:contacts.find(item=>item.id===id)?.name ?? ""}));}}/></div>
     {form.contact && !form.primaryContactId && <p className="form-help">This older record has a contact name but no linked contact entry yet. Add/select the person in Contacts to create the connection.</p>}
     <SearchableContactPicker label="Other linked stakeholders (select multiple)" contacts={contacts} multiple value={(form.moduleData.__linkedContactIds ?? "").split(",").filter(Boolean)} placeholder="Search names to add stakeholders…" onChange={value=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,__linkedContactIds:(Array.isArray(value)?value:[String(value)]).filter(Boolean).join(",")}}))} help="Use contact roles to capture borrowers, lenders, owners, brokers, lawyers, loan officers and other stakeholders on the same deal."/>
@@ -3049,9 +3062,9 @@ function PropertyForm({defaultModule,contacts,groups,initial,onSave,onCancel}:{d
     {["Property Sale","Property Loans","JV / JDA / JD","SR Rate Settlement","Agricultural Land","Commercial Land","House Purchase","Housing Loan","Litigation"].includes(form.module) && <div className="property-detail-section"><div className="form-section-title"><span className="section-kicker">ASSET & LEGAL DETAILS</span></div>
       <div className="form-two"><label>Survey number / property ID<input value={form.surveyNumber} onChange={event=>update("surveyNumber",event.target.value)} placeholder="Survey / PID / khata no."/></label><label>Ownership / parties<input value={form.ownershipDetails} onChange={event=>update("ownershipDetails",event.target.value)} placeholder="Owner / co-owners / parties"/></label></div>
       <div className="form-two"><label>Land / built-up area<input type="number" min="0" step="0.0001" value={form.areaValue} onChange={event=>update("areaValue",event.target.value)} placeholder="Area"/></label><label>Area unit<select value={form.areaUnit} onChange={event=>update("areaUnit",event.target.value)}>{["sq ft","sq yd","sq m","acre","gunta","hectare","cent"].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>
-      <div className="form-two"><label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label><label>Rate per unit (₹)<IndianAmountInput value={form.ratePerUnit} onChange={value=>update("ratePerUnit",value)} placeholder="Optional amount"/></label></div>
+      <label>Dimensions / boundary notes<input value={form.dimensions} onChange={event=>update("dimensions",event.target.value)} placeholder="e.g. 30 × 40 ft; east road"/></label>
     </div>}
-    {selectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{selectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
+    {visibleSelectedFields.length>0 && <div className="module-data-section"><div className="form-section-title"><span className="section-kicker">{form.module.toUpperCase()} WORKSHEET</span><p>Structured fields for this workflow. Fields are saved with the record. INR amounts accept thousand, lakh and crore shorthand.</p></div><div className="module-data-grid">{visibleSelectedFields.map(field=><label key={field.key}>{field.label}{field.type==="number" && field.label.includes("₹") ? <IndianAmountInput value={form.moduleData[field.key] ?? ""} onChange={value=>{setAmountError("");setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:value}}));}} placeholder={field.placeholder}/> : <input type={field.type ?? "text"} min={field.type==="number" ? "0" : undefined} step={field.type==="number" ? "any" : undefined} value={form.moduleData[field.key] ?? ""} onChange={event=>setForm(previous=>({...previous,moduleData:{...previous.moduleData,[field.key]:event.target.value}}))} placeholder={field.placeholder}/>}</label>)}</div></div>}
     {amountError && <p className="ax-inr-amount-error" role="alert">{amountError}</p>}
     <label>Notes / investment thesis / legal context<textarea rows={3} value={form.notes} onChange={event=>update("notes",event.target.value)} placeholder="Key risks, rationale, next steps, terms or notes"/></label>
     <div className="form-actions"><button type="button" className="secondary-button" onClick={onCancel}>Cancel</button><button type="submit" className="primary-button">{initial ? "Save changes" : "Save record"}</button></div>

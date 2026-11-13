@@ -153,7 +153,7 @@ export default function ModuleWorkbench({ moduleName, description, records, fiel
     return entry ? String(entry[1]) : "";
   };
   const srRateFor = (record: ModuleRecord) => record.ratePerUnit || moduleAmount(record, ["srRate","guidanceRate","settlementRate"], /(?:sr|guidance).*(?:rate|value)|(?:rate|guidance).*(?:sr)/i);
-  const marketRateFor = (record: ModuleRecord) => moduleAmount(record, ["marketRate","marketRatePerUnit"], /market.*(?:rate|value|amount)|(?:rate|value|amount).*market/i);
+  const marketRateFor = (record: ModuleRecord) => moduleAmount(record, ["marketRatePerUnit","marketRate","marketValue","marketAmount"], /market.*(?:rate|value|amount)|(?:rate|value|amount).*market/i);
   const settlementValueFor = (record: ModuleRecord) => moduleAmount(record, ["settlementAmount","settlementValue","agreedSettlementAmount"], /settlement.*(?:amount|value)|(?:amount|value).*settlement/i);
   const formatField = (field: ModuleField, value: string) => {
     if (!value.trim()) return value;
