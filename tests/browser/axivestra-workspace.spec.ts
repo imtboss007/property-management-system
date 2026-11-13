@@ -322,7 +322,7 @@ test("desktop and mobile: primary/follow-up names and groups are independently o
   expect((await registryPpt).suggestedFilename()).toMatch(/\.pptx$/i);
 
   await openSection("All Properties");
-  await expect(page.getByRole("heading", { name: "All Properties" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "All Properties", level: 2 })).toBeVisible();
   await assertIndependentOptions([
     "Primary names",
     "Follow-up names",
