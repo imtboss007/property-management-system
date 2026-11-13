@@ -23,6 +23,7 @@ export type FollowUpRecordLike = {
   areaValue?: string;
   areaUnit?: string;
   value?: string;
+  ratePerUnit?: string;
   contact?: string;
   primaryContactId?: string;
   createdAt?: string;
