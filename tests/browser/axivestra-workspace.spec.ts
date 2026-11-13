@@ -407,3 +407,81 @@ test("desktop and mobile: all report views independently include or omit contact
   expectExcluded(await pdfText("PDF"));
   expectExcluded(await pptxText("PPT"));
 });
+
+
+test("desktop and mobile: every module formats crores and opens table details, hub dates and linked follow-ups", async ({ page }) => {
+  const seededProperties = expectedModules.map((module,index)=>({
+    id:"qa-module-"+(index+1),title:"QA "+module+" record",module,location:"Bengaluru",
+    value:"40000000",status:"Active",contact:"QA Primary Contact",primaryContactId:"qa-primary",
+    createdAt:"2026-11-13T09:00:00.000Z",targetDeadline:"2026-12-01",nextFollowUpDate:"2026-11-14",
+    nextAction:"Confirm next step for "+module,notes:"QA-only record for automated browser coverage.",
+    surveyNumber:"QA-"+(index+1),ownershipDetails:"QA owner",areaValue:"1200",areaUnit:"sq ft",dimensions:"",
+    ratePerUnit:"25000000",
+    moduleData:{srRate:"25000000",marketRatePerUnit:"50000000",settlementAmount:"30000000",
+      __followUpContactIds:"qa-follow",__primaryGroupIds:"qa-primary-group",__followUpGroupIds:"qa-follow-group",
+      __followUps:JSON.stringify([{id:"qa-follow-"+index,contactIds:["qa-follow"],description:"QA appointment · "+module,
+        amount:"40000000",date:"2026-11-14",time:"10:30",priority:"High",status:"Open",
+        notes:"Automated follow-up note",nextAction:"Call QA contact",assignedAt:"2026-11-13T09:00:00.000Z"}])}
+  }));
+  const seed={properties:seededProperties,contacts:[
+    {id:"qa-primary",name:"QA Primary Contact",phone:"9000000001",role:"Owner",notes:""},
+    {id:"qa-follow",name:"QA Follow-up Contact",phone:"9000000002",role:"Broker",notes:""}
+  ],groups:[
+    {id:"qa-primary-group",jid:"qa-primary-group@g.us",name:"QA Primary Group"},
+    {id:"qa-follow-group",jid:"qa-follow-group@g.us",name:"QA Follow-up Group"}
+  ]};
+  await page.addInitScript((data)=>{
+    localStorage.setItem("axivestra.workspaceMode","local");
+    localStorage.setItem("estateflow.properties",JSON.stringify(data.properties));
+    localStorage.setItem("estateflow.contacts",JSON.stringify(data.contacts));
+    localStorage.setItem("estateflow.whatsappGroups",JSON.stringify(data.groups));
+    localStorage.setItem("estateflow.tasks",JSON.stringify([]));
+  },seed);
+  await page.goto("/");
+  const mobile=(page.viewportSize()?.width||1440)<=720;
+  const openSection=async(name:string)=>{
+    if(mobile)await page.getByRole("button",{name:"Open menu"}).click();
+    await page.locator(".nav-list").getByRole("button",{name:new RegExp("^"+name)}).click();
+  };
+  for(const module of expectedModules){
+    await openSection(module);
+    const workbench=page.locator(".ax-module-workbench");
+    await expect(workbench).toBeVisible();
+    await workbench.getByRole("button",{name:/Table/}).click();
+    const row=workbench.getByRole("row",{name:new RegExp("QA "+module+" record")});
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("cell").nth(3)).toContainText("₹4 Cr");
+    await expect(row.getByRole("cell").nth(4)).toContainText("₹2.5 Cr");
+    await expect(row.getByRole("cell").nth(5)).toContainText("₹5 Cr");
+    await expect(row.getByRole("cell").nth(6)).toContainText("₹3 Cr");
+    await row.getByRole("button",{name:"View details for QA "+module+" record"}).click();
+    const dialog=page.getByRole("dialog",{name:"Record details: QA "+module+" record"});
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("₹4 Cr");
+    await expect(dialog).toContainText("Settlement value");
+    await dialog.getByRole("button",{name:"Close record details"}).click();
+  }
+  await openSection("Intelligence Hub");
+  const dateButton=page.getByTestId("hub-date-open-qa-module-1");
+  await expect(dateButton).toBeVisible();
+  await dateButton.click();
+  const hubDialog=page.getByRole("dialog",{name:"Record details: QA Property Sale record"});
+  await expect(hubDialog).toBeVisible();
+  await expect(hubDialog).toContainText("QA Primary Contact");
+  await expect(hubDialog).toContainText("QA Follow-up Group");
+  await expect(hubDialog).toContainText("₹4 Cr");
+  await hubDialog.getByRole("button",{name:"Close record details"}).click();
+  await expect(page.getByText("Area / size range")).toBeVisible();
+  await expect(page.getByText("SR / guidance rate")).toBeVisible();
+  await expect(page.getByText("Market value / rate")).toBeVisible();
+  await page.getByRole("button",{name:"Clear all filters"}).click();
+  await openSection("Follow-up Registry");
+  await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
+  await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
+  await expect(page.getByText("QA Primary Group").first()).toBeVisible();
+  await expect(page.getByText("QA Follow-up Group").first()).toBeVisible();
+  await expect(page.getByRole("checkbox",{name:"QA Follow-up Contact · Broker"})).toBeVisible();
+  await expect(page.getByRole("checkbox",{name:"QA Primary Contact · Owner"})).toBeVisible();
+  await expect(page.getByRole("checkbox",{name:"QA Primary Group"})).toBeVisible();
+  await expect(page.getByRole("checkbox",{name:"QA Follow-up Group"})).toBeVisible();
+});
