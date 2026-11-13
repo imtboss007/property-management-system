@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { formatIndianCompactAmount, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
-import { CalendarClock, CheckCircle2, Clock3, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, Download, FileDown, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
 import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
@@ -57,6 +57,11 @@ export default function FollowUpRegistry({
   const [minimumAmount,setMinimumAmount]=useState("");
   const [maximumAmount,setMaximumAmount]=useState("");
   const [locationFilter,setLocationFilter]=useState("");
+  const [reportGroupBy,setReportGroupBy]=useState("all");
+  const [includePrimaryName,setIncludePrimaryName]=useState(true);
+  const [includeFollowName,setIncludeFollowName]=useState(true);
+  const [includePrimaryGroup,setIncludePrimaryGroup]=useState(true);
+  const [includeFollowGroup,setIncludeFollowGroup]=useState(true);
   const [moduleFilter, setModuleFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [amountSort, setAmountSort] = useState<"none"|"high"|"low">("none");
@@ -69,7 +74,6 @@ export default function FollowUpRegistry({
     return String(record.moduleData[key]||"").split(",").map(id=>id.trim()).filter(Boolean);
   };
   const groupLabels=(record:FollowUpRecordLike|null,kind:"primary"|"follow")=>readGroupIds(record,kind).map(id=>groups.find(group=>group.id===id||group.jid===id)?.name||id);
-  const groupById=(id:string)=>groups.find(group=>group.id===id||group.jid===id)?.name||id;
 
 
   const items = useMemo<Item[]>(() => {
@@ -195,6 +199,28 @@ export default function FollowUpRegistry({
     if (item.source === "record" && item.record) onDeleteEntry(item.record,item.entry.id);
     else if (item.task) onDeleteTask(item.task.id);
   };
+  const exportVisible = (kind:"pdf"|"pptx") => {
+    const rows=visible.map(item=>{
+      const primary=item.record?.primaryContactId ? contactById.get(item.record.primaryContactId)?.name || "" : (item.record?.contact||"");
+      const follow=item.entry.contactIds.map(id=>contactById.get(id)?.name||"").filter(Boolean).join(", ");
+      const primaryGroup=includePrimaryGroup?groupLabels(item.record,"primary").join(", "):"";
+      const followGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
+      return {
+        title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
+        value:money(item.entry.amount||item.record?.value||""),srRate:"",marketRate:"",settlementValue:"",
+        area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
+        contactSummary:[includePrimaryName&&primary?"Primary: "+primary:"",primaryGroup?"Primary group: "+primaryGroup:""].filter(Boolean).join(" | "),
+        followUpSummary:[includeFollowName&&follow?"Follow-up: "+follow:"",followGroup?"Follow-up group: "+followGroup:"","Date/time: "+(item.entry.date||"Unscheduled")+(item.entry.time?" "+item.entry.time:"")].join(" | ")
+      };
+    });
+    if(reportGroupBy==="primary")rows.sort((a,b)=>a.contactSummary.localeCompare(b.contactSummary));
+    if(reportGroupBy==="follow")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
+    if(reportGroupBy==="date")rows.sort((a,b)=>a.followUpSummary.localeCompare(b.followUpSummary));
+    const subtitle="Follow-up Registry · "+rows.length+" filtered entries · "+(reportGroupBy==="all"?"All visible":reportGroupBy==="primary"?"Primary-contact-wise":reportGroupBy==="follow"?"Follow-up-contact-wise":"Follow-up date/time-wise");
+    if(kind==="pdf")downloadIntelligencePdf("Follow-up Registry",subtitle,rows);
+    else downloadIntelligencePptx("Follow-up Registry",subtitle,rows);
+  };
+
   const renderItem = (item: Item) => {
     const people = item.entry.contactIds.map(id => contactById.get(id)).filter((person): person is Contact => Boolean(person));
     const status = statusOf(item);
@@ -256,6 +282,18 @@ export default function FollowUpRegistry({
         <label>Amount order<select value={amountSort} onChange={event=>setAmountSort(event.target.value as typeof amountSort)}><option value="none">Date order</option><option value="high">Highest amount first</option><option value="low">Lowest amount first</option></select></label><button type="button" className="secondary-button" onClick={()=>{setQuery("");setPersonFilter("");setPrimaryPersonFilter("");setPrimaryGroupFilter("");setFollowGroupFilter("");setLocationFilter("");setMinimumAmount("");setMaximumAmount("");setModuleFilter("");setPriorityFilter("");setAmountSort("none");setTab("All");}}>Clear all filters</button>
       </div>
       <div className="ax-followup-tabs">{(["All","Today","Overdue","Upcoming","Completed"] as const).map(value=><button key={value} type="button" className={tab===value?"active":""} onClick={()=>setTab(value)}>{value}{value==="All"?" ("+counts.all+")":value==="Today"?" ("+counts.today+")":value==="Overdue"?" ("+counts.overdue+")":value==="Upcoming"?" ("+counts.upcoming+")":" ("+counts.completed+")"}</button>)}</div>
+      <div className="ax-followup-export">
+        <div className="ax-followup-export__head"><strong>Export visible follow-ups</strong><span>{visible.length} entries · filtered view</span></div>
+        <div className="ax-followup-export__options">
+          <label>Report grouping<select value={reportGroupBy} onChange={event=>setReportGroupBy(event.target.value)}><option value="all">All visible entries</option><option value="primary">Primary-contact-wise</option><option value="follow">Follow-up-contact-wise</option><option value="date">Follow-up date/time-wise</option></select></label>
+          <label><input type="checkbox" checked={includePrimaryName} onChange={event=>setIncludePrimaryName(event.target.checked)}/> Primary names</label>
+          <label><input type="checkbox" checked={includeFollowName} onChange={event=>setIncludeFollowName(event.target.checked)}/> Follow-up names</label>
+          <label><input type="checkbox" checked={includePrimaryGroup} onChange={event=>setIncludePrimaryGroup(event.target.checked)}/> Primary groups</label>
+          <label><input type="checkbox" checked={includeFollowGroup} onChange={event=>setIncludeFollowGroup(event.target.checked)}/> Follow-up groups</label>
+        </div>
+        <div className="ax-followup-export__buttons"><button type="button" className="secondary-button" onClick={()=>exportVisible("pdf")}><FileDown size={14}/> Download PDF</button><button type="button" className="primary-button" onClick={()=>exportVisible("pptx")}><Download size={14}/> Download PPT</button></div>
+      </div>
+
       <div className="ax-followup-view-switch"><span><Filter size={14}/> View grouped by</span><button className={view==="people"?"active":""} onClick={()=>setView("people")}>Person</button><button className={view==="timeline"?"active":""} onClick={()=>setView("timeline")}>Timeline</button><button className={view==="calendar"?"active":""} onClick={()=>setView("calendar")}>Calendar</button></div>
     </section>
 
