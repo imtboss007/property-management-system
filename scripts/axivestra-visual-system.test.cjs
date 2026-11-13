@@ -300,6 +300,7 @@ const indianAmount = fs.readFileSync(path.join(root, "src", "lib", "indian-amoun
 assert.match(indianAmount, /formatIndianCompactAmount/, "A shared compact Indian INR formatter must be available to every view.");
 assert.match(indianAmount, /10000000/, "The compact INR formatter must use the Indian crore boundary.");
 assert.match(mw, /formatIndianCompactAmount/, "Module records must render INR using the shared formatter.");
+assert.match(mw, /parseIndianAmount/, "Module KPIs and charts must parse legacy crore/lakh amounts as INR.");
 assert.match(mw, /<th>SR rate<\/th>[\s\S]*?<th>Market rate<\/th>[\s\S]*?<th>Settlement value<\/th>/, "Module table must show SR rate, market rate and settlement value.");
 assert.match(mw, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Every module must expose PDF and PPT export actions.");
 assert.match(app, /<IntelligenceHubExplorer[\s\S]*?groups=\{savedWhatsAppGroups\}/, "The Intelligence Hub must receive saved records, contacts and WhatsApp groups.");
@@ -312,12 +313,13 @@ assert.match(hubExplorer, /Follow-up WhatsApp group/, "Intelligence Hub must exp
 assert.match(hubExplorer, /role="dialog"[\s\S]*?Edit date \/ time and follow-up/, "Intelligence Hub must open a record detail dialog and edit linked follow-ups.");
 assert.match(hubExplorer, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Intelligence Hub must export PDF and PPT reports.");
 assert.match(reportExporter, /Downloaded:/, "Reports must include their download timestamp.");
+assert.match(reportExporter, /row.detailsSummary/, "PDF and PPT reports must include row-specific module details.");
 assert.match(reportExporter, /Record \/ Module[\s\S]*?Value \/ Exposure[\s\S]*?SR Rate[\s\S]*?Settlement/, "Reports must use structured multi-column tables.");
 assert.match(followUpForm, /normalizeIndianAmount/, "Follow-up amount entries must normalize Indian currency shorthand before saving.");
 assert.match(registry, /Primary group:/, "Follow-up Registry must show primary group associations.");
 assert.match(registry, /Follow-up group:/, "Follow-up Registry must show follow-up group associations.");
-assert.match(registry, /Primary group<select/, "Follow-up Registry must filter by primary WhatsApp group.");
-assert.match(registry, /Follow-up group<select/, "Follow-up Registry must filter by follow-up WhatsApp group.");
+assert.match(registry, /RegistryCheckList title="Primary group"/, "Follow-up Registry must support multi-select primary WhatsApp group filtering.");
+assert.match(registry, /RegistryCheckList title="Follow-up group"/, "Follow-up Registry must support multi-select follow-up WhatsApp group filtering.");
 assert.match(registry, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Follow-up Registry must export filtered entries to PDF and PPT.");
 assert.match(app, /__primaryGroupIds/, "Every module record form must store selected primary WhatsApp group IDs.");
 assert.match(app, /__followUpGroupIds/, "Every module record form must store selected follow-up WhatsApp group IDs.");
