@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, ArrowUpRight, Bookmark, CalendarClock, ChevronRight, CircleAlert, Command, Focus, ListTodo, Pin, ShieldCheck, Sparkles, TrendingUp, Users, Wallet } from "lucide-react";
 import type { FollowUpEntry } from "./lib/follow-ups";
+import { formatIndianCompactAmount } from "./lib/indian-amount.mjs";
 import { buildRelationshipIntelligence } from "./lib/relationship-intelligence.mjs";
 
 type Property = {
@@ -27,8 +28,7 @@ const PANEL_IDS:Panel[]=["portfolio","followups","finance","people","workflow","
 const PANEL_LABELS:Record<Panel,string>={portfolio:"Portfolio",followups:"Follow-ups",finance:"Finance",people:"People & relationships",workflow:"Mission workflow",decisions:"Decisions & risk",timeline:"Temporal workspace"};
 const IN_KEY=new Set(["Sale","Advance","Loan Disbursal","Receipt"]);
 const OUT_KEY=new Set(["Purchase","Loan Repayment","Interest","Instalment","Brokerage","Expense","Settlement"]);
-const INR=new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0});
-const amount=(raw:string)=>{const n=Number(String(raw??"").trim());return raw && Number.isFinite(n) ? INR.format(n) : raw ? "₹"+raw : "—";};
+const amount=(raw:string)=>formatIndianCompactAmount(raw)||"—";
 const dateLabel=(raw:string)=>raw?new Date(raw+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"}):"Unscheduled";
 
 type Props={
