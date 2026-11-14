@@ -365,13 +365,37 @@ test("desktop and mobile: all report views independently include or omit contact
     }
   };
   const pptxText = async (label: string) => {
-    const pending = page.waitForEvent("download");
-    await page.getByRole("button", { name: label, exact: true }).click();
-    const download = await pending;
-    expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
-    const file = await download.path();
-    if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
-    return readFileSync(file).toString("utf8");
+    const pageErrors: string[] = [];
+    const consoleErrors: string[] = [];
+    const onPageError = (error: Error) => pageErrors.push(error.stack || error.message);
+    const onConsole = (message: import("@playwright/test").ConsoleMessage) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    };
+    page.on("pageerror", onPageError);
+    page.on("console", onConsole);
+    try {
+      const button = page.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeEnabled();
+      const pending = page.waitForEvent("download", { timeout: 10000 });
+      await button.click();
+      const download = await pending;
+      expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
+      const file = await download.path();
+      if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
+      return readFileSync(file).toString("utf8");
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        pptButtons: Array.from(document.querySelectorAll("button")).filter(button => button.textContent?.includes("Download PPT")).map(button => ({ text: button.textContent, disabled: button.disabled })),
+        downloadAnchors: Array.from(document.querySelectorAll("a[download]")).map(anchor => ({ name: anchor.getAttribute("download"), href: anchor.getAttribute("href") }))
+      }));
+      throw new Error("PPTX export failed: " + (error instanceof Error ? error.message : String(error))
+        + " | pageErrors=" + pageErrors.join(" || ")
+        + " | consoleErrors=" + consoleErrors.join(" || ")
+        + " | diagnostics=" + JSON.stringify(diagnostics));
+    } finally {
+      page.off("pageerror", onPageError);
+      page.off("console", onConsole);
+    }
   };
   const expectExcluded = (content: string) => {
     for (const value of ["Primary QA Contact", "Follow-up QA Contact", "Primary QA Group", "Follow-up QA Group"]) {
@@ -417,7 +441,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
     nextAction:"Confirm next step for "+module,notes:"QA-only record for automated browser coverage.",
     surveyNumber:"QA-"+(index+1),ownershipDetails:"QA owner",areaValue:"1200",areaUnit:"sq ft",dimensions:"",
     ratePerUnit:"25000000",
-    moduleData:{srRate:"25000000",marketRatePerUnit:"50000000",settlementAmount:"30000000",
+    moduleData:{srRate:"25000000",marketRatePerUnit:"50000000",settlementAmount:"30000000",srTotalValue:"35000000",marketTotalValue:"65000000",builtUpSize:"850",builtUpUnit:"sq ft",
       __followUpContactIds:"qa-follow",__primaryGroupIds:"qa-primary-group",__followUpGroupIds:"qa-follow-group",
       __followUps:JSON.stringify([{id:"qa-follow-"+index,contactIds:["qa-follow"],description:"QA appointment · "+module,
         amount:"40000000",date:"2026-11-14",time:"10:30",priority:"High",status:"Open",
@@ -454,13 +478,21 @@ test("desktop and mobile: every module formats crores and opens table details, h
     await expect(row).toBeVisible();
     await expect(row.getByRole("cell").nth(3)).toContainText("₹4 Cr");
     await expect(row.getByRole("cell").nth(4)).toContainText("₹2.5 Cr");
-    await expect(row.getByRole("cell").nth(5)).toContainText("₹5 Cr");
-    await expect(row.getByRole("cell").nth(6)).toContainText("₹3 Cr");
+    await expect(row.getByRole("cell").nth(5)).toContainText("₹3.5 Cr");
+    await expect(row.getByRole("cell").nth(6)).toContainText("₹5 Cr");
+    await expect(row.getByRole("cell").nth(7)).toContainText("₹6.5 Cr");
+    await expect(row.getByRole("cell").nth(8)).toContainText("₹3 Cr");
+    await expect(row.getByRole("cell").nth(9)).toContainText("1200 sq ft");
+    await expect(row.getByRole("cell").nth(10)).toContainText("850 sq ft");
     await row.getByRole("button",{name:"View details for QA "+module+" record"}).click();
     const dialog=page.getByRole("dialog",{name:"Record details: QA "+module+" record"});
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("₹4 Cr");
-    await expect(dialog).toContainText("Settlement value");
+    await expect(dialog).toContainText("SR Value");
+    await expect(dialog).toContainText("Market Value");
+    await expect(dialog).toContainText("Settlement Value");
+    await expect(dialog).toContainText("Land Size");
+    await expect(dialog).toContainText("Built-up Size");
     await expect(dialog).toContainText("QA Primary Group");
     await expect(dialog).toContainText("QA Follow-up Group");
     await expect(dialog).toContainText("QA Follow-up Contact");
@@ -468,18 +500,22 @@ test("desktop and mobile: every module formats crores and opens table details, h
     if(module===expectedModules[0] || module===expectedModules[expectedModules.length-1]){
       await row.getByRole("button",{name:"Edit record"}).click();
       const valuationInputs=page.locator(".ax-valuation-fields").getByLabel("Amount in Indian rupees");
-      await expect(valuationInputs).toHaveCount(3);
+      await expect(valuationInputs).toHaveCount(5);
       if(module===expectedModules[0]){
         const amountInputs=page.getByLabel("Amount in Indian rupees");
         await expect(amountInputs.first()).toHaveValue("4");
         await expect(valuationInputs.nth(0)).toHaveValue("2.5");
         await expect(valuationInputs.nth(1)).toHaveValue("5");
-        await expect(valuationInputs.nth(2)).toHaveValue("3");
+        await expect(valuationInputs.nth(2)).toHaveValue("3.5");
+        await expect(valuationInputs.nth(3)).toHaveValue("6.5");
+        await expect(valuationInputs.nth(4)).toHaveValue("3");
         await expect(page.locator(".ax-valuation-fields").getByLabel("Amount unit").first()).toHaveValue("crore");
       } else {
         await expect(page.locator(".ax-valuation-fields")).toContainText("SR / guidance rate per unit");
         await expect(page.locator(".ax-valuation-fields")).toContainText("Market rate per unit");
-        await expect(page.locator(".ax-valuation-fields")).toContainText("Settlement value");
+        await expect(page.locator(".ax-valuation-fields")).toContainText("SR Value");
+        await expect(page.locator(".ax-valuation-fields")).toContainText("Market Value");
+        await expect(page.locator(".ax-valuation-fields")).toContainText("Settlement Value");
       }
       await page.getByRole("button",{name:"Cancel",exact:true}).click();
     }

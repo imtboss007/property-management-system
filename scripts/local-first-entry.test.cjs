@@ -17,6 +17,7 @@ const checks = [
   ["local mode can return to cloud login from Settings", /Sign in \/ switch to cloud mode/.test(app)],
   ["workspace export uses a versioned envelope", /createWorkspaceBackup\([\s\S]{0,350}properties, contacts, whatsappGroups: savedWhatsAppGroups, tasks/.test(app)],
   ["workspace import validates before applying state", /parseWorkspaceBackup\(parsed\)[\s\S]{0,2500}All collections are parsed and validated before any state changes are committed/.test(app)],
+  ["device cache has an explicit per-device setting and is respected by read/write helpers", /deviceCacheEnabled/.test(app) && /checked=\{deviceCacheEnabled\}/.test(app) && /!readDeviceCacheEnabled\(\)/.test(app)],
   ["mobile file picker is attached to document before click", (() => { const appended = app.indexOf("document.body.appendChild(input)"); const clicked = appended < 0 ? -1 : app.indexOf("input.click()", appended); return appended >= 0 && clicked > appended; })()],
   ["older mobile WebViews have a FileReader fallback", /async function readBrowserFileText[\s\S]{0,500}new FileReader\(\)/.test(app)],
   ["download URL is revoked after a delay", /window\.setTimeout\(\(\) => URL\.revokeObjectURL\(url\), 60000\)/.test(app)],

@@ -208,8 +208,8 @@ assert.ok(css.includes("@media (max-width: 720px)") && css.includes(".ax-orbit-h
 
 assert.match(orbit, /type ModuleDetail =/, "The orbital detail panel must use a typed module-detail contract.");
 assert.match(orbit, /details: ModuleDetail\[\]/, "The orbital hub must receive actual module detail data.");
-assert.match(app, /details=\{modules\.map\(module => \{/, "The application must supply detail data for every existing module.");
-assert.match(app, /fields: \(moduleFields\[module\.name\] \|\| \[\]\)\.map/, "Module subcategories must come from the configured module field definitions.");
+assert.match(app, /details=\{(?:allModules|modules)\.map\(module => \{/, "The application must supply detail data for every existing and custom module.");
+assert.match(app, /fields: \(moduleFields\[module\.name\] \|\| customModules\.find\(item => item\.name === module\.name\)\?\.fields \|\| \[\]\)\.map/, "Built-in and custom module subcategories must come from configured field definitions.");
 assert.match(app, /records: moduleRecords\.map\(record =>/, "The detail panel must be backed by the saved records for each module.");
 assert.match(app, /contacts: contacts\.filter\(contact => linkedContactIds\.has\(contact\.id\)\)/, "Contact relationships must use the saved contact links.");
 assert.match(app, /tasks: tasks\.filter\(task =>/, "The module panel must connect its saved schedule tasks.");
@@ -301,7 +301,7 @@ assert.match(indianAmount, /formatIndianCompactAmount/, "A shared compact Indian
 assert.match(indianAmount, /10000000/, "The compact INR formatter must use the Indian crore boundary.");
 assert.match(mw, /formatIndianCompactAmount/, "Module records must render INR using the shared formatter.");
 assert.match(mw, /parseIndianAmount/, "Module KPIs and charts must parse legacy crore/lakh amounts as INR.");
-assert.match(mw, /<th>SR rate<\/th>[\s\S]*?<th>Market rate<\/th>[\s\S]*?<th>Settlement value<\/th>/, "Module table must show SR rate, market rate and settlement value.");
+assert.match(mw, /<th>SR rate \/ unit<\/th>[\s\S]*?<th>SR Value<\/th>[\s\S]*?<th>Market rate \/ unit<\/th>[\s\S]*?<th>Market Value<\/th>[\s\S]*?<th>Settlement Value<\/th>[\s\S]*?<th>Land Size<\/th>[\s\S]*?<th>Built-up Size<\/th>/, "Module table must distinguish unit rates from total values and show both land and built-up size.");
 assert.match(mw, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Every module must expose PDF and PPT export actions.");
 assert.match(app, /<IntelligenceHubExplorer[\s\S]*?groups=\{savedWhatsAppGroups\}/, "The Intelligence Hub must receive saved records, contacts and WhatsApp groups.");
 assert.match(hubExplorer, /Area \/ size range/, "Intelligence Hub must filter area using from/to values.");

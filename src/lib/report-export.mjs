@@ -3,7 +3,7 @@ const ascii = value => String(value ?? "").replace(/₹/g,"Rs. ").replace(/[–�
 const escPdf = value => ascii(value).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
 const xml = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const timestamp = () => new Date().toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
-const headers = ["Record / Module","Location","Value / Exposure","SR Rate","Market Rate","Settlement","Area","Contacts / Follow-up"];
+const headers = ["Record / Module","Location","Value / Exposure","SR Value","Market Value","SR Rate / Unit","Market Rate / Unit","Settlement","Land Size","Built-up Size","Contacts / Follow-up"];
 const rowValues = row => {
   const contactLines = [
     row.primaryContact ? "Primary: "+row.primaryContact : "",
@@ -14,11 +14,11 @@ const rowValues = row => {
     row.detailsSummary || ""
   ].filter(Boolean);
   const fallback = [row.contactSummary,row.followUpSummary,row.detailsSummary].filter(Boolean);
-  return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
+  return [row.title+" / "+row.module,row.location,row.value,row.srValue,row.marketValueTotal,row.srRate,row.marketRate,row.settlementValue,row.area,row.builtUpSize,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
 };
 
 function makePdf(title, subtitle, rows) {
-  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[130,80,72,60,62,65,48,257];
+  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[110,55,62,55,57,48,50,57,50,50,192];
   const scale=usable/widths.reduce((a,b)=>a+b,0), ws=widths.map(w=>w*scale), xs=ws.map((_,i)=>margin+ws.slice(0,i).reduce((a,b)=>a+b,0));
   const wrap=(value,max)=>{const words=String(value||"").split(/\\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(next.length>max&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines.length?lines:["-"];};
   const prepared=rows.map(row=>{
@@ -76,13 +76,13 @@ function slideShape(id,name,text,x,y,w,h,size,bold,fill,color) {
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+xml(name)+'"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'+fillXml+'<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="45000" rIns="45000" tIns="20000" bIns="20000"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
 function makeSlide(title,subtitle,rows,page,totalPages) {
-  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",2050000],["Location",950000],["Value / Exposure",1050000],["SR Rate",850000],["Market Rate",850000],["Settlement",950000],["Area",650000],["Contacts / Follow-up",4070000]];
+  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",1400000],["Location",700000],["Value / Exposure",850000],["SR Value",850000],["Market Value",850000],["SR Rate / Unit",800000],["Market Rate / Unit",800000],["Settlement",850000],["Land Size",650000],["Built-up Size",650000],["Contacts / Follow-up",3020000]];
   const factor=usable/cols.reduce((a,c)=>a+c[1],0);let shapes="";
   shapes+=slideShape(2,"Title",title,margin,220000,usable,450000,2300,true,null,"E9FAFF");
   shapes+=slideShape(3,"Subtitle",subtitle+" | Downloaded "+timestamp(),margin,680000,usable,240000,900,false,null,"8FB5C6");
   const y0=1080000,headerH=350000,rowH=1200000;let x=margin;
   cols.forEach((col,i)=>{const w=Math.floor(col[1]*factor);shapes+=slideShape(10+i,"Header "+col[0],col[0],x,y0,w,headerH,800,true,"123D50","65F0DF");x+=w;});
-  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-");shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt,xx,y,w,rowH-25000,i===7?600:720,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
+  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-");shapes+=slideShape(30+ri*20+i,"Cell "+ri+" "+i,txt,xx,y,w,rowH-25000,i===10?560:680,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
   shapes+=slideShape(4,"Footer","AXIVESTRA | "+rows.length+" records on this slide | Page "+page+" of "+totalPages,margin,6500000,usable,180000,800,false,null,"6F94A7");
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
@@ -119,7 +119,11 @@ function makePptx(title,subtitle,rows) {
   return zipStore(files);
 }
 function save(blob,name) {
-  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  // Keep the anchor attached briefly so browsers can finish starting large Blob downloads.
+  setTimeout(()=>a.remove(),1000);
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 export function downloadIntelligencePdf(title,subtitle,rows) {
   save(makePdf(title,subtitle,rows),"AXIVESTRA-"+title.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+new Date().toISOString().slice(0,10)+".pdf");

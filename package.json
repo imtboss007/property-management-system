@@ -14,7 +14,7 @@
     "desktop:dir": "npm run build && electron-builder --dir",
     "android:sync": "npm run build && cap sync android",
     "cap:sync": "cap sync",
-    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/contact-portability.test.cjs && node scripts/personal-workspace.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs && node scripts/axivestra-visual-system.test.cjs && node scripts/company-record-pagination.test.cjs && node scripts/universal-interface.test.cjs && node scripts/workspace-backup.test.cjs && node scripts/local-first-entry.test.cjs",
+    "test": "node scripts/property-range-search.test.cjs && node scripts/whatsapp-contact-normalization.test.cjs && node scripts/contact-directory-dedup.test.cjs && node scripts/contact-portability.test.cjs && node scripts/personal-workspace.test.cjs && node scripts/device-sync.test.cjs && node scripts/indian-amount.test.mjs && node scripts/follow-ups.test.cjs && node scripts/custom-module-sync-schema.test.cjs && node scripts/report-export.test.mjs && node scripts/whatsapp-version-negotiation.test.cjs && node scripts/axivestra-visual-system.test.cjs && node scripts/company-record-pagination.test.cjs && node scripts/universal-interface.test.cjs && node scripts/workspace-backup.test.cjs && node scripts/local-first-entry.test.cjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
