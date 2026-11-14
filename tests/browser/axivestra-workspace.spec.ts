@@ -557,7 +557,6 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByText("16 matching records")).toBeVisible();
   await openSection("Follow-up Registry");
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
-  console.log("Follow-up Registry seeded cards:", JSON.stringify(await page.locator(".ax-followup-card").allInnerTexts()));
   await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
   await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
   await expect(page.getByText("15 Nov 2026").first()).toBeVisible();
