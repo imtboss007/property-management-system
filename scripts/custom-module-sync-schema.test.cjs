@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261114031500_axivestra_custom_module_sync.sql"), "utf8");
+const migration = fs.readFileSync(path.join(__dirname, "..", "supabase", "migrations", "20261114035526_axivestra_custom_module_sync.sql"), "utf8");
 const syncSource = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "supabase.ts"), "utf8");
 for (const scope of ["company_records", "personal_records"]) {
   assert.match(migration, new RegExp("alter table public\\." + scope + "\\s+drop constraint if exists " + scope + "_record_type_check", "i"));
