@@ -2478,7 +2478,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
                     name: module.name,
                     group: module.group,
                     description: module.description,
-                    fields: (moduleFields[module.name] || []).map(field => ({ key: field.key, label: field.label })),
+                    fields: (moduleFields[module.name] || customModules.find(item => item.name === module.name)?.fields || []).map(field => ({ key: field.key, label: field.label })),
                     records: moduleRecords.map(record => ({
                       id: record.id,
                       title: record.title,
