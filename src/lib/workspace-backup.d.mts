@@ -8,6 +8,7 @@ export type WorkspaceBackupCollections = {
   riskRecords: BackupRecord[];
   approvalRequests: BackupRecord[];
   auditEvents: BackupRecord[];
+  customModules?: BackupRecord[];
 };
 export type ParsedWorkspaceBackup = Partial<WorkspaceBackupCollections> & Pick<WorkspaceBackupCollections, "properties" | "contacts" | "tasks">;
 export const WORKSPACE_BACKUP_FORMAT: "AXIVESTRA_WORKSPACE_BACKUP";
