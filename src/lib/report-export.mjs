@@ -119,7 +119,11 @@ function makePptx(title,subtitle,rows) {
   return zipStore(files);
 }
 function save(blob,name) {
-  const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();
+  // Keep the anchor attached briefly so browsers can finish starting large Blob downloads.
+  setTimeout(()=>a.remove(),1000);
+  setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 export function downloadIntelligencePdf(title,subtitle,rows) {
   save(makePdf(title,subtitle,rows),"AXIVESTRA-"+title.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+new Date().toISOString().slice(0,10)+".pdf");
