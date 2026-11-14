@@ -3,7 +3,7 @@ const ascii = value => String(value ?? "").replace(/₹/g,"Rs. ").replace(/[–�
 const escPdf = value => ascii(value).replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
 const xml = value => String(value ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
 const timestamp = () => new Date().toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
-const headers = ["Record / Module","Location","Value / Exposure","SR Rate","Market Rate","Settlement","Area","Contacts / Follow-up"];
+const headers = ["Record / Module","Location","Value / Exposure","SR Value","Market Value","SR Rate / Unit","Market Rate / Unit","Settlement","Land Size","Built-up Size","Contacts / Follow-up"];
 const rowValues = row => {
   const contactLines = [
     row.primaryContact ? "Primary: "+row.primaryContact : "",
@@ -14,11 +14,11 @@ const rowValues = row => {
     row.detailsSummary || ""
   ].filter(Boolean);
   const fallback = [row.contactSummary,row.followUpSummary,row.detailsSummary].filter(Boolean);
-  return [row.title+" / "+row.module,row.location,row.value,row.srRate,row.marketRate,row.settlementValue,row.area,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
+  return [row.title+" / "+row.module,row.location,row.value,row.srValue,row.marketValueTotal,row.srRate,row.marketRate,row.settlementValue,row.area,row.builtUpSize,(row.primaryContact||row.followUpContact||row.primaryGroup||row.followUpGroup?contactLines:fallback).join("\n")];
 };
 
 function makePdf(title, subtitle, rows) {
-  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[130,80,72,60,62,65,48,257];
+  const pageW=842,pageH=595,margin=28,usable=pageW-margin*2,widths=[110,55,62,55,57,48,50,57,50,50,192];
   const scale=usable/widths.reduce((a,b)=>a+b,0), ws=widths.map(w=>w*scale), xs=ws.map((_,i)=>margin+ws.slice(0,i).reduce((a,b)=>a+b,0));
   const wrap=(value,max)=>{const words=String(value||"").split(/\\s+/).filter(Boolean),lines=[];let line="";for(const word of words){const next=line?line+" "+word:word;if(next.length>max&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines.length?lines:["-"];};
   const prepared=rows.map(row=>{

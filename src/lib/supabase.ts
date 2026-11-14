@@ -30,6 +30,7 @@ export type WorkspaceCollections = {
   riskRecords: Array<Record<string, unknown> & { id: string }>;
   approvalRequests: Array<Record<string, unknown> & { id: string }>;
   auditEvents: Array<Record<string, unknown> & { id: string }>;
+  customModules: Array<Record<string, unknown> & { id: string }>;
 };
 
 export const collectionKeys: Array<{
@@ -44,7 +45,8 @@ export const collectionKeys: Array<{
   { stateKey: "financials", storageKey: "estateflow.financials", recordType: "financial" },
   { stateKey: "riskRecords", storageKey: "estateflow.risks", recordType: "risk" },
   { stateKey: "approvalRequests", storageKey: "estateflow.approvals", recordType: "approval" },
-  { stateKey: "auditEvents", storageKey: "estateflow.auditEvents", recordType: "audit_event" }
+  { stateKey: "auditEvents", storageKey: "estateflow.auditEvents", recordType: "audit_event" },
+  { stateKey: "customModules", storageKey: "estateflow.customModules", recordType: "custom_module" }
 ];
 
 type CompanyRecordRow = {

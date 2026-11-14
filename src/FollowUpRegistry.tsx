@@ -246,8 +246,8 @@ export default function FollowUpRegistry({
       const followUpGroup=includeFollowGroup?groupLabels(item.record,"follow").join(", "):"";
       return {
         title:item.entry.description||item.recordTitle,module:item.module,location:String(item.record?.location||""),
-        value:money(item.record?.value||item.entry.amount||""),srRate:money(moneyField(item.record,"sr")),marketRate:money(moneyField(item.record,"market")),settlementValue:money(moneyField(item.record,"settlement")),
-        area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",
+        value:money(item.record?.value||item.entry.amount||""),srValue:money(item.record?.moduleData?.srTotalValue||""),marketValueTotal:money(item.record?.moduleData?.marketTotalValue||""),srRate:money(moneyField(item.record,"sr")),marketRate:money(moneyField(item.record,"market")),settlementValue:money(moneyField(item.record,"settlement")),
+        area:item.record?.areaValue?String(item.record.areaValue)+" "+(item.record.areaUnit||"sq ft"):"",builtUpSize:item.record?.moduleData?.builtUpSize?String(item.record.moduleData.builtUpSize)+" "+String(item.record.moduleData.builtUpUnit||"sq ft"):"",
         primaryContact:includePrimaryName?primary:"",
         followUpContact:includeFollowName?follow:"",
         primaryGroup,followUpGroup,
@@ -259,6 +259,10 @@ export default function FollowUpRegistry({
           "Status: "+statusOf(item)+" · Priority: "+item.entry.priority,
           item.entry.nextAction?"Next action: "+item.entry.nextAction:"",
           item.record?.status?"Record status: "+item.record.status:"",
+          item.record?.moduleData?.srTotalValue?"SR Value: "+money(item.record.moduleData.srTotalValue):"",
+          item.record?.moduleData?.marketTotalValue?"Market Value: "+money(item.record.moduleData.marketTotalValue):"",
+          item.record?.areaValue?"Land Size: "+item.record.areaValue+" "+(item.record.areaUnit||"sq ft"):"",
+          item.record?.moduleData?.builtUpSize?"Built-up Size: "+item.record.moduleData.builtUpSize+" "+(item.record.moduleData.builtUpUnit||"sq ft"):"",
           ...(item.record?(moduleFields[item.record.module]||[]).filter(field=>String(item.record?.moduleData?.[field.key]||"").trim()).map(field=>field.label+": "+(isIndianAmountLabel(field.label)?money(item.record?.moduleData?.[field.key]||""):String(item.record?.moduleData?.[field.key]))):[]),
           item.entry.notes?"Notes: "+item.entry.notes:""
         ].filter(Boolean).join("\n")

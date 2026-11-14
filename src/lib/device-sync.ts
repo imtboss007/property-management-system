@@ -1,6 +1,6 @@
 export const DEVICE_SYNC_COLLECTIONS = [
   "properties", "contacts", "whatsappGroups", "tasks",
-  "financials", "riskRecords", "approvalRequests", "auditEvents"
+  "financials", "riskRecords", "approvalRequests", "auditEvents", "customModules"
 ] as const;
 
 export type DeviceSyncCollection = typeof DEVICE_SYNC_COLLECTIONS[number];
@@ -22,7 +22,7 @@ export type DeviceSyncResult = { snapshot: DeviceSyncSnapshot; baseline: DeviceS
 
 const entityByType: Record<string, string> = {
   properties: "Property", contacts: "Contact", tasks: "Task",
-  financials: "Financial", riskRecords: "Risk", approvalRequests: "Approval"
+  financials: "Financial", riskRecords: "Risk", approvalRequests: "Approval", customModules: "CustomModule"
 };
 
 const emptyObject = <T,>(): Record<string, T> => Object.create(null) as Record<string, T>;

@@ -10,18 +10,21 @@ const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
 const compiled = { exports: {} };
 vm.runInNewContext(code, { module: compiled, exports: compiled.exports, require }, { filename });
 const { reconcileDeviceSync, emptyDeviceSyncBaseline } = compiled.exports;
-const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [] });
+const empty = () => ({ properties: [], contacts: [], whatsappGroups: [], tasks: [], financials: [], riskRecords: [], approvalRequests: [], auditEvents: [], customModules: [] });
 const pc = empty();
 pc.properties = [{ id: "p1", title: "PC property" }];
 pc.contacts = [{ id: "c1", name: "Vendor" }];
+pc.customModules = [{ id: "cm1", name: "Custom Land", fields: [] }];
 const first = reconcileDeviceSync(pc, empty(), emptyDeviceSyncBaseline(), "2026-10-29T10:00:00.000Z");
 assert.equal(first.snapshot.properties[0].title, "PC property");
 assert.equal(first.snapshot.contacts[0].name, "Vendor");
+assert.equal(first.snapshot.customModules[0].name, "Custom Land");
 assert.ok(first.snapshot.__axivestraSync.records.properties.p1.updatedAt);
 
 const phoneInitial = reconcileDeviceSync(empty(), first.snapshot, emptyDeviceSyncBaseline(), "2026-10-29T10:01:00.000Z");
 assert.equal(phoneInitial.snapshot.properties[0].title, "PC property");
 assert.equal(phoneInitial.snapshot.contacts[0].name, "Vendor");
+assert.equal(phoneInitial.snapshot.customModules[0].name, "Custom Land");
 
 const phoneEdit = { ...phoneInitial.snapshot, properties: [{ id: "p1", title: "Edited on phone" }], __axivestraSync: phoneInitial.snapshot.__axivestraSync };
 const phoneResult = reconcileDeviceSync(phoneEdit, first.snapshot, phoneInitial.baseline, "2026-10-29T10:02:00.000Z");

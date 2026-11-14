@@ -8,12 +8,14 @@ const assert = require("node:assert/strict");
   const collections = {
     properties: [make("p1")], contacts: [make("c1")], whatsappGroups: [make("g1")],
     tasks: [make("t1")], financials: [make("f1")], riskRecords: [make("r1")],
-    approvalRequests: [make("a1")], auditEvents: [make("e1")]
+    approvalRequests: [make("a1")], auditEvents: [make("e1")], customModules: [make("cm1")]
   };
 
   const created = createWorkspaceBackup(collections, "2026-11-13T00:00:00.000Z");
   assert.equal(created.format, "AXIVESTRA_WORKSPACE_BACKUP");
   assert.deepEqual(parseWorkspaceBackup(created), collections, "versioned backup round-trips every collection");
+  const previousV1 = { ...created, collections: { ...created.collections } }; delete previousV1.collections.customModules;
+  assert.deepEqual(parseWorkspaceBackup(previousV1).customModules, [], "older v1 backups import with no custom modules");
 
   const legacy = { properties: [make("old-p")], contacts: [], tasks: [], financials: [] };
   const parsedLegacy = parseWorkspaceBackup(legacy);
