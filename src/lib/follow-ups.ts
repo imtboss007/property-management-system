@@ -93,3 +93,12 @@ export function legacyRecordFollowUp(record: FollowUpRecordLike): FollowUpEntry 
     assignedAt: record.createdAt || ""
   };
 }
+
+
+/** Prefer saved follow-up entries; the legacy date is only a fallback for older records. */
+export function recordFollowUps(record: FollowUpRecordLike): FollowUpEntry[] {
+  const saved = parseFollowUps(record.moduleData);
+  if (saved.length) return saved;
+  const legacy = legacyRecordFollowUp(record);
+  return legacy ? [legacy] : [];
+}

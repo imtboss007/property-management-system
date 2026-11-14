@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
 import { CalendarClock, CheckCircle2, Clock3, Download, FileDown, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
-import { isFollowUpClosed, legacyRecordFollowUp, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
+import { isFollowUpClosed, recordFollowUps, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
 type Group = { id:string; jid:string; name:string };
@@ -92,16 +92,10 @@ export default function FollowUpRegistry({
 
   const items = useMemo<Item[]>(() => {
     const result: Item[] = [];
-    const knownRecordDates = new Set<string>();
     for (const record of properties) {
-      const explicit = parseFollowUps(record.moduleData);
-      for (const entry of explicit) {
-        result.push({ key: record.id + ":" + entry.id, source: "record", record, entry, task: null, module: record.module, recordTitle: record.title });
-        knownRecordDates.add(record.id + ":" + entry.date);
-      }
-      const legacy = legacyRecordFollowUp(record);
-      if (legacy && !knownRecordDates.has(record.id + ":" + legacy.date)) {
-        result.push({ key: record.id + ":" + legacy.id, source: "legacy", record, entry: legacy, task: null, module: record.module, recordTitle: record.title });
+      for (const entry of recordFollowUps(record)) {
+        const source = entry.id.startsWith("legacy:") ? "legacy" : "record";
+        result.push({ key: record.id + ":" + entry.id, source, record, entry, task: null, module: record.module, recordTitle: record.title });
       }
     }
     for (const task of tasks) {

@@ -76,13 +76,13 @@ function slideShape(id,name,text,x,y,w,h,size,bold,fill,color) {
   return '<p:sp><p:nvSpPr><p:cNvPr id="'+id+'" name="'+xml(name)+'"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="'+x+'" y="'+y+'"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'+fillXml+'<a:ln><a:noFill/></a:ln></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="45000" rIns="45000" tIns="20000" bIns="20000"/><a:lstStyle/>'+paragraphs+'</p:txBody></p:sp>';
 }
 function makeSlide(title,subtitle,rows,page,totalPages) {
-  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",2050000],["Location",950000],["Value / Exposure",1050000],["SR Rate",850000],["Market Rate",850000],["Settlement",950000],["Area",650000],["Contacts / Follow-up",4070000]];
+  const margin=380000,usable=12192000-margin*2,cols=[["Record / Module",1400000],["Location",700000],["Value / Exposure",850000],["SR Value",850000],["Market Value",850000],["SR Rate / Unit",800000],["Market Rate / Unit",800000],["Settlement",850000],["Land Size",650000],["Built-up Size",650000],["Contacts / Follow-up",3020000]];
   const factor=usable/cols.reduce((a,c)=>a+c[1],0);let shapes="";
   shapes+=slideShape(2,"Title",title,margin,220000,usable,450000,2300,true,null,"E9FAFF");
   shapes+=slideShape(3,"Subtitle",subtitle+" | Downloaded "+timestamp(),margin,680000,usable,240000,900,false,null,"8FB5C6");
   const y0=1080000,headerH=350000,rowH=1200000;let x=margin;
   cols.forEach((col,i)=>{const w=Math.floor(col[1]*factor);shapes+=slideShape(10+i,"Header "+col[0],col[0],x,y0,w,headerH,800,true,"123D50","65F0DF");x+=w;});
-  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-");shapes+=slideShape(30+ri*10+i,"Cell "+ri+" "+i,txt,xx,y,w,rowH-25000,i===7?600:720,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
+  rows.forEach((row,ri)=>{let xx=margin;const y=y0+headerH+ri*rowH;rowValues(row).forEach((value,i)=>{const w=Math.floor(cols[i][1]*factor),txt=ascii(value||"-");shapes+=slideShape(30+ri*20+i,"Cell "+ri+" "+i,txt,xx,y,w,rowH-25000,i===10?560:680,false,ri%2===0?"102C40":"0C2537","DDEAF0");xx+=w;});});
   shapes+=slideShape(4,"Footer","AXIVESTRA | "+rows.length+" records on this slide | Page "+page+" of "+totalPages,margin,6500000,usable,180000,800,false,null,"6F94A7");
   return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="071827"/></a:solidFill></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'+shapes+'</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
 }
