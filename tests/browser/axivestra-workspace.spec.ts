@@ -365,13 +365,37 @@ test("desktop and mobile: all report views independently include or omit contact
     }
   };
   const pptxText = async (label: string) => {
-    const pending = page.waitForEvent("download");
-    await page.getByRole("button", { name: label, exact: true }).click();
-    const download = await pending;
-    expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
-    const file = await download.path();
-    if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
-    return readFileSync(file).toString("utf8");
+    const pageErrors: string[] = [];
+    const consoleErrors: string[] = [];
+    const onPageError = (error: Error) => pageErrors.push(error.stack || error.message);
+    const onConsole = (message: import("@playwright/test").ConsoleMessage) => {
+      if (message.type() === "error") consoleErrors.push(message.text());
+    };
+    page.on("pageerror", onPageError);
+    page.on("console", onConsole);
+    try {
+      const button = page.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeEnabled();
+      const pending = page.waitForEvent("download", { timeout: 10000 });
+      await button.click();
+      const download = await pending;
+      expect(download.suggestedFilename()).toMatch(/\.pptx$/i);
+      const file = await download.path();
+      if (!file) throw new Error("The browser did not provide the generated PowerPoint file.");
+      return readFileSync(file).toString("utf8");
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        pptButtons: Array.from(document.querySelectorAll("button")).filter(button => button.textContent?.includes("Download PPT")).map(button => ({ text: button.textContent, disabled: button.disabled })),
+        downloadAnchors: Array.from(document.querySelectorAll("a[download]")).map(anchor => ({ name: anchor.getAttribute("download"), href: anchor.getAttribute("href") }))
+      }));
+      throw new Error("PPTX export failed: " + (error instanceof Error ? error.message : String(error))
+        + " | pageErrors=" + pageErrors.join(" || ")
+        + " | consoleErrors=" + consoleErrors.join(" || ")
+        + " | diagnostics=" + JSON.stringify(diagnostics));
+    } finally {
+      page.off("pageerror", onPageError);
+      page.off("console", onConsole);
+    }
   };
   const expectExcluded = (content: string) => {
     for (const value of ["Primary QA Contact", "Follow-up QA Contact", "Primary QA Group", "Follow-up QA Group"]) {
@@ -533,6 +557,7 @@ test("desktop and mobile: every module formats crores and opens table details, h
   await expect(page.getByText("16 matching records")).toBeVisible();
   await openSection("Follow-up Registry");
   await expect(page.getByRole("heading",{name:"Follow-up Registry"})).toBeVisible();
+  console.log("Follow-up Registry seeded cards:", JSON.stringify(await page.locator(".ax-followup-card").allInnerTexts()));
   await expect(page.locator(".ax-followup-banner .banner-aside strong")).toContainText("16");
   await expect(page.getByText("QA appointment · Property Sale",{exact:true}).first()).toBeVisible();
   await expect(page.getByText("15 Nov 2026").first()).toBeVisible();
