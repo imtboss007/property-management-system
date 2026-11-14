@@ -301,7 +301,7 @@ assert.match(indianAmount, /formatIndianCompactAmount/, "A shared compact Indian
 assert.match(indianAmount, /10000000/, "The compact INR formatter must use the Indian crore boundary.");
 assert.match(mw, /formatIndianCompactAmount/, "Module records must render INR using the shared formatter.");
 assert.match(mw, /parseIndianAmount/, "Module KPIs and charts must parse legacy crore/lakh amounts as INR.");
-assert.match(mw, /<th>SR rate<\/th>[\s\S]*?<th>Market rate<\/th>[\s\S]*?<th>Settlement value<\/th>/, "Module table must show SR rate, market rate and settlement value.");
+assert.match(mw, /<th>SR rate \/ unit<\/th>[\s\S]*?<th>SR Value<\/th>[\s\S]*?<th>Market rate \/ unit<\/th>[\s\S]*?<th>Market Value<\/th>[\s\S]*?<th>Settlement Value<\/th>[\s\S]*?<th>Land Size<\/th>[\s\S]*?<th>Built-up Size<\/th>/, "Module table must distinguish unit rates from total values and show both land and built-up size.");
 assert.match(mw, /downloadIntelligencePdf[\s\S]*?downloadIntelligencePptx/, "Every module must expose PDF and PPT export actions.");
 assert.match(app, /<IntelligenceHubExplorer[\s\S]*?groups=\{savedWhatsAppGroups\}/, "The Intelligence Hub must receive saved records, contacts and WhatsApp groups.");
 assert.match(hubExplorer, /Area \/ size range/, "Intelligence Hub must filter area using from/to values.");
