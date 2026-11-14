@@ -38,4 +38,4 @@ assert.deepEqual(Array.from(recordFollowUps(legacyOnly), item => item.id), ["leg
 const none = { ...base, nextFollowUpDate: "", moduleData: {} };
 assert.equal(recordFollowUps(none).length, 0);
 
-process.stdout.write("Follow-up precedence regression tests passed.\\n");
+process.stdout.write("Follow-up precedence regression tests passed.\n");

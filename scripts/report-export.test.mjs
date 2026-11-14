@@ -41,7 +41,7 @@ try {
   }]);
 
   assert.equal(clicked, true, "PPTX export must trigger a download");
-  assert.match(capturedAnchor.download, /\\.pptx$/i);
+  assert.match(capturedAnchor.download, /\.pptx$/i);
   assert.ok(capturedBlob instanceof Blob);
   assert.equal(capturedBlob.type, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
   const bytes = Buffer.from(await capturedBlob.arrayBuffer());
@@ -51,7 +51,7 @@ try {
   assert.ok(bytes.includes(Buffer.from("ppt/slides/slide1.xml")), "PPTX package must contain its first slide");
   assert.ok(bytes.includes(Buffer.from("SR Value")), "PPTX slide must include the added valuation fields");
   assert.ok(bytes.includes(Buffer.from("Built-up Size")), "PPTX slide must include built-up size");
-  process.stdout.write("PowerPoint 11-column export regression tests passed.\\n");
+  process.stdout.write("PowerPoint 11-column export regression tests passed.\n");
 } finally {
   URL.createObjectURL = originalCreateObjectURL;
   URL.revokeObjectURL = originalRevokeObjectURL;
