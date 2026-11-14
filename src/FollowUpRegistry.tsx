@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { formatIndianCompactAmount, isIndianAmountLabel, parseIndianAmount } from "./lib/indian-amount.mjs";
 import { downloadIntelligencePdf, downloadIntelligencePptx } from "./lib/report-export.mjs";
 import { CalendarClock, CheckCircle2, Clock3, Download, FileDown, Filter, ListTodo, MessageCircle, Pencil, Plus, Search, Users } from "lucide-react";
-import { isFollowUpClosed, recordFollowUps, parseFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
+import { isFollowUpClosed, recordFollowUps, type FollowUpEntry, type FollowUpPriority, type FollowUpRecordLike } from "./lib/follow-ups";
 
 type Contact = { id: string; name: string; phone?: string; role?: string };
 type Group = { id:string; jid:string; name:string };
