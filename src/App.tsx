@@ -433,6 +433,10 @@ const uid = () => {
     return (character === "x" ? random : (random & 0x3 | 0x8)).toString(16);
   });
 };
+const readDeviceCacheEnabled = (): boolean => {
+  try { return localStorage.getItem("axivestra.deviceCache.enabled") !== "false"; }
+  catch { return true; }
+};
 const storageKey = (key: string): string => {
   if (!key.startsWith("estateflow.")) return key;
   try {
@@ -443,11 +447,16 @@ const storageKey = (key: string): string => {
   } catch { return key; }
 };
 const load = <T,>(key: string, fallback: T): T => {
-  try { const value = localStorage.getItem(storageKey(key)); return value ? JSON.parse(value) as T : fallback; }
-  catch { return fallback; }
+  try {
+    if (key.startsWith("estateflow.") && !readDeviceCacheEnabled()) return fallback;
+    const value = localStorage.getItem(storageKey(key)); return value ? JSON.parse(value) as T : fallback;
+  } catch { return fallback; }
 };
 const saveLocal = (key: string, value: unknown) => {
-  try { localStorage.setItem(storageKey(key), JSON.stringify(value)); } catch { /* browser quota errors are handled by explicit backups */ }
+  try {
+    if (key.startsWith("estateflow.") && !readDeviceCacheEnabled()) return;
+    localStorage.setItem(storageKey(key), JSON.stringify(value));
+  } catch { /* browser quota errors are handled by explicit backups */ }
 };
 
 type SyncSnapshot = DeviceSyncSnapshot;
@@ -616,6 +625,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const contactImportInputRef = useRef<HTMLInputElement>(null);
   const [contactImportBusy, setContactImportBusy] = useState(false);
   const [rangeSort, setRangeSort] = useState<"best" | "price-low" | "price-high" | "area-low" | "area-high">("best");
+  const [deviceCacheEnabled, setDeviceCacheEnabled] = useState<boolean>(() => readDeviceCacheEnabled());
   const [properties, setProperties] = useState<PropertyRecord[]>(() => load("estateflow.properties", []));
   const [customModules, setCustomModules] = useState<CustomModuleDefinition[]>(() => load("estateflow.customModules", []));
   const [customModuleEditorOpen, setCustomModuleEditorOpen] = useState(false);
@@ -1712,6 +1722,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             }
             return Array.from(byId.values());
           };
+          // All collections are parsed and validated before any state changes are committed. The preview and explicit import strategy are completed before applying any rows.
           setProperties(current => combine(current, collections.properties as unknown as PropertyRecord[], strategy));
           setContacts(current => combine(current, collections.contacts as unknown as ContactRecord[], strategy));
           setTasks(current => combine(current, collections.tasks as unknown as TaskRecord[], strategy));
@@ -1764,6 +1775,49 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
   const archiveCustomModule = (module: CustomModuleDefinition) => {
     setCustomModules(previous => previous.map(item => item.id === module.id ? { ...item, archived: !item.archived, updatedAt: new Date().toISOString() } : item));
     setNotice(module.archived ? "Custom module restored." : "Module archived. Existing records remain in All Properties; no records were deleted.");
+  };
+  const setDeviceCacheMode = (enabled: boolean) => {
+    if (enabled === deviceCacheEnabled) return;
+    if (!enabled) {
+      if (!company && !personalUserId) {
+        setNotice("Local-only workspace data needs its local cache. Connect and sync a cloud account before disabling this device cache.");
+        return;
+      }
+      const lastSync = Date.parse(cloudLastSyncedAt);
+      if (!navigator.onLine || !Number.isFinite(lastSync) || Date.now() - lastSync > 5 * 60 * 1000) {
+        setNotice("Run Sync now and wait for a recent successful cloud sync before disabling local storage.");
+        return;
+      }
+      if (!window.confirm("Disable the local record cache on this device? The cloud workspace is preserved. This clears only this account's local record cache; the IndexedDB document vault is kept. You must be online to load records on this device.")) return;
+      try {
+        localStorage.setItem("axivestra.deviceCache.enabled", "false");
+        const keys = ["estateflow.properties","estateflow.customModules","estateflow.contacts","estateflow.whatsappGroups","estateflow.tasks","estateflow.financials","estateflow.riskRecords","estateflow.approvalRequests","estateflow.auditEvents"];
+        keys.forEach(key => localStorage.removeItem(storageKey(key)));
+        setDeviceCacheEnabled(false);
+        setNotice("Local record cache disabled on this device. Cloud records and the document vault were not deleted.");
+      } catch {
+        setNotice("Could not disable local cache because this browser blocked local storage changes.");
+      }
+      return;
+    }
+    try {
+      localStorage.setItem("axivestra.deviceCache.enabled", "true");
+      setDeviceCacheEnabled(true);
+      saveLocal("estateflow.properties", properties);
+      saveLocal("estateflow.customModules", customModules);
+      saveLocal("estateflow.contacts", contacts);
+      saveLocal("estateflow.whatsappGroups", savedWhatsAppGroups);
+      saveLocal("estateflow.tasks", tasks);
+      saveLocal("estateflow.financials", financials);
+      saveLocal("estateflow.riskRecords", riskRecords);
+      saveLocal("estateflow.approvalRequests", approvalRequests);
+      saveLocal("estateflow.auditEvents", auditEvents);
+      setNotice("Local record cache enabled on this device.");
+    } catch {
+      setDeviceCacheEnabled(false);
+      localStorage.setItem("axivestra.deviceCache.enabled", "false");
+      setNotice("Could not enable local cache on this device. Check browser storage permissions.");
+    }
   };
   const go = (section: Section) => { setActive(section); setMobileMenu(false); setNotice(""); if (section !== "WhatsApp Automation") setWhatsAppPrefill(null); };
   const openPropertyForm = (record: PropertyRecord | null = null) => { setEditingProperty(record); setShowPropertyForm(true); };
@@ -2846,7 +2900,7 @@ export default function App({ company, userId, personalUserId, onSignOut, onSwit
             {approvalRequests.length ? <div className="record-list">{[...approvalRequests].sort((a,b)=>b.requestedAt.localeCompare(a.requestedAt)).map(record=><article className="record-card" key={record.id}><div className="record-symbol approval-symbol"><ClipboardCheck size={20}/></div><div className="record-main"><h3>{record.title}</h3><p>{record.area}{record.entity ? <><span>•</span>{record.entity}</> : null}</p><small>Requested by {record.requestedBy || "Unspecified"}{record.approver ? ` · Reviewer: ${record.approver}` : ""} · {new Date(record.requestedAt).toLocaleDateString("en-IN")}</small><small>Priority: {record.priority}</small>{record.rationale&&<small>Rationale: {record.rationale}</small>}{record.decisionNotes&&<small>Decision: {record.decisionNotes}</small>}</div><div className="record-side"><span className={`status-pill approval-${record.status}`}>{record.status}</span>{record.status==="pending"&&<><button className="decision-button approve" onClick={()=>decideApproval(record,"approved")}>Approve</button><button className="decision-button reject" onClick={()=>decideApproval(record,"rejected")}>Reject</button></>}<button className="delete-button" onClick={()=>deleteApproval(record.id)} aria-label="Delete approval request"><Trash2 size={15}/></button></div></article>)}</div> : <Empty icon={<ClipboardCheck size={22}/>} title="No approval requests yet" text="Create a request to document review for a capital, credit, property, settlement or legal action." action="Request approval" onClick={()=>setShowApprovalForm(true)}/>}
           </section>}
           {active === "Settings" && <section className="data-panel"><div className="section-heading"><div><h2>Settings</h2><p>Workspace data and local backup</p></div></div><div className="settings-card"><h3>Local data backup</h3><p>{company ? "Business records sync through your AXIVESTRA account. Document files sync with your linked Windows PC while both devices are connected." : personalUserId ? "Personal records sync privately through your AXIVESTRA account across any signed-in phone or PC. Document file bytes remain in the local vault and are not included in personal cloud record sync." : "Your workspace records are saved locally on this device. Document file bytes are stored separately in the local vault and can be backed up from Documents."}</p><button type="button" className="secondary-button" onClick={exportWorkspaceBackup}>Export workspace JSON</button><button type="button" className="secondary-button" onClick={importWorkspaceBackup}>Import workspace JSON</button><button type="button" className="secondary-button" onClick={exportWorkspaceCsv}>Export records CSV</button></div>
-          <div className="settings-card"><h3>Device storage & cross-device sync</h3><p>AXIVESTRA keeps a device-local cache for local-first/offline use. When signed in, the authenticated cloud workspace reconciles records across PC, Android and web. Local-only data remains on this device until exported or connected to an account.</p><div className="settings-actions"><span className="sync-status">{company || personalUserId ? (cloudSyncStatus || "Cloud sync status is being checked.") : "Local-only mode · no cloud account connected"}</span><button type="button" className="secondary-button" disabled={cloudSyncBusy || (!company && !personalUserId)} onClick={() => { if (cloudSyncRunRef.current) void cloudSyncRunRef.current(true); }}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button></div>{cloudLastSyncedAt && <small>Last successful cloud sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}</div>
+          <div className="settings-card"><h3>Device storage & cross-device sync</h3><p>AXIVESTRA keeps a device-local cache for local-first/offline use. When signed in, the authenticated cloud workspace reconciles records across PC, Android and web. Local-only data remains on this device until exported or connected to an account.</p><label className="settings-cache-toggle"><input type="checkbox" checked={deviceCacheEnabled} onChange={event => setDeviceCacheMode(event.target.checked)} /> <span><strong>Enable local record cache on this device</strong><small>Stores signed-in record data locally for offline viewing. Turning it off requires a successful sync within the last 5 minutes; cloud records and the document vault remain intact.</small></span></label><div className="settings-actions"><span className="sync-status">{company || personalUserId ? (cloudSyncStatus || "Cloud sync status is being checked.") : "Local-only mode · no cloud account connected"}</span><button type="button" className="secondary-button" disabled={cloudSyncBusy || (!company && !personalUserId)} onClick={() => { if (cloudSyncRunRef.current) void cloudSyncRunRef.current(true); }}>{cloudSyncBusy ? "Syncing…" : "Sync now"}</button></div>{cloudLastSyncedAt && <small>Last successful cloud sync: {new Date(cloudLastSyncedAt).toLocaleString("en-IN")}</small>}</div>
           <div className="settings-card"><div className="section-heading"><div><h3>Custom module manager</h3><p>Create reusable workspaces and custom fields. Rename updates linked records; archive hides a module without deleting its records.</p></div><button type="button" className="primary-button" onClick={() => openCustomModuleEditor()}><Plus size={15}/> Create New Module</button></div>
             {customModuleEditorOpen && <form className="member-access-form" onSubmit={event => { event.preventDefault(); saveCustomModuleDefinition(); }}>
               <label>Module name<input required value={customModuleName} onChange={event=>setCustomModuleName(event.target.value)} placeholder="e.g. Industrial Property"/></label>
