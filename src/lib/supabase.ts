@@ -262,6 +262,10 @@ export async function syncPersonalWorkspace(
     risk: "Risk", approval: "Approval"
   };
   const localChangedAt = (recordType: string, recordId: string, payload: SyncRow): number => {
+    if (recordType === "custom_module") {
+      const stamp = Date.parse(String(payload.updatedAt || payload.createdAt || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
     if (recordType === "audit_event") {
       const stamp = Date.parse(String(payload.at || ""));
       if (Number.isFinite(stamp)) return stamp;
@@ -330,7 +334,9 @@ export async function syncPersonalWorkspace(
         else if (!localChanged && !remoteChanged) selected = localPayload;
         else {
           const localStamp = localChangedAt(item.recordType, id, localPayload);
-          const remoteStamp = Date.parse(remoteRow.updatedAt) || 0;
+          const remoteStamp = item.recordType === "custom_module"
+            ? Date.parse(String(remoteRow.payload.updatedAt || remoteRow.payload.createdAt || remoteRow.updatedAt)) || 0
+            : Date.parse(remoteRow.updatedAt) || 0;
           selected = localStamp > remoteStamp ? localPayload : remoteRow.payload;
         }
       }
@@ -616,6 +622,10 @@ export async function syncCompanyWorkspace(
     risk: "Risk", approval: "Approval"
   };
   const localChangedAt = (recordType: string, recordId: string, payload: SyncRow): number => {
+    if (recordType === "custom_module") {
+      const stamp = Date.parse(String(payload.updatedAt || payload.createdAt || ""));
+      if (Number.isFinite(stamp)) return stamp;
+    }
     if (recordType === "audit_event") {
       const stamp = Date.parse(String(payload.at || ""));
       if (Number.isFinite(stamp)) return stamp;
@@ -710,7 +720,9 @@ export async function syncCompanyWorkspace(
           // Both sides changed since the baseline. Prefer the side with the later edit time;
           // cloud updated_at is the last successful server sync time. Ties safely prefer remote.
           const localStamp = localChangedAt(item.recordType, id, localPayload);
-          const remoteStamp = Date.parse(remoteRow.updatedAt) || 0;
+          const remoteStamp = item.recordType === "custom_module"
+            ? Date.parse(String(remoteRow.payload.updatedAt || remoteRow.payload.createdAt || remoteRow.updatedAt)) || 0
+            : Date.parse(remoteRow.updatedAt) || 0;
           selected = localStamp > remoteStamp ? localPayload : remoteRow.payload;
         }
       }
